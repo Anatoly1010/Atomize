@@ -5,7 +5,6 @@ import time
 from PyQt5 import QtWidgets, uic, QtCore, QtGui
 from PyQt5.QtWidgets import QFileDialog #QMessageBox
 from PyQt5.QtGui import QColor 
-import pyqtplotter
 
 # Some variables
 path = ''
