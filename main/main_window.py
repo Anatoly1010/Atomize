@@ -3,7 +3,7 @@ import os
 import time
 from PyQt5 import QtWidgets, uic, QtCore, QtGui
 from PyQt5.QtWidgets import QFileDialog #QMessageBox
-from PyQt5.QtGui import QColor
+from PyQt5.QtGui import QColor 
 
 # Some variables
 path = ''
