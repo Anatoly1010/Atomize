@@ -1,4 +1,4 @@
-import Lakeshore335 as ls335
+import device_modules.Lakeshore335 as ls335
 import numpy as np
 import matplotlib.pyplot as plt
 import time
