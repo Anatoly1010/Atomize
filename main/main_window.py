@@ -76,7 +76,7 @@ class MainWindow(QtWidgets.QMainWindow):
         pass
 
     def edit_file(self):
-        self.process_text_editor.setArguments([script])
+        self.process_text_editor.setArguments(['-i',script])
         self.process_text_editor.start()
     # Function for Open Script
     def open_file(self, filename):
