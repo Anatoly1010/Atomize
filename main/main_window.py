@@ -1,9 +1,9 @@
-import sys
 import os
+import sys
 import time
+from PyQt5.QtGui import QColor
+from PyQt5.QtWidgets import QFileDialog  # QMessageBox
 from PyQt5 import QtWidgets, uic, QtCore, QtGui
-from PyQt5.QtWidgets import QFileDialog #QMessageBox
-from PyQt5.QtGui import QColor 
 
 # Some variables
 path = ''
@@ -110,6 +110,7 @@ def main():
     main = MainWindow()
     main.show()
     sys.exit(app.exec_())
+
 
 if __name__ == '__main__':
     main()

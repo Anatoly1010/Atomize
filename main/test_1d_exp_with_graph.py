@@ -1,11 +1,10 @@
-# need a better way here. To load a file from different folder
 import sys
-
+import time
+import numpy as np
+import matplotlib.pyplot as plt
 import plot_modules.matplotlibplotter as plotter
 
-import numpy as np
-import time
-import matplotlib.pyplot as plt
+
 
 d = plotter.plot_1d()
 # d2 = plotter.plot_1d();
