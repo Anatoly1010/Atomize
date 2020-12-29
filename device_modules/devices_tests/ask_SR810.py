@@ -1,4 +1,4 @@
-import SR_810 as sr_810
+import device_modules.SR_810 as sr_810
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime

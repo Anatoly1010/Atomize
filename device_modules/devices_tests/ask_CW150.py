@@ -1,4 +1,4 @@
-import CWplus150 as cw150
+import device_modules.CWplus150 as cw150
 import numpy as np
 import matplotlib.pyplot as plt
 import serial

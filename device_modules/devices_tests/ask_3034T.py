@@ -1,4 +1,4 @@
-import keysight_3034T as dsox3034t
+import device_modules.keysight_3034T as dsox3034t
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime

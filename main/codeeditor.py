@@ -1,10 +1,10 @@
 # mainly from https://gist.github.com/eyllanesc/e614ea9689e025c16b10fc92b68f0afd
-# with a little bit of appereance changes
+# with a little bit of appearance changes
 
-from PyQt5.QtWidgets import QWidget, QPlainTextEdit, QApplication, QTextEdit
 from PyQt5 import QtGui
+from PyQt5.QtCore import QRect, pyqtSlot, Qt, QSize
 from PyQt5.QtGui import QColor, QTextFormat, QPainter, QFont
-from PyQt5.QtCore import QRect, pyqtSlot, Qt
+from PyQt5.QtWidgets import QWidget, QPlainTextEdit, QApplication, QTextEdit
 
 
 class LineNumberArea(QWidget):

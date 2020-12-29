@@ -1,8 +1,9 @@
+import gc
 import pyvisa
 import numpy as np
 from datetime import datetime
-import gc
 from pyvisa.constants import StopBits, Parity
+
 
 def connection():
 	

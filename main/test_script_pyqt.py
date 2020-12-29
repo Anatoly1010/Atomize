@@ -1,12 +1,10 @@
-#need a better way here. To load a file from different folder
 import sys
-sys.path.append("/home/anatoly/atomize/plot_modules/")
-
-from pyqtgraph.Qt import QtCore, QtGui
+import time
 import threading
 import numpy as np
-import time
-import pyqtplotter as plotter
+from pyqtgraph.Qt import QtCore, QtGui
+import plot_modules.pyqtplotter as plotter
+
 
 xdata = []
 xdata2 = []

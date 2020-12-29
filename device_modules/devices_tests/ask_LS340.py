@@ -1,4 +1,4 @@
-import Lakeshore340 as ls340
+import device_modules.Lakeshore340 as ls340
 import numpy as np
 import time
 import pyvisa
