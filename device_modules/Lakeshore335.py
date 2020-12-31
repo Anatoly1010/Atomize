@@ -1,97 +1,128 @@
 import time
 import serial
 import gc
+import os
 import pyvisa
+import configparser
 from pyvisa.constants import StopBits, Parity
+import Gpib
+import config.config_utils as cutil
 
-loop = 1;		# specify the loop used
+# in tc_heater_range() check answer = int(device_query('RANGE?')) and tc_heater answer = float(device_query('HTR?'))
+# maybe we need to indicate a loop for them
 
+#### Inizialization
+# setting path to *.ini file
+path_current_directory = os.path.dirname(__file__)
+path_config_file = os.path.join(path_current_directory, 'config','lakeshore335_config.ini')
+
+# configuration data
+interface, timeout, loop, board_address, gpib_address, serial_address, baudrate, databits, parity, stopbits, write_termination, read_termination = cutil.read_conf_util(path_config_file)
+
+#### Basic interaction functions
 def connection():
+	global status_flag
+	global device
 	
-	global c
-	global temp_controller
-
-	rm = pyvisa.ResourceManager()
-	
-	try:
-		temp_controller = rm.open_resource('ASRL/dev/ttyUSB1::INSTR',read_termination='', write_termination='\r\n', baud_rate = 57600, data_bits = 7, parity=Parity.odd, stop_bits=StopBits.one)
+	if interface == 'gpib':
 		try:
-			c = 1;
-			temp_controller_query('*IDN?')
+			device = Gpib.Gpib(board_address, gpib_address)
+			try:
+				# test should be here
+				status_flag = 1;
+				device_query('*IDN?')
+			except pyvisa.VisaIOError:
+				status_flag = 0;	
 		except pyvisa.VisaIOError:
-			c = 0;	
-	except pyvisa.VisaIOError:
-		print("No connection")
-		temp_controller.close()
-		c = 0
+			print("No connection")
+			device.close()
+			status_flag = 0
 
+	elif interface == 'rs232':
+		try:
+			rm = pyvisa.ResourceManager()
+			device = rm.open_resource(serial_address,
+					read_termination=read_termination, write_termination=write_termination, baud_rate = baudrate,
+					data_bits = databits, parity=Parity.one, stop_bits=stopbits)
+			device.timeout = timeout; # in ms
+			try:
+				# test should be here
+				status_flag = 1;
+				device_query('*IDN?')
+			except:
+				pass
+		except pyvisa.VisaIOError:
+			print("No connection")
+			device.close()
+			status_flag = 0
 def close_connection():
-	c = 0;
-	temp_controller.close()
+	status_flag = 0;
+	#device.close()
 	gc.collect()
-
-def temp_controller_write(command):
-	if c==1:
-		temp_controller.write(command)
+def device_write(command):
+	if status_flag==1:
+		command = str(command)
+		device.write(command)
 	else:
 		print("No Connection")
-
-def temp_controller_query(command):
-	if c == 1:
-		answer = temp_controller.query(command)
+def device_query(command):
+	if status_flag == 1:
+		if interface == 'gpib':
+			device.write(command)
+			time.sleep(0.05)
+			answer = device.read()
+		elif interface == 'rs232':
+			answer = device.query(command)
 		return answer
 	else:
 		print("No Connection")
 
-def read_temp(channel):
+#### Device specific functions
+def tc_read_temp(channel):
 	if channel=='A':
 		try:
-			answer = float(temp_controller_query('KRDG? A'))
+			answer = float(device_query('KRDG? A'))
 		except TypeError:
 			answer = 'No Connection';
 		return answer
 	elif channel=='B':
 		try:
-			answer = float(temp_controller_query('KRDG? B'))
+			answer = float(device_query('KRDG? B'))
 		except TypeError:
 			answer = 'No Connection';
 		return answer
 	else:
-		print("Invalid Argument")
-	
-def set_temp(*temp):
+		print("Invalid Argument")	
+def tc_set_temp(*temp):
 
 	if len(temp)==1:
 		temp = float(temp[0]);
 		if temp < 330 and temp > 0.5:
-			temp_controller.write('SETP '+ str(loop) + ', ' + str(temp))
+			device.write('SETP '+ str(loop) + ', ' + str(temp))
 		else:
 			print("Invalid Argument")
 	elif len(temp)==0:
 		try:
-			answer = float(temp_controller_query('SETP? '+ str(loop)))
+			answer = float(device_query('SETP? '+ str(loop)))
 		except TypeError:
 			answer = 'No Connection';
 		return answer	
 	else:
 		print("Invalid Argument")
-
-
-def heater_range(*heater):
-
+def tc_heater_range(*heater):
 	if len(heater)==1:
 		heater = heater[0];
 		if heater == '50W':
-			temp_controller_write('RANGE ' + str(loop) + ', ' + str(3))
+			device_write('RANGE ' + str(loop) + ', ' + str(3))
 		elif heater == '5W':
-			temp_controller_write('RANGE ' + str(loop) + ', ' + str(2))
+			device_write('RANGE ' + str(loop) + ', ' + str(2))
 		elif heater == '0.5W':
-			temp_controller_write('RANGE ' + str(loop) + ', ' + str(1))
+			device_write('RANGE ' + str(loop) + ', ' + str(1))
 		elif heater == 'Off':
-			temp_controller_write('RANGE ' + str(loop) + ', ' + str(0))
+			device_write('RANGE ' + str(loop) + ', ' + str(0))
 	elif len(heater)==0:
 		try:
-			answer = int(temp_controller_query('RANGE?'))
+			answer = int(device_query('RANGE?'))
 		except TypeError:
 			answer = 'No Connection';
 		if answer == 3:
@@ -105,10 +136,8 @@ def heater_range(*heater):
 		return answer
 	else:
 		print("Invalid Argument")								
-
-def heater():
-
-	answer1 = heater_range()
-	answer = float(temp_controller_query('HTR?'))
+def tc_heater():
+	answer1 = tc_heater_range()
+	answer = float(device_query('HTR?'))
 	full_answer = [answer, answer1]
 	return full_answer

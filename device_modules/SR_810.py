@@ -27,7 +27,6 @@ def close_connection():
 	rm.close()
 	gc.collect()
 
-
 def lock_in_write(command):
 	#c, scope = connection()
 	if c==1:
@@ -48,7 +47,6 @@ def lock_in_read():
 		return answer
 	else:
 		print("No Connection")
-
 
 def lock_in_modulation_frequency(*freq):
 	
@@ -124,13 +122,11 @@ def lock_in_amplitude(*ampl):
 		return amplitude
 	else:
 		print("Invalid Argument")
-
 def lock_in_signal():
 
 	x = 1000000*float(lock_in_query('OUTP? 3'))									##########
 	#lock_in_read()
 	return x
-
 def lock_in_signal_x_y_r():
 
 	a_string = lock_in_query('SNAP? 1,2,3')									##########
@@ -140,7 +136,6 @@ def lock_in_signal_x_y_r():
 	y = 1000000*list_of_floats[1]
 	r = 1000000*list_of_floats[2]
 	return x, y, r
-
 def lock_in_noise_y():
 
 	y_noise = 1000000*float(lock_in_query('OUTR? 2'))									##########

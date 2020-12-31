@@ -10,4 +10,4 @@ plotter = LivePlotClient()
 xs = np.linspace(0, 9, 10)
 for val in np.exp(xs):
     plotter.append_y('appending exp', val, start_step=(xs[0], xs[1]-xs[0]), label='up')
-    #time.sleep(0.1)
+    time.sleep(0.1)

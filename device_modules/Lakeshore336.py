@@ -11,7 +11,7 @@ import config.config_utils as cutil
 #### Inizialization
 # setting path to *.ini file
 path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','lakeshore340_config.ini')
+path_config_file = os.path.join(path_current_directory, 'config','lakeshore336_config.ini')
 
 # configuration data
 interface, timeout, loop, board_address, gpib_address, serial_address, baudrate, databits, parity, stopbits, write_termination, read_termination = cutil.read_conf_util(path_config_file)
@@ -58,6 +58,7 @@ def close_connection():
 	gc.collect()
 def device_write(command):
 	if status_flag==1:
+		command = str(command)
 		device.write(command)
 	else:
 		print("No Connection")
@@ -100,11 +101,12 @@ def tc_read_temp(channel):
 			answer = 'No Connection';
 		return answer
 	else:
-		print("Invalid Argument")
+		print("Invalid Argument")	
 def tc_set_temp(*temp):
+
 	if len(temp)==1:
 		temp = float(temp[0]);
-		if temp < 310 and temp > 0.5:
+		if temp < 330 and temp > 0.5:
 			device.write('SETP '+ str(loop) + ', ' + str(temp))
 		else:
 			print("Invalid Argument")
@@ -117,23 +119,34 @@ def tc_set_temp(*temp):
 	else:
 		print("Invalid Argument")
 def tc_heater_range(*heater):
+
 	if len(heater)==1:
 		heater = heater[0];
-		if heater == '10W':
-			device_write('RANGE ' + str(5))
-		elif heater == '1W':
-			device_write('RANGE ' + str(4))
-		elif heater == 'Off':
-			device_write('RANGE ' + str(0))
+		if loop == 1 or loop == 2:
+			if heater == '50W':
+				device_write('RANGE ' + str(loop) + ', ' + str(3))
+			elif heater == '5W':
+				device_write('RANGE ' + str(loop) + ', ' + str(2))
+			elif heater == '0.5W':
+				device_write('RANGE ' + str(loop) + ', ' + str(1))
+			elif heater == 'Off':
+				device_write('RANGE ' + str(loop) + ', ' + str(0))
+		elif loop == 3 or loop == 4:
+			if heater == 'On':
+				device_write('RANGE ' + str(loop) + ', ' + str(1))
+			elif heater == 'Off':
+				device_write('RANGE ' + str(loop) + ', ' + str(0))
 	elif len(heater)==0:
 		try:
 			answer = int(device_query('RANGE?'))
 		except TypeError:
 			answer = 'No Connection';
-		if answer == 5:
-			answer = '10 W'
-		if answer == 4:
-			answer = '1 W'
+		if answer == 3:
+			answer = '50 W'
+		if answer == 2:
+			answer = '5 W'
+		if answer == 1:
+			answer = '0.5 W'
 		if answer == 0:
 			answer = 'Off'
 		return answer
@@ -141,9 +154,6 @@ def tc_heater_range(*heater):
 		print("Invalid Argument")								
 def tc_heater():
 	answer1 = tc_heater_range()
-	try:
-		answer = float(device_query('HTR?'))
-	except TypeError:
-		answer = 'No Connection';
+	answer = float(device_query('HTR?'))
 	full_answer = [answer, answer1]
-	return full_answe
+	return full_answer
