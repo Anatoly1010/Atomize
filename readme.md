@@ -10,8 +10,9 @@ A. Modules/Connection/Config
 - Write a detailed instruction how to install gpib library on Linux. Test gpib library on windows.
 
 B. Liveplot
-- An issue with append_y() when run from a test experimental script. The workaround is to add a dummy graph append_y. Like:
+- An issue with append_y() when run from a test experimental script. The workaround is to add a dummy graph after append_y. Like:
 plotter.append_y('test', -val, start_step=(xs[0], xs[1]-xs[0]), label='down')
+
 plotter.plot_xy('test',[0],[0])
 - Need a way to stop executing of experimental script from the main window of liveplot without closing it
 - Need a way to save data from plots without using an internal pyqtgraph widget or at least check how 2D data looks like
