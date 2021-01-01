@@ -1,11 +1,8 @@
 import time
-import serial
 import gc
 import os
 import pyvisa
-import configparser
 from pyvisa.constants import StopBits, Parity
-import Gpib
 import config.config_utils as cutil
 
 #### Inizialization
@@ -16,6 +13,9 @@ path_config_file = os.path.join(path_current_directory, 'config','lakeshore331_c
 # configuration data
 config = cutil.read_conf_util(path_config_file)
 loop = config['loop'] # information about the loop used
+
+# auxilary dictionaries
+heater_dict = {'50 W': 3, '5 W': 2, '0.5 W': 1, 'Off': 0};
 
 #### Basic interaction functions
 def connection():
@@ -88,7 +88,7 @@ def device_query(command):
 def tc_name():
 	answer = config['name'] 
 	return answer
-def tc_read_temp(channel):
+def tc_temperature(channel):
 	if channel=='A':
 		try:
 			answer = float(device_query('KRDG? A'))
@@ -103,8 +103,7 @@ def tc_read_temp(channel):
 		return answer
 	else:
 		print("Invalid Argument")	
-def tc_set_temp(*temp):
-
+def tc_setpoint(*temp):
 	if len(temp)==1:
 		temp = float(temp[0]);
 		if temp < 330 and temp > 0.5:
@@ -120,39 +119,24 @@ def tc_set_temp(*temp):
 	else:
 		print("Invalid Argument")
 def tc_heater_range(*heater):
-
-	if len(heater)==1:
-		heater = heater[0];
-		if heater == '50W':
-			device_write('RANGE ' + str(3))
-		elif heater == '5W':
-			device_write('RANGE ' + str(2))
-		elif heater == '0.5W':
-			device_write('RANGE ' + str(1))
-		elif heater == 'Off':
-			device_write('RANGE ' + str(0))
+	if  len(heater)==1:
+		hr = str(heater[0])
+		if hr in heater_dict:
+			flag = heater_dict[hr]
+			device_write("RANGE " + str(loop) + ', ' + str(flag))
+		else:
+			print("Invalid heater range")
 	elif len(heater)==0:
-		try:
-			answer = int(device_query('RANGE?'))
-		except TypeError:
-			answer = 'No Connection';
-		if answer == 3:
-			answer = '50 W'
-		if answer == 2:
-			answer = '5 W'
-		if answer == 1:
-			answer = '0.5 W'
-		if answer == 0:
-			answer = 'Off'
+		raw_answer = int(device_query("RANGE?"))
+		answer = cutil.search_keys_dictionary(heater_dict, raw_answer)
 		return answer
 	else:
 		print("Invalid Argument")								
-def tc_heater():
+def tc_heater_state():
 	answer1 = tc_heater_range()
 	answer = float(device_query('HTR?'))
 	full_answer = [answer, answer1]
 	return full_answer
-
 def tc_command(command):
 	device_write(command)
 def tc_query(command):

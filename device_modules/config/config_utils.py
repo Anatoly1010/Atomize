@@ -1,6 +1,7 @@
 import configparser
 from pyvisa.constants import StopBits, Parity
 
+# read config data
 def read_conf_util(path_config_file):
 	# getting config data
 	config = configparser.ConfigParser()
@@ -41,10 +42,16 @@ def read_conf_util(path_config_file):
 	write_termination = config['SERIAL']['writetermination'];
 	read_termination = config['SERIAL']['readtermination'];
 
-	address_ethernet = config['ETHERNET']['address'];
+	ethernet_address = config['ETHERNET']['address'];
 
 	return {'name': name, 'interface': interface, 'timeout': timeout, 'loop': loop,
 	'board_address': board_address, 'gpib_address': gpib_address, 'serial_address': serial_address,
 	'baudrate': baudrate, 'databits': databits, 'parity': parity, 'stopbits': stopbits,
 	'write_termination': write_termination, 'read_termination': read_termination,
-	'address_ethernet': address_ethernet}
+	'ethernet_address': ethernet_address}
+
+# search a key for a given value in dictionary
+def search_keys_dictionary(dictionary, search_value):
+	for key, value in dictionary.items():
+		if value == search_value:
+			return key

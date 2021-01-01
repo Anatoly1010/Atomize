@@ -8,7 +8,7 @@ import config.config_utils as cutil
 #### Inizialization
 # setting path to *.ini file
 path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','SR810_config.ini')
+path_config_file = os.path.join(path_current_directory, 'config','SR830_config.ini')
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
@@ -249,7 +249,7 @@ def lock_in_lp_filter(*mode):
 def lock_in_harmonic(*harmonic):
 	if len(harmonic)==1:
 		harm = int(harmonic[0]);
-		if harm <= 19999 and harm >= 1:
+		if harm <= 19999 and harm >= 0:
 			device_write('HARM '+ str(harm))
 		else:
 			device_write('HARM '+'1')

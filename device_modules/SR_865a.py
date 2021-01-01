@@ -8,22 +8,22 @@ import config.config_utils as cutil
 #### Inizialization
 # setting path to *.ini file
 path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','SR810_config.ini')
+path_config_file = os.path.join(path_current_directory, 'config','SR865a_config.ini')
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
 
 # auxilary dictionaries
-sensitivity_dict = {'2 nV': 0, '5 nV': 1, '10 nV': 2, '20 nV': 3, '50 nV': 4,
-					'100 nV': 5, '200 nV': 6, '500 nV': 7, '1 uV': 8, '2 uV': 9, '5 uV': 10,
-					'10 uV': 11, '20 uV': 12, '50 uV': 13, '100 uV': 14, '200 uV': 15, '500 uV': 16, 
-					'1 mV': 17, '2 mV': 18, '5 mV': 19, '10 mV': 20, '20 mV': 21, '50 mV': 22,
-					'100 mV': 23, '200 mV': 24, '500 mV': 25, '1 V': 26};
+sensitivity_dict = {'1 nV': 27, '2 nV': 26, '5 nV': 25, '10 nV': 24, '20 nV': 23, '50 nV': 22,
+					'100 nV': 21, '200 nV': 20, '500 nV': 19, '1 uV': 18, '2 uV': 17, '5 uV': 16,
+					'10 uV': 15, '20 uV': 14, '50 uV': 13, '100 uV': 12, '200 uV': 11, '500 uV': 10, 
+					'1 mV': 9, '2 mV': 8, '5 mV': 7, '10 mV': 6, '20 mV': 5, '50 mV': 4,
+					'100 mV': 3, '200 mV': 2, '500 mV': 1, '1 V': 0};
 
-timeconstant_dict = {'10 us': 0, '30 us': 1, '100 us': 2, '300 us': 3,
-					'1 ms': 4, '3 ms': 5, '10 ms': 6, '30 ms': 7, '100 ms': 8, '300 ms': 9,
-					'1 s': 10, '3 s': 11, '10 s': 12, '30 s': 13, '100 s': 14, '300 s': 15, 
-					'1 ks': 16, '3 ks': 17, '10 ks': 18, '30 ks': 19};
+timeconstant_dict = {'1 us': 0, '3 us': 1, '10 us': 2, '30 us': 3, '100 us': 4, '300 us': 5,
+					'1 ms': 6, '3 ms': 7, '10 ms': 8, '30 ms': 9, '100 ms': 10, '300 ms': 11,
+					'1 s': 12, '3 s': 13, '10 s': 14, '30 s': 15, '100 s': 16, '300 s': 17, 
+					'1 ks': 18, '3 ks': 19, '10 ks': 20, '30 ks': 21};
 
 #### Basic interaction functions
 def connection():
@@ -36,15 +36,18 @@ def connection():
 			device = Gpib.Gpib(config['board_address'], config['gpib_address'])
 			try:
 				# test should be here
-				device_query('*IDN?')
-				status_flag = 1;
+				answer = int(device_query('*TST?'))
+				if answer==0:
+					status_flag = 1;
+				else:
+					print('During test errors are found')
+					status_flag = 0;
 			except pyvisa.VisaIOError:
 				status_flag = 0;	
 		except pyvisa.VisaIOError:
 			print("No connection")
 			device.close()
 			status_flag = 0
-
 	elif config['interface'] == 'rs232':
 		try:
 			rm = pyvisa.ResourceManager()
@@ -54,8 +57,32 @@ def connection():
 			device.timeout=config['timeout']; # in ms
 			try:
 				# test should be here
-				device_query('*IDN?')
-				status_flag = 1;
+				answer = int(device_query('*TST?'))
+				if answer==0:
+					status_flag = 1;
+				else:
+					print('During test errors are found')
+					status_flag = 0;
+			except pyvisa.VisaIOError:
+				status_flag = 0;	
+		except pyvisa.VisaIOError:
+			print("No connection")
+			device.close()
+			status_flag = 0
+	elif config['interface'] == 'ethernet':
+		try:
+			rm = pyvisa.ResourceManager()
+			device=rm.open_resource(config['ethernet_address'], read_termination=config['read_termination'],
+			write_termination=config['write_termination'])
+			device.timeout=config['timeout']; # in ms
+			try:
+				# test should be here
+				answer = int(device_query('*TST?'))
+				if answer==0:
+					status_flag = 1;
+				else:
+					print('During test errors are found')
+					status_flag = 0;
 			except pyvisa.VisaIOError:
 				status_flag = 0;	
 		except pyvisa.VisaIOError:
@@ -80,6 +107,8 @@ def device_query(command):
 			answer = device.read()
 		elif config['interface'] == 'rs232':
 			answer = device.query(command)
+		elif config['interface'] == 'ethernet':
+			answer = device.query(command)
 		return answer
 	else:
 		print("No Connection")
@@ -91,7 +120,7 @@ def lock_in_name():
 def lock_in_ref_frequency(*frequency):
 	if len(frequency)==1:
 		freq = float(frequency[0])
-		if freq >= 0.001 and freq <= 102000:
+		if freq >= 0.001 and freq <= 4000000:
 			device_write('FREQ '+ str(freq))
 		else:
 			print("Incorrect phase")
@@ -103,7 +132,7 @@ def lock_in_ref_frequency(*frequency):
 def lock_in_phase(*degree):
 	if len(degree)==1:
 		degs = float(degree[0])
-		if degs >= -360 and degs <= 729:
+		if degs >= -360000 and degs <= 360000:
 			device_write('PHAS '+str(degs))
 		else:
 			print("Incorrect phase")
@@ -129,10 +158,10 @@ def lock_in_time_constant(*timeconstant):
 def lock_in_ref_amplitude(*amplitude):
 	if len(amplitude)==1:
 		ampl = float(amplitude[0]);
-		if ampl <= 5 and ampl >= 0.004:
+		if ampl <= 2 and ampl >= 0.000000001:
 			device_write('SLVL '+str(ampl))
 		else:
-			device_write('SLVL '+'0.004')
+			device_write('SLVL '+'0.000000001')
 			print("Invalid Argument")
 	elif len(amplitude)==0:
 		answer = float(device_query("SLVL?"))
@@ -141,29 +170,29 @@ def lock_in_ref_amplitude(*amplitude):
 		print("Invalid Argument")
 def lock_in_get_data(*channel):
 	if len(channel)==0:
-		answer = float(device_query('OUTP? 1'))
+		answer = float(device_query('OUTP? 0'))
 		return answer
 	elif len(channel)==1 and int(channel[0])==1:
-		answer = float(device_query('OUTP? 1'))
+		answer = float(device_query('OUTP? 0'))
 		return answer
 	elif len(channel)==1 and int(channel[0])==2:
-		answer = float(device_query('OUTP? 2'))
+		answer = float(device_query('OUTP? 1'))
 		return answer
 	elif len(channel)==1 and int(channel[0])==3:
-		answer = float(device_query('OUTP? 3'))
+		answer = float(device_query('OUTP? 2'))
 		return answer
 	elif len(channel)==1 and int(channel[0])==4:
-		answer = float(device_query('OUTP? 4'))
+		answer = float(device_query('OUTP? 3'))
 		return answer
 	elif len(channel)==2 and int(channel[0])==1 and int(channel[1])==2:
-		answer_string = device_query('SNAP? 1,2')
+		answer_string = device_query('SNAP? 0,1')
 		answer_list = answer_string.split(',')
 		list_of_floats = [float(item) for item in answer_list]
 		x = list_of_floats[0]
 		y = list_of_floats[1]
 		return x, y
 	elif len(channel)==3 and int(channel[0])==1 and int(channel[1])==2 and int(channel[2])==3:
-		answer_string = device_query('SNAP? 1,2,3')
+		answer_string = device_query('SNAP? 0,1,2')
 		answer_list = answer_string.split(',')
 		list_of_floats = [float(item) for item in answer_list]
 		x = list_of_floats[0]
@@ -175,11 +204,11 @@ def lock_in_sensitivity(*sensitivity):
 		sens = str(sensitivity[0])
 		if sens in sensitivity_dict:
 			flag = sensitivity_dict[sens]
-			device_write("SENS "+ str(flag))
+			device_write("SCAL "+ str(flag))
 		else:
 			print("Invalid sensitivity value")
 	elif len(sensitivity)==0:
-		raw_answer = int(device_query("SENS?"))
+		raw_answer = int(device_query("SCAL?"))
 		answer = cutil.search_keys_dictionary(sensitivity_dict, raw_answer)
 		return answer
 	else:
@@ -188,13 +217,17 @@ def lock_in_ref_mode(*mode):
 	if len(mode)==1:
 		flag = int(mode[0]);
 		if flag==0:
-			device_write('FMOD '+str(flag))
+			device_write('RSRC '+str(flag))
 		elif flag==1:
-			device_write('FMOD '+str(flag))
+			device_write('RSRC '+str(flag))
+		elif flag==2:
+			device_write('RSRC '+str(flag))
+		elif flag==3:
+			device_write('RSRC '+str(flag))
 		else:
 			print("Invalid Argument")
 	elif len(mode)==0:
-		answer = int(device_query("FMOD?"))
+		answer = int(device_query("RSRC?"))
 		return answer
 	else:
 		print("Invalid Argument")
@@ -202,15 +235,15 @@ def lock_in_ref_slope(*mode):
 	if len(mode)==1:
 		flag = int(mode[0]);
 		if flag==0:
-			device_write('RSLP '+str(flag))
+			device_write('RTRG '+str(flag))
 		elif flag==1:
-			device_write('RSLP '+str(flag))
+			device_write('RTRG '+str(flag))
 		elif flag==2:
-			device_write('RSLP '+str(flag))
+			device_write('RTRG '+str(flag))
 		else:
 			print("Invalid Argument")
 	elif len(mode)==0:
-		answer = int(device_query("RSLP?"))
+		answer = int(device_query("RTRG?"))
 		return answer
 	else:
 		print("Invalid Argument")
@@ -249,7 +282,7 @@ def lock_in_lp_filter(*mode):
 def lock_in_harmonic(*harmonic):
 	if len(harmonic)==1:
 		harm = int(harmonic[0]);
-		if harm <= 19999 and harm >= 1:
+		if harm <= 99 and harm >= 1:
 			device_write('HARM '+ str(harm))
 		else:
 			device_write('HARM '+'1')
