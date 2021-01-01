@@ -14,20 +14,26 @@ path_current_directory = os.path.dirname(__file__)
 path_config_file = os.path.join(path_current_directory, 'config','lakeshore332_config.ini')
 
 # configuration data
-interface, timeout, loop, board_address, gpib_address, serial_address, baudrate, databits, parity, stopbits, write_termination, read_termination = cutil.read_conf_util(path_config_file)
+config = cutil.read_conf_util(path_config_file)
+loop = config['loop'] # information about the loop used
 
 #### Basic interaction functions
 def connection():
 	global status_flag
 	global device
 	
-	if interface == 'gpib':
+	if config['interface'] == 'gpib':
 		try:
-			device = Gpib.Gpib(board_address, gpib_address)
+			import Gpib
+			device = Gpib.Gpib(config['board_address'], config['gpib_address'])
 			try:
 				# test should be here
-				status_flag = 1;
-				device_query('*IDN?')
+				answer = device_query('*TST?')
+				if answer==0:
+					status_flag = 1;
+				elif answer==1:
+					print('During test errors are found')
+					status_flag = 0;
 			except pyvisa.VisaIOError:
 				status_flag = 0;	
 		except pyvisa.VisaIOError:
@@ -35,19 +41,23 @@ def connection():
 			device.close()
 			status_flag = 0
 
-	elif interface == 'rs232':
+	elif config['interface'] == 'rs232':
 		try:
 			rm = pyvisa.ResourceManager()
-			device = rm.open_resource(serial_address,
-					read_termination=read_termination, write_termination=write_termination, baud_rate = baudrate,
-					data_bits = databits, parity=Parity.one, stop_bits=stopbits)
-			device.timeout = timeout; # in ms
+			device=rm.open_resource(config['serial_address'], read_termination=config['read_termination'],
+			write_termination=config['write_termination'], baud_rate=config['baudrate'],
+			data_bits=config['databits'], parity=config['parity'], stop_bits=config['stopbits'])
+			device.timeout=config['timeout']; # in ms
 			try:
 				# test should be here
-				status_flag = 1;
-				device_query('*IDN?')
-			except:
-				pass
+				answer = device_query('*TST?')
+				if answer==0:
+					status_flag = 1;
+				elif answer==1:
+					print('During test errors are found')
+					status_flag = 0;
+			except pyvisa.VisaIOError:
+				status_flag = 0;	
 		except pyvisa.VisaIOError:
 			print("No connection")
 			device.close()
@@ -64,17 +74,20 @@ def device_write(command):
 		print("No Connection")
 def device_query(command):
 	if status_flag == 1:
-		if interface == 'gpib':
+		if config['interface'] == 'gpib':
 			device.write(command)
 			time.sleep(0.05)
 			answer = device.read()
-		elif interface == 'rs232':
+		elif config['interface'] == 'rs232':
 			answer = device.query(command)
 		return answer
 	else:
 		print("No Connection")
 
 #### Device specific functions
+def tc_name():
+	answer = config['name'] 
+	return answer
 def tc_read_temp(channel):
 	if channel=='A':
 		try:
@@ -91,7 +104,6 @@ def tc_read_temp(channel):
 	else:
 		print("Invalid Argument")	
 def tc_set_temp(*temp):
-
 	if len(temp)==1:
 		temp = float(temp[0]);
 		if temp < 330 and temp > 0.5:
@@ -107,7 +119,6 @@ def tc_set_temp(*temp):
 	else:
 		print("Invalid Argument")
 def tc_heater_range(*heater):
-
 	if len(heater)==1:
 		heater = heater[0];
 		if heater == '50W':
@@ -139,3 +150,8 @@ def tc_heater():
 	answer = float(device_query('HTR?'))
 	full_answer = [answer, answer1]
 	return full_answer
+def tc_command(command):
+	device_write(command)
+def tc_query(command):
+	answer = device_query(command)
+	return answer

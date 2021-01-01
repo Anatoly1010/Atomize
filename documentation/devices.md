@@ -1,4 +1,4 @@
-# List of available devices; 31/12/2020
+# List of available devices
 
 ## Temperature Controllers
 - LakeShore 325 (Gpib, RS-232); untested 
@@ -8,7 +8,7 @@
 - LakeShore 336 (Gpib, RS-232); untested
 - LakeShore 340 (Gpib, RS-232); tested
 
-## Lock-In detectors
+## Lock-in Amplifiers
 - Stanford Research System SR-810 (Gpib, RS-232)
 
 ## Oscilloscopes

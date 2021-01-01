@@ -7,7 +7,11 @@ def read_conf_util(path_config_file):
 	config.read(path_config_file)
 
 	# loading configuration parameters
-	loop = int(config['DEFAULT']['loop']);
+	name = config['DEFAULT']['name'];
+	try:
+		loop = int(config['DEFAULT']['loop']);
+	except ValueError:
+		loop = config['DEFAULT']['loop'];
 	interface = config['DEFAULT']['type'];
 	timeout = int(config['DEFAULT']['timeout']);
 
@@ -37,4 +41,10 @@ def read_conf_util(path_config_file):
 	write_termination = config['SERIAL']['writetermination'];
 	read_termination = config['SERIAL']['readtermination'];
 
-	return interface, timeout, loop, board_address, gpib_address, serial_address, baudrate, databits, parity, stopbits, write_termination, read_termination
+	address_ethernet = config['ETHERNET']['address'];
+
+	return {'name': name, 'interface': interface, 'timeout': timeout, 'loop': loop,
+	'board_address': board_address, 'gpib_address': gpib_address, 'serial_address': serial_address,
+	'baudrate': baudrate, 'databits': databits, 'parity': parity, 'stopbits': stopbits,
+	'write_termination': write_termination, 'read_termination': read_termination,
+	'address_ethernet': address_ethernet}
