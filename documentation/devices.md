@@ -17,7 +17,7 @@
 
 ## Oscilloscopes
 - Keysight DSOX 2012A (Ethernet)
-- Keysight DSOX 3034T (Ethernet)
+- Keysight InfiniiVision 3000 X-Series (Ethernet)
 
 ## Frequency counters
 - Agilent Frequency Counter 53181A (Gpib) untested

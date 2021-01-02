@@ -1,3 +1,4 @@
+# a nice numeration of the line number for QPlainTextEdit
 # mainly from https://gist.github.com/eyllanesc/e614ea9689e025c16b10fc92b68f0afd
 # with a little bit of appearance changes
 
