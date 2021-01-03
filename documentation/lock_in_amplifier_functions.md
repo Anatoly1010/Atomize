@@ -67,10 +67,10 @@ For SR-860, 865a the value of the argument is limited to 1 ≤ i ≤ 99.<br/>
 Example: lock_in_harmonic('2') sets the detection harmonic of the second harmonic.
 ## lock_in_command(command)
 ### Arguments: string(command); Output: none.
-The function for sending an arbitrary command from programming guide to the device in a string format. No output is expected.<br/>
+The function for sending an arbitrary command from a programming guide to the device in a string format. No output is expected.<br/>
 Example: lock_in_command('OFSL 0'). This example sets the low pass filter slope. The parameter equals to 0 selects 6 dB/oct.
 ## lock_in_query(command)
 ### Arguments: string(command); Output: string(answer).
-The function for sending an arbitrary command from programming guide to the device in a string format. An output in a string format is expected.<br/>
+The function for sending an arbitrary command from a programming guide to the device in a string format. An output in a string format is expected.<br/>
 Example: lock_in_command('OFSL?'). This example queries the low pass filter slope.
 

@@ -14,19 +14,16 @@ def connection():
 		print("No connection")
 		balance.close()
 		c = 0
-
 def close_connection():
 	
 	balance.close()
 	gc.collect()
-
 def balance_write(command):
 	#c, scope = connection()
 	if c==1:
 		balance.write(command)
 	else:
 		print("No Connection")
-
 def balance_read():
 
 	if c==1:
@@ -34,7 +31,6 @@ def balance_read():
 		return answer
 	else:
 		print("No Connection")
-
 
 def balance_weight():
 

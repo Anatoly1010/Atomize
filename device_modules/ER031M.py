@@ -1,41 +1,62 @@
+import os
 import time
-import serial
+import pyvisa
 import gc
+from pyvisa.constants import StopBits, Parity
+import config.config_utils as cutil
+import config.messenger_socket_client as send
 
+#### Inizialization
+# setting path to *.ini file
+path_current_directory = os.path.dirname(__file__)
+path_config_file = os.path.join(path_current_directory, 'config','er031m_config.ini')
+
+# configuration data
+config = cutil.read_conf_util(path_config_file)
+
+#### Basic interaction functions
 def connection():
-	
-	global c
-	global field_controller
+	global status_flag
+	global device
 
-	try:
-		field_controller = serial.Serial("/dev/ttyACM0", 19200, timeout=5, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_TWO)
-		c=1
-	except serial.SerialException:	
-		print("No connection")
-		field_controller.close()
-		c=0
-
+	if config['interface'] == 'rs232':
+		try:
+			rm = pyvisa.ResourceManager()
+			device=rm.open_resource(config['serial_address'],
+			write_termination=config['write_termination'], baud_rate=config['baudrate'],
+			data_bits=config['databits'], parity=config['parity'], stop_bits=config['stopbits'])
+			device.timeout=config['timeout']; # in ms
+			try:
+				# test should be here
+				status_flag = 1;
+			except pyvisa.VisaIOError:
+				status_flag = 0;	
+		except pyvisa.VisaIOError:
+			send.message("No connection")
+			device.close()
+			status_flag = 0
 def close_connection():
-	
-	field_controller.close()
+	status_flag=0;
+	devie.close()
 	gc.collect()
-
-def field_controller_write(command):
-	#c, scope = connection()
-	if c==1:
+def device_write(command):
+	if status_flag == 1:
 		time.sleep(1)		# very important to have timeout here
-		field_controller.write(command.encode())
+		device.write(command.encode())
 	else:
-		print("No Connection")
+		status_flag = 0;
+		send.message("No Connection")
 
-def field_controller_set_field(*field):
-
+#### Device specific functions
+def magnet_name():
+	answer = config['name']
+	return answer
+def magnet_field(*field):
 	if len(field)==1:
-		field_controller_write('cf'+str(field)+'\r')									##########
+		#field_controller_write('cf'+str(field)+'\r')
+		device_write('cf'+str(field))
 	else:
-		print("Invalid Argument")
-
-
-def field_controller_command(command):
-
-	field_controller_write(command+'\r')									##########
+		send.message("Invalid argument")
+def magnet_command(command):
+	device_write(command)
+	#field_controller_write(command+'\r')

@@ -1,25 +1,26 @@
 # List of available devices
 
 ## Temperature Controllers
-- LakeShore 325 (Gpib, RS-232); untested 
-- LakeShore 331 (Gpib, RS-232); untested
-- LakeShore 332 (Gpib, RS-232); untested
-- LakeShore 335 (Gpib, RS-232); tested
-- LakeShore 336 (Gpib, RS-232); untested
-- LakeShore 340 (Gpib, RS-232); tested
+- LakeShore (Gpib, RS-232)<br/>
+325 (untested); 331 (untested); 332 (untested); 335; 336 (untested); 340.
 
 ## Lock-in Amplifiers
-- Stanford Research System SR-810 (Gpib, RS-232) tested
-- Stanford Research System SR-830 (Gpib, RS-232) tested
-- Stanford Research System SR-850 (Gpib, RS-232) untested
-- Stanford Research System SR-860 (Gpib, RS-232, ethernet) untested
-- Stanford Research System SR-865a (Gpib, RS-232, ethernet) untested
+- Stanford Research Lock-In Amplifier (Gpib, RS-232)<br/>
+SR-810; SR-830; SR-850 (untested).
+- Stanford Research Lock-In Amplifier (Gpib, RS-232, ethernet)<br/>
+SR-860 (untested); SR-865a (untested).
 
 ## Oscilloscopes
-- Keysight DSOX 2012A (Ethernet)
-- Keysight InfiniiVision 3000 X-Series (Ethernet)
+- Keysight InfiniiVision 2000 X-Series (Ethernet)<br/>
+MSO-X 2004A; MSO-X 2002A; DSO-X 2004A; DSO-X 2002A; MSO-X 2014A; MSO-X 2012A; DSO-X 2014A; DSO-X 2012A; MSO-X 2024A; MSO-X 2022A; DSO-X 2024A; DSO-X 2022A.
+- Keysight InfiniiVision 3000 X-Series (Ethernet)<br/>
+MSO-X 3014A; MSO-X 3012A; DSO-X 3014A; DSO-X 3012A; MSO-X 3024A; DSO-X 3024A; MSO-X 3034A; MSO-X 3032A; DSO-X 3034A; DSO-X 3032A; MSO-X 3054A; MSO-X 3052A; DSO-X 3054A; DSO-X 3052A; MSO-X 3104A; MSO-X 3102A; DSO-X 3104A; DSO-X 3102A.
 
-## Frequency counters
+## Arbitrary Wave Generators
+- Wave Generator of Keysight InfiniiVision 3000 X-Series (Ethernet)<br/>
+Available via corresponding oscilloscope module.
+
+## Frequency Counters
 - Agilent Frequency Counter 53181A (Gpib) untested
 
 ## Magnetic Field Controller
