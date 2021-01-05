@@ -1,0 +1,3 @@
+[submodule "liveplot"]
+	path = liveplot
+	url = https://github.com/Anatoly1010/liveplot
