@@ -21,7 +21,10 @@ MSO-X 3014A; MSO-X 3012A; DSO-X 3014A; DSO-X 3012A; MSO-X 3024A; DSO-X 3024A; MS
 Available via corresponding oscilloscope module.
 
 ## Frequency Counters
-- Agilent Frequency Counter 53181A (Gpib) untested
+- Agilent Frequency Counter (Gpib)
+53181A (untested); 53131A/132A.
+- Keysight Frequency Counter (Gpib)
+53230A/220A (untested).
 
 ## Magnetic Field Controller
 - Bruker ER031M (RS-232 using arduino emulated keyboard) tested

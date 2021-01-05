@@ -17,8 +17,8 @@ class Socket_server():
         block the execution of the main programm.
         """
         sock = socket.socket()
-        sock.bind(('', 9090))
-        sock.listen(1)
+        sock.bind(('', 9091))
+        sock.listen(2)
         while True:
             client, addr = sock.accept()
             client_handler = threading.Thread(target=self.message, args=(helper, client), daemon = True).start()

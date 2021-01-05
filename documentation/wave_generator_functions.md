@@ -52,3 +52,9 @@ Example: wave_gen_arbitrary_interpolation('On') turns on the interpolation contr
 ## wave_gen_arbitrary_points()
 ### Arguments: none; Output: integer.
 This function returns the number of points used by the current arbitrary waveform.
+## wave_gen_command(command)
+### Arguments: command = string; Output: none.
+The function for sending an arbitrary command from a programming guide to the device in a string format. No output is expected.<br/>
+## wave_gen_query(command)
+### Arguments: command = string; Output: string (answer).
+The function for sending an arbitrary command from a programming guide to the device in a string format. An output in a string format is expected.<br/>

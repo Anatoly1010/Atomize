@@ -565,3 +565,9 @@ def wave_gen_arbitrary_clear():
 def wave_gen_arbitrary_points():
 	answer = int(device_query(":WGEN:ARBitrary:DATA:ATTRibute:POINts?"))
 	return answer
+
+def wave_gen_command(command):
+	device_write(command)
+def wave_gen_query(command):
+	answer = device_query(command)
+	return answer

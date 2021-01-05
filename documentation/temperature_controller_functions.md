@@ -25,10 +25,10 @@ Example: tc_heater_range('50 W') changes the heater range to 50 W (High).
 The function for reading the current heater value in percent.<br/>
 Example: tc_heater() returns the array of the heater range and heater percent. 
 ## tc_command(command)
-### Arguments: string(command); Output: none.
+### Arguments: command = string; Output: none.
 The function for sending an arbitrary command from a programming guide to the device in a string format. No output is expected.<br/>
 Example: tc_command('PID 1,10,50,0'). Note that for some controller models the loop should not be specified. Check the programming guide.
 ## tc_query(command)
-### Arguments: string(command); Output: string(answer).
+### Arguments: command = string; Output: string (answer).
 The function for sending an arbitrary command from a programming guide to the device in a string format. An output in a string format is expected.<br/>
 Example: tc_command('PID? 1'). Note that for some controller models the loop should not be specified. Check the programming guide.

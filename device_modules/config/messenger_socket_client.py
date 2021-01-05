@@ -5,6 +5,6 @@ import socket
 
 def message(text):
 	sock = socket.socket()
-	sock.connect(('localhost', 9090))
+	sock.connect(('localhost', 9091))
 	sock.send(text.encode())
 	sock.close()

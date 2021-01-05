@@ -75,11 +75,11 @@ Examples: oscilloscope_trigger_channel('CH3') sets the trigger channel to 3.
 The function queries (if called with one argument) or sets (if called with two arguments) the low trigger voltage level voltage of one of the channels of the oscilloscope. If there is a second argument this will be set as a new low trigger voltage level. If there is no second argument the current low trigger voltage level for the specified channel is returned.<br/>
 Examples: oscilloscope_trigger_low_level('CH2', 0.5) sets the low trigger voltage level of the channel 2 to 500 mV. oscilloscope_trigger_low_level('CH2') returns the current low trigger voltage level of the channel 2.
 ## oscilloscope_command(command)
-### Arguments: string(command); Output: none.
+### Arguments: command = string; Output: none.
 The function for sending an arbitrary command from a programming guide to the device in a string format. No output is expected.<br/>
 Example: oscilloscope_command(':TRIGger:FORCe'). This command causes an acquisition to be captured even thoughthe trigger condition has not been met.
 ## oscilloscope_query(command)
-### Arguments: string(command); Output: string(answer).
+### Arguments: command = string; Output: string (answer).
 The function for sending an arbitrary command from a programming guide to the device in a string format. An output in a string format is expected.<br/>
 Example: oscilloscope_query(':MEASure:FREQuency?'). This command queries an measurement and outputs the frequency of the cycle on the screen closest to the trigger reference.
 
