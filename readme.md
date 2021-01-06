@@ -41,3 +41,5 @@ Start the window
 	python3 -m liveplot
 
 ## Available function for devices
+
+## Available plotting functions

@@ -133,7 +133,7 @@ class LivePlotClient(object):
         self.send_to_plotter(meta, np.array([xs, ys]))
         self.send_to_plotter({'name':'none', 'operation':'none'}, np.asarray([0]))
 
-    def append_y(self, name, point, start_step=(0, 1), label='', xname='X axis', xscale='arb. u.', yname='Y axis', yscale='arb. u.'):
+    def append_y(self, name, point, start_step=(0, 1), label='', xname='X axis', xscale='arb. u.', yname='Y axis', yscale='arb. u.',scatter='False'):
         self.send_to_plotter({
             'name': name,
             'operation': 'append_y',
@@ -145,6 +145,7 @@ class LivePlotClient(object):
             'Y': yscale,
             'Xname': xname,
             'Yname': yname,
+            'Scatter':scatter
         })
         self.send_to_plotter({'name':'none', 'operation':'none'}, np.asarray([0]))
 

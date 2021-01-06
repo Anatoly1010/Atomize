@@ -47,6 +47,7 @@ class MainWindow(QMainWindow):
         for shm in self.shared_mems:
             shm.detach()
         QApplication.instance().exit()
+        
 
 
     def accept(self):
@@ -158,9 +159,9 @@ class MainWindow(QMainWindow):
                 x0, dx = start_step
                 nx = len(arr)
                 xs = np.linspace(x0, x0 + (nx - 1)*dx, nx)
-                pw.plot(xs, arr, name=label)
+                pw.plot(xs, arr, name=label, scatter='False')
             else:
-                pw.plot(arr, name=label)
+                pw.plot(arr, name=label, scatter='False')
 
 
         elif operation == 'plot_xy':
@@ -196,6 +197,7 @@ class MainWindow(QMainWindow):
             xscal = meta['X']
             ynam = meta['Yname']
             yscal = meta['Y']
+            scat = meta['Scatter']
 
             xs, ys = pw.get_data(label)
             new_ys = list(ys)
@@ -205,9 +207,9 @@ class MainWindow(QMainWindow):
                 x0, dx = start_step
                 nx = len(new_ys)
                 xs = np.linspace(x0, x0 + (nx - 1)*dx, nx)
-                pw.plot(xs, new_ys, name=label, xname=xnam, xscale =xscal, yname=ynam, yscale =yscal)
+                pw.plot(xs, new_ys, name=label, xname=xnam, xscale =xscal, yname=ynam, yscale =yscal, scatter=scat)
             else:
-                pw.plot(new_ys, name=label, xname=xnam, xscale =xscal, yname=ynam, yscale =yscal)
+                pw.plot(new_ys, name=label, xname=xnam, xscale =xscal, yname=ynam, yscale =yscal, scatter=scat)
 
 
         elif operation == 'append_xy':
@@ -218,7 +220,7 @@ class MainWindow(QMainWindow):
             new_xs.append(xn)
             new_ys = list(ys)
             new_ys.append(yn)
-            pw.plot(new_xs, new_ys, parametric=True, name=label)
+            pw.plot(new_xs, new_ys, parametric=True, name=label, scatter='False')
 
 
         elif operation == 'append_z':
@@ -299,7 +301,7 @@ class NameList(QDockWidget):
     def pause(self):
         sock = socket.socket()
         sock.connect(('localhost', 9091))
-        sock.send(b'stop')
+        sock.send(b'Script stopped')
         sock.close()
 
     def __getitem__(self, item):

@@ -22,6 +22,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.destroyed.connect(MainWindow.on_destroyed)         # connect some actions to exit
         # Load the UI Page
         uic.loadUi('atomize/main/gui/main_window.ui', self)        # Design file
+
+        # important attribures
+        self.script='' # for not opened script
+        self.flag=1 # for not open two liveplot windows
         # Connection of different action to different Menus and Buttons
         self.button_open.clicked.connect(self.open_file_dialog)
         self.button_open.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
@@ -33,8 +37,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.button_reload.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
         self.button_start.clicked.connect(self.start_experiment)
         self.button_start.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
-        self.button_help.clicked.connect(self.help)
-        self.button_help.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
+        self.button_liveplot.clicked.connect(self.start_liveplot)
+        self.button_liveplot.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
         self.button_quit.clicked.connect(self.quit)
         self.button_quit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
         self.textEdit.setStyleSheet("QPlainTextEdit {background-color: rgb(24, 25, 26); color: rgb(255, 172, 0); } QScrollBar:vertical {background-color: rgb(0, 0, 0);}");
@@ -44,9 +48,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.process = QtCore.QProcess(self)
         self.process_text_editor = QtCore.QProcess(self)
         self.process_python = QtCore.QProcess(self)
+        self.process_liveplot = QtCore.QProcess(self)
         self.process.setProgram('pylint')
         self.process_text_editor.setProgram("subl") # we need to know path to text editor
         self.process_python.setProgram('python3')
+        self.process_liveplot.setProgram('python3')
+        self.process_liveplot.setArguments(['-m', 'liveplot'])
+        self.process_liveplot.start()
+        self.process_liveplot.finished.connect(self.helper_liveplot)
         self.process.finished.connect(self.on_finished_checking)
         self.process_python.finished.connect(self.on_finished_script)
     def on_destroyed(self):
@@ -58,10 +67,14 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         A function to run an experimental script using python.exe.
         """
-        global cached_stamp
-        stamp = os.stat(script).st_mtime
-        if stamp != cached_stamp:
-            cached_stamp = stamp
+        if self.script != '':
+            stamp = os.stat(self.script).st_mtime
+        else:
+            self.text_errors.appendPlainText('No experimental script is opened')
+            return
+
+        if stamp != self.cached_stamp:
+            self.cached_stamp = stamp
             message = QMessageBox(self);            # Message Box for warning of updated file
             message.setWindowTitle("Your script has been changed!")
             message.setStyleSheet("QWidget { background-color : rgb(24, 25, 26); color: rgb(255, 170, 0); }")
@@ -71,7 +84,8 @@ class MainWindow(QtWidgets.QMainWindow):
             message.show();
             message.buttonClicked.connect(self.message_box_clicked)   # connect function clicked to button; get the button name
             return                                        # stop current function
-        self.process_python.setArguments([script])
+
+        self.process_python.setArguments([self.script])
         self.process_python.start()
 
         #self.dialog = pyqtplotter.MainWindow(self)
@@ -88,15 +102,14 @@ class MainWindow(QtWidgets.QMainWindow):
         A function to run a syntax check using pylint.
         """
         self.text_errors.appendPlainText("Testing... Please, wait!")
-        self.process.setArguments(['--errors-only', script])
+        self.process.setArguments(['--errors-only', self.script])
         self.process.start()
     def reload(self):
         """
         A function to reload an experimental script.
         """
-        global cached_stamp
-        cached_stamp = os.stat(script).st_mtime
-        text = open(script).read()
+        self.cached_stamp = os.stat(self.script).st_mtime
+        text = open(self.script).read()
         self.textEdit.setPlainText(text)
     def on_finished_checking(self):
         """
@@ -113,38 +126,49 @@ class MainWindow(QtWidgets.QMainWindow):
         A function to add the information about errors found during syntax checking to a dedicated text box in the main window of the programm.
         """
         text = self.process_python.readAllStandardOutput().data().decode()
-        if text == '':
+        text_errors_script = self.process_python.readAllStandardError().data().decode()
+        if text == '' and text_errors_script == '':
             self.text_errors.appendPlainText("Script done!")
-        else:
-            self.text_errors.appendPlainText(text)
+        elif text == '' and text_errors_script != '':
+            self.text_errors.appendPlainText(text_errors_script)
             self.text_errors.verticalScrollBar().setValue(self.text_errors.verticalScrollBar().maximum())
     def quit(self):
         """
         A function to quit the programm
         """
         sys.exit()
-    def help(self):
+    def start_liveplot(self):
         """
-        A function to open a documentation window. Should be done.
+        A function to open a new liveplot window
         """
-        pass
+        if self.flag == 0:
+            self.process_liveplot.setArguments(['-m', 'liveplot'])
+            self.process_liveplot.start()
+            self.flag = 1
+        else:
+            self.text_errors.appendPlainText('Liveplot already opened')
+    def helper_liveplot(self):
+        """
+        A function to check whether there is an open liveplot window
+        """
+        self.flag = 0;
     def edit_file(self):
         """
         A function to open an experimental script in a text editor.
         """
-        self.process_text_editor.setArguments([script])
+        self.process_text_editor.setArguments([self.script])
         self.process_text_editor.start()
     def open_file(self, filename):
         """
         A function to open an experimental script.
         :param filename: string
         """
-        global path, script, cached_stamp
-        cached_stamp = os.stat(filename).st_mtime
+        global path
+        self.cached_stamp = os.stat(filename).st_mtime
         text = open(filename).read()
         self.textEdit.setPlainText(text)
         path = os.path.dirname(filename) # for memorizing the path to the last used folder
-        script = filename
+        self.script = filename
     def open_file_dialog(self):
         """
         A function to open a new window for choosing an experimental script.
@@ -174,8 +198,7 @@ class MainWindow(QtWidgets.QMainWindow):
         :param data: string
         """
         self.text_errors.appendPlainText(str(data))
-        if data=='stop':
-            print('hi')
+        if data=='Script stopped':
             self.process_python.terminate()
 
 def main():
