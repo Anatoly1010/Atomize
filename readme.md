@@ -2,7 +2,8 @@
 
 A modular open source software for working with scientific devices and combining them into a spectrometer.<br/>
 The general idea is close to [FSC2 software](http://users.physik.fu-berlin.de/~jtt/fsc2.phtml) developed by Jens Thomas Törring.<br/>
-The liveplot library based on pyqtgraph is used as a main graphics library. The [liveplot](https://github.com/PhilReinhold/liveplot) was developed by Phil Reinhold.
+The liveplot library based on pyqtgraph is used as a main graphics library.<br/>
+The [liveplot](https://github.com/PhilReinhold/liveplot) was developed by Phil Reinhold.
 
 ### Status: early in development
 
@@ -37,3 +38,4 @@ Start the window
 
 	python3 -m liveplot
 
+## Available function for devices
