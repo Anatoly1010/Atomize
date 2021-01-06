@@ -1,8 +1,8 @@
 # Atomize - Split your spectrometer apart!
 
 A modular open source software for working with scientific devices and combining them into a spectrometer.<br/>
-The general idea is close to FSC2 software developed by Jens Thomas Törring, http://users.physik.fu-berlin.de/~jtt/fsc2.phtml.<br/>
-The liveplot library based on pyqtgraph is used as a main graphics library. The liveplot was developed by Phil Reinhold, https://github.com/PhilReinhold/liveplot
+The general idea is close to [FSC2 software](http://users.physik.fu-berlin.de/~jtt/fsc2.phtml) developed by Jens Thomas Törring<br/>
+The liveplot library based on pyqtgraph is used as a main graphics library. The [liveplot](https://github.com/PhilReinhold/liveplot) was developed by Phil Reinhold
 
 ### Status: early in development
 
@@ -29,7 +29,7 @@ run from the source directory:
 
 	python3 atomize
 
-2. Liveplot
+2. [Liveplot](https://github.com/PhilReinhold/liveplot) Author: Phil Reinhold
 
 Clone from github repository
 
