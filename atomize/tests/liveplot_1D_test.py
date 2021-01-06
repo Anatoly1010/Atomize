@@ -1,5 +1,3 @@
-import sys
-sys.path.append("D:/Melnikov/11_Programming/05_liveplot/liveplot")
 from liveplot import LivePlotClient
 import threading
 import numpy as np

@@ -5,6 +5,8 @@ The general idea is close to [FSC2 software](http://users.physik.fu-berlin.de/~j
 The liveplot library based on pyqtgraph is used as a main graphics library.<br/>
 The [liveplot](https://github.com/PhilReinhold/liveplot) was developed by Phil Reinhold.
 
+![](https://github.com/Anatoly1010/liveplot/blob/master/screenshot.png)
+
 ### Status: early in development
 
 

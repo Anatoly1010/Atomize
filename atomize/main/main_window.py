@@ -47,7 +47,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.process.setProgram('pylint')
         self.process_text_editor.setProgram("subl") # we need to know path to text editor
         self.process_python.setProgram('python3')
-        self.process.finished.connect(self.on_finished)
+        self.process.finished.connect(self.on_finished_checking)
+        self.process_python.finished.connect(self.on_finished_script)
     def on_destroyed(self):
         """
         A function to do some actions when the main window is closing.
@@ -70,7 +71,7 @@ class MainWindow(QtWidgets.QMainWindow):
             message.show();
             message.buttonClicked.connect(self.message_box_clicked)   # connect function clicked to button; get the button name
             return                                        # stop current function
-        self.process_python.setArguments([script, '-i'])
+        self.process_python.setArguments([script])
         self.process_python.start()
 
         #self.dialog = pyqtplotter.MainWindow(self)
@@ -97,13 +98,23 @@ class MainWindow(QtWidgets.QMainWindow):
         cached_stamp = os.stat(script).st_mtime
         text = open(script).read()
         self.textEdit.setPlainText(text)
-    def on_finished(self):
+    def on_finished_checking(self):
         """
         A function to add the information about errors found during syntax checking to a dedicated text box in the main window of the programm.
         """
         text = self.process.readAllStandardOutput().data().decode()
         if text == '':
             self.text_errors.appendPlainText("No errors are found!")
+        else:
+            self.text_errors.appendPlainText(text)
+            self.text_errors.verticalScrollBar().setValue(self.text_errors.verticalScrollBar().maximum())
+    def on_finished_script(self):
+        """
+        A function to add the information about errors found during syntax checking to a dedicated text box in the main window of the programm.
+        """
+        text = self.process_python.readAllStandardOutput().data().decode()
+        if text == '':
+            self.text_errors.appendPlainText("Script done!")
         else:
             self.text_errors.appendPlainText(text)
             self.text_errors.verticalScrollBar().setValue(self.text_errors.verticalScrollBar().maximum())
@@ -121,7 +132,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         A function to open an experimental script in a text editor.
         """
-        self.process_text_editor.setArguments(['-i',script])
+        self.process_text_editor.setArguments([script])
         self.process_text_editor.start()
     def open_file(self, filename):
         """
