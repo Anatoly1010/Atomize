@@ -15,7 +15,6 @@ xscale='XaxisDimension', yname='NameYaxis', yscale='YaxisDimension', scatter='Fa
 	name, label are strings;
 	scatter is 'False' (default) or 'True'. Enables scatter plot;
 	other arguments are optional and used from automatic scaling (i.e. V to mV, etc.)
-<br/>
 ```python	
 append_y('name', value, start_step=(x[0], x[1]-x[0]), label='label', xname='NameXaxis',
 xscale='XaxisDimension', yname='NameYaxis', yscale='YaxisDimension')
@@ -36,7 +35,6 @@ zscale='ZaxisDimension')
 	start_step is a list of starting points and steps. Since the plotting procedure looks like an append of data
 	horizontally the first list is typically (0, 1), the second is (Ystart, Ystep);
 	other arguments are optional
-<br/>
 ```python
 append_z('name', data, start_step=((Xstart, Xstep), (Ystart, Ystep)), xname='NameXaxis',
 xscale='XaxisDimension', yname='NameYaxis Field', yscale='YaxisDimension', zname='NameZaxis',
