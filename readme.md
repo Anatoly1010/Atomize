@@ -43,3 +43,10 @@ Start the window
 ## Available function for devices
 
 ## Available plotting functions
+### [plot_xy()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
+### [append_y()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
+### [plot_z()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
+### [append_z()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
+### [label()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
+### [clear()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
+
