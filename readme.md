@@ -51,16 +51,16 @@ plotter.plotter_functions()
 ```
 
 ## Available general functions
-### message()
-### open_1D()
-### open_1D_dialog()
-### save_1D_dialog()
-### open_2D()
-### open_2D_dialog()
-### open_2D_appended()
-### open_2D_appended_dialog()
-### save_2D_dialog()
-### create_file_dialog()
+### [message()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
+### [open_1D()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
+### [open_1D_dialog()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
+### [save_1D_dialog()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
+### [open_2D()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
+### [open_2D_dialog()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
+### [open_2D_appended()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
+### [open_2D_appended_dialog()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
+### [save_2D_dialog()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
+### [create_file_dialog()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
 
 ## Available plotting functions
 ### [plot_xy()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
