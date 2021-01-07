@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import configparser
 from pyvisa.constants import StopBits, Parity
 

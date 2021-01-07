@@ -1,9 +1,13 @@
-import time
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import gc
 import os
+import time
 import pyvisa
 from pyvisa.constants import StopBits, Parity
-import config.config_utils as cutil
+import atomize.device_modules.config.config_utils as cutil
+import atomize.device_modules.config.messenger_socket_client as send
 
 #### Inizialization
 # setting path to *.ini file
@@ -62,16 +66,19 @@ def connection():
 			print("No connection")
 			device.close()
 			status_flag = 0
+
 def close_connection():
 	status_flag = 0;
 	#device.close()
 	gc.collect()
+
 def device_write(command):
 	if status_flag==1:
 		command = str(command)
 		device.write(command)
 	else:
 		print("No Connection")
+
 def device_query(command):
 	if status_flag == 1:
 		if config['interface'] == 'gpib':
@@ -86,8 +93,10 @@ def device_query(command):
 
 #### Device specific functions
 def tc_name():
-	answer = config['name'] 
-	return answer
+	send.message('LakeShore')
+	#answer = config['name'] 
+	#return answer
+
 def tc_temperature(channel):
 	if channel=='A':
 		try:
@@ -103,6 +112,7 @@ def tc_temperature(channel):
 		return answer
 	else:
 		print("Invalid Argument")	
+
 def tc_setpoint(*temp):
 	if len(temp)==1:
 		temp = float(temp[0]);
@@ -118,6 +128,7 @@ def tc_setpoint(*temp):
 		return answer	
 	else:
 		print("Invalid Argument")
+
 def tc_heater_range(*heater):
 	if  len(heater)==1:
 		hr = str(heater[0])
@@ -132,13 +143,20 @@ def tc_heater_range(*heater):
 		return answer
 	else:
 		print("Invalid Argument")								
+
 def tc_heater_state():
 	answer1 = tc_heater_range()
 	answer = float(device_query('HTR?'))
 	full_answer = [answer, answer1]
 	return full_answer
+
 def tc_command(command):
 	device_write(command)
+
 def tc_query(command):
 	answer = device_query(command)
 	return answer
+
+
+if __name__ == "__main__":
+    main()

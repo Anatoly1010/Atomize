@@ -1,8 +1,10 @@
-import pyvisa
-import numpy as np
-from datetime import datetime
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import gc
 import time
+import pyvisa
+import numpy as np
 
 def connection():
 	
@@ -205,3 +207,5 @@ def scope_get_curve(channel):
 #end_time=datetime.now()
 #print("Duration: {}".format(end_time - start_time))
 
+if __name__ == "__main__":
+    main()

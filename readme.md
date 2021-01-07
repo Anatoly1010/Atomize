@@ -11,9 +11,9 @@ The [liveplot](https://github.com/PhilReinhold/liveplot) was developed by Phil R
 
 
 ## Requirements
-- Python (tested with 3.8+)
-- Numpy
-- Scipy
+- [Python (tested with 3.8+)](https://www.python.org/)
+- [Numpy](https://numpy.org/)
+- [Scipy](https://www.scipy.org/)
 - [PyQt5](http://www.riverbankcomputing.com/software/pyqt/download)
 - [pyqtgraph](http://www.pyqtgraph.org)
 - [PyVisapy](https://github.com/pyvisa/pyvisa-py)
@@ -30,6 +30,9 @@ run from the source directory:
 
 	python3 atomize
 
+or
+	python3 atomize /path/to/experimental/script
+
 2. [Liveplot](https://github.com/PhilReinhold/liveplot)  Author: Phil Reinhold
 
 Install from the source directory:
@@ -40,7 +43,24 @@ Start the window
 
 	python3 -m liveplot
 
-## Available function for devices
+To communicate with Liveplot inside a script it should be imported and initialized:
+```python
+from liveplot import LivePlotClient
+plotter = LivePlotClient()
+plotter.plotter_functions()
+```
+
+## Available general functions
+### message()
+### open_1D()
+### open_1D_dialog()
+### save_1D_dialog()
+### open_2D()
+### open_2D_dialog()
+### open_2D_appended()
+### open_2D_appended_dialog()
+### save_2D_dialog()
+### create_file_dialog()
 
 ## Available plotting functions
 ### [plot_xy()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
@@ -49,4 +69,6 @@ Start the window
 ### [append_z()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
 ### [label()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
 ### [clear()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
+
+## Available function for devices
 

@@ -1,9 +1,13 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import os
 import gc
-import pyvisa
 import time
+import pyvisa
 from pyvisa.constants import StopBits, Parity
-import config.config_utils as cutil
+import atomize.device_modules.config.config_utils as cutil
+import atomize.device_modules.config.messenger_socket_client as send
 
 #### Inizialization
 # setting path to *.ini file
@@ -89,16 +93,19 @@ def connection():
 			print("No connection")
 			device.close()
 			status_flag = 0
+
 def close_connection():
 	status_flag = 0;
 	#device.close()
 	gc.collect()
+
 def device_write(command):
 	if status_flag==1:
 		command = str(command)
 		device.write(command)
 	else:
 		print("No Connection")
+
 def device_query(command):
 	if status_flag == 1:
 		if config['interface'] == 'gpib':
@@ -117,6 +124,7 @@ def device_query(command):
 def lock_in_name():
 	answer = device_query('*IDN?')
 	return answer
+
 def lock_in_ref_frequency(*frequency):
 	if len(frequency)==1:
 		freq = float(frequency[0])
@@ -129,6 +137,7 @@ def lock_in_ref_frequency(*frequency):
 		return answer
 	else:
 		print("Invalid Argument")
+
 def lock_in_phase(*degree):
 	if len(degree)==1:
 		degs = float(degree[0])
@@ -141,6 +150,7 @@ def lock_in_phase(*degree):
 		return answer
 	else:
 		print("Invalid Argument")
+
 def lock_in_time_constant(*timeconstant):
 	if  len(timeconstant)==1:
 		tc = str(timeconstant[0])
@@ -155,6 +165,7 @@ def lock_in_time_constant(*timeconstant):
 		return answer
 	else:
 		print("Invalid Argument")
+
 def lock_in_ref_amplitude(*amplitude):
 	if len(amplitude)==1:
 		ampl = float(amplitude[0]);
@@ -168,6 +179,7 @@ def lock_in_ref_amplitude(*amplitude):
 		return answer
 	else:
 		print("Invalid Argument")
+
 def lock_in_get_data(*channel):
 	if len(channel)==0:
 		answer = float(device_query('OUTP? 0'))
@@ -199,6 +211,7 @@ def lock_in_get_data(*channel):
 		y = list_of_floats[1]
 		r = list_of_floats[2]
 		return x, y, r
+
 def lock_in_sensitivity(*sensitivity):
 	if  len(sensitivity)==1:
 		sens = str(sensitivity[0])
@@ -213,6 +226,7 @@ def lock_in_sensitivity(*sensitivity):
 		return answer
 	else:
 		print("Invalid Argument")
+
 def lock_in_ref_mode(*mode):
 	if len(mode)==1:
 		flag = int(mode[0]);
@@ -231,6 +245,7 @@ def lock_in_ref_mode(*mode):
 		return answer
 	else:
 		print("Invalid Argument")
+
 def lock_in_ref_slope(*mode):
 	if len(mode)==1:
 		flag = int(mode[0]);
@@ -247,6 +262,7 @@ def lock_in_ref_slope(*mode):
 		return answer
 	else:
 		print("Invalid Argument")
+
 def lock_in_sync_filter(*mode):
 	if len(mode)==1:
 		flag = int(mode[0]);
@@ -261,6 +277,7 @@ def lock_in_sync_filter(*mode):
 		return answer
 	else:
 		print("Invalid Argument")
+
 def lock_in_lp_filter(*mode):
 	if len(mode)==1:
 		flag = int(mode[0]);
@@ -279,6 +296,7 @@ def lock_in_lp_filter(*mode):
 		return answer
 	else:
 		print("Invalid Argument")
+
 def lock_in_harmonic(*harmonic):
 	if len(harmonic)==1:
 		harm = int(harmonic[0]);
@@ -292,8 +310,14 @@ def lock_in_harmonic(*harmonic):
 		return answer
 	else:
 		print("Invalid Argument")
+
 def lock_in_command(command):
 	device_write(command)
+
 def lock_in_query(command):
 	answer = device_query(command)
 	return answer
+
+
+if __name__ == "__main__":
+    main()

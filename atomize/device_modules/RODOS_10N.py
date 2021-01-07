@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 from socket import socket, AF_INET, SOCK_DGRAM
 
 # IP adress is 192.168.2.25; port is 8283; default is 192.168.1.20; login is admin; password ia admin; 
@@ -16,6 +19,6 @@ def turn_off(number):
 	msg = ("admin admin k"+str(number)+"=0").encode('utf-8')
 	s.sendto(msg, ('192.168.2.25', 8283))
 
-
-
+if __name__ == "__main__":
+    main()
 

@@ -1,13 +1,13 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import os
 import sys
 import threading
-import atomize.main.messenger_socket_server as socket_server
 from PyQt5.QtGui import QColor, QIcon
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from PyQt5 import QtWidgets, uic, QtCore, QtGui
-
-# Some variables
-path = ''
+import atomize.main.messenger_socket_server as socket_server
 
 class MainWindow(QtWidgets.QMainWindow):
     """
@@ -18,14 +18,22 @@ class MainWindow(QtWidgets.QMainWindow):
         A function for connecting actions and creating a main window.
         """
         super(MainWindow, self).__init__(*args, **kwargs)
-        self.setWindowIcon(QIcon('icon.ico'))
+        # absolute path to icon:
+        self.icon_path = os.path.join(os.path.abspath(os.getcwd()),'atomize/main','icon.ico')
+        self.setWindowIcon(QIcon(self.icon_path))
+
         self.destroyed.connect(MainWindow.on_destroyed)         # connect some actions to exit
         # Load the UI Page
         uic.loadUi('atomize/main/gui/main_window.ui', self)        # Design file
 
         # important attribures
-        self.script='' # for not opened script
+        if len(sys.argv)> 1 and sys.argv[1]!='':  # for bash option
+            self.script = sys.argv[1]
+            self.open_file(self.script)
+        elif len(sys.argv) == 1:
+            self.script='' # for not opened script
         self.flag=1 # for not open two liveplot windows
+        self.path=os.path.abspath(os.getcwd());
         # Connection of different action to different Menus and Buttons
         self.button_open.clicked.connect(self.open_file_dialog)
         self.button_open.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
@@ -62,7 +70,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         A function to do some actions when the main window is closing.
         """
-        pass
+        self.process_python.terminate()
     def start_experiment(self):
         """
         A function to run an experimental script using python.exe.
@@ -75,7 +83,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if stamp != self.cached_stamp:
             self.cached_stamp = stamp
-            message = QMessageBox(self);            # Message Box for warning of updated file
+            message = QMessageBox(self);  # Message Box for warning of updated file
             message.setWindowTitle("Your script has been changed!")
             message.setStyleSheet("QWidget { background-color : rgb(24, 25, 26); color: rgb(255, 170, 0); }")
             message.addButton(QtWidgets.QPushButton('Discrad and Run'), QtWidgets.QMessageBox.YesRole)
@@ -83,13 +91,10 @@ class MainWindow(QtWidgets.QMainWindow):
             message.setText("Your experimental script has been changed   ");
             message.show();
             message.buttonClicked.connect(self.message_box_clicked)   # connect function clicked to button; get the button name
-            return                                        # stop current function
+            return        # stop current function
 
         self.process_python.setArguments([self.script])
         self.process_python.start()
-
-        #self.dialog = pyqtplotter.MainWindow(self)
-        #self.dialog.show()
     def message_box_clicked(self, btn):             # Message Box fow warning
         if btn.text() == "Discrad and Run":
             self.start_experiment()
@@ -163,22 +168,16 @@ class MainWindow(QtWidgets.QMainWindow):
         A function to open an experimental script.
         :param filename: string
         """
-        global path
         self.cached_stamp = os.stat(filename).st_mtime
         text = open(filename).read()
         self.textEdit.setPlainText(text)
-        path = os.path.dirname(filename) # for memorizing the path to the last used folder
+        self.path = os.path.dirname(filename) # for memorizing the path to the last used folder
         self.script = filename
     def open_file_dialog(self):
         """
         A function to open a new window for choosing an experimental script.
         """
-        global path
-
-        if path == '':
-            path = ""
-
-        filedialog = QFileDialog(self, 'Open File', directory = path, filter ="text (*.py)")
+        filedialog = QFileDialog(self, 'Open File', directory = self.path, filter ="text (*.py)")
         # use QFileDialog.DontUseNativeDialog to change directory
         filedialog.setStyleSheet("QWidget { background-color : rgb(136, 138, 133) }")
         filedialog.setFileMode(QtWidgets.QFileDialog.AnyFile)

@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import os
 import gc
 import time
@@ -572,3 +575,6 @@ def wave_gen_command(command):
 def wave_gen_query(command):
 	answer = device_query(command)
 	return answer
+
+if __name__ == "__main__":
+    main()

@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import configparser
 
 config = configparser.ConfigParser()
@@ -18,5 +21,8 @@ third_option['Address'] = '192.168.1.20'   	# mutates the parser
 
 #config['DEFAULT']['ForwardX11'] = 'yes'
 
-with open('lakeshore335_config.ini', 'w') as configfile:
+with open('test_config.ini', 'w') as configfile:
 	config.write(configfile)
+
+if __name__ == "__main__":
+    main()

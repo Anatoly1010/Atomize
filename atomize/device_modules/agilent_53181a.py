@@ -1,9 +1,12 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import os
 import gc
 import time
 import Gpib
-import config.config_utils as cutil
-import config.messenger_socket_client as send
+import atomize.device_modules.config.config_utils as cutil
+import atomize.device_modules.config.messenger_socket_client as send
 
 #### Inizialization
 # setting path to *.ini file
@@ -37,15 +40,18 @@ def connection():
 			status_flag = 0
 	else:
 		print('Incorrect interface')
+
 def close_connection():
 	status_flag = 0;
 	gc.collect()
+
 def device_write(command):
 	if status_flag==1:
 		command = str(command)
 		device.write(command)
 	else:
 		print("No Connection")
+
 def device_query(command):
 	if status_flag == 1:
 		if config['interface'] == 'gpib':
@@ -63,6 +69,7 @@ def device_query(command):
 def freq_counter_name():
 	answer = device_query('*IDN?')
 	return answer
+
 def freq_counter_frequency(channel):
 	if channel == 'CH1':
 		answer = float(device_query(':MEASURE:FREQ? (@1)'))
@@ -75,6 +82,7 @@ def freq_counter_frequency(channel):
 	#	return answer
 	else:
 		send.message('Invalid argument')
+
 def freq_counter_impedance(*impedance):
 	if len(impedance)==2:
 		ch = str(impedance[0])
@@ -106,6 +114,7 @@ def freq_counter_impedance(*impedance):
 			return answer
 	else:
 		send.message('Invalid argument')
+
 def freq_counter_coupling(*coupling):
 	if len(coupling)==2:
 		ch = str(coupling[0])
@@ -132,6 +141,7 @@ def freq_counter_coupling(*coupling):
 			#return answer
 	else:
 		send.message('Invalid argument')
+
 def freq_counter_stop_mode(*mode):
 	if  len(mode)==1:
 		md = str(mode[0])
@@ -145,6 +155,7 @@ def freq_counter_stop_mode(*mode):
 		return answer
 	else:
 		send.message("Invalid argument")
+
 def freq_counter_start_mode(*mode):
 	if  len(mode)==1:
 		md = str(mode[0])
@@ -158,6 +169,7 @@ def freq_counter_start_mode(*mode):
 		return answer
 	else:
 		send.message("Invalid argument")
+
 def freq_counter_digits(*digits):
 	if  len(digits)==1:
 		val = int(digits[0])
@@ -171,6 +183,7 @@ def freq_counter_digits(*digits):
 		return answer
 	else:
 		send.message("Invalid argument")
+
 def freq_counter_gate_time(*time):
 	if len(time)==1:
 		temp = time[0].split(" ")
@@ -186,6 +199,7 @@ def freq_counter_gate_time(*time):
 		return answer
 	else:
 		send.message("Invalid argument")
+
 def freq_counter_expected_freq(*frequency):
 	if len(frequency)==2:
 		temp = frequency[1].split(" ")
@@ -233,6 +247,7 @@ def freq_counter_expected_freq(*frequency):
 			send.message("Incorrect channel is given")
 	else:
 		send.message("Invalid argument")
+
 def freq_counter_ratio(channel1, channel2):
 	if channel1 == 'CH1' and channel2 =='CH2':
 		answer = float(device_query(':MEASure:FREQuency:RATio? (@1),(@2)'))
@@ -248,6 +263,7 @@ def freq_counter_ratio(channel1, channel2):
 	#	return answer
 	else:
 		send.message('Invalid argument')
+
 def freq_counter_period(channel):
 	if channel == 'CH1':
 		answer = float(device_query(':MEASURE:PERiod? (@1)'))*1000000
@@ -260,8 +276,14 @@ def freq_counter_period(channel):
 	#	return answer
 	else:
 		send.message('Invalid argument')
+
 def freq_counter_command(command):
 	device_write(command)
+
 def freq_counter_query(command):
 	answer = device_query(command)
 	return answer
+
+
+if __name__ == "__main__":
+    main()

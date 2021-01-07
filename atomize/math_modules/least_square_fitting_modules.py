@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import scipy
 import numpy as np
 from scipy import optimize
@@ -23,3 +26,6 @@ class math():
 		r_squared = 1 - (ss_res / ss_tot)
 
 		return model_data, residuals, r_squared
+
+if __name__ == "__main__":
+    main()

@@ -1,6 +1,9 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import time
-import serial
 import gc
+import serial
 
 def connection():
 
@@ -51,4 +54,7 @@ def balance_weight():
 		except ValueError:
 			weight = -0.5	
 	return weight								
+
+if __name__ == "__main__":
+    main()
 	
