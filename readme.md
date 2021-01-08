@@ -49,11 +49,11 @@ plotter.plotter_functions()
 
 ## Available devices
 #### Temperature Controllers
-	LakeShore (Gpib, RS-232)
+	- LakeShore (Gpib, RS-232)
 	325 (untested); 331 (untested); 332 (untested); 335; 336 (untested); 340.
 
 #### Lock-in Amplifiers
-	Stanford Research Lock-In Amplifier (Gpib, RS-232)
+	- Stanford Research Lock-In Amplifier (Gpib, RS-232)
 	SR-810; SR-830; SR-850 (untested).
 	- Stanford Research Lock-In Amplifier (Gpib, RS-232, ethernet)
 	SR-860 (untested); SR-865a (untested).

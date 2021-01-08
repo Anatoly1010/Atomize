@@ -27,7 +27,8 @@ freq_counter_impedance('CH2') returns the current impedance of the channel 2.
 ```
 ```python3
 freq_counter_coupling(*coupling)
-Arguments: coupling = two strings ('channel string', 'coupling string ('AC', 'DC')') or one string ('channel string'); Output: string.
+Arguments: coupling = two strings ('channel string', 'coupling string ('AC', 'DC')') or 
+one string ('channel string'); Output: string.
 ```
 The function queries (if called with one argument) or sets (if called with two arguments) the coupling of one of the channels of the frequency counter. If there is a second argument this will be set as a new coupling. If there is no second argument the current coupling for the specified channel is returned.<br/>
 For Agilent 53181a coupling can be changed only for the first channel; for Agielnt 53131a for channel 1 and 2.<br/>
