@@ -2,7 +2,7 @@
 
 ```python3
 freq_counter_name()
-#Arguments: none; Output: string(name).
+Arguments: none; Output: string(name).
 ```
 The function returns device name.
 ```python3
@@ -11,7 +11,9 @@ Arguments: channel = string (['CH1', 'CH2', 'CH3']); Output: float.
 ```
 This function returns a floating point value with the measured frequency (in Hz) from the specified channel. Refer to the device manual for the frequency range of different channels.<br/>
 Agilent 53181a has two channels; Agielnt 53131a - three.<br/>
-Example: freq_counter_frequency('CH1') returns the measured frequency from channel 1. 
+```python3
+Example: freq_counter_frequency('CH1') returns the measured frequency from channel 1.
+```
 ## freq_counter_impedance(\*impedance)
 ### Arguments: impedance = two strings ('channel string', 'impedance string (1 M, 50)') or one string ('channel string'); Output: string.
 The function queries (if called with one argument) or sets (if called with two arguments) the impedance of one of the channels of the frequency counter. If there is a second argument this will be set as a new impedance. If there is no second argument the current impedance for the specified channel is returned.<br/>
