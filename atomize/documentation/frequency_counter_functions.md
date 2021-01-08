@@ -1,10 +1,14 @@
 # List of available functions for frequency counters
 
-## freq_counter_name()
-### Arguments: none; Output: string(name).
+```python3
+freq_counter_name()
+#Arguments: none; Output: string(name).
+```
 The function returns device name.
-## freq_counter_frequency(channel)
-### Arguments: channel = string (['CH1', 'CH2', 'CH3']); Output: float.
+```python3
+freq_counter_frequency(channel)
+Arguments: channel = string (['CH1', 'CH2', 'CH3']); Output: float.
+```
 This function returns a floating point value with the measured frequency (in Hz) from the specified channel. Refer to the device manual for the frequency range of different channels.<br/>
 Agilent 53181a has two channels; Agielnt 53131a - three.<br/>
 Example: freq_counter_frequency('CH1') returns the measured frequency from channel 1. 
