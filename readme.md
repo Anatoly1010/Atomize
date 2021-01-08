@@ -1,11 +1,15 @@
 # Atomize - Split your spectrometer apart!
-![](https://github.com/Anatoly1010/Atomize/blob/master/logoAtomize.png)
+![](https://github.com/Anatoly1010/Atomize/blob/master/logoAtomize.png)<br/>
 A modular open source software for working with scientific devices and combining them into a spectrometer.<br/>
 The general idea is close to [FSC2 software](http://users.physik.fu-berlin.de/~jtt/fsc2.phtml) developed by Jens Thomas Törring.<br/>
-The liveplot library based on pyqtgraph is used as a main graphics library.<br/>
-The [liveplot](https://github.com/PhilReinhold/liveplot) was developed by Phil Reinhold.
+Remote control of spectrometers is usually carried out using home-written programs, which are often restricted to doing a certain experiment with a specific set of devices. In contrast, the programs like [FSC2](http://users.physik.fu-berlin.de/~jtt/fsc2.phtml) and [Atomize](https://github.com/Anatoly1010/Atomize) are much more flexible, since they are based on a modular approach for communication with device and scripting language (EDL in FSC2; Python in Atomize) for data measuring.
 
-### Status: early in development
+Atomize uses [liveplot library](https://github.com/PhilReinhold/liveplot) based on pyqtgraph as a main graphics library. [Liveplot](https://github.com/PhilReinhold/liveplot) was originally developed by Phil Reinhold. Since several minor improvements have been made to use it in Atomize, the latest version of liveplot is included to Atomize.
+
+[Python Programming Language](https://www.python.org/) is used inside experimental scripts, which opens up almost unlimited possibilities for raw experimetnal data treatment. In addition, with PyQt, one can create experimental scripts with a simple graphical interface, allowing users not familiar with Python to use it.
+Several examples of scripts (with dummy data) are provided in /atomize/tests/s directory, including a GUI script with extended comments inside.
+
+### Status: early in development; waiting for device tests
 
 ## Requirements
 - [Python (tested with 3.8+)](https://www.python.org/)
@@ -15,7 +19,7 @@ The [liveplot](https://github.com/PhilReinhold/liveplot) was developed by Phil R
 - [pyqtgraph](http://www.pyqtgraph.org)
 - [PyVisa-py](https://github.com/pyvisa/pyvisa-py)
 
-## Basic Usage
+## Basic usage
 
 1. Atomize
 
@@ -36,7 +40,7 @@ Install from the source directory (from atomize/liveplot):
 
 	python3 setup.py install
 
-Start the window
+Start the window (optional; atomize opens it)
 
 	python3 -m liveplot
 
@@ -46,6 +50,23 @@ from liveplot import LivePlotClient
 plotter = LivePlotClient()
 plotter.plotter_functions()
 ```
+
+3. Using device modules
+To communicate with a device one should:
+1) modify the config file (/atomize/device_modules/config/) of the desired device accordingly.
+Usually you need to specify the interface type and interface settings.
+2) import the module or modules in your script:
+```python
+import atomize.device_modules.keysight_3000_Xseries as keys
+import atomize.device_modules.Lakeshore331 as tc
+
+name_oscilloscope = keys.oscilloscope_name()
+temperature = tc.tc_temperature('CH A')
+```
+
+4. Experimental script
+Python is used to write an experimental script. Examples (with dummy data) can be found in
+/atomize/tests/ directory
 
 ## Available devices
 #### Temperature Controllers
@@ -214,3 +235,4 @@ turn_off(number)
 
 ## Screenshots
 ![](https://github.com/Anatoly1010/Atomize/blob/master/screenshot.png)
+![](https://github.com/Anatoly1010/Atomize/blob/master/screenshot2.png)
