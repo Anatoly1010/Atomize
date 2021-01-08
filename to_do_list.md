@@ -3,17 +3,13 @@
 ##To do list:
 
 A. Modules/Connection/Config
-- Need a good way to load a file from different folder. It was partily done. There is only an issue with folders that are not in the root of the project
 - Write a detailed instruction how to install gpib library on Linux. Test gpib library on windows
 - Continue to write modules
+- Try to get rid of QProcess in the main window
 
 B. Liveplot
 - Need a way to save data from plots without using an internal pyqtgraph widget or at least check how 2D data looks like
 - Need a special widget to grab a curve from plot and move it up/down, right/left
-- Run python -m liveplot toghether with the main window of the programm
-
-C. Interactive GUI 
-- Create a possiblity of creating an interactive GUI for changing experimental parameters. Check fsc2 for details
 
 # A list of checkings to do
 

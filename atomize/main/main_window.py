@@ -19,10 +19,11 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         super(MainWindow, self).__init__(*args, **kwargs)
         # absolute path to icon:
-        self.icon_path = os.path.join(os.path.abspath(os.getcwd()),'atomize/main','icon.ico')
+        self.icon_path = os.path.join(os.path.abspath(os.getcwd()),'atomize/main','icon.png')
         self.setWindowIcon(QIcon(self.icon_path))
 
-        self.destroyed.connect(MainWindow.on_destroyed)         # connect some actions to exit
+        #self.destroyed.connect(MainWindow._on_destroyed)         # connect some actions to exit
+        self.destroyed.connect(lambda: self._on_destroyed())       # connect some actions to exit
         # Load the UI Page
         uic.loadUi('atomize/main/gui/main_window.ui', self)        # Design file
 
@@ -34,6 +35,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.script='' # for not opened script
         self.flag=1 # for not open two liveplot windows
         self.path=os.path.abspath(os.getcwd());
+        self.quit_flag=0;
         # Connection of different action to different Menus and Buttons
         self.button_open.clicked.connect(self.open_file_dialog)
         self.button_open.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
@@ -47,7 +49,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.button_start.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
         self.button_liveplot.clicked.connect(self.start_liveplot)
         self.button_liveplot.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
-        self.button_quit.clicked.connect(self.quit)
+        self.button_quit.clicked.connect(lambda: self.quit())
         self.button_quit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
         self.textEdit.setStyleSheet("QPlainTextEdit {background-color: rgb(24, 25, 26); color: rgb(255, 172, 0); } QScrollBar:vertical {background-color: rgb(0, 0, 0);}");
         self.text_errors.setStyleSheet("QPlainTextEdit {background-color: rgb(24, 25, 26); color: rgb(255, 170, 0); }")
@@ -66,11 +68,24 @@ class MainWindow(QtWidgets.QMainWindow):
         self.process_liveplot.finished.connect(self.helper_liveplot)
         self.process.finished.connect(self.on_finished_checking)
         self.process_python.finished.connect(self.on_finished_script)
-    def on_destroyed(self):
+    def _on_destroyed(self):
         """
         A function to do some actions when the main window is closing.
         """
-        self.process_python.terminate()
+        self.process_python.terminate() 
+        self.process_liveplot.terminate()
+        #if self.quit_flag==0:
+            #sys.exit()
+    def quit(self):
+        """
+        A function to quit the programm
+        """
+        self.quit_flag=0;
+        self.process_liveplot.terminate()
+        sys.exit()
+        ####
+        #### QProcess: Destroyed while process ("python3") is still running.
+        ####
     def start_experiment(self):
         """
         A function to run an experimental script using python.exe.
@@ -137,11 +152,7 @@ class MainWindow(QtWidgets.QMainWindow):
         elif text == '' and text_errors_script != '':
             self.text_errors.appendPlainText(text_errors_script)
             self.text_errors.verticalScrollBar().setValue(self.text_errors.verticalScrollBar().maximum())
-    def quit(self):
-        """
-        A function to quit the programm
-        """
-        sys.exit()
+
     def start_liveplot(self):
         """
         A function to open a new liveplot window
@@ -183,11 +194,6 @@ class MainWindow(QtWidgets.QMainWindow):
         filedialog.setFileMode(QtWidgets.QFileDialog.AnyFile)
         filedialog.fileSelected.connect(self.open_file)
         filedialog.show()
-
-    #def save_text(self):
-    #    text = self.textedit.toPlainText()
-    #    with open('mytextfile.txt', 'w') as f:
-    #        f.write(text)
 
     @QtCore.pyqtSlot(str) 
     def add_error_message(self, data):

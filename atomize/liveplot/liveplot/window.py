@@ -23,7 +23,7 @@ class MainWindow(QMainWindow):
         self.setStyleSheet("background-color: rgb(24, 25, 26); color: rgb(255, 170, 0); ") 
         self.setWindowTitle("Liveplot - Plotting dashboard!")
         # absolute path to icon:
-        self.icon_path = os.path.join(os.path.abspath(os.getcwd()),'atomize/liveplot/liveplot','icon.ico')
+        self.icon_path = os.path.join(os.path.abspath(os.getcwd()),'atomize/liveplot/liveplot','icon.png')
         self.setWindowIcon(QIcon(self.icon_path))
         
         self.dockarea = DockArea()

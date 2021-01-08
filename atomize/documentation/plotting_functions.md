@@ -22,6 +22,9 @@ xscale='XaxisDimension', yname='NameYaxis', yscale='YaxisDimension', scatter='Fa
 	other arguments are optional and used for automatic scaling (i.e. V to mV, etc.)
 	Please, note that it is impossible to redraw a line with scatters
 	if they have the same name.
+
+	Currently, up to five curves can be plotted under the same name and
+	different label.
 ```python	
 append_y('name', value, start_step=(x[0], x[1]-x[0]), label='label', xname='NameXaxis',
 xscale='XaxisDimension', yname='NameYaxis', yscale='YaxisDimension')

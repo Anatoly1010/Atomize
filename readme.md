@@ -5,10 +5,7 @@ The general idea is close to [FSC2 software](http://users.physik.fu-berlin.de/~j
 The liveplot library based on pyqtgraph is used as a main graphics library.<br/>
 The [liveplot](https://github.com/PhilReinhold/liveplot) was developed by Phil Reinhold.
 
-![](https://github.com/Anatoly1010/Atomize/blob/master/screenshot.png)
-
 ### Status: early in development
-
 
 ## Requirements
 - [Python (tested with 3.8+)](https://www.python.org/)
@@ -16,7 +13,7 @@ The [liveplot](https://github.com/PhilReinhold/liveplot) was developed by Phil R
 - [Scipy](https://www.scipy.org/)
 - [PyQt5](http://www.riverbankcomputing.com/software/pyqt/download)
 - [pyqtgraph](http://www.pyqtgraph.org)
-- [PyVisapy](https://github.com/pyvisa/pyvisa-py)
+- [PyVisa-py](https://github.com/pyvisa/pyvisa-py)
 
 ## Basic Usage
 
@@ -35,7 +32,7 @@ or
 
 2. [Liveplot](https://github.com/PhilReinhold/liveplot)  Author: Phil Reinhold
 
-Install from the source directory:
+Install from the source directory (from atomize/liveplot):
 
 	python3 setup.py install
 
@@ -50,25 +47,177 @@ plotter = LivePlotClient()
 plotter.plotter_functions()
 ```
 
-## Available general functions
-### [message()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
-### [open_1D()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
-### [open_1D_dialog()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
-### [save_1D_dialog()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
-### [open_2D()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
-### [open_2D_dialog()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
-### [open_2D_appended()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
-### [open_2D_appended_dialog()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
-### [save_2D_dialog()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
-### [create_file_dialog()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
+## Available devices
+#### Temperature Controllers
+	- LakeShore (Gpib, RS-232)<br/>
+	325 (untested); 331 (untested); 332 (untested); 335; 336 (untested); 340.
 
-## Available plotting functions
-### [plot_xy()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
-### [append_y()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
-### [plot_z()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
-### [append_z()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
-### [label()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
-### [clear()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
+#### Lock-in Amplifiers
+	- Stanford Research Lock-In Amplifier (Gpib, RS-232)<br/>
+	SR-810; SR-830; SR-850 (untested).
+	- Stanford Research Lock-In Amplifier (Gpib, RS-232, ethernet)<br/>
+	SR-860 (untested); SR-865a (untested).
 
+#### Oscilloscopes
+	- Keysight InfiniiVision 2000 X-Series (Ethernet)<br/>
+	MSO-X 2004A; MSO-X 2002A; DSO-X 2004A; DSO-X 2002A; MSO-X 2014A; MSO-X 2012A;
+	DSO-X 2014A; DSO-X 2012A; MSO-X 2024A; MSO-X 2022A; DSO-X 2024A; DSO-X 2022A.
+	- Keysight InfiniiVision 3000 X-Series (Ethernet)<br/>
+	MSO-X 3014A; MSO-X 3012A; DSO-X 3014A; DSO-X 3012A; MSO-X 3024A; DSO-X 3024A;
+	MSO-X 3034A; MSO-X 3032A; DSO-X 3034A; DSO-X 3032A; MSO-X 3054A; MSO-X 3052A;
+	DSO-X 3054A; DSO-X 3052A; MSO-X 3104A; MSO-X 3102A; DSO-X 3104A; DSO-X 3102A.
+
+#### Arbitrary Wave Generators
+	- Wave Generator of Keysight InfiniiVision 3000 X-Series (Ethernet)<br/>
+	Available via corresponding oscilloscope module.
+
+#### Frequency Counters
+	- Agilent Frequency Counter (Gpib)
+	53181A (untested); 53131A/132A.
+	- Keysight Frequency Counter (Gpib)
+	53230A/220A (untested).
+
+#### Magnetic Field Controller
+	- Bruker ER031M (RS-232 using arduino emulated keyboard) tested
+
+#### Balances
+	- CW 150 (RS-232) tested
+
+#### Other
+	- Solid-sate Relay RODOS-10N (ethernet) tested
+
+## [Available general functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
+```python3
+message('A message to print')
+open_1D(path, header=0)
+open_1D_dialog(self, directory='', fmt='', header=0)
+save_1D_dialog(data, directory='', fmt='', header='')
+open_2D(path, header=0)
+open_2D_dialog(directory='', fmt='', header=0)
+open_2D_appended(path, header=0, chunk_size=1)
+open_2D_appended_dialog(directory='', fmt='', header=0, chunk_size=1)
+save_2D_dialog(data, directory='', fmt='', header='')
+
+create_file_dialog(directory='', fmt='')
+```
+
+## [Available plotting functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
+```python3
+plot_xy('name', Xdata, Ydata, label='label', xname='NameXaxis', 
+xscale='XaxisDimension', yname='NameYaxis', yscale='YaxisDimension', scatter='False')
+append_y('name', value, start_step=(x[0], x[1]-x[0]), label='label', xname='NameXaxis',
+xscale='XaxisDimension', yname='NameYaxis', yscale='YaxisDimension')
+plot_z('name', data, start_step=((Xstart, Xstep), (Ystart, Ystep)), xname='NameXaxis',
+xscale='XaxisDimension', yname='NameYaxis Field', yscale='YaxisDimension', zname='NameZaxis',
+zscale='ZaxisDimension')
+append_z('name', data, start_step=((Xstart, Xstep), (Ystart, Ystep)), xname='NameXaxis',
+xscale='XaxisDimension', yname='NameYaxis Field', yscale='YaxisDimension', zname='NameZaxis',
+zscale='ZaxisDimension')
+label('label', 'text: %d' % DynamicValue)
+clear()
+```
 ## Available function for devices
+### Temperature controllers
+```python3
+tc_name()
+tc_temperature(channel)
+tc_setpoint(\*temp)
+tc_heater_range(\*heater)
+tc_heater_state()
+tc_command(command)
+tc_query(command)
+```
+### Oscilloscopes
+```python3
+oscilloscope_name()
+oscilloscope_record_length(\*points)
+oscilloscope_acquisition_type(\*ac_type)
+oscilloscope_number_of_averages(\*number_of_averages)
+oscilloscope_timebase(\*timebase)
+oscilloscope_time_resolution()
+oscilloscope_start_acquisition()
+oscilloscope_preamble(channel)
+oscilloscope_stop()
+oscilloscope_run()
+oscilloscope_get_curve(channel)
+oscilloscope_sensitivity(\*channel)
+oscilloscope_offset(\*channel)
+oscilloscope_coupling(\*coupling)
+oscilloscope_impedance(\*impedance)
+oscilloscope_trigger_mode(\*mode)
+oscilloscope_trigger_channel(\*channel)
+oscilloscope_trigger_low_level(\*level)
+oscilloscope_command(command)
+oscilloscope_query(command)
+```
+### Wave generators
+```python3
+wave_gen_name()
+wave_gen_frequency(\*frequency)
+wave_gen_pulse_width(\*width)
+wave_gen_function(\*function)
+wave_gen_amplitude(\*amplitude)
+wave_gen_offset(\*offset)
+wave_gen_impedance(\*impedance)
+wave_gen_run()
+wave_gen_stop()
+wave_gen_arbitrary_function(list)
+wave_gen_arbitrary_clear()
+wave_gen_arbitrary_interpolation(\*mode)
+wave_gen_arbitrary_points()
+wave_gen_command(command)
+wave_gen_query(command)
+```
+### Lock-in amplifiers
+```python3
+lock_in_name()
+lock_in_ref_frequency(\*frequency)
+lock_in_phase(\*degree)
+lock_in_time_constant(\*timeconstant)
+lock_in_ref_amplitude(\*amplitude)
+lock_in_get_data(\*channel)
+lock_in_sensitivity(\*sensitivity)
+lock_in_ref_mode(\*mode)
+lock_in_ref_slope(\*mode)
+lock_in_sync_filter(\*mode)
+lock_in_lp_filter(\*mode)
+lock_in_harmonic(\*harmonic)
+lock_in_command(command)
+lock_in_query(command)
+```
+### Frequency counters
+```python3
+freq_counter_name()
+freq_counter_frequency(channel)
+freq_counter_impedance(\*impedance)
+freq_counter_coupling(\*coupling)
+freq_counter_stop_mode(\*mode)
+freq_counter_start_mode(\*mode)
+freq_counter_gate_mode(\*mode)
+freq_counter_digits(\*digits)
+freq_counter_gate_time(\*time)
+freq_counter_expected_freq(\*frequency)
+freq_counter_ratio(channel1, channel2)
+freq_counter_period(channel)
+freq_counter_command(command)
+freq_counter_query(command)
+```
+### Magnetic field controllers
+```python3
+magnet_name()
+magnet_field(\*field)
+magnet_command(command)
+```
+### Balances
+```python3
+balance_weight()
+```
+### Other
+#### Solid-sate Relay RODOS-10N (ethernet)
+```python3
+turn_on(number)
+turn_off(number)
+```
 
+## Screenshots
+![](https://github.com/Anatoly1010/Atomize/blob/master/screenshot.png)

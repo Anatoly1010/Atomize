@@ -3,6 +3,7 @@
 
 import sys
 import csv
+import time
 import numpy as np
 from PyQt5.QtWidgets import QFileDialog, QDialog
 from PyQt5 import QtCore, QtWidgets
@@ -29,9 +30,9 @@ class csv():
 
 	def open_1D_dialog(self, directory='', fmt='', header=0):
 
-		self.app = QtWidgets.QApplication(sys.argv)
+		self.app = QtWidgets.QApplication([])
 		file_path = self.FileDialog(directory=directory, mode='Open', fmt=fmt)
-		QTimer.singleShot(50, self.app.quit)
+		QTimer.singleShot(100, self.app.quit)
 		self.app.exec_()
 
 		header_array=[];
@@ -48,10 +49,10 @@ class csv():
 
 	def save_1D_dialog(self, data, directory='', fmt='', header=''):
 
-		self.app = QtWidgets.QApplication(sys.argv)
+		self.app2 = QtWidgets.QApplication(sys.argv)
 		file_path = self.FileDialog(directory=directory,mode='Save', fmt=fmt)
-		QTimer.singleShot(50, self.app.quit)
-		self.app.exec_()
+		QTimer.singleShot(50, self.app2.quit)
+		self.app2.exec_()
 
 		np.savetxt(file_path, np.transpose(data), fmt='%.10f', delimiter=',', newline='\n', header=header, footer='', comments='#', encoding=None)
 
@@ -125,20 +126,20 @@ class csv():
 
 	def save_2D_dialog(self, data, directory='', fmt='', header=''):
 
-		self.app = QtWidgets.QApplication(sys.argv)
+		self.app2 = QtWidgets.QApplication(sys.argv)
 		file_path = self.FileDialog(directory=directory,mode='Save', fmt=fmt)
-		QTimer.singleShot(50, self.app.quit)
-		self.app.exec_()
+		QTimer.singleShot(50, self.app2.quit)
+		self.app2.exec_()
 
 		np.savetxt(file_path, data, fmt='%.10f', delimiter=',', newline='\n', header=header, footer='', comments='#', encoding=None)
 
 	def create_file_dialog(self,  directory='', fmt=''):
 
-		self.app = QtWidgets.QApplication(sys.argv)
+		self.app3 = QtWidgets.QApplication(sys.argv)
 		file_path = self.FileDialog(directory=directory,mode='Save', fmt=fmt)
 		open(file_path, "w").close()
-		QTimer.singleShot(50, self.app.quit)
-		self.app.exec_() # run mainloop which runs all time and makes all job in GUI.
+		QTimer.singleShot(50, self.app3.quit)
+		self.app3.exec_() # run mainloop which runs all time and makes all job in GUI.
 						 # mainloop will close the dialog, but we will have problems closing loop
 						 # we use QTimer with app.quit to inform mainloop to execute 
 						 # it after it will be started.

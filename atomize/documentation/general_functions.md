@@ -18,7 +18,7 @@ file_handler = openfile.csv()
 ```
 After that the functions should be used as follows:
 ```python	
-open_1D(path, header=0):
+open_1D(path, header=0)
 ```
 	Simple function to open a specified file with comma separeted values;
 
@@ -39,9 +39,9 @@ open_1D_dialog(self, directory='', fmt='', header=0)
 
 	Output: header as array of lists; data as numpy array
 ```python
-save_1D_dialog(data, directory='', fmt='', header=''):
+save_1D_dialog(data, directory='', fmt='', header='')
 ```
-	Function that returns a dialog to save a file to comma separeted values;
+	Function that returns a dialog to save data as comma separeted values;
 	
 	data is numpy array of data to save;
 	directory is a path to preopened directory in the dialog window;
@@ -50,7 +50,7 @@ save_1D_dialog(data, directory='', fmt='', header=''):
 	All these arguments are optional, default values are shown above;
 	The values will be saved in '%.10f' format.
 ```python
-open_2D(path, header=0):
+open_2D(path, header=0)
 ```
 	Simple function to open a specified file with 2D array of comma separeted values;
 
@@ -60,7 +60,7 @@ open_2D(path, header=0):
 
 	Output: header as array of lists; data as 2D numpy array
 ```python
-open_2D_dialog(directory='', fmt='', header=0):
+open_2D_dialog(directory='', fmt='', header=0)
 ```
 	Function that returns a dialog to open a file with 2D array of comma separeted values;
 	
@@ -82,7 +82,7 @@ open_2D_appended(path, header=0, chunk_size=1)
 
 	Output: header as array of lists; data as 2D numpy array
 ```python
-open_2D_appended_dialog(directory='', fmt='', header=0, chunk_size=1):
+open_2D_appended_dialog(directory='', fmt='', header=0, chunk_size=1)
 ```
 	Function that returns a dialog to open a file with a single column array
 	of values from 2D array;
@@ -97,7 +97,7 @@ open_2D_appended_dialog(directory='', fmt='', header=0, chunk_size=1):
 ```python
 save_2D_dialog(data, directory='', fmt='', header='')
 ```
-	Function that returns a dialog to save a 2D array to comma separeted
+	Function that returns a dialog to save a 2D array as comma separeted
 	values;
 	
 	data is numpy 2D array of data to save;
