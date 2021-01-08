@@ -12,11 +12,11 @@ data=[];
 step=10;
 i = 0;
 send.message('Test of 2D experiment')
-path_to_file = open1d.create_file_dialog(directory='', fmt='')
+#path_to_file = open1d.create_file_dialog(directory='', fmt='')
 
-f = open(path_to_file,'a')
+#f = open(path_to_file,'a')
 ## 2D Plot tests
-while i <= 10:
+while i <= 200:
 	i=i+1;
 
 	

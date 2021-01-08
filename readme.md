@@ -7,7 +7,7 @@ Remote control of spectrometers is usually carried out using home-written progra
 Atomize uses [liveplot library](https://github.com/PhilReinhold/liveplot) based on pyqtgraph as a main graphics library. [Liveplot](https://github.com/PhilReinhold/liveplot) was originally developed by Phil Reinhold. Since several minor improvements have been made to use it in Atomize, the latest version of liveplot is included to Atomize.
 
 [Python Programming Language](https://www.python.org/) is used inside experimental scripts, which opens up almost unlimited possibilities for raw experimetnal data treatment. In addition, with PyQt, one can create experimental scripts with a simple graphical interface, allowing users not familiar with Python to use it.
-Several examples of scripts (with dummy data) are provided in /atomize/tests/s directory, including a GUI script with extended comments inside.
+Several examples of scripts (with dummy data) are provided in /atomize/tests/ directory, including a GUI script with extended comments inside.
 
 ### Status: early in development; waiting for device tests
 
@@ -31,8 +31,10 @@ run from the source directory:
 
 	python3 atomize
 
-or
+or using bash option to open specified script:
+
 	python3 atomize /path/to/experimental/script
+
 
 2. [Liveplot](https://github.com/PhilReinhold/liveplot)  Author: Phil Reinhold
 
@@ -51,7 +53,7 @@ plotter = LivePlotClient()
 plotter.plotter_functions()
 ```
 
-3. Using device modules
+3. Using device modules<br/>
 To communicate with a device one should:
 1) modify the config file (/atomize/device_modules/config/) of the desired device accordingly.
 Usually you need to specify the interface type and interface settings.
@@ -64,9 +66,9 @@ name_oscilloscope = keys.oscilloscope_name()
 temperature = tc.tc_temperature('CH A')
 ```
 
-4. Experimental script
+4. Experimental script<br/>
 Python is used to write an experimental script. Examples (with dummy data) can be found in
-/atomize/tests/ directory
+/atomize/tests/ directory.
 
 ## Available devices
 #### Temperature Controllers

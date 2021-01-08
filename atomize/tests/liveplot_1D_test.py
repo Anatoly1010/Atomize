@@ -13,7 +13,7 @@ for i in range(100):
 	xs = np.append(xs, i);
 	ys = np.append(ys, np.random.random_integers(0,10));
 	plotter.plot_xy('Plot XY Test', xs, ys, label='test data')
-	#time.sleep(0.1)
+	time.sleep(0.2)
 
 # Append_y Test
 #xs = np.linspace(0, 39, 40)

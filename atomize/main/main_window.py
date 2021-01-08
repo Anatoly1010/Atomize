@@ -19,7 +19,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         super(MainWindow, self).__init__(*args, **kwargs)
         # absolute path to icon:
-        self.icon_path = os.path.join(os.path.abspath(os.getcwd()),'atomize/main','icon.ico')
+        self.icon_path = os.path.join(os.path.abspath(os.getcwd()),'atomize/main','Icon.png')
         self.setWindowIcon(QIcon(self.icon_path))
 
         #self.destroyed.connect(MainWindow._on_destroyed)         # connect some actions to exit
