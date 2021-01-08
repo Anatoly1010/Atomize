@@ -14,7 +14,7 @@ Note that arguments can be devices specific. A set of ['A','B'] is used for Lake
 Example: tc_temperature('A') returns the temperature of channel A in Kelvin.
 ```
 ```python3
-tc_setpoint(\*temp)
+tc_setpoint(*temp)
 Arguments: temp = float; Output: float or none.
 ```
 The function queries or changes the set point. If an argument is specified the function sets a new temperature point. If there is no argument the function returns the current set point. A loop can be specified in configuration file.<br/>
@@ -22,7 +22,7 @@ The function queries or changes the set point. If an argument is specified the f
 Example: tc_setpoint('100') changes the set point of the specified loop to 100 Kelvin.
 ```
 ```python3
-tc_heater_range(\*heater)
+tc_heater_range(*heater)
 Arguments: heater = string; Output: string or none.
 ```
 The function queries or sets the heater range. If an argument is specified the function sets a new heater range. If there is no argument the function returns the current heater range.<br/> 

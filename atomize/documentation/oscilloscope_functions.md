@@ -5,7 +5,7 @@ Arguments: none; Output: string(name).
 ```
 The function returns device name.
 ```python3
-oscilloscope_record_length(\*points)
+oscilloscope_record_length(*points)
 Arguments: points = integer from a specified dictionary; Output: integer.
 ```
 This function queries or sets the number of waveform points to be transferred using oscilloscope_get_curve() function. The number of points should be from the following array:<br/>
@@ -15,7 +15,7 @@ The maximum amount of points that can be transferred depend on the waveform poin
 Example: oscilloscope_record_length(4000) sets the number of waveform points to 4000.
 ```
 ```python3
-oscilloscope_acquisition_type(\*ac_type)
+oscilloscope_acquisition_type(*ac_type)
 Arguments: ac_type = integer (0,1,2 or 3); Output: integer.
 ```
 This function queries or sets the acquisition type for Keysight 3000 oscilloscopes. If there is no argument the function will return the current acquisition type. If there is an argument the specified acquisition type will be set. Possible acquisition types and their meaning are the following:<br/>
@@ -24,7 +24,7 @@ This function queries or sets the acquisition type for Keysight 3000 oscilloscop
 Example: oscilloscope_acquisition_type('1') sets the acquisition type to the average mode.
 ```
 ```python3
-oscilloscope_number_of_averages(\*number_of_averages)
+oscilloscope_number_of_averages(*number_of_averages)
 Arguments: number_of_averages = integer (2-65536); Output: integer.
 ```
 This function queries or sets the number of averages in the range of 2 to 65536 in the averaging acquisition mode (for Keysight 3000 oscilloscopes). If there is no argument the function will return the current number of averages. If there is an argument the specified number of averages type will be set. If the oscilloscopes is not in the averaging acquisition mode the error message will be printed.<br/>
@@ -32,7 +32,7 @@ This function queries or sets the number of averages in the range of 2 to 65536 
 Example: oscilloscope_number_of_averages('2') sets the number of averages to 2.
 ```
 ```python3
-oscilloscope_timebase(\*timebase)
+oscilloscope_timebase(*timebase)
 Arguments: timebase = string ('number + scaling (s, ms, us, ns)'); Output: float (in us).
 ```
 This function queries or sets the full-scale horizontal time for the main window. The range is 10 times the current time-per-division setting. If there is no argument the function will return the full-scale horizontal time in us. If there is an argument the specified full-scale horizontal time will be set.<br/>
@@ -58,8 +58,8 @@ oscilloscope_preamble(channel)
 Arguments: channel = string (['CH1, CH2, CH3, CH4']); Output: array of the mixed types.
 ```
 This function requests the preamble information for the selected waveform source. The preamble data contains information concerning the vertical and horizontal scaling of the data of the corresponding channel.<br/>
-Preamble format (ascii): [format, type, points, count, xincrement, xorigin, xreference, yincrement, yorigin, yreference]<br/>
 ```python3
+Preamble format (ascii): [format, type, points, count, xincrement, xorigin, xreference, yincrement, yorigin, yreference]<br/>
 Example: oscilloscope_preamble('CH3') returs the preamble from channel 3.
 ```
 ```python3
@@ -81,7 +81,7 @@ The function returns a curve from the specified channel of the oscilloscope. At 
 Example: oscilloscope_get_curve('CH2') returs the data from channel 2.
 ```
 ```python3
-oscilloscope_sensitivity(\*channel)
+oscilloscope_sensitivity(*channel)
 Arguments: channel = two strings ('channel string', 'number + scaling (V, mV)')
 or one string ('channel string'); Output: float (in mV).
 ```
@@ -92,7 +92,7 @@ per division of the channel 2 to 100 mV. oscilloscope_sensitivity('CH2') returns
 the current sensitivity of the channel 2 in mV.
 ```
 ```python3
-oscilloscope_offset(\*channel)
+oscilloscope_offset(*channel)
 Arguments: channel = two strings ('channel string', 'number + scaling (V, mV)')
 or one string ('channel string'); Output: float (in mV).
 ```
@@ -102,7 +102,7 @@ Examples: oscilloscope_offset('CH2', '100 mV') sets the offset setting of the ch
 to 100 mV. oscilloscope_offset('CH2') returns the current offset of the channel 2 in mV.
 ```
 ```python3
-oscilloscope_coupling(\*coupling)
+oscilloscope_coupling(*coupling)
 Arguments: coupling = two strings ('channel string', 'coupling string (AC, DC)')
 or one string ('channel string'); Output: string.
 ```
@@ -112,7 +112,7 @@ Examples: oscilloscope_coupling('CH2', 'AC') sets the coupling of the channel 2 
 oscilloscope_coupling('CH2') returns the current coupling of the channel 2.
 ```
 ```python3
-oscilloscope_impedance(\*impedance)
+oscilloscope_impedance(*impedance)
 Arguments: impedance = two strings ('channel string', 'impedance string (1 M, 50)')
 or one string ('channel string'); Output: string.
 ```
@@ -122,7 +122,7 @@ Examples: oscilloscope_impedance('CH2', '1 M') sets the impedance of the channel
 oscilloscope_impedance('CH2') returns the current impedance of the channel 2.
 ```
 ```python3
-oscilloscope_trigger_mode(\*mode)
+oscilloscope_trigger_mode(*mode)
 Arguments: mode = string ('Auto', 'Normal'); Output: string.
 ```
 The function queries or sets the trigger mode of the oscilloscope. If there is no argument the function will return the current trigger mode (Auto or Normal). If there is an argument the specified trigger mode will be set.<br/>
@@ -131,7 +131,7 @@ When Auto sweep mode is selected, a baseline is displayed in the absence of a si
 Examples: oscilloscope_trigger_mode('Auto') sets the trigger mode to 1 Auto.
 ```
 ```python3
-oscilloscope_trigger_channel(\*channel)
+oscilloscope_trigger_channel(*channel)
 Arguments: channel = string (['CH1, CH2, CH3, CH4', 'Ext', 'Line', 'WGen']); Output: string.
 ```
 The function queries or sets the trigger channel of the oscilloscope. If there is no argument the function will return the current trigger channel ( CHAN<n>, EXT, LINE, WGEN, NONE). If all channels are off, the query returns NONE. If there is an argument the specified trigger channel will be set.<br/>
@@ -140,7 +140,7 @@ Argument Ext triggers on the rear panel EXT TRIG IN signal. Argument Line trigge
 Examples: oscilloscope_trigger_channel('CH3') sets the trigger channel to 3.
 ```
 ```python3
-oscilloscope_trigger_low_level(\*level)
+oscilloscope_trigger_low_level(*level)
 Arguments: level = string + float ('channel string' ['CH1, CH2, CH3, CH4'],
 float level in V) or one string ('channel string'); Output: float.
 ```

@@ -15,7 +15,7 @@ Agilent 53181a has two channels; Agielnt 53131a - three.<br/>
 Example: freq_counter_frequency('CH1') returns the measured frequency from channel 1.
 ```
 ```python3
-freq_counter_impedance(\*impedance)
+freq_counter_impedance(*impedance)
 Arguments: impedance = two strings ('channel string', 'impedance string (1 M, 50)')
 or one string ('channel string'); Output: string.
 ```
@@ -26,7 +26,7 @@ Examples: freq_counter_impedance('CH1', '1 M') sets the impedance of the channel
 freq_counter_impedance('CH2') returns the current impedance of the channel 2.
 ```
 ```python3
-freq_counter_coupling(\*coupling)
+freq_counter_coupling(*coupling)
 Arguments: coupling = two strings ('channel string', 'coupling string ('AC', 'DC')') or one string ('channel string'); Output: string.
 ```
 The function queries (if called with one argument) or sets (if called with two arguments) the coupling of one of the channels of the frequency counter. If there is a second argument this will be set as a new coupling. If there is no second argument the current coupling for the specified channel is returned.<br/>
@@ -36,7 +36,7 @@ Examples: freq_counter_coupling('CH1', 'AC') sets the coupling of the channel 1 
 freq_counter_coupling('CH2') returns the current coupling of the channel 2.
 ```
 ```python3
-freq_counter_stop_mode(\*mode)
+freq_counter_stop_mode(*mode)
 Arguments: mode = string from a specified dictionary; Output: string.
 ```
 This function queries or sets the stop arm for frequency, frequency ratio, and period measurements. The type should be from the following array:<br/>
@@ -47,7 +47,7 @@ For Keysight 53230a two possible modes can be used from an array: ['Im', 'Tim', 
 Example: freq_counter_stop_mode('Tim') sets the digits mode.
 ```
 ```python3
-freq_counter_start_mode(\*mode)
+freq_counter_start_mode(*mode)
 Arguments: mode = string from a specified dictionary; Output: string.
 ```
 This function queries or sets the start arm for frequency, frequency ratio, and period measurements. The type should be from the following array:<br/>
@@ -56,7 +56,7 @@ This function queries or sets the start arm for frequency, frequency ratio, and 
 Example: freq_counter_start_mode('Im') sets the automatic mode.
 ```
 ```python3
-freq_counter_gate_mode(\*mode)
+freq_counter_gate_mode(*mode)
 Arguments: mode = string from a specified dictionary; Output: string.
 ```
 This function queries or sets the gate source for frequency, frequency ratio measurements. Currently, the type should be from the following array:
@@ -66,7 +66,7 @@ This functions is available only for Keysight 53230a.
 Example: freq_counter_gate_mode('Tim') sets the 'Time' mode.
 ```
 ```python3
-freq_counter_digits(\*digits)
+freq_counter_digits(*digits)
 Arguments: digits = integer in the range of 3 to 15; Output: integer.
 ```
 This function queries or sets the resolution in terms of digits used in arming frequency, period, and ratio measurements. To set this mode use freq_counter_stop_mode() function. The argument of the function should be an integer between 3 and 15. To query the number of digits call the function with no argument. A query is possible only if freq_counter_stop_mode('Dig') was called before.<br/>
@@ -75,7 +75,7 @@ This function is available only for Agilent 53181a and 53131a.<br/>
 Example: freq_counter_digits(5) sets the resolution to 5 digits.
 ```
 ```python3
-freq_counter_gate_time(\*time)
+freq_counter_gate_time(*time)
 Arguments: time = string ('number + scaling (ks, s, ms, us, ns)'); Output: float.
 ```
 This function queries or sets the gate time used in arming frequency, period, and ratio measurements. To set this mode use freq_counter_stop_mode() function. The argument of the function should be from 1 ms to 1000 s (Agilent 53181a, 53131a); from 10 us to 10 s (Keysight 53220a); from 10 ns to 10 s (Keysight 53230a). To query the gate call the function with no argument. A query is possible only if freq_counter_stop_mode('Tim') was called before.<br/>
@@ -83,7 +83,7 @@ This function queries or sets the gate time used in arming frequency, period, an
 Example: freq_counter_gate_time('100 ms') sets the gate time to 100 ms.
 ```
 ```python3
-freq_counter_expected_freq(\*frequency)
+freq_counter_expected_freq(*frequency)
 Arguments: frequency = two strings ('channel string', 'number + scaling (GHz, MHz, kHz, Hz)')
 or one string ('channel string'); Output: float (in Hz).
 ```

@@ -5,7 +5,7 @@ Arguments: none; Output: string(name).
 ```
 The function returns device name.
 ```python3
-wave_gen_frequency(\*frequency)
+wave_gen_frequency(*frequency)
 Arguments: frequency = string ('number + scaling (MHz, kHz, Hz, mHz)'); Output: float (in Hz).
 ```
 This function queries or sets the frequency of the waveform of the wave generator. If there is no argument the function will return the current frequency in Hz. If there is an argument the specified frequency will be set. The function works for all waveforms except Noise and DC.<br/>
@@ -15,7 +15,7 @@ Example: wave_gen_frequency('20 kHz') sets the frequency of the waveform
 of the wave generator to 20 kHz.
 ```
 ```python3
-wave_gen_pulse_width(\*width)
+wave_gen_pulse_width(*width)
 Arguments: width = string ('number + scaling (s, ms, us, ns)'); Output: float (in us).
 ```
 This function queries or sets the width of the pulse of the wave generator. If there is no argument the function will return the current width in us. If there is an argument the specified width will be set. The pulse width can be adjusted from 20 ns to the period minus 20 ns. The function available only for pulse waveforms.<br/>
@@ -24,7 +24,7 @@ Example: wave_gen_pulse_width('20 ms') sets the width of the waveform of the wav
 generator to 20 ms.
 ```
 ```python3
-wave_gen_function(\*function)
+wave_gen_function(*function)
 Arguments: function = string from a specified dictionary; Output: string.
 ```
 This function queries or sets the type of waveform of the wave generator. The type should be from the following array:<br/>
@@ -33,7 +33,7 @@ This function queries or sets the type of waveform of the wave generator. The ty
 Example: wave_gen_function('Sq') sets the sqare waveform.
 ```
 ```python3
-wave_gen_amplitude(\*amplitude)
+wave_gen_amplitude(*amplitude)
 Arguments: amplitude = string ('number + scaling (V, mV)'); Output: float (in mV).
 ```
 This function queries or sets the waveform's amplitude. If there is no argument the function will return the current amplitude in mV. If there is an argument the specified amplitude will be set. The function available for all waveforms except DC.<br/>
@@ -41,7 +41,7 @@ This function queries or sets the waveform's amplitude. If there is no argument 
 Example: wave_gen_amplitude('200 mV') sets the waveform's amplitude to 200 mV.
 ```
 ```python3
-wave_gen_offset(\*offset)
+wave_gen_offset(*offset)
 Arguments: offset = string ('number + scaling (V, mV)'); Output: float (in mV).
 ```
 This function queries or sets the waveform's offset voltage or the DC level. If there is no argument the function will return the current offset voltage in mV. If there is an argument the specified offset will be set.<br/>
@@ -49,7 +49,7 @@ This function queries or sets the waveform's offset voltage or the DC level. If 
 Example: wave_gen_offset('0.5 V') sets the waveform's offset voltage to 500 mV.
 ```
 ```python3
-wave_gen_impedance(\*impedance)
+wave_gen_impedance(*impedance)
 Arguments: offset = string ('impedance string (1 M, 50)'); Output: string.
 ```
 This function queries or sets the output load impedance of the wave generator. If there is no argument the function will return the current impedance. If there is an argument the specified impedance will be set.<br/>
@@ -82,7 +82,7 @@ Arguments: none; Output: none.
 ```
 The function clears the arbitrary waveform memory and loads it with the default waveform.
 ```python3
-wave_gen_arbitrary_interpolation(\*mode)
+wave_gen_arbitrary_interpolation(*mode)
 Arguments: mode = string (['On', 'Off']); Output: integer.
 ```
 This function enables or disables the interpolation control. If there is no argument the function will return the current interpolation setting (0 means Off; 1 means On). If there is an argument the specified interpolation setting will be set.<br/>

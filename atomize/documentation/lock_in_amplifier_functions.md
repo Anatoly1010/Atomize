@@ -5,7 +5,7 @@ Arguments: none; Output: string(name).
 ```
 The function returns device name.
 ```python3
-lock_in_ref_frequency(\*frequency)
+lock_in_ref_frequency(*frequency)
 Arguments: frequency = float; Output: float or none.
 ```
 The function for querying or setting the modulation frequency in Hz. If called with no argument the current modulation frequency is returned. If called with an argument the modulation frequency is set. Frequency range is 4 mHz to 102 kHz (SR-810, 830, 850); 1 mHz - 500 kHz (SR-860); 1 mHz - 4 MHz (SR-865a).<br/>
@@ -14,7 +14,7 @@ For SR-860, 865a the query command, lock_in_ref_frequency(), returns the interna
 Example: lock_in_ref_frequency('100000') sets the modulation frequency to 100 kHz.
 ```
 ```python3
-lock_in_phase(\*degree)
+lock_in_phase(*degree)
 Arguments: degree = float; Output: float or none.
 ```
 The function for querying or setting the phase of the lock-in in degrees. If there is no argument the function will return the current phase. If called with an argument the specified phase will be set. The phase may be programmed from -360.000 to 719.999 (SR-850), from -360.000 to 729.999 (SR-810, 830), from -360000 to 360000 (SR-860, 865a) and will be wrapped around at ±180°.<br/>
@@ -22,7 +22,7 @@ The function for querying or setting the phase of the lock-in in degrees. If the
 Example: lock_in_phase('100') sets the phase to 100°.
 ```
 ```python3
-lock_in_time_constant(\*timeconstant)
+lock_in_time_constant(*timeconstant)
 Arguments: timeconstant = string; Output: string or none.
 ```
 The function for querying or setting the time constant of the lock-in in ms. If there is no argument the function will return the current time constant. If there is an argument the specified time constant will be set.<br/>
@@ -33,7 +33,7 @@ For SR-860, 865a 1 us and 3 us are also available. If the time constant is not c
 Example: lock_in_time_constant('100 ms') sets the time constant to 100 ms.
 ```
 ```python3
-lock_in_ref_amplitude(\*amplitude)
+lock_in_ref_amplitude(*amplitude)
 Arguments: amplitude = float; Output: float or none.
 ```
 This function queries or sets the level of the modulation frequency in V. If there is no argument the function will return the current level. If there is an argument the specified level will be set. For SR-810, 830, 850 the allowed levels are between 4 mV and 5 V. For SR-860, 865a the allowed levels are between 1 nV and 2 V. If the argument is not within this range an error message is printed and the level of 4 mV will be set. <br/>
@@ -42,7 +42,7 @@ Example: lock_in_ref_amplitude('0.150') sets the level of the modulation frequen
 to 150 mV.
 ```
 ```python3
-lock_in_get_data(\*channel)
+lock_in_get_data(*channel)
 Arguments: channel = up to three integers (1,2,3); Output: up to three floats.
 ```
 This function can be used to query measured values from the lock-in amplifier.
@@ -54,7 +54,7 @@ Example: lock_in_get_data('1', '2', '3') returns three float values for X, Y,
 and R signals in Volts.
 ```
 ```python3
-lock_in_sensitivity(\*sensitivity)
+lock_in_sensitivity(*sensitivity)
 Arguments: sensitivity = string; Output: string or none.
 ```
 The function queries or sets the sensitivity of the lock-in. If there is no argument the function will return the current sensitivity as a string. If there is an argument the specified sensitivity will be set.<br/>
@@ -65,7 +65,7 @@ For SR-860, 865a 1 nV is also available. If the sensitivity is not contained in 
 Example: lock_in_sensitivity('10 uV') sets the sensitivity to 10 uV.
 ```
 ```python3
-lock_in_ref_mode(\*mode)
+lock_in_ref_mode(*mode)
 Arguments: mode = integer (0 or 1); Output: integer or none.
 ```
 This function queries or sets the modulation mode, i.e. if the internal modulation or an external modulation input is used. If there is no argument the function will return the current modulation mode. If there is an argument the specified modulation mode will be set. Possible modulation modes and their meaning are the following:<br/>
@@ -77,7 +77,7 @@ SR-860, 865a:<br/>
 Example: lock_in_ref_mode('0') sets the device to external modulation mode.
 ```
 ```python3
-lock_in_ref_slope(\*mode)
+lock_in_ref_slope(*mode)
 Arguments: mode = integer (0, 1 or 2); Output: integer or none.
 ```
 This function queries or sets the reference trigger when using the external reference mode. If there is no argument the function will return the current reference trigger. If there is an argument the specified reference trigger mode will be set. Note that at frequencies below 1 Hz, the a TTL reference must be used. Possible reference trigger modes and their meaning are the following:<br/>
@@ -86,7 +86,7 @@ This function queries or sets the reference trigger when using the external refe
 Example: lock_in_ref_slope('1') sets the reference trigger to TTL rising edge.
 ```
 ```python3
-lock_in_sync_filter(\*mode)
+lock_in_sync_filter(*mode)
 Arguments: mode = integer (0 or 1); Output: integer or none.
 ```
 This function queries or sets the synchronous filter status. If there is no argument the function will return the current status. If there is an argument the specified status will be set. Note that synchronous filtering is turned on only if the detection frequency is less than 200 Hz. Possible synchronous filter status and their meaning are the following:<br/>
@@ -95,7 +95,7 @@ This function queries or sets the synchronous filter status. If there is no argu
 Example: lock_in_sync_filter('1') turns on synchronous filtering.
 ```
 ```python3
-lock_in_lp_filter(\*mode)
+lock_in_lp_filter(*mode)
 Arguments: mode = integer (0-3); Output: integer or none.
 ```
 This function queries or sets the low pass filter slope. If there is no argument the function will return the current slope. If there is an argument the specified slope will be set. Possible low pass filter slopes and their meaning are the following:<br/>
@@ -104,7 +104,7 @@ This function queries or sets the low pass filter slope. If there is no argument
 Example: lock_in_lp_filter('1') sets the low pass filter slope to 12 dB/oct.
 ```
 ```python3
-lock_in_harmonic(\*harmonic)
+lock_in_harmonic(*harmonic)
 Arguments: harmonic = integer (1-19999; 1-99); Output: integer or none.
 ```
 This function queries or sets the detection harmonic. The argument is an integer from 1 to 19999 (SR-810, 830, 850) or from 1 to 32767 (SR-850). The function will set the lock-in to detect at the specified harmonic of the reference frequency. The value of the detected frequency is limited by 102 kHz. If the argument used requires a detection frequency greater than 102 kHz, then the harmonic number will be set to the largest value available for which the frequency is less than 102 kHz.<br/>

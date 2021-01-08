@@ -7,7 +7,7 @@ magnet_name()
 ```
 This function returns device name.
 ```python3
-magnet_field(\*field)
+magnet_field(*field)
 Arguments: float; Output: float.
 ```
 This function queries or sets the magnetic field in Gauss. If an argument is specified the function sets a new magnetic field value. If there is no argument the function returns the current magnetic field.<br/>

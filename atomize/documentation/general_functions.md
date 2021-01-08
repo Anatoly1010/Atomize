@@ -121,7 +121,7 @@ For saving inside the script by create_file_dialog() a typical numpy
 function should be used:
 ```python
 np.savetxt(path_to_file, data_to_save, fmt='%.10f', delimiter=' ',
-newline='\n', header='field: %d' % i, footer='', comments='#', encoding=None)
+newline='n', header='field: %d' % i, footer='', comments='#', encoding=None)
 ```
 
 # Minimal examples of using these functions inside the experimental script
@@ -169,7 +169,7 @@ while i <= 10:
 	zscale='V')
 
 f=open(path_to_file,'a')
-np.savetxt(f, data, fmt='%.10f', delimiter=',', newline='\n',
+np.savetxt(f, data, fmt='%.10f', delimiter=',', newline='n',
 	header='field: %d' % i, footer='', comments='#', encoding=None)
 f.close()
 ```
@@ -200,7 +200,7 @@ while i <= 10:
 	zs = 1 + 100*np.exp(-axis_x/ch_time)+7*np.random.normal(size=(4000))
 	data.append(zs)
 	time.sleep(0.1)
-	np.savetxt(f, zs, fmt='%.10f', delimiter=' ', newline='\n', 
+	np.savetxt(f, zs, fmt='%.10f', delimiter=' ', newline='n', 
 	header='field: %d' % i, footer='', comments='#', encoding=None)
 
 	plotter.plot_z('Plot Z Test', data, start_step=((0,1),(0.3,0.001)),
