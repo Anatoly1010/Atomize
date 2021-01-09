@@ -18,8 +18,7 @@ Several examples of scripts (with dummy data) are provided in /atomize/tests/ di
 - [PyQt5](http://www.riverbankcomputing.com/software/pyqt/download)
 - [pyqtgraph](http://www.pyqtgraph.org)
 - [PyVisa-py](https://github.com/pyvisa/pyvisa-py)
-Optional:
-- [Pylint;](https://www.pylint.org/) for syntax checking
+- [Pylint;](https://www.pylint.org/) Optional, for syntax checking
 
 ## Basic usage
 
@@ -71,7 +70,7 @@ temperature = tc.tc_temperature('CH A')
 ```
 
 4. Experimental script
-<br/>
+
 Python is used to write an experimental script. Examples (with dummy data) can be found in
 /atomize/tests/ directory.
 
