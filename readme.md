@@ -18,7 +18,7 @@ Several examples of scripts (with dummy data) are provided in /atomize/tests/ di
 - [PyQt5](http://www.riverbankcomputing.com/software/pyqt/download)
 - [pyqtgraph](http://www.pyqtgraph.org)
 - [PyVisa-py](https://github.com/pyvisa/pyvisa-py)
-- [Pylint;](https://www.pylint.org/) Optional, for syntax checking
+- [Pylint;](https://www.pylint.org/) optional, for syntax checking
 
 ## Basic usage
 
@@ -56,7 +56,7 @@ plotter.plotter_functions()
 ```
 
 3. Using device modules
-<br/>
+
 To communicate with a device one should:
 1) modify the config file (/atomize/device_modules/config/) of the desired device accordingly.
 Usually you need to specify the interface type and interface settings.
@@ -64,7 +64,6 @@ Usually you need to specify the interface type and interface settings.
 ```python
 import atomize.device_modules.keysight_3000_Xseries as keys
 import atomize.device_modules.Lakeshore331 as tc
-
 name_oscilloscope = keys.oscilloscope_name()
 temperature = tc.tc_temperature('CH A')
 ```
