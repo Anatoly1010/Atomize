@@ -4,6 +4,7 @@
 import os
 import sys
 import threading
+import configparser
 from PyQt5.QtGui import QColor, QIcon
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from PyQt5 import QtWidgets, uic, QtCore, QtGui
@@ -19,7 +20,8 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         super(MainWindow, self).__init__(*args, **kwargs)
         # absolute path to icon:
-        self.icon_path = os.path.join(os.path.abspath(os.getcwd()),'atomize/main','Icon.png')
+        path_to_main=os.path.abspath(os.getcwd())
+        self.icon_path = os.path.join(path_to_main,'atomize/main','Icon.png')
         self.setWindowIcon(QIcon(self.icon_path))
 
         #self.destroyed.connect(MainWindow._on_destroyed)         # connect some actions to exit
@@ -34,33 +36,51 @@ class MainWindow(QtWidgets.QMainWindow):
         elif len(sys.argv) == 1:
             self.script='' # for not opened script
         self.flag=1 # for not open two liveplot windows
-        self.path=os.path.abspath(os.getcwd());
-        self.quit_flag=0;
+        self.path=os.path.join(path_to_main,'atomize/tests')
         # Connection of different action to different Menus and Buttons
         self.button_open.clicked.connect(self.open_file_dialog)
-        self.button_open.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
+        self.button_open.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133);\
+         border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
         self.button_edit.clicked.connect(self.edit_file)
-        self.button_edit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
+        self.button_edit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133);\
+         border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
         self.button_test.clicked.connect(self.test)
-        self.button_test.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
+        self.button_test.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133);\
+         border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
         self.button_reload.clicked.connect(self.reload)
-        self.button_reload.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
+        self.button_reload.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133);\
+         border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
         self.button_start.clicked.connect(self.start_experiment)
-        self.button_start.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
+        self.button_start.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133);\
+         border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
         self.button_liveplot.clicked.connect(self.start_liveplot)
-        self.button_liveplot.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
+        self.button_liveplot.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133);\
+         border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
         self.button_quit.clicked.connect(lambda: self.quit())
-        self.button_quit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133); border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
-        self.textEdit.setStyleSheet("QPlainTextEdit {background-color: rgb(24, 25, 26); color: rgb(255, 172, 0); } QScrollBar:vertical {background-color: rgb(0, 0, 0);}");
+        self.button_quit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133);\
+         border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
+        self.textEdit.setStyleSheet("QPlainTextEdit {background-color: rgb(24, 25, 26); color: rgb(255, 172, 0); }\
+         QScrollBar:vertical {background-color: rgb(0, 0, 0);}");
         self.text_errors.setStyleSheet("QPlainTextEdit {background-color: rgb(24, 25, 26); color: rgb(255, 170, 0); }")
         
+        # configuration data
+        path_config_file = os.path.join(path_to_main,'atomize/config.ini')
+        config = configparser.ConfigParser()
+        config.read(path_config_file)
+
         # for running different processes using QProcess
         self.process = QtCore.QProcess(self)
         self.process_text_editor = QtCore.QProcess(self)
         self.process_python = QtCore.QProcess(self)
         self.process_liveplot = QtCore.QProcess(self)
         self.process.setProgram('pylint')
-        self.process_text_editor.setProgram("subl") # we need to know path to text editor
+
+        self.editor=str(config['DEFAULT']['editor'])
+        if self.editor=='nano' or self.editor=='vi':
+            self.process_text_editor.setProgram('xterm')
+        else:
+            self.process_text_editor.setProgram(str(config['DEFAULT']['editor']))
+
         self.process_python.setProgram('python3')
         self.process_liveplot.setProgram('python3')
         self.process_liveplot.setArguments(['-m', 'liveplot'])
@@ -72,16 +92,16 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         A function to do some actions when the main window is closing.
         """
-        self.process_python.terminate() 
-        self.process_liveplot.terminate()
-        #if self.quit_flag==0:
-            #sys.exit()
+        self.process_python.close() 
+        self.process_liveplot.close()
+        #print(self.process_liveplot.exitStatus())# Exit code 1 if the liveplot window is opened
     def quit(self):
         """
         A function to quit the programm
         """
-        self.quit_flag=0;
+        self.process_python.terminate()
         self.process_liveplot.terminate()
+        #print(self.process_liveplot.exitStatus())
         sys.exit()
         ####
         #### QProcess: Destroyed while process ("python3") is still running.
@@ -172,8 +192,14 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         A function to open an experimental script in a text editor.
         """
-        self.process_text_editor.setArguments([self.script])
+        if self.editor=='nano':
+            self.process_text_editor.setArguments(['-e','nano', self.script])
+        elif self.editor=='vi':
+            self.process_text_editor.setArguments(['-e','vi', self.script])
+        else:
+            self.process_text_editor.setArguments([self.script])
         self.process_text_editor.start()
+        
     def open_file(self, filename):
         """
         A function to open an experimental script.

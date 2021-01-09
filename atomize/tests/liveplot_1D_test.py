@@ -9,10 +9,10 @@ xs=np.array([]);
 ys=np.array([]);
 
 # Plot_xy Test
-for i in range(100):
+for i in range(20):
 	xs = np.append(xs, i);
 	ys = np.append(ys, np.random.random_integers(0,10));
-	plotter.plot_xy('Plot XY Test', xs, ys, label='test data')
+	plotter.plot_xy('Plot XY Test2', xs, ys, label='test data')
 	time.sleep(0.2)
 
 # Append_y Test

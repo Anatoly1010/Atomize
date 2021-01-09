@@ -24,6 +24,7 @@ class LineNumberArea(QWidget):
 class CodeEditor(QPlainTextEdit):
     def __init__(self, parent=None):
         QPlainTextEdit.__init__(self, parent)
+        self.setTabStopDistance(30)                 # set the tab width
         self.lineNumberArea = LineNumberArea(self)
         self.blockCountChanged.connect(self.updateLineNumberAreaWidth)
         self.updateRequest.connect(self.updateLineNumberArea)
@@ -33,7 +34,7 @@ class CodeEditor(QPlainTextEdit):
 
     def lineNumberAreaPaintEvent(self, event):
         painter = QPainter(self.lineNumberArea)
-        painter.fillRect(event.rect(), QColor(136, 138, 133))           #color of the line column 
+        painter.fillRect(event.rect(), QColor(136, 138, 133))   # color of the line column 
 
         block = self.firstVisibleBlock()
         blockNumber = block.blockNumber();

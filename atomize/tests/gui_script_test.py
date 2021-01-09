@@ -4,6 +4,7 @@ import numpy as np
 from multiprocessing import Process, Pipe
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QSpinBox, QHBoxLayout, QLabel, QPushButton
 from liveplot import LivePlotClient
+import atomize.device_modules.config.messenger_socket_client as send
 # import of required devices and general modules
 
 # The class of the main window of GUI
@@ -153,6 +154,8 @@ class Worker(QWidget):
 		Param_4 - blank
 		"""
 		# Plot_xy script, dummy data
+		start_time = time.time()
+
 		plotter = LivePlotClient()
 		xs=np.array([]);
 		ys=np.array([]);
@@ -170,6 +173,7 @@ class Worker(QWidget):
 			plotter.plot_xy('Plot XY Test', xs, ys, label='test data')
 			time.sleep(param_2/1000)
 			i=i+1
+		send.message(str(time.time() - start_time))
 
 # Running GUI mainloop
 if __name__ == "__main__":

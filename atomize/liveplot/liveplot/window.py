@@ -174,7 +174,8 @@ class MainWindow(QMainWindow):
             ynam = meta['Yname']
             yscal = meta['Y']
             scat = meta['Scatter']
-            pw.plot(arr[0], arr[1], parametric=True, name=label, xname=xnam, xscale =xscal, yname=ynam, yscale =yscal, scatter=scat)
+            pw.plot(arr[0], arr[1], parametric=True, name=label, xname=xnam, xscale =xscal,\
+             yname=ynam, yscale =yscal, scatter=scat)
 
 
         elif operation == 'plot_z':
@@ -187,10 +188,12 @@ class MainWindow(QMainWindow):
             zscal = meta['Z']
             if start_step is not None:
                 (x0, dx), (y0, dy) = start_step
-                pw.setAxisLabels(xname=xnam, xscale =xscal, yname=ynam, yscale =yscal, zname=znam, zscale =zscal)
+                pw.setAxisLabels(xname=xnam, xscale =xscal, yname=ynam, yscale =yscal,\
+                zname=znam, zscale =zscal)
                 pw.setImage(arr, pos=(x0, y0), scale=(dx, dy), axes={'y':0, 'x':1})
             else:
-                pw.setAxisLabels(xname=xnam, xscale =xscal, yname=ynam, yscale =yscal, zname=znam, zscale =zscal)
+                pw.setAxisLabels(xname=xnam, xscale =xscal, yname=ynam, yscale =yscal,\
+                 zname=znam, zscale =zscal)
                 pw.setImage(arr, axes={'y':0, 'x':1})
 
 
@@ -210,9 +213,11 @@ class MainWindow(QMainWindow):
                 x0, dx = start_step
                 nx = len(new_ys)
                 xs = np.linspace(x0, x0 + (nx - 1)*dx, nx)
-                pw.plot(xs, new_ys, name=label, xname=xnam, xscale =xscal, yname=ynam, yscale =yscal, scatter=scat)
+                pw.plot(xs, new_ys, name=label, xname=xnam, xscale =xscal, yname=ynam,\
+                 yscale =yscal, scatter=scat)
             else:
-                pw.plot(new_ys, name=label, xname=xnam, xscale =xscal, yname=ynam, yscale =yscal, scatter=scat)
+                pw.plot(new_ys, name=label, xname=xnam, xscale =xscal, yname=ynam,\
+                 yscale =yscal, scatter=scat)
 
 
         elif operation == 'append_xy':
@@ -244,7 +249,8 @@ class MainWindow(QMainWindow):
             zscal = meta['Z']
             if start_step is not None:
                 (x0, dx), (y0, dy) = start_step
-                pw.setAxisLabels(xname=xnam, xscale =xscal, yname=ynam, yscale =yscal, zname=znam, zscale =zscal)
+                pw.setAxisLabels(xname=xnam, xscale =xscal, yname=ynam, yscale =yscal,\
+                 zname=znam, zscale =zscal)
                 pw.setImage(image, pos=(x0, y0), scale=(dx, dy), axes={'y':0, 'x':1})
             else:
                 pw.setAxisLabels(xname=xnam, xscale =xscal, yname=ynam, yscale =yscal)
@@ -277,16 +283,16 @@ class NameList(QDockWidget):
         self.setWidget(self.namelist_view)
         self.window = window
         self.plot_dict = {}
-
+        #self.namelist_view.setSpacing(2)
         self.namelist_view.doubleClicked.connect(self.activate_item)
         self.namelist_view.setContextMenuPolicy(QtConst.ActionsContextMenu)
+        self.namelist_view.setStyleSheet("QMenu::item:selected {background-color: rgb(40, 40, 40); }")
         delete_action = QAction("Delete Selected", self.namelist_view)
         ###
         pause_action = QAction("Stop Script", self.namelist_view)
         delete_action.triggered.connect(self.delete_item)
         pause_action.triggered.connect(self.pause)
         self.namelist_view.addAction(delete_action)
-        ###
         self.namelist_view.addAction(pause_action)
 
     def activate_item(self, index):
