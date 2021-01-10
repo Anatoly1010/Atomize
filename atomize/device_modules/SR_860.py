@@ -23,7 +23,6 @@ sensitivity_dict = {'1 nV': 27, '2 nV': 26, '5 nV': 25, '10 nV': 24, '20 nV': 23
 					'10 uV': 15, '20 uV': 14, '50 uV': 13, '100 uV': 12, '200 uV': 11, '500 uV': 10, 
 					'1 mV': 9, '2 mV': 8, '5 mV': 7, '10 mV': 6, '20 mV': 5, '50 mV': 4,
 					'100 mV': 3, '200 mV': 2, '500 mV': 1, '1 V': 0};
-
 timeconstant_dict = {'1 us': 0, '3 us': 1, '10 us': 2, '30 us': 3, '100 us': 4, '300 us': 5,
 					'1 ms': 6, '3 ms': 7, '10 ms': 8, '30 ms': 9, '100 ms': 10, '300 ms': 11,
 					'1 s': 12, '3 s': 13, '10 s': 14, '30 s': 15, '100 s': 16, '300 s': 17, 
@@ -318,5 +317,5 @@ def lock_in_query(command):
 	answer = device_query(command)
 	return answer
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    main()

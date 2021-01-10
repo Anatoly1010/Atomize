@@ -5,8 +5,21 @@
 A. Modules/Connection/Config
 - Write a detailed instruction how to install gpib library on Linux. Test gpib library on windows
 - add a posibitily to choose a nearest value for parameters that have only specified values;
-This will do the job: min(myList, key=lambda x:abs(x-myNumber)).
-The problem still exists for lock-in amplifiers and their dictionaries.
+This will do the job: 
+```python3
+min(myList, key=lambda x:abs(x-myNumber))
+```
+The problem still exists for lock-in amplifiers and their dictionaries. For lock-in:
+```python3
+test='25 nV'
+helper_list = [1, 2, 5, 10, 20, 50, 100, 200, 500]
+temp = test.split(' ')
+poi = min(helper_list, key=lambda x: abs(x - int(temp[0])))
+tc = str(poi)+' '+temp[1]
+if tc in sensitivity_dict:
+	flag = sensitivity_dict[tc]
+
+```
 - check limits of sensitivity and other stuff for oscilliscopes
 - start to write Test part. Tests functions and their results should be specified in the config file. During connection
 device runs the tests and we check wheter the data we receive back is correct or not.
