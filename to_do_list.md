@@ -6,9 +6,11 @@ A. Modules/Connection/Config
 - Write a detailed instruction how to install gpib library on Linux. Test gpib library on windows
 - Continue to write modules
 - Try to get rid of QProcess in the main window
+- Redo Save/Open dialogs using PyQt
+- add a posibitily to choose a nearest value for parameters that have only specified values;
+This will do the job: min(myList, key=lambda x:abs(x-myNumber))
 
 B. Liveplot
-- Need a way to save data from plots without using an internal pyqtgraph widget or at least check how 2D data looks like
 - Need a special widget to grab a curve from plot and move it up/down, right/left
 
 # A list of checkings to do

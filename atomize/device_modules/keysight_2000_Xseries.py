@@ -18,9 +18,7 @@ path_config_file = os.path.join(path_current_directory, 'config','keysight_2012a
 config = cutil.read_conf_util(path_config_file)
 
 # auxilary dictionaries
-points_dict = {'100': 100, '250': 250, '500': 500, '1000': 1000, '2000': 2000,
-					'4000': 4000, '8000': 8000, '16000': 16000, '32000': 32000, '64000': 64000,
-					'128000': 128000, '256000': 256000, '512000': 512000,};
+points_list = [100, 250, 500, 1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000]
 #should be checked, since it is incorrect for 2000 Series
 timebase_dict = {' s': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000,};
 scale_dict = {' V': 1, 'mV': 1000,};
@@ -29,6 +27,8 @@ wavefunction_dic = {'Sin': 'SINusoid', 'Sq': 'SQUare', 'Ramp': 'RAMP', 'Pulse': 
 					'DC': 'DC', 'Noise': 'NOISe', 'Sinc': 'SINC', 'ERise': 'EXPRise',
 					'EFall': 'EXPFall', 'Card': 'CARDiac', 'Gauss': 'GAUSsian',
 					'Arb': 'ARBitrary'};
+ac_type_dic = {'Norm': "NORMal", 'Ave': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
+
 
 #### Basic interaction functions
 def connection():
@@ -94,13 +94,10 @@ def oscilloscope_name():
 	return answer
 
 def oscilloscope_record_length(*points):
-	if  len(points)==1:
-		ps = str(points[0])
-		if ps in points_dict:
-			flag = points_dict[ps]
-			device_write(":WAVeform:POINts "+ str(flag))
-		else:
-			send.message("Invalid sensitivity value")
+	if len(points)==1:
+		temp = int(points[0]);
+		poi = min(points_list, key=lambda x: abs(x - temp))
+		device_write(":WAVeform:POINts "+ str(poi))
 	elif len(points)==0:
 		answer = int(device_query(':WAVeform:POINts?'))
 		return answer
@@ -109,27 +106,14 @@ def oscilloscope_record_length(*points):
 
 def oscilloscope_acquisition_type(*ac_type):
 	if  len(ac_type)==1:
-		flag = int(ac_type[0])
-		if (flag == 0 ):
-			device_write(":ACQuire:TYPE NORMal")
-		elif (flag == 1):
-			device_write(":ACQuire:TYPE AVER")
-		elif (flag == 2):
-			device_write(":ACQuire:TYPE HRES")
-		elif (flag == 3):
-			device_write(":ACQuire:TYPE PEAK")
+		at = str(ac_type[0])
+		if at in ac_type_dic:
+			flag = ac_type_dic[at]
+			device_write(":ACQuire:TYPE "+ str(flag))
 		else:
 			send.message("Invalid acquisition type")
 	elif len(ac_type)==0:
-		raw_answer = str(device_query(":ACQuire:TYPE?"))
-		if (raw_answer == "NORM\n"):
-			answer = 0
-		elif (raw_answer == "AVER\n"):
-			answer = 1
-		elif (raw_answer == "HRES\n"):
-			answer = 2
-		elif (raw_answer == "PEAK\n"):
-			answer = 3
+		answer = str(device_query(":ACQuire:TYPE?"))
 		return answer
 	else:
 		send.message("Invalid argumnet")
@@ -139,13 +123,13 @@ def oscilloscope_number_of_averages(*number_of_averages):
 		numave = int(number_of_averages[0]);
 		if numave >= 2 and numave <= 65536:
 			ac = oscilloscope_acquisition_type()
-			if ac == 1:
+			if ac == "AVER":
 				device_write(":ACQuire:COUNt " + str(numave))
-			elif ac == 0:
+			elif ac == 'NORM':
 				send.message("Your are in NORM mode")
-			elif ac == 2:
+			elif ac == 'HRES':
 				send.message("Your are in HRES mode")
-			elif ac == 3:
+			elif ac == 'PEAK':
 				send.message("Your are in PEAK mode")
 		else:
 			send.message("Invalid number of averages")
@@ -187,16 +171,16 @@ def oscilloscope_start_acquisition():
 
 def oscilloscope_preamble(channel):
 	if channel=='CH1':
-		scope_write(':WAVeform:SOURce CHAN1')
+		device_write(':WAVeform:SOURce CHAN1')
 	elif channel=='CH2':
-		scope_write(':WAVeform:SOURce CHAN2')
+		device_write(':WAVeform:SOURce CHAN2')
 	elif channel=='CH3':
-		scope_write(':WAVeform:SOURce CHAN3')
+		device_write(':WAVeform:SOURce CHAN3')
 	elif channel=='CH4':
-		scope_write(':WAVeform:SOURce CHAN4')
+		device_write(':WAVeform:SOURce CHAN4')
 	else:
 		send.message("Invalid channel is given")
-	preamble = scope_query_ascii(":WAVeform:PREamble?")	
+	preamble = device_query_ascii(":WAVeform:PREamble?")	
 	return preamble
 
 def oscilloscope_stop():
@@ -582,5 +566,5 @@ def wave_gen_query(command):
 	answer = device_query(command)
 	return answer
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    main()

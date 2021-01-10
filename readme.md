@@ -94,9 +94,10 @@ Python is used to write an experimental script. Examples (with dummy data) can b
 	SR-860 (untested); SR-865a (untested).
 
 #### Oscilloscopes
-	- Keysight InfiniiVision 2000 X-Series (Ethernet)
-	- Keysight InfiniiVision 3000 X-Series (Ethernet)
-	- Keysight InfiniiVision 4000 X-Series (Ethernet)
+	- Keysight InfiniiVision 2000 X-Series (Ethernet); untested
+	- Keysight InfiniiVision 3000 X-Series (Ethernet); tested
+	- Keysight InfiniiVision 4000 X-Series (Ethernet); untested
+	- Tektronix 4000 Series (Ethenet); untested
 
 #### Arbitrary Wave Generators
 	- Wave Generator of Keysight InfiniiVision 2000 X-Series (Ethernet)
@@ -162,6 +163,7 @@ oscilloscope_record_length(*points)
 oscilloscope_acquisition_type(*ac_type)
 oscilloscope_number_of_averages(*number_of_averages)
 oscilloscope_timebase(*timebase)
+oscilloscope_define_window(**kargs)
 oscilloscope_time_resolution()
 oscilloscope_start_acquisition()
 oscilloscope_preamble(channel)
