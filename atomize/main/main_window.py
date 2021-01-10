@@ -39,29 +39,36 @@ class MainWindow(QtWidgets.QMainWindow):
         self.path=os.path.join(path_to_main,'atomize/tests')
         # Connection of different action to different Menus and Buttons
         self.button_open.clicked.connect(self.open_file_dialog)
-        self.button_open.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133);\
-         border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
+        self.button_open.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
+         border-style: outset; color: rgb(193, 202, 227);}\
+          QPushButton:pressed {background-color: rgb(211, 194, 78); ; border-style: inset}");
         self.button_edit.clicked.connect(self.edit_file)
-        self.button_edit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133);\
-         border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
+        self.button_edit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
+         border-style: outset; color: rgb(193, 202, 227);}\
+          QPushButton:pressed {background-color: rgb(211, 194, 78); ; border-style: inset}");
         self.button_test.clicked.connect(self.test)
-        self.button_test.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133);\
-         border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
+        self.button_test.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
+         border-style: outset; color: rgb(193, 202, 227);}\
+          QPushButton:pressed {background-color: rgb(211, 194, 78); ; border-style: inset}");
         self.button_reload.clicked.connect(self.reload)
-        self.button_reload.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133);\
-         border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
+        self.button_reload.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
+         border-style: outset; color: rgb(193, 202, 227); }\
+          QPushButton:pressed {background-color: rgb(211, 194, 78); ; border-style: inset}");
         self.button_start.clicked.connect(self.start_experiment)
-        self.button_start.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133);\
-         border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
+        self.button_start.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
+         border-style: outset; color: rgb(193, 202, 227);}\
+          QPushButton:pressed {background-color: rgb(211, 194, 78); ; border-style: inset}");
         self.button_liveplot.clicked.connect(self.start_liveplot)
-        self.button_liveplot.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133);\
-         border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
+        self.button_liveplot.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
+         border-style: outset; color: rgb(193, 202, 227);}\
+          QPushButton:pressed {background-color: rgb(211, 194, 78); ; border-style: inset}");
         self.button_quit.clicked.connect(lambda: self.quit())
-        self.button_quit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(136, 138, 133);\
-         border-style: outset; } QPushButton:pressed {background-color: rgb(255, 170, 0); ; border-style: inset}");
-        self.textEdit.setStyleSheet("QPlainTextEdit {background-color: rgb(24, 25, 26); color: rgb(255, 172, 0); }\
+        self.button_quit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
+         border-style: outset; color: rgb(193, 202, 227);}\
+          QPushButton:pressed {background-color: rgb(211, 194, 78); ; border-style: inset}");
+        self.textEdit.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); }\
          QScrollBar:vertical {background-color: rgb(0, 0, 0);}");
-        self.text_errors.setStyleSheet("QPlainTextEdit {background-color: rgb(24, 25, 26); color: rgb(255, 170, 0); }")
+        self.text_errors.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); }")
         
         # configuration data
         path_config_file = os.path.join(path_to_main,'atomize/config.ini')
@@ -120,7 +127,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.cached_stamp = stamp
             message = QMessageBox(self);  # Message Box for warning of updated file
             message.setWindowTitle("Your script has been changed!")
-            message.setStyleSheet("QWidget { background-color : rgb(24, 25, 26); color: rgb(255, 170, 0); }")
+            message.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78); }")
             message.addButton(QtWidgets.QPushButton('Discrad and Run'), QtWidgets.QMessageBox.YesRole)
             message.addButton(QtWidgets.QPushButton('Update'), QtWidgets.QMessageBox.NoRole)
             message.setText("Your experimental script has been changed   ");
@@ -216,7 +223,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         filedialog = QFileDialog(self, 'Open File', directory = self.path, filter ="text (*.py)")
         # use QFileDialog.DontUseNativeDialog to change directory
-        filedialog.setStyleSheet("QWidget { background-color : rgb(136, 138, 133) }")
+        filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64) }")
         filedialog.setFileMode(QtWidgets.QFileDialog.AnyFile)
         filedialog.fileSelected.connect(self.open_file)
         filedialog.show()

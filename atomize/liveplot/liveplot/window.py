@@ -20,7 +20,7 @@ logging.root.setLevel(logging.WARNING)
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
-        self.setStyleSheet("background-color: rgb(24, 25, 26); color: rgb(255, 170, 0); ") 
+        self.setStyleSheet("background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); ") 
         self.setWindowTitle("Liveplot - Plotting dashboard!")
         # absolute path to icon:
         self.icon_path = os.path.join(os.path.abspath(os.getcwd()),'atomize/liveplot/liveplot','icon2.ico')
@@ -283,10 +283,12 @@ class NameList(QDockWidget):
         self.setWidget(self.namelist_view)
         self.window = window
         self.plot_dict = {}
+        self.setStyleSheet("QListView::item:selected:active {background-color: rgb(63, 63, 97);\
+            color: rgb(211, 194, 78); } QListView::item:hover {background-color: rgb(48, 48, 75); }")
         #self.namelist_view.setSpacing(2)
         self.namelist_view.doubleClicked.connect(self.activate_item)
         self.namelist_view.setContextMenuPolicy(QtConst.ActionsContextMenu)
-        self.namelist_view.setStyleSheet("QMenu::item:selected {background-color: rgb(40, 40, 40); }")
+        self.namelist_view.setStyleSheet("QMenu::item:selected {background-color: rgb(48, 48, 75); }")
         delete_action = QAction("Delete Selected", self.namelist_view)
         ###
         pause_action = QAction("Stop Script", self.namelist_view)

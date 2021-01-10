@@ -7,9 +7,9 @@ from pyqtgraph.dockarea import Dock
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtWidgets import QFileDialog
 
-pg.setConfigOption('background', (24,25,26))
+pg.setConfigOption('background', (63,63,97))
 pg.setConfigOption('leftButtonPan', False)
-pg.setConfigOption('foreground', (255, 170, 0))
+pg.setConfigOption('foreground', (192, 202, 227))
 #pg.setConfigOption('useOpenGL', True)
 LastExportDirectory = None
 

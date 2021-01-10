@@ -33,7 +33,7 @@
    <string>Atomize - Split your spectrometer apart!</string>
   </property>
   <property name="styleSheet">
-   <string notr="true">background-color: rgb(24,25,26);</string>
+   <string notr="true">background-color: rgb(42,42,64);</string>
   </property>
   <property name="dockOptions">
    <set>QMainWindow::AllowTabbedDocks|QMainWindow::AnimatedDocks</set>
@@ -271,7 +271,7 @@
        <enum>QFrame::Sunken</enum>
       </property>
       <property name="lineWidth">
-       <number>2</number>
+       <number>1</number>
       </property>
       <property name="verticalScrollBarPolicy">
        <enum>Qt::ScrollBarAsNeeded</enum>
@@ -316,7 +316,7 @@
        <enum>QFrame::Sunken</enum>
       </property>
       <property name="lineWidth">
-       <number>2</number>
+       <number>1</number>
       </property>
       <property name="midLineWidth">
        <number>0</number>

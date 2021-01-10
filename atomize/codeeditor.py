@@ -34,7 +34,7 @@ class CodeEditor(QPlainTextEdit):
 
     def lineNumberAreaPaintEvent(self, event):
         painter = QPainter(self.lineNumberArea)
-        painter.fillRect(event.rect(), QColor(136, 138, 133))   # color of the line column 
+        painter.fillRect(event.rect(), QColor(63, 63, 97))   # color of the line column 
 
         block = self.firstVisibleBlock()
         blockNumber = block.blockNumber();
@@ -44,8 +44,8 @@ class CodeEditor(QPlainTextEdit):
         while block.isValid() and top <= event.rect().bottom():
             if block.isVisible() and bottom >= event.rect().top():
                 number = str(blockNumber + 1)
-                painter.setPen(Qt.black)
-                painter.setFont(QFont("Arial", 9.5, weight=QtGui.QFont.Bold))
+                painter.setPen(QColor(192, 202, 227))
+                painter.setFont(QFont("Ubuntu", 9.5, weight=QtGui.QFont.Bold))
                 painter.drawText(-4, top + 1, self.lineNumberArea.width(), 
                     self.fontMetrics().height(),
                     Qt.AlignRight, number)
@@ -73,7 +73,7 @@ class CodeEditor(QPlainTextEdit):
         extraSelections = []
         if not self.isReadOnly():
             selection = QTextEdit.ExtraSelection()
-            lineColor = QColor(40, 40, 40)           #color of the line highlighter QColor(136, 138, 133)  
+            lineColor = QColor(48, 48, 75)           #color of the line highlighter QColor(136, 138, 133)  
             selection.format.setBackground(lineColor)
             selection.format.setProperty(QTextFormat.FullWidthSelection, True)
             selection.cursor = self.textCursor()
