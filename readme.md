@@ -69,7 +69,14 @@ temperature = tc.tc_temperature('CH A')
 ```
 The same idea is valid for plotting and file handling modules. The description of available
 functions is given below.
-
+```python
+from liveplot import LivePlotClient
+import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+plotter = LivePlotClient()
+file_handler = openfile.Saver_Opener()
+head, data = file_handler.open_1D_dialog(header=0)
+plotter.plot_xy('1D Plot', data[0], data[1], label='test_data', yname='Y axis', yscale='V')
+```
 4. Experimental script
 
 Python is used to write an experimental script. Examples (with dummy data) can be found in
