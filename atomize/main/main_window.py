@@ -221,9 +221,10 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         A function to open a new window for choosing an experimental script.
         """
-        filedialog = QFileDialog(self, 'Open File', directory = self.path, filter ="text (*.py)")
+        filedialog = QFileDialog(self, 'Open File', directory = self.path, filter ="text (*.py)",\
+            options=QtWidgets.QFileDialog.DontUseNativeDialog)
         # use QFileDialog.DontUseNativeDialog to change directory
-        filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64) }")
+        filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
         filedialog.setFileMode(QtWidgets.QFileDialog.AnyFile)
         filedialog.fileSelected.connect(self.open_file)
         filedialog.show()

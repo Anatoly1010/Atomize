@@ -12,7 +12,7 @@ class MainWindow(QWidget):
 	def __init__(self):
 		super(MainWindow, self).__init__()
 		# background of the main window
-		self.setStyleSheet("background-color: rgb(24, 25, 26); color: rgb(255, 170, 0); ")
+		self.setStyleSheet("background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); ")
 		self.setWindowTitle("GUI Script")
 		# layouts of GUI elements (QSpinBox, QLabel,QPushButton) and general layout of layouts
 		self.layout = QVBoxLayout(self)
