@@ -4,14 +4,20 @@
 
 A. Modules/Connection/Config
 - Write a detailed instruction how to install gpib library on Linux. Test gpib library on windows
-- Continue to write modules
-- Try to get rid of QProcess in the main window
-- Redo Save/Open dialogs using PyQt
 - add a posibitily to choose a nearest value for parameters that have only specified values;
-This will do the job: min(myList, key=lambda x:abs(x-myNumber))
+This will do the job: min(myList, key=lambda x:abs(x-myNumber)).
+The problem still exists for lock-in amplifiers and their dictionaries.
+- check limits of sensitivity and other stuff for oscilliscopes
+- start to write Test part. Tests functions and their results should be specified in the config file. During connection
+device runs the tests and we check wheter the data we receive back is correct or not.
+
 
 B. Liveplot
 - Need a special widget to grab a curve from plot and move it up/down, right/left
+
+C. General
+- Try to get rid of QProcess in the main window
+- Redo Save/Open dialogs using PyQt
 
 # A list of checkings to do
 
