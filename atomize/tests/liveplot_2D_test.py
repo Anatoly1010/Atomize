@@ -2,21 +2,21 @@ import time
 import numpy as np
 from liveplot import LivePlotClient
 import atomize.device_modules.config.messenger_socket_client as send
-import atomize.general_modules.csv_opener_saver as openfile
+import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 
 start_time = time.time()
 plotter = LivePlotClient()
-open1d = openfile.csv()
+open1d = openfile.Saver_Opener()
 
 data=[];
 step=10;
 i = 0;
 send.message('Test of 2D experiment')
-#path_to_file = open1d.create_file_dialog(directory='', fmt='')
+path_to_file = open1d.create_file_dialog(directory='')
 
-#f = open(path_to_file,'a')
+f = open(path_to_file,'a')
 ## 2D Plot tests
-while i <= 200:
+while i <= 100:
 	i=i+1;
 
 	
@@ -26,7 +26,7 @@ while i <= 200:
 
 	data.append(zs)
 	time.sleep(0.1)
-	#np.savetxt(f, zs, fmt='%.10f', delimiter=' ', newline='\n', header='field: %d' % i, footer='', comments='#', encoding=None)
+	np.savetxt(f, zs, fmt='%.10f', delimiter=' ', newline='\n', header='field: %d' % i, footer='', comments='#', encoding=None)
 	
 	# Plot_z Test
 	plotter.plot_z('Plot Z Test', data, start_step=((0,1),(0.3,0.001)), xname='Time', 
@@ -44,7 +44,7 @@ while i <= 200:
 #open(path_to_file, "w").close()
 #f=open(path_to_file,'a')
 #np.savetxt(f, data, fmt='%.10f', delimiter=',', newline='\n', header='field: %d' % i, footer='', comments='#', encoding=None)
-#f.close()
+f.close()
 
 
-send.message(str(time.time() - start_time))
+print(str(time.time() - start_time))

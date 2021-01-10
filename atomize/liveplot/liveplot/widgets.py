@@ -1,10 +1,17 @@
-from PyQt5 import QtWidgets, QtCore
 import warnings
+import os
 import pyqtgraph as pg
 import numpy as np
+from datetime import datetime
 from pyqtgraph.dockarea import Dock
+from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt5.QtWidgets import QFileDialog
 
 pg.setConfigOption('background', (24,25,26))
+pg.setConfigOption('leftButtonPan', False)
+pg.setConfigOption('foreground', (255, 170, 0))
+#pg.setConfigOption('useOpenGL', True)
+LastExportDirectory = None
 
 def get_widget(rank, name):
     return {
@@ -182,9 +189,11 @@ class CrosshairDock(CloseableDock):
         self.plot_widget.setTitle(text)
 
 class CrossSectionDock(CloseableDock):
-    def __init__(self, trace_size=90, **kwargs):
+    def __init__(self, trace_size=80, **kwargs):
         self.plot_item = view = pg.PlotItem(labels=kwargs.pop('labels', None))
         self.img_view = kwargs['widget'] = pg.ImageView(view=view)
+        # plot options menu
+        #view.ctrlMenu.setStyleSheet("QMenu::item:selected {background-color: rgb(40, 40, 40); }")
         view.setAspectLocked(lock=False)
         self.ui = self.img_view.ui
         self.imageItem = self.img_view.imageItem
@@ -194,18 +203,22 @@ class CrossSectionDock(CloseableDock):
         self.search_mode = False
         self.signals_connected = False
         self.set_histogram(False)
+
+        save_action = QtWidgets.QAction('Save Data', self)
+        save_action.triggered.connect(self.fileSaveDialog)
+        self.img_view.scene.contextMenu.append(save_action)
+
         histogram_action = QtWidgets.QAction('Histogram', self)
         histogram_action.setCheckable(True)
         histogram_action.triggered.connect(self.set_histogram)
         self.img_view.scene.contextMenu.append(histogram_action)
-
+        
         self.autolevels_action = QtWidgets.QAction('Autoscale Levels', self)
         self.autolevels_action.setCheckable(True)
         self.autolevels_action.setChecked(True)
         self.autolevels_action.triggered.connect(self.redraw)
         self.ui.histogram.item.sigLevelChangeFinished.connect(lambda: self.autolevels_action.setChecked(False))
         self.img_view.scene.contextMenu.append(self.autolevels_action)
-
         self.clear_action = QtWidgets.QAction('Clear Contents', self)
         self.clear_action.triggered.connect(self.clear)
         self.img_view.scene.contextMenu.append(self.clear_action)
@@ -261,7 +274,6 @@ class CrossSectionDock(CloseableDock):
         kwargs['autoRange'] = autorange
         self.img_view.setImage(*args, **kwargs)
         self.img_view.getView().vb.enableAutoRange(enable=autorange)
-
         self.update_cross_section()
 
     def setTitle(self, text):
@@ -287,10 +299,35 @@ class CrossSectionDock(CloseableDock):
             self.add_cross_section()
 
     def set_histogram(self, visible):
+        # ROI, histogram settings when QAction is triggered
         self.ui.histogram.setVisible(visible)
-        self.ui.roiBtn.setVisible(visible)
-        self.ui.normGroup.setVisible(visible)
+        self.ui.roiBtn.setVisible(False)
+        self.ui.normGroup.setVisible(False)
         self.ui.menuBtn.setVisible(visible)
+
+    def save_image_data(self, fileName):
+        global LastExportDirectory
+        LastExportDirectory = os.path.split(fileName)[0]
+
+        data = self.img_view.getProcessedImage()
+        np.savetxt(fileName,\
+         data, fmt='%.4e', delimiter=',', newline='\n',\
+         header=str(datetime.now().strftime("%d-%m-%Y_%H-%M-%S")),\
+          footer='', comments='#', encoding=None)
+
+    def fileSaveDialog(self):
+        self.fileDialog = QFileDialog()
+        #self.fileDialog.setOption(QtGui.QFileDialog.DontUseNativeDialog)
+        self.fileDialog.setNameFilters(['*.csv','*.txt','*.dat'])
+        self.fileDialog.setAcceptMode(QtGui.QFileDialog.AcceptSave)
+        global LastExportDirectory
+        exportDir = LastExportDirectory
+        if exportDir is not None:
+            self.fileDialog.setDirectory(exportDir)
+
+        self.fileDialog.show()
+        self.fileDialog.fileSelected.connect(self.save_image_data)
+        return
 
     def add_cross_section(self):
         if self.imageItem.image is not None:

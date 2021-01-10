@@ -67,6 +67,8 @@ import atomize.device_modules.Lakeshore331 as tc
 name_oscilloscope = keys.oscilloscope_name()
 temperature = tc.tc_temperature('CH A')
 ```
+The same idea is valid for plotting and file handling modules. The description of available
+functions is given below.
 
 4. Experimental script
 
@@ -116,14 +118,14 @@ Python is used to write an experimental script. Examples (with dummy data) can b
 ```python3
 message('A message to print')
 open_1D(path, header=0)
-open_1D_dialog(self, directory='', fmt='', header=0)
-save_1D_dialog(data, directory='', fmt='', header='')
+open_1D_dialog(self, directory='', header=0)
+save_1D_dialog(data, directory='', header='')
 open_2D(path, header=0)
-open_2D_dialog(directory='', fmt='', header=0)
+open_2D_dialog(directory='', header=0)
 open_2D_appended(path, header=0, chunk_size=1)
-open_2D_appended_dialog(directory='', fmt='', header=0, chunk_size=1)
-save_2D_dialog(data, directory='', fmt='', header='')
-create_file_dialog(directory='', fmt='')
+open_2D_appended_dialog(directory='', header=0, chunk_size=1)
+save_2D_dialog(data, directory='', header='')
+create_file_dialog(directory='')
 ```
 
 ## [Available plotting functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
