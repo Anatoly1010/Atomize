@@ -11,6 +11,10 @@ Example: oscilloscope_record_length(4000) sets the number of waveform points to 
 ```
 This function queries or sets the number of waveform points to be transferred using oscilloscope_get_curve() function. The number of points should be from the following array:<br/>
 [100, 250, 500, 1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000].
+Please, note that the possible number of points for Keysight 3000 X-series does not match the one given in the programming guide.
+For Keysight 2000 X-series the situation is worse and the following array should be used:<br/>
+[100, 250, 500, 1000, ... 3839, ...]<br/>
+For Keysight 4000 X-series the number of points given in the programming guide should be checked.<br/>
 The maximum amount of points that can be transferred depend on the waveform points mode. Please, refer to the manual.<br/>
 ```python3
 oscilloscope_acquisition_type(*ac_type)
@@ -98,7 +102,7 @@ or one string ('channel string'); Output: string.
 Examples: oscilloscope_impedance('CH2', '1 M') sets the impedance of the channel 2 to 1 MOhm.
 oscilloscope_impedance('CH2') returns the current impedance of the channel 2.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the impedance of one of the channels of the oscilloscope. If there is a second argument this will be set as a new impedance. If there is no second argument the current impedance for the specified channel is returned.<br/>
+The function queries (if called with one argument) or sets (if called with two arguments) the impedance of one of the channels of the oscilloscope. If there is a second argument this will be set as a new impedance. If there is no second argument the current impedance for the specified channel is returned. For Keysight 2000 X-Series the only available option is 1 MOhm.<br/>
 ```python3
 oscilloscope_trigger_mode(*mode)
 Arguments: mode = string ('Auto', 'Normal'); Output: string.

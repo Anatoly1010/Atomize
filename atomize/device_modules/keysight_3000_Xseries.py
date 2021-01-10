@@ -53,27 +53,32 @@ def connection():
 		except BrokenPipeError:
 			send.message("No connection")
 			status_flag = 0
+
 def close_connection():
 	status_flag = 0;
 	gc.collect()
+
 def device_write(command):
 	if status_flag == 1:
 		command = str(command)
 		device.write(command)
 	else:
 		send.message("No connection")
+
 def device_query(command):
 	if status_flag == 1:
 		answer = device.query(command)
 		return answer
 	else:
 		send.message("No connection")
+
 def device_query_ascii(command):
 	if status_flag == 1:
 		answer = device.query_ascii_values(command, converter='f',separator=',',container=np.array)
 		return answer
 	else:
 		send.message("No connection")
+
 def device_read_binary(command):
 	if status_flag==1:
 		answer = device.query_binary_values(command,'H', is_big_endian=True, container=np.array)
@@ -88,6 +93,7 @@ def oscilloscope_name():
 	#print('test')
 	#answer = device_query('*IDN?')
 	#return answer
+
 def oscilloscope_record_length(*points):
 	if  len(points)==1:
 		ps = str(points[0])
@@ -101,6 +107,7 @@ def oscilloscope_record_length(*points):
 		return answer
 	else:
 		send.message("Invalid argument")
+
 def oscilloscope_acquisition_type(*ac_type):
 	if  len(ac_type)==1:
 		flag = int(ac_type[0])
@@ -127,6 +134,7 @@ def oscilloscope_acquisition_type(*ac_type):
 		return answer
 	else:
 		send.message("Invalid argumnet")
+
 def oscilloscope_number_of_averages(*number_of_averages):
 	if len(number_of_averages)==1:
 		numave = int(number_of_averages[0]);
@@ -147,6 +155,7 @@ def oscilloscope_number_of_averages(*number_of_averages):
 		return answer
 	else:
 		send.message("Invalid argument")
+
 def oscilloscope_timebase(*timebase):
 	if len(timebase)==1:
 		temp = timebase[0].split(" ")
@@ -162,10 +171,12 @@ def oscilloscope_timebase(*timebase):
 		return answer
 	else:
 		send.message("Invalid argument")
+
 def oscilloscope_time_resolution():
 	points = int(oscilloscope_record_length())
 	answer = 1000000*float(device_query(":TIMebase:RANGe?"))/points
 	return answer
+
 def oscilloscope_start_acquisition():
 	#start_time = datetime.now()
 	device_write(':WAVeform:FORMat WORD')
@@ -174,6 +185,7 @@ def oscilloscope_start_acquisition():
 	#end_time=datetime.now()
 	send.message('Acquisition completed')
 	#print("Duration of Acquisition: {}".format(end_time - start_time))
+
 def oscilloscope_preamble(channel):
 	if channel=='CH1':
 		scope_write(':WAVeform:SOURce CHAN1')
@@ -187,14 +199,18 @@ def oscilloscope_preamble(channel):
 		send.message("Invalid channel is given")
 	preamble = scope_query_ascii(":WAVeform:PREamble?")	
 	return preamble
+
 def oscilloscope_stop():
 	device_write(":STOP")
+
 def oscilloscope_run():
 	device_write(":RUN")
+
 def oscilloscope_run_stop():
 	device_write(":RUN")
 	time.sleep(0.5)
 	device_write(":STOP")
+
 def oscilloscope_get_curve(channel):
 	if channel=='CH1':
 		device_write(':WAVeform:SOURce CHAN1')
@@ -221,6 +237,7 @@ def oscilloscope_get_curve(channel):
 	#final_data = list(zip(array_x,array_y))
 
 	return array_y
+
 def oscilloscope_sensitivity(*channel):
 	if len(channel)==2:
 		temp = channel[1].split(" ")
@@ -259,6 +276,7 @@ def oscilloscope_sensitivity(*channel):
 			send.message("Incorrect channel is given")
 	else:
 		send.message("Invalid argument")
+
 def oscilloscope_offset(*channel):
 	if len(channel)==2:
 		temp = channel[1].split(" ")
@@ -297,6 +315,7 @@ def oscilloscope_offset(*channel):
 			send.message("Incorrect channel is given")
 	else:
 		send.message("Invalid argument")
+
 def oscilloscope_coupling(*coupling):
 	if len(coupling)==2:
 		ch = str(coupling[0])
@@ -329,6 +348,7 @@ def oscilloscope_coupling(*coupling):
 			send.message("Incorrect channel is given")
 	else:
 		send.message("Invalid argument")
+
 def oscilloscope_impedance(*impedance):
 	if len(impedance)==2:
 		ch = str(impedance[0])
@@ -340,7 +360,7 @@ def oscilloscope_impedance(*impedance):
 		if ch == 'CH1':
 			device_write(":CHAN1:IMPedance "+str(cpl))
 		elif ch == 'CH2':
-			device_write(":CHAN2:COUPling "+str(cpl))
+			device_write(":CHAN2:IMPedance "+str(cpl))
 		elif ch == 'CH3':
 			device_write(":CHAN3:IMPedance "+str(cpl))
 		elif ch == 'CH4':
@@ -365,6 +385,7 @@ def oscilloscope_impedance(*impedance):
 			send.message("Incorrect channel is given")
 	else:
 		send.message("Invalid argument")
+
 def oscilloscope_trigger_mode(*mode):
 	if len(mode)==1:
 		md = str(mode[0])
@@ -379,6 +400,7 @@ def oscilloscope_trigger_mode(*mode):
 		return answer
 	else:
 		send.message("Invalid argument")
+
 def oscilloscope_trigger_channel(*channel):
 	if len(channel)==1:
 		ch = str(channel[0])
@@ -403,6 +425,7 @@ def oscilloscope_trigger_channel(*channel):
 		return answer
 	else:
 		send.message("Invalid argument")
+
 def oscilloscope_trigger_low_level(*level):
 	if len(level)==2:
 		ch = str(level[0])
@@ -435,8 +458,10 @@ def oscilloscope_trigger_low_level(*level):
 			send.message("Incorrect channel is given")
 	else:
 		send.message("Invalid argument")
+
 def oscilloscope_command(command):
 	device_write(command)
+
 def oscilloscope_query(command):
 	answer = device_query(command)
 	return answer
@@ -445,6 +470,7 @@ def oscilloscope_query(command):
 def wave_gen_name():
 	answer = device_query('*IDN?')
 	return answer
+
 def wave_gen_frequency(*frequency):
 	if len(frequency)==1:
 		temp = frequency[0].split(" ")
@@ -452,14 +478,15 @@ def wave_gen_frequency(*frequency):
 		scaling = temp[1];
 		if scaling in frequency_dict:
 			coef = frequency_dict[scaling]
-			device_write(":WGEN1:FREQuency " + str(freq*coef))
+			device_write(":WGEN:FREQuency " + str(freq*coef))
 		else:
 			send.message("Incorrect frequency")
 	elif len(frequency)==0:
-		answer = float(device_query(":WGEN1:FREQuency?"))
+		answer = float(device_query(":WGEN:FREQuency?"))
 		return answer
 	else:
 		send.message("Invalid argument")
+
 def wave_gen_pulse_width(*width):
 	answer = device_query(":WGEN:FUNCtion?")
 	if answer == 'PULS':
@@ -469,16 +496,17 @@ def wave_gen_pulse_width(*width):
 			scaling = temp[1];
 			if scaling in timebase_dict:
 				coef = timebase_dict[scaling]
-				device_write(":WGEN1:FUNCtion:PULSe:WIDTh "+ str(wid/coef))
+				device_write(":WGEN:FUNCtion:PULSe:WIDTh "+ str(wid/coef))
 			else:
 				send.message("Incorrect width")
 		elif len(width)==0:
-			answer = float(device_query(":WGEN1:FUNCtion:PULSe:WIDTh?"))*1000000
+			answer = float(device_query(":WGEN:FUNCtion:PULSe:WIDTh?"))*1000000
 			return answer
 		else:
 			send.message("Invalid argument")
 	else:
 		send.message("You are not in the pulse mode")
+
 def wave_gen_function(*function):
 	if  len(function)==1:
 		func = str(function[0])
@@ -492,6 +520,7 @@ def wave_gen_function(*function):
 		return answer
 	else:
 		send.message("Invalid argument")
+
 def wave_gen_amplitude(*amplitude):
 	if len(amplitude)==1:
 		temp = amplitude[0].split(" ")
@@ -507,6 +536,7 @@ def wave_gen_amplitude(*amplitude):
 		return answer
 	else:
 		send.message("Invalid argument")
+
 def wave_gen_offset(*offset):
 	if len(offset)==1:
 		temp = offset[0].split(" ")
@@ -522,6 +552,7 @@ def wave_gen_offset(*offset):
 		return answer
 	else:
 		send.message("Invalid argument")
+
 def wave_gen_impedance(*impedance):
 	if len(impedance)==1:
 		cpl = str(impedance[0])
@@ -537,10 +568,13 @@ def wave_gen_impedance(*impedance):
 		return answer
 	else:
 		send.message("Invalid argument")
+
 def wave_gen_run():
 	device_write(":WGEN:OUTPut 1")
+
 def wave_gen_stop():
 	device_write(":WGEN:OUTPut 0")
+
 def wave_gen_arbitrary_function(list):
 	if len(list) > 0:
 		if all(element >= -1.0 and element <= 1.0 for element in list) ==True:
@@ -550,6 +584,7 @@ def wave_gen_arbitrary_function(list):
 			send.message('Incorrect points are used')
 	else:
 		send.message('Incorrect points are send')
+
 def wave_gen_arbitrary_interpolation(*mode):
 	if len(mode)==1:
 		md = str(mode[0])
@@ -564,14 +599,17 @@ def wave_gen_arbitrary_interpolation(*mode):
 		return answer
 	else:
 		send.message("Invalid argument")
+
 def wave_gen_arbitrary_clear():
 	device_write(":WGEN:ARBitrary:DATA:CLEar")
+
 def wave_gen_arbitrary_points():
 	answer = int(device_query(":WGEN:ARBitrary:DATA:ATTRibute:POINts?"))
 	return answer
 
 def wave_gen_command(command):
 	device_write(command)
+
 def wave_gen_query(command):
 	answer = device_query(command)
 	return answer

@@ -95,15 +95,15 @@ Python is used to write an experimental script. Examples (with dummy data) can b
 
 #### Oscilloscopes
 	- Keysight InfiniiVision 2000 X-Series (Ethernet)
-	MSO-X 2004A; MSO-X 2002A; DSO-X 2004A; DSO-X 2002A; MSO-X 2014A; MSO-X 2012A;
-	DSO-X 2014A; DSO-X 2012A; MSO-X 2024A; MSO-X 2022A; DSO-X 2024A; DSO-X 2022A.
 	- Keysight InfiniiVision 3000 X-Series (Ethernet)
-	MSO-X 3014A; MSO-X 3012A; DSO-X 3014A; DSO-X 3012A; MSO-X 3024A; DSO-X 3024A;
-	MSO-X 3034A; MSO-X 3032A; DSO-X 3034A; DSO-X 3032A; MSO-X 3054A; MSO-X 3052A;
-	DSO-X 3054A; DSO-X 3052A; MSO-X 3104A; MSO-X 3102A; DSO-X 3104A; DSO-X 3102A.
+	- Keysight InfiniiVision 4000 X-Series (Ethernet)
 
 #### Arbitrary Wave Generators
+	- Wave Generator of Keysight InfiniiVision 2000 X-Series (Ethernet)
+	Available via corresponding oscilloscope module.
 	- Wave Generator of Keysight InfiniiVision 3000 X-Series (Ethernet)
+	Available via corresponding oscilloscope module.
+	- Wave Generator of Keysight InfiniiVision 4000 X-Series (Ethernet)
 	Available via corresponding oscilloscope module.
 
 #### Frequency Counters

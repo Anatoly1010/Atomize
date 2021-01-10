@@ -12,16 +12,17 @@ import atomize.device_modules.config.messenger_socket_client as send
 #### Inizialization
 # setting path to *.ini file
 path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','keysight_2012a_config.ini')
+path_config_file = os.path.join(path_current_directory, 'config','keysight_4000_config.ini')
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
 
 # auxilary dictionaries
 points_dict = {'100': 100, '250': 250, '500': 500, '1000': 1000, '2000': 2000,
-					'4000': 4000, '8000': 8000, '16000': 16000, '32000': 32000, '64000': 64000,
-					'128000': 128000, '256000': 256000, '512000': 512000,};
-#should be checked, since it is incorrect for 2000 Series
+					'5000': 5000, '10000': 10000, '20000': 20000, '50000': 50000, '100000': 100000,
+					'200000': 200000, '500000': 500000, '1000000': 1000000, '2000000': 2000000, 
+					'4000000': 4000000,'8000000': 8000000,};
+# have to be checked
 timebase_dict = {' s': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000,};
 scale_dict = {' V': 1, 'mV': 1000,};
 frequency_dict = {'MHz': 1000000, 'kHz': 1000, 'Hz': 1, 'mHz': 0.001,};
@@ -82,7 +83,7 @@ def device_query_ascii(command):
 
 def device_read_binary(command):
 	if status_flag==1:
-		answer = device.query_binary_values(command,'h', is_big_endian=True, container=np.array)
+		answer = device.query_binary_values(command,'H', is_big_endian=True, container=np.array)
 		# H for 3034T; h for 2012A
 		return answer
 	else:
@@ -355,8 +356,7 @@ def oscilloscope_impedance(*impedance):
 		if cpl == '1 M':
 			cpl = 'ONEMeg';
 		elif cpl == '50':
-			send.message("Incorrect impedance")
-			cpl = 'ONEMeg';
+			cpl = 'FIFTy';
 		if ch == 'CH1':
 			device_write(":CHAN1:IMPedance "+str(cpl))
 		elif ch == 'CH2':
@@ -471,23 +471,31 @@ def wave_gen_name():
 	answer = device_query('*IDN?')
 	return answer
 
-def wave_gen_frequency(*frequency):
+def wave_gen_frequency(*frequency, channel='1'):
+	ch = channel
+	if ch!='1' and ch!='2':
+		send.message("Incorrect wave generator channel")
+		return
 	if len(frequency)==1:
 		temp = frequency[0].split(" ")
 		freq = float(temp[0])
 		scaling = temp[1];
 		if scaling in frequency_dict:
 			coef = frequency_dict[scaling]
-			device_write(":WGEN:FREQuency " + str(freq*coef))
+			device_write(":WGEN"+str(ch)+":FREQuency " + str(freq*coef))
 		else:
 			send.message("Incorrect frequency")
 	elif len(frequency)==0:
-		answer = float(device_query(":WGEN:FREQuency?"))
+		answer = float(device_query(":WGEN"+str(ch)+":FREQuency?"))
 		return answer
 	else:
 		send.message("Invalid argument")
 
-def wave_gen_pulse_width(*width):
+def wave_gen_pulse_width(*width, channel='1'):
+	ch = channel
+	if ch!='1' and ch!='2':
+		send.message("Incorrect wave generator channel")
+		return
 	answer = device_query(":WGEN:FUNCtion?")
 	if answer == 'PULS':
 		if len(width)==1:
@@ -496,64 +504,80 @@ def wave_gen_pulse_width(*width):
 			scaling = temp[1];
 			if scaling in timebase_dict:
 				coef = timebase_dict[scaling]
-				device_write(":WGEN:FUNCtion:PULSe:WIDTh "+ str(wid/coef))
+				device_write(":WGEN"+str(ch)+":FUNCtion:PULSe:WIDTh "+ str(wid/coef))
 			else:
 				send.message("Incorrect width")
 		elif len(width)==0:
-			answer = float(device_query(":WGEN:FUNCtion:PULSe:WIDTh?"))*1000000
+			answer = float(device_query(":WGEN"+str(ch)+"FUNCtion:PULSe:WIDTh?"))*1000000
 			return answer
 		else:
 			send.message("Invalid argument")
 	else:
 		send.message("You are not in the pulse mode")
 
-def wave_gen_function(*function):
+def wave_gen_function(*function, channel='1'):
+	ch = channel
+	if ch!='1' and ch!='2':
+		send.message("Incorrect wave generator channel")
+		return
 	if  len(function)==1:
 		func = str(function[0])
 		if func in wavefunction_dic:
 			flag = wavefunction_dic[func]
-			device_write(":WGEN:FUNCtion "+ str(flag))
+			device_write(":WGEN"+str(ch)+":FUNCtion "+ str(flag))
 		else:
 			send.message("Invalid wave generator function")
 	elif len(function)==0:
-		answer = str(device_query(':WGEN:FUNCtion?'))
+		answer = str(device_query(':WGEN'+str(ch)+':FUNCtion?'))
 		return answer
 	else:
 		send.message("Invalid argument")
 
-def wave_gen_amplitude(*amplitude):
+def wave_gen_amplitude(*amplitude, channel='1'):
+	ch = channel
+	if ch!='1' and ch!='2':
+		send.message("Incorrect wave generator channel")
+		return
 	if len(amplitude)==1:
 		temp = amplitude[0].split(" ")
 		val = float(temp[0])
 		scaling = temp[1];
 		if scaling in scale_dict:
 			coef = scale_dict[scaling]
-			device_write(":WGEN:VOLTage " + str(val/coef))
+			device_write(":WGEN"+str(ch)+":VOLTage " + str(val/coef))
 		else:
 			send.message("Incorrect amplitude")
 	elif len(amplitude)==0:
-		answer = float(device_query(":WGEN:VOLTage?"))*1000
+		answer = float(device_query(":WGEN"+str(ch)+":VOLTage?"))*1000
 		return answer
 	else:
 		send.message("Invalid argument")
 
-def wave_gen_offset(*offset):
+def wave_gen_offset(*offset, channel='1'):
+	ch = channel
+	if ch!='1' and ch!='2':
+		send.message("Incorrect wave generator channel")
+		return
 	if len(offset)==1:
 		temp = offset[0].split(" ")
 		val = float(temp[0])
 		scaling = temp[1];
 		if scaling in scale_dict:
 			coef = scale_dict[scaling]
-			device_write(":WGEN:VOLTage:OFFSet " + str(val/coef))
+			device_write(":WGEN"+str(ch)+":VOLTage:OFFSet " + str(val/coef))
 		else:
 			send.message("Incorrect offset voltage")
 	elif len(offset)==0:
-		answer = float(device_query(":WGEN:VOLTage:OFFSet?"))*1000
+		answer = float(device_query(":WGEN"+str(ch)+":VOLTage:OFFSet?"))*1000
 		return answer
 	else:
 		send.message("Invalid argument")
 
-def wave_gen_impedance(*impedance):
+def wave_gen_impedance(*impedance, channel='1'):
+	ch = channel
+	if ch!='1' and ch!='2':
+		send.message("Incorrect wave generator channel")
+		return
 	if len(impedance)==1:
 		cpl = str(impedance[0])
 		if cpl == '1 M':
@@ -562,18 +586,74 @@ def wave_gen_impedance(*impedance):
 			cpl = 'FIFTy';
 		else:
 			send.message("Incorrect coupling")
-		device_write(":WGEN:OUTPut:LOAD " + str(cpl))
+		device_write(":WGEN"+str(ch)+":OUTPut:LOAD " + str(cpl))
 	elif len(impedance)==0:
-		answer = str(device_query(":WGEN:OUTPut:LOAD?"))
+		answer = str(device_query(":WGEN"+str(ch)+":OUTPut:LOAD?"))
 		return answer
 	else:
 		send.message("Invalid argument")
 
-def wave_gen_run():
-	device_write(":WGEN:OUTPut 1")
+def wave_gen_run(channel='1'):
+	ch = channel
+	if ch!='1' and ch!='2':
+		send.message("Incorrect wave generator channel")
+		return
+	device_write(":WGEN"+str(ch)+":OUTPut 1")
 
-def wave_gen_stop():
-	device_write(":WGEN:OUTPut 0")
+def wave_gen_stop(channel='1'):
+	ch = channel
+	if ch!='1' and ch!='2':
+		send.message("Incorrect wave generator channel")
+		return
+	device_write(":WGEN"+str(ch)+":OUTPut 0")
+
+def wave_gen_arbitrary_function(list, channel='1'):
+	ch = channel
+	if ch!='1' and ch!='2':
+		send.message("Incorrect wave generator channel")
+		return
+	if len(list) > 0:
+		if all(element >= -1.0 and element <= 1.0 for element in list) ==True:
+			str_to_send = ", ".join(str(x) for x in list)
+			device_write(":WGEN"+str(ch)+":ARBitrary:DATA "+ str(str_to_send))
+		else:
+			send.message('Incorrect points are used')
+	else:
+		send.message('Incorrect points are send')
+
+def wave_gen_arbitrary_interpolation(*mode, channel='1'):
+	ch = channel
+	if ch!='1' and ch!='2':
+		send.message("Incorrect wave generator channel")
+		return
+	if len(mode)==1:
+		md = str(mode[0])
+		if md == 'On':
+			device_write(":WGEN"+str(ch)+":ARBitrary:INTerpolate 1")
+		elif md == 'Off':
+			device_write(":WGEN"+str(ch)+":ARBitrary:INTerpolate 0")
+		else:
+			send.message("Incorrect interpolation control setting is given")
+	elif len(mode)==0:
+		answer = device_query(":WGEN"+str(ch)+":ARBitrary:INTerpolate?")
+		return answer
+	else:
+		send.message("Invalid argument")
+
+def wave_gen_arbitrary_clear(channel='1'):
+	ch = channel
+	if ch!='1' and ch!='2':
+		send.message("Incorrect wave generator channel")
+		return
+	device_write(":WGEN"+str(ch)+":ARBitrary:DATA:CLEar")
+
+def wave_gen_arbitrary_points(channel='1'):
+	ch = channel
+	if ch!='1' and ch!='2':
+		send.message("Incorrect wave generator channel")
+		return
+	answer = int(device_query(":WGEN"+str(ch)+":ARBitrary:DATA:ATTRibute:POINts?"))
+	return answer
 
 def wave_gen_command(command):
 	device_write(command)
@@ -583,4 +663,4 @@ def wave_gen_query(command):
 	return answer
 
 if __name__ == "__main__":
-    main()
+	main()

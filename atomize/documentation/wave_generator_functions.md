@@ -6,81 +6,115 @@ Arguments: none; Output: string(name).
 The function returns device name.
 ```python3
 wave_gen_frequency(*frequency)
-Arguments: frequency = string ('number + scaling (MHz, kHz, Hz, mHz)'); Output: float (in Hz).
-Example: wave_gen_frequency('20 kHz') sets the frequency of the waveform
-of the wave generator to 20 kHz.
+wave_gen_frequency(*frequency, channel='1')
+Arguments: frequency = string ('number + scaling (MHz, kHz, Hz, mHz)'); Key arguments: channel = ['1','2'];
+Output: float (in Hz).
+Keysight 4000 X-series wave generator has two channels, which should be specified by corresponding argument.
+Examples: wave_gen_frequency('20 kHz', channel='2') sets the frequency of the waveform of the second channel
+of wave generator to 20 kHz; wave_gen_frequency('20 kHz') sets the frequency of the wave generator to 20 kHz
+for 2000 and 3000 X-series.
 ```
 This function queries or sets the frequency of the waveform of the wave generator. If there is no argument the function will return the current frequency in Hz. If there is an argument the specified frequency will be set. The function works for all waveforms except Noise and DC.<br/>
-Please, refer to a manual of the device for available frequency range.<br/>
+Please, refer to a manual of the device for available frequency range. For Keysight 2000, 3000 X-series wave generators channel key argument is absent.<br/>
 ```python3
 wave_gen_pulse_width(*width)
-Arguments: width = string ('number + scaling (s, ms, us, ns)'); Output: float (in us).
+wave_gen_pulse_width(*width, channel='1')
+Arguments: width = string ('number + scaling (s, ms, us, ns)'); Key arguments: channel = ['1','2'];
+Output: float (in us).
+Keysight 4000 X-series wave generator has two channels, which should be specified by corresponding argument.
 Example: wave_gen_pulse_width('20 ms') sets the width of the waveform of the wave
 generator to 20 ms.
 ```
-This function queries or sets the width of the pulse of the wave generator. If there is no argument the function will return the current width in us. If there is an argument the specified width will be set. The pulse width can be adjusted from 20 ns to the period minus 20 ns. The function available only for pulse waveforms.<br/>
+This function queries or sets the width of the pulse of the wave generator. If there is no argument the function will return the current width in us. If there is an argument the specified width will be set. The pulse width can be adjusted from 20 ns to the period minus 20 ns. The function available only for pulse waveforms. For Keysight 2000, 3000 X-series wave generators channel key argument is absent.<br/>
 ```python3
 wave_gen_function(*function)
-Arguments: function = string from a specified dictionary; Output: string.
+wave_gen_function(*function, channel='1')
+Arguments: function = string from a specified dictionary, channel = ['1','2']; Key arguments: channel = ['1','2'];
+Output: string.
+Keysight 4000 X-series wave generator has two channels, which should be specified by corresponding argument.
 Example: wave_gen_function('Sq') sets the sqare waveform.
 ```
 This function queries or sets the type of waveform of the wave generator. The type should be from the following array:<br/>
-['Sin', 'Sq', 'Ramp', 'Pulse', 'DC', 'Noise', 'Sinc', 'ERise', 'EFall', 'Card', 'Gauss', 'Arb'].<br/>
+['Sin', 'Sq', 'Ramp', 'Pulse', 'DC', 'Noise', 'Sinc', 'ERise', 'EFall', 'Card', 'Gauss', 'Arb']. For Keysight 2000, 3000 X-series wave generators channel key argument is absent.<br/>
 ```python3
 wave_gen_amplitude(*amplitude)
-Arguments: amplitude = string ('number + scaling (V, mV)'); Output: float (in mV).
-Example: wave_gen_amplitude('200 mV') sets the waveform's amplitude to 200 mV.
+wave_gen_amplitude(*amplitude, channel='1')
+Arguments: amplitude = string ('number + scaling (V, mV)'); Key arguments: channel = ['1','2'];
+Output: float (in mV).
+Keysight 4000 X-series wave generator has two channels, which should be specified by corresponding argument.
+Example: wave_gen_amplitude('200 mV', channel='1') sets the waveform's amplitude for the first
+channel to 200 mV.
 ```
-This function queries or sets the waveform's amplitude. If there is no argument the function will return the current amplitude in mV. If there is an argument the specified amplitude will be set. The function available for all waveforms except DC.<br/>
+This function queries or sets the waveform's amplitude. If there is no argument the function will return the current amplitude in mV. If there is an argument the specified amplitude will be set. The function available for all waveforms except DC. For Keysight 2000, 3000 X-series wave generators channel key argument is absent.<br/>
 ```python3
 wave_gen_offset(*offset)
-Arguments: offset = string ('number + scaling (V, mV)'); Output: float (in mV).
+wave_gen_offset(*offset, channel='1')
+Arguments: offset = string ('number + scaling (V, mV)'); Key arguments: channel = ['1','2'];
+Output: float (in mV).
+Keysight 4000 X-series wave generator has two channels, which should be specified by corresponding argument.
 Example: wave_gen_offset('0.5 V') sets the waveform's offset voltage to 500 mV.
 ```
-This function queries or sets the waveform's offset voltage or the DC level. If there is no argument the function will return the current offset voltage in mV. If there is an argument the specified offset will be set.<br/>
+This function queries or sets the waveform's offset voltage or the DC level. If there is no argument the function will return the current offset voltage in mV. If there is an argument the specified offset will be set. For Keysight 2000, 3000 X-series wave generators channel key argument is absent.<br/>
 ```python3
 wave_gen_impedance(*impedance)
-Arguments: offset = string ('impedance string (1 M, 50)'); Output: string.
+wave_gen_impedance(*impedance, channel='1')
+Arguments: offset = string ('impedance string (1 M, 50)'); Key arguments: channel = ['1','2'];
+Output: string.
+Keysight 4000 X-series wave generator has two channels, which should be specified by corresponding argument.
 Example: wave_gen_impedance('50') sets the output load impedance of the wave generator
 to 50 Ohm.
 ```
-This function queries or sets the output load impedance of the wave generator. If there is no argument the function will return the current impedance. If there is an argument the specified impedance will be set.<br/>
+This function queries or sets the output load impedance of the wave generator. If there is no argument the function will return the current impedance. If there is an argument the specified impedance will be set. For Keysight 2000, 3000 X-series wave generators channel key argument is absent.<br/>
 ```python3
 wave_gen_run()
-Arguments: none; Output: none.
+wave_gen_run(channel='1')
+Arguments: none; Key arguments: channel = ['1','2']; Output: none.
+Keysight 4000 X-series wave generator has two channels, which should be specified by corresponding argument.
 ```
-The function runs the waveform generator. This is the same as pressing the Wave Gen key on the front panel.
+The function runs the waveform generator. This is the same as pressing the Wave Gen key on the front panel. For Keysight 2000, 3000 X-series wave generators channel key argument is absent.
 ```python3
 wave_gen_stop()
-Arguments: none; Output: none.
+wave_gen_stop(channel='1')
+Arguments: none; Key arguments: channel = ['1','2']; Output: none.
+Keysight 4000 X-series wave generator has two channels, which should be specified by corresponding argument.
 ```
-The function stops the waveform generator. This is the same as pressing the Wave Gen key on the front panel.
+The function stops the waveform generator. This is the same as pressing the Wave Gen key on the front panel. For Keysight 2000, 3000 X-series wave generators channel key argument is absent.
 ```python3
 wave_gen_arbitrary_function(list)
-Arguments: list of floats ([first_point, second_point, ...]); Output: none.
+wave_gen_arbitrary_function(list, channel='1')
+Arguments: list of floats ([first_point, second_point, ...]); Key arguments: channel = ['1','2'];
+Output: none.
+Keysight 4000 X-series wave generator has two channels, which should be specified by corresponding argument.
 Example: wave_gen_arbitrary_function([0, 0.5, 1, 0.5, 0, -0.5, -1, -0.5, 0])
 sets the specified arbitrary waveform.
 ```
-This function downloads an arbitrary waveform in floating-point values format. The values have to be between -1.0 to +1.0.<br/>
+This function downloads an arbitrary waveform in floating-point values format. The values have to be between -1.0 to +1.0. Function is not available for Keysight 2000 X-series oscilloscopes. For Keysight 3000 X-series wave generator channel key argument is absent.<br/>
 ```python3
 wave_gen_arbitrary_clear()
-Arguments: none; Output: none.
+wave_gen_arbitrary_clear(channel='1')
+Arguments: none; Key arguments: channel = ['1','2']; Output: none.
+Keysight 4000 X-series wave generator has two channels, which should be specified by corresponding argument.
 ```
-The function clears the arbitrary waveform memory and loads it with the default waveform.
+The function clears the arbitrary waveform memory and loads it with the default waveform. Function is not available for Keysight 2000 X-series oscilloscopes. For Keysight 3000 X-series wave generator channel key argument is absent.
 ```python3
 wave_gen_arbitrary_interpolation(*mode)
-Arguments: mode = string (['On', 'Off']); Output: integer.
+wave_gen_arbitrary_interpolation(*mode, channel='1')
+Arguments: mode = string (['On', 'Off']); Key arguments: channel = ['1','2']; Output: integer.
+Keysight 4000 X-series wave generator has two channels, which should be specified by corresponding argument.
 Example: wave_gen_arbitrary_interpolation('On') turns on the interpolation control.
 ```
-This function enables or disables the interpolation control. If there is no argument the function will return the current interpolation setting (0 means Off; 1 means On). If there is an argument the specified interpolation setting will be set.<br/>
+This function enables or disables the interpolation control. If there is no argument the function will return the current interpolation setting 
+(0 means Off; 1 means On). If there is an argument the specified interpolation setting will be set. Function is not available for Keysight 2000 X-series oscilloscopes. For Keysight 3000 X-series wave generator channel key argument is absent.<br/>
 Interpolation specifies how lines are drawn between arbitrary waveform points:<br/>
 When ON (1), lines are drawn between points in the arbitrary waveform. Voltage levels change linearly between one point and the next.<br/>
 When OFF (0), all line segments in the arbitrary waveform are horizontal. The voltage level of one point remains until the next point.<br/>
 ```python3
 wave_gen_arbitrary_points()
-Arguments: none; Output: integer.
+wave_gen_arbitrary_points(channel='1')
+Arguments: none; Key arguments: channel = ['1','2']; Output: integer.
+Keysight 4000 X-series wave generator has two channels, which should be specified by corresponding argument.
 ```
-This function returns the number of points used by the current arbitrary waveform.
+This function returns the number of points used by the current arbitrary waveform. Function is not available for Keysight 2000 X-series oscilloscopes. For Keysight 3000 X-series wave generator channel key argument is absent.
 ```python3
 wave_gen_command(command)
 Arguments: command = string; Output: none.
