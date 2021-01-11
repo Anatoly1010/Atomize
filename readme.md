@@ -1,6 +1,6 @@
 # Atomize - Split your spectrometer apart!
 ![](https://github.com/Anatoly1010/Atomize/blob/master/logoAtomize.png)<br/>
-A modular open source software for working with scientific devices and combining them into a spectrometer.<br/>
+A modular open source software for working with scientific devices and combining them into spectrometer.<br/>
 The general idea is close to [FSC2 software](http://users.physik.fu-berlin.de/~jtt/fsc2.phtml) developed by Jens Thomas Törring.<br/>
 Remote control of spectrometers is usually carried out using home-written programs, which are often restricted to doing a certain experiment with a specific set of devices. In contrast, the programs like [FSC2](http://users.physik.fu-berlin.de/~jtt/fsc2.phtml) and [Atomize](https://github.com/Anatoly1010/Atomize) are much more flexible, since they are based on a modular approach for communication with device and scripting language (EDL in FSC2; Python in Atomize) for data measuring.
 
