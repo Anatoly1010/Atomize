@@ -23,10 +23,20 @@ sensitivity_dict = {'1 nV': 27, '2 nV': 26, '5 nV': 25, '10 nV': 24, '20 nV': 23
 					'10 uV': 15, '20 uV': 14, '50 uV': 13, '100 uV': 12, '200 uV': 11, '500 uV': 10, 
 					'1 mV': 9, '2 mV': 8, '5 mV': 7, '10 mV': 6, '20 mV': 5, '50 mV': 4,
 					'100 mV': 3, '200 mV': 2, '500 mV': 1, '1 V': 0};
+helper_sens_list = [1, 2, 5, 10, 20, 50, 100, 200, 500]
 timeconstant_dict = {'1 us': 0, '3 us': 1, '10 us': 2, '30 us': 3, '100 us': 4, '300 us': 5,
 					'1 ms': 6, '3 ms': 7, '10 ms': 8, '30 ms': 9, '100 ms': 10, '300 ms': 11,
 					'1 s': 12, '3 s': 13, '10 s': 14, '30 s': 15, '100 s': 16, '300 s': 17, 
 					'1 ks': 18, '3 ks': 19, '10 ks': 20, '30 ks': 21};
+helper_tc_list = [1, 3, 10, 30, 100, 300]
+
+# Ranges and limits
+ref_freq_min = 0.001
+ref_freq_max = 500000
+ref_ampl_min = 0.000000001
+ref_ampl_max = 2
+harm_max = 99
+harm_min = 1
 
 #### Basic interaction functions
 def connection():
@@ -43,12 +53,12 @@ def connection():
 				if answer==0:
 					status_flag = 1;
 				else:
-					print('During test errors are found')
+					send.message('During test errors are found')
 					status_flag = 0;
 			except pyvisa.VisaIOError:
 				status_flag = 0;	
 		except pyvisa.VisaIOError:
-			print("No connection")
+			send.message("No connection")
 			device.close()
 			status_flag = 0
 	elif config['interface'] == 'rs232':
@@ -64,12 +74,12 @@ def connection():
 				if answer==0:
 					status_flag = 1;
 				else:
-					print('During test errors are found')
+					send.message('During test errors are found')
 					status_flag = 0;
 			except pyvisa.VisaIOError:
 				status_flag = 0;	
 		except pyvisa.VisaIOError:
-			print("No connection")
+			send.message("No connection")
 			device.close()
 			status_flag = 0
 	elif config['interface'] == 'ethernet':
@@ -84,12 +94,12 @@ def connection():
 				if answer==0:
 					status_flag = 1;
 				else:
-					print('During test errors are found')
+					send.message('During test errors are found')
 					status_flag = 0;
 			except pyvisa.VisaIOError:
 				status_flag = 0;	
 		except pyvisa.VisaIOError:
-			print("No connection")
+			send.message("No connection")
 			device.close()
 			status_flag = 0
 
@@ -103,7 +113,7 @@ def device_write(command):
 		command = str(command)
 		device.write(command)
 	else:
-		print("No Connection")
+		send.message("No Connection")
 
 def device_query(command):
 	if status_flag == 1:
@@ -117,7 +127,7 @@ def device_query(command):
 			answer = device.query(command)
 		return answer
 	else:
-		print("No Connection")
+		send.message("No Connection")
 
 #### Device specific functions
 def lock_in_name():
@@ -127,15 +137,15 @@ def lock_in_name():
 def lock_in_ref_frequency(*frequency):
 	if len(frequency)==1:
 		freq = float(frequency[0])
-		if freq >= 0.001 and freq <= 500000:
+		if freq >= ref_freq_min and freq <= ref_freq_max:
 			device_write('FREQ '+ str(freq))
 		else:
-			print("Incorrect phase")
+			send.message("Incorrect frequency")
 	elif len(frequency)==0:
 		answer = float(device_query('FREQ?'))
 		return answer
 	else:
-		print("Invalid Argument")
+		send.message("Invalid Argument")
 
 def lock_in_phase(*degree):
 	if len(degree)==1:
@@ -143,41 +153,45 @@ def lock_in_phase(*degree):
 		if degs >= -360000 and degs <= 360000:
 			device_write('PHAS '+str(degs))
 		else:
-			print("Incorrect phase")
+			send.message("Incorrect phase")
 	elif len(degree)==0:
 		answer = float(device_query('PHAS?'))
 		return answer
 	else:
-		print("Invalid Argument")
+		send.message("Invalid Argument")
 
 def lock_in_time_constant(*timeconstant):
 	if  len(timeconstant)==1:
-		tc = str(timeconstant[0])
+		temp = timeconstant[0].split(' ')
+		number_tc = min(helper_tc_list, key=lambda x: abs(x - int(temp[0])))
+		if int(number_tc) != int(temp[0]):
+			send.message("Desired time constant cannot be set, the nearest available value is used")
+		tc = str(number_tc)+' '+temp[1]
 		if tc in timeconstant_dict:
 			flag = timeconstant_dict[tc]
 			device_write("OFLT "+ str(flag))
 		else:
-			print("Invalid sensitivity value")
+			send.message("Invalid time constant value (too high/too low)")
 	elif len(timeconstant)==0:
 		raw_answer = int(device_query("OFLT?"))
 		answer = cutil.search_keys_dictionary(timeconstant_dict, raw_answer)
 		return answer
 	else:
-		print("Invalid Argument")
+		send.message("Invalid Argument")
 
 def lock_in_ref_amplitude(*amplitude):
 	if len(amplitude)==1:
 		ampl = float(amplitude[0]);
-		if ampl <= 2 and ampl >= 0.000000001:
+		if ampl <= ref_ampl_max and ampl >= ref_ampl_min:
 			device_write('SLVL '+str(ampl))
 		else:
-			device_write('SLVL '+'0.000000001')
-			print("Invalid Argument")
+			device_write('SLVL '+ str(ref_ampl_min))
+			send.message("Invalid Argument")
 	elif len(amplitude)==0:
 		answer = float(device_query("SLVL?"))
 		return answer
 	else:
-		print("Invalid Argument")
+		send.message("Invalid Argument")
 
 def lock_in_get_data(*channel):
 	if len(channel)==0:
@@ -213,18 +227,22 @@ def lock_in_get_data(*channel):
 
 def lock_in_sensitivity(*sensitivity):
 	if  len(sensitivity)==1:
-		sens = str(sensitivity[0])
+		temp = sensitivity[0].split(' ')
+		number_sens = min(helper_sens_list, key=lambda x: abs(x - int(temp[0])))
+		sens = str(number_sens)+' '+temp[1]
+		if int(number_sens) != int(temp[0]):
+			send.message("Desired sensitivity cannot be set, the nearest available value is used")
 		if sens in sensitivity_dict:
 			flag = sensitivity_dict[sens]
 			device_write("SCAL "+ str(flag))
 		else:
-			print("Invalid sensitivity value")
+			send.message("Invalid sensitivity value (too high/too low)")
 	elif len(sensitivity)==0:
 		raw_answer = int(device_query("SCAL?"))
 		answer = cutil.search_keys_dictionary(sensitivity_dict, raw_answer)
 		return answer
 	else:
-		print("Invalid Argument")
+		send.message("Invalid Argument")
 
 def lock_in_ref_mode(*mode):
 	if len(mode)==1:
@@ -238,12 +256,12 @@ def lock_in_ref_mode(*mode):
 		elif flag==3:
 			device_write('RSRC '+str(flag))
 		else:
-			print("Invalid Argument")
+			send.message("Invalid Argument")
 	elif len(mode)==0:
 		answer = int(device_query("RSRC?"))
 		return answer
 	else:
-		print("Invalid Argument")
+		send.message("Invalid Argument")
 
 def lock_in_ref_slope(*mode):
 	if len(mode)==1:
@@ -255,12 +273,12 @@ def lock_in_ref_slope(*mode):
 		elif flag==2:
 			device_write('RTRG '+str(flag))
 		else:
-			print("Invalid Argument")
+			send.message("Invalid Argument")
 	elif len(mode)==0:
 		answer = int(device_query("RTRG?"))
 		return answer
 	else:
-		print("Invalid Argument")
+		send.message("Invalid Argument")
 
 def lock_in_sync_filter(*mode):
 	if len(mode)==1:
@@ -270,12 +288,12 @@ def lock_in_sync_filter(*mode):
 		elif flag==1:
 			device_write('SYNC '+str(flag))
 		else:
-			print("Invalid Argument")
+			send.message("Invalid Argument")
 	elif len(mode)==0:
 		answer = int(device_query("SYNC?"))
 		return answer
 	else:
-		print("Invalid Argument")
+		send.message("Invalid Argument")
 
 def lock_in_lp_filter(*mode):
 	if len(mode)==1:
@@ -289,26 +307,26 @@ def lock_in_lp_filter(*mode):
 		elif flag==3:
 			device_write('OFSL '+str(flag))
 		else:
-			print("Invalid Argument")
+			send.message("Invalid Argument")
 	elif len(mode)==0:
 		answer = int(device_query("OFSL?"))
 		return answer
 	else:
-		print("Invalid Argument")
+		send.message("Invalid Argument")
 
 def lock_in_harmonic(*harmonic):
 	if len(harmonic)==1:
 		harm = int(harmonic[0]);
-		if harm <= 99 and harm >= 1:
+		if harm <= harm_max and harm >= harm_min:
 			device_write('HARM '+ str(harm))
 		else:
-			device_write('HARM '+'1')
-			print("Invalid Argument")
+			device_write('HARM '+ str(harm_min))
+			send.message("Invalid Argument")
 	elif len(harmonic)==0:
 		answer = int(device_query("HARM?"))
 		return answer
 	else:
-		print("Invalid Argument")
+		send.message("Invalid Argument")
 
 def lock_in_command(command):
 	device_write(command)
@@ -317,5 +335,5 @@ def lock_in_query(command):
 	answer = device_query(command)
 	return answer
 
-#if __name__ == "__main__":
-#    main()
+if __name__ == "__main__":
+    main()

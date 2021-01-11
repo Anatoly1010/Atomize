@@ -87,7 +87,7 @@ class LivePlotClient(object):
             'label': label,
         }
         self.send_to_plotter(meta, arr)
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.asarray([0]))
+        self.send_to_plotter({'name':'none', 'operation':'none'}, None)
 
     def plot_z(self, name, arr, extent=None, start_step=None, xname='X axis',
     xscale='arb. u.', yname='Y axis', yscale='arb. u.', zname='Y axis', zscale='arb. u.'):
@@ -115,7 +115,7 @@ class LivePlotClient(object):
             'Zname': zname,
         }
         self.send_to_plotter(meta, arr)
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.asarray([0]))
+        self.send_to_plotter({'name':'none', 'operation':'none'}, None)
 
     def plot_xy(self, name, xs, ys, label='', xname='X axis', xscale='arb. u.', yname='Y axis', yscale='arb. u.',scatter='False'):
         arr = np.array([xs, ys])
@@ -131,7 +131,7 @@ class LivePlotClient(object):
             'Scatter':scatter
         }
         self.send_to_plotter(meta, np.array([xs, ys]))
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.asarray([0]))
+        self.send_to_plotter({'name':'none', 'operation':'none'}, None)
 
     def append_y(self, name, point, start_step=(0, 1), label='', xname='X axis', xscale='arb. u.', yname='Y axis', yscale='arb. u.',scatter='False'):
         self.send_to_plotter({
@@ -147,7 +147,7 @@ class LivePlotClient(object):
             'Yname': yname,
             'Scatter':scatter
         })
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.asarray([0]))
+        self.send_to_plotter({'name':'none', 'operation':'none'}, None)
 
     def append_xy(self, name, x, y, label=''):
         self.send_to_plotter({
@@ -157,7 +157,7 @@ class LivePlotClient(object):
             'rank': 1,
             'label': label,
         })
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.asarray([0]))
+        self.send_to_plotter({'name':'none', 'operation':'none'}, None)
 
     def append_z(self, name, arr, start_step=None, xname='X axis',
     xscale='arb. u.', yname='Y axis', yscale='arb. u.', zname='Y axis', zscale='arb. u.'):
@@ -175,7 +175,7 @@ class LivePlotClient(object):
             'Zname': zname,
             }
         self.send_to_plotter(meta, arr)
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.asarray([0]))
+        self.send_to_plotter({'name':'none', 'operation':'none'}, None)
 
     def label(self, name, text):
         self.send_to_plotter({
@@ -183,7 +183,7 @@ class LivePlotClient(object):
             'operation': 'label',
             'value': text
         })
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.asarray([0]))
+        self.send_to_plotter({'name':'none', 'operation':'none'}, None)
 
     def clear(self, name=None):
         self.send_to_plotter({

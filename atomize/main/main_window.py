@@ -5,6 +5,7 @@ import os
 import sys
 import threading
 import configparser
+import platform
 from PyQt5.QtGui import QColor, QIcon
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from PyQt5 import QtWidgets, uic, QtCore, QtGui
@@ -80,16 +81,24 @@ class MainWindow(QtWidgets.QMainWindow):
         self.process_text_editor = QtCore.QProcess(self)
         self.process_python = QtCore.QProcess(self)
         self.process_liveplot = QtCore.QProcess(self)
-        self.process.setProgram('pylint')
 
-        self.editor=str(config['DEFAULT']['editor'])
-        if self.editor=='nano' or self.editor=='vi':
-            self.process_text_editor.setProgram('xterm')
-        else:
-            self.process_text_editor.setProgram(str(config['DEFAULT']['editor']))
+        # check where we are
+        self.system = platform.system()
+        if self.system == 'Windows':
+            self.process_text_editor.setProgram(str(config['DEFAULT']['editorW']))
+            self.process.setProgram('pylint.exe')
+            self.process_python.setProgram('python.exe')
+            self.process_liveplot.setProgram('python.exe')
+        elif self.system == 'Linux':
+            self.editor=str(config['DEFAULT']['editor'])
+            if self.editor=='nano' or self.editor=='vi':
+                self.process_text_editor.setProgram('xterm')
+            else:
+                self.process_text_editor.setProgram(str(config['DEFAULT']['editor']))
+            self.process.setProgram('pylint')
+            self.process_python.setProgram('python3')
+            self.process_liveplot.setProgram('python3')
 
-        self.process_python.setProgram('python3')
-        self.process_liveplot.setProgram('python3')
         self.process_liveplot.setArguments(['-m', 'liveplot'])
         self.process_liveplot.start()
         self.process_liveplot.finished.connect(self.helper_liveplot)
@@ -199,11 +208,14 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         A function to open an experimental script in a text editor.
         """
-        if self.editor=='nano':
-            self.process_text_editor.setArguments(['-e','nano', self.script])
-        elif self.editor=='vi':
-            self.process_text_editor.setArguments(['-e','vi', self.script])
-        else:
+        if self.system == 'Linux':
+            if self.editor=='nano':
+                self.process_text_editor.setArguments(['-e','nano', self.script])
+            elif self.editor=='vi':
+                self.process_text_editor.setArguments(['-e','vi', self.script])
+            else:
+                self.process_text_editor.setArguments([self.script])
+        elif self.system == 'Windows':
             self.process_text_editor.setArguments([self.script])
         self.process_text_editor.start()
         

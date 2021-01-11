@@ -12,7 +12,7 @@ open1d = openfile.Saver_Opener()
 data=[];
 step=10;
 i = 0;
-send.message('Test of 2D experiment')
+#send.message('Test of 2D experiment')
 #path_to_file = open1d.create_file_dialog(directory='')
 
 #f = open(path_to_file,'a')

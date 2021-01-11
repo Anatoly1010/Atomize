@@ -25,7 +25,7 @@ Example: lock_in_time_constant('100 ms') sets the time constant to 100 ms.
 The function for querying or setting the time constant of the lock-in in ms. If there is no argument the function will return the current time constant. If there is an argument the specified time constant will be set.<br/>
 Currently for SR-810, 830, 850 the specified time constant should be from the array:<br/>
 [10 us, 30 us, 100 us, 300 us, 1 ms, 3 ms, 10 ms, 30 ms, 100 ms, 300 ms, 1 s, 3 s, 10 s, 30 s, 100 s, 300 s, 1 ks, 10 ks, 30 ks].<br/>
-For SR-860, 865a 1 us and 3 us are also available. If the time constant is not contained in the array, no change will occur and "Invalid time constant value" will be printed.<br/>
+For SR-860, 865a 1 us and 3 us are also available. If there is no time constant setting fitting the argument the nearest available value is used and warning is printed.<br/>
 ```python3
 lock_in_ref_amplitude(*amplitude)
 Arguments: amplitude = float; Output: float or none.
@@ -51,7 +51,7 @@ Example: lock_in_sensitivity('10 uV') sets the sensitivity to 10 uV.
 The function queries or sets the sensitivity of the lock-in. If there is no argument the function will return the current sensitivity as a string. If there is an argument the specified sensitivity will be set.<br/>
 Currently for SR-810, 830, 850 the specified sensitivity should be from the array:<br/>
 [2 nV, 5 nV, 10 nV, 20 nV, 50 nV, 100 nV, 200 nV, 500 nV, 1 uV, 2 uV, 5 uV, 10 uV, 20 uV, 50 uV, 100 uV, 200 uV, 500 uV, 2 mV, 5 mV, 10 mV, 20 mV, 50 mV, 100 mV, 200 mV, 500 mV, 1 V].<br/>
-For SR-860, 865a 1 nV is also available. If the sensitivity is not contained in the array, no change will occur and "Invalid sensitivity value" will be printed.<br/>
+For SR-860, 865a 1 nV is also available. If there is no sensitivity setting fitting the argument the nearest available value is used and warning is printed.<br/>
 ```python3
 lock_in_ref_mode(*mode)
 Arguments: mode = integer (0 or 1); Output: integer or none.

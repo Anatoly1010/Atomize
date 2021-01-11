@@ -9,11 +9,11 @@ xs=np.array([]);
 ys=np.array([]);
 
 # Plot_xy Test
-for i in range(20):
+for i in range(300):
 	xs = np.append(xs, i);
 	ys = np.append(ys, np.random.randint(0, 10 + 1));
 	plotter.plot_xy('Plot XY Test2', xs, ys, label='test data')
-	time.sleep(0.001)
+	time.sleep(0.05)
 
 # Append_y Test
 #xs = np.linspace(0, 39, 40)
