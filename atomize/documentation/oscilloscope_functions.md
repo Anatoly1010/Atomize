@@ -30,7 +30,7 @@ oscilloscope_number_of_averages(*number_of_averages)
 Arguments: number_of_averages = integer (2-65536); Output: integer.
 Example: oscilloscope_number_of_averages('2') sets the number of averages to 2.
 ```
-This function queries or sets the number of averages in the range of 2 to 65536 in the averaging acquisition mode (for Keysight 3000 oscilloscopes). For Tektronix 4000 Series the number of averages should be from 2 to 512 2 in powers of two. If there is no argument the function will return the current number of averages. If there is an argument the specified number of averages type will be set. If the oscilloscopes is not in the averaging acquisition mode the error message will be printed.<br/>
+This function queries or sets the number of averages. If there is no argument the function will return the current number of averages. If there is an argument the specified number of averages type will be set. If the oscilloscopes is not in the averaging acquisition mode the error message will be printed. For Keysight oscilloscopes the number of averages should be in the range of 2 to 65536. For Tektronix 4000 Series the number of averages should be from 2 to 512 2 in powers of two. Please note, that for some models the maximum number of averages is limited to 128.<br/>
 ```python3
 oscilloscope_timebase(*timebase)
 Arguments: timebase = string ('number + scaling (s, ms, us, ns)'); Output: float (in us).
@@ -38,6 +38,7 @@ Example: oscilloscope_timebase('20 us') sets the full-scale horizontal time to 2
 (2 us per divison).
 ```
 This function queries or sets the full-scale horizontal time for the main window. The range is 10 times the current time-per-division setting. If there is no argument the function will return the full-scale horizontal time in us. If there is an argument the specified full-scale horizontal time will be set.<br/>
+For Tektronix 4000 X-series (at least for the device used for testing), the horizontal scale is discrete and can take on a value from the following array: [1, 2, 4, 10, 20, 40, 100, 200, 400] for ns, us, ms, and s scaling. In addtition timescale equals to 800 ns also can be set. If there is no timebase setting fitting the argument the nearest available value is used and warning is printed.<br/>
 ```python3
 oscilloscope_define_window(**kargs)
 Arguments: kargs are start = integer, stop = integer; Output: two integers.
@@ -79,10 +80,10 @@ Arguments: none; Output: none.
 The function starts repetitive acquisitions. This is the same as pressing the run key on the front panel.
 ```python3
 oscilloscope_get_curve(channel)
-Arguments: channel = string (['CH1, CH2, CH3, CH4']); Output: array of floats (in V).
+Arguments: channel = string (['CH1, CH2, CH3, CH4']); Output: two arrays of floats (in s and V).
 Example: oscilloscope_get_curve('CH2') returs the data from channel 2.
 ```
-The function returns a curve from the specified channel of the oscilloscope. At the moment, it expects one argument, namely the channel from which the data should be transferred. The data from two channels can be transferred sequentially.<br/>
+The function returns a curve (x and y axis independently) from the specified channel of the oscilloscope. At the moment, it expects one argument, namely the channel from which the data should be transferred. The data from two channels can be transferred sequentially.<br/>
 ```python3
 oscilloscope_sensitivity(*channel)
 Arguments: channel = two strings ('channel string', 'number + scaling (V, mV)')
@@ -100,6 +101,13 @@ Examples: oscilloscope_offset('CH2', '100 mV') sets the offset setting of the ch
 to 100 mV. oscilloscope_offset('CH2') returns the current offset of the channel 2 in mV.
 ```
 The function queries (if called with one argument) or sets (if called with two arguments) the offset setting of one of the channels of the oscilloscope. If there is a second argument this will be set as a new offset setting. If there is no second argument the current offset setting for the specified channel is returned. The offset range depends on the type of oscilliscope and the vertical scale factor for used channel. Please, refer to device manual.<br/>
+```python3
+oscilloscope_trigger_delay(*delay):
+Arguments: delay= string ('number + scaling (s, ms, us, ns)'); Output: float (in us).
+Examples: oscilloscope_trigger_delay('100 ms') sets the delay of acquisition data so that the
+resulting waveform is centered 100 ms after the trigger occurs.
+```
+The function queries or sets the horizontal delay time (position) that is used when delay is on (the default mode). If there is no argument the function will return the current delay mode in us. If there is an argument the specified delay mode will be set.<br/>
 ```python3
 oscilloscope_coupling(*coupling)
 Arguments: coupling = two strings ('channel string', 'coupling string (AC, DC)')
@@ -131,7 +139,7 @@ Examples: oscilloscope_trigger_channel('CH3') sets the trigger channel to 3.
 The function queries or sets the trigger channel of the oscilloscope. If there is no argument the function will return the current trigger channel ( CHAN<n>, EXT, LINE, WGEN, NONE). If all channels are off, the query returns NONE. If there is an argument the specified trigger channel will be set.<br/>
 Argument Ext triggers on the rear panel EXT TRIG IN signal. Argument Line triggers at the 50% level of the rising or falling edge of the AC power source signal. Argument Wgen triggers at the 50% level of the rising edge of the waveform generator output signal. This option is not available when the DC, NOISe, or CARDiac waveforms of the waveform generator are selected.<br/>
 For Keysight 4000 X-series arguments 'WGen1' and 'WGen2' can be used.<br/>
-For Tektronix 4000 Series arguments 'Ext' and 'WGen' are not available. ECL sets the threshold level to a preset ECL high level of -1.3 V. TTL sets the threshold level to a preset TTL high level of 1.4 V.<br/>
+For Tektronix 4000 Series arguments 'Ext' and 'WGen' are not available.<br/>
 ```python3
 oscilloscope_trigger_low_level(*level)
 Arguments: level = string + float ('channel string' ['CH1, CH2, CH3, CH4'],
@@ -141,7 +149,7 @@ voltage level of the channel 2 to 500 mV. oscilloscope_trigger_low_level('CH2')
 returns the current low trigger voltage level of the channel 2.
 ```
 The function queries (if called with one argument) or sets (if called with two arguments) the low trigger voltage level voltage of one of the channels of the oscilloscope. If there is a second argument this will be set as a new low trigger voltage level. If there is no second argument the current low trigger voltage level for the specified channel is returned.<br/>
-For Tektronix 4000 Series also presets 'ECL' and 'TTL' can be used as the first argument.<br/>
+For Tektronix 4000 Series also presets 'ECL' and 'TTL' can be used as the first argument. ECL sets the threshold level to a preset ECL high level of -1.3 V. TTL sets the threshold level to a preset TTL high level of 1.4 V.<br/>
 ```python3
 oscilloscope_command(command)
 Arguments: command = string; Output: none.

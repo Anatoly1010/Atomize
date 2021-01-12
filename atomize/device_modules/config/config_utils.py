@@ -42,8 +42,27 @@ def read_conf_util(path_config_file):
 	elif stopbits == 'two':
 		stopbits=StopBits.two
 
-	write_termination = config['SERIAL']['writetermination'];
-	read_termination = config['SERIAL']['readtermination'];
+	if config['SERIAL']['writetermination']=='r':
+		write_termination = '\r'
+	elif config['SERIAL']['writetermination']=='n':
+		write_termination = '\n'
+	elif config['SERIAL']['writetermination']=='rn':
+		write_termination = '\r\n'
+	elif config['SERIAL']['writetermination']=='nr':
+		write_termination = '\n\r'
+	else:
+		write_termination = '\n'
+
+	if config['SERIAL']['readtermination']=='r':
+		read_termination = '\r'
+	elif config['SERIAL']['readtermination']=='n':
+		read_termination = '\n'
+	elif config['SERIAL']['readtermination']=='rn':
+		read_termination = '\r\n'
+	elif config['SERIAL']['readtermination']=='nr':
+		read_termination = '\n\r'
+	else:
+		read_termination = '\n'
 
 	ethernet_address = config['ETHERNET']['address'];
 

@@ -4,14 +4,26 @@ from liveplot import LivePlotClient
 import atomize.device_modules.config.messenger_socket_client as send
 import atomize.device_modules.SR_860 as sr
 
-#plotter = LivePlotClient()
+plotter = LivePlotClient()
+
+start_time = time.time()
+
+xs=[]
+ys=[]
 
 sr.connection()
-sr.lock_in_sensitivity('300 mV')
-x=sr.lock_in_sensitivity()
-#x = sr_810.lock_in_noise_y()
-#y = sr_810.lock_in_signal()
-print(x)
-#print(y)
+sr.lock_in_time_constant('10 ms')
 
-#sr_810.close_connection()
+#Plot_xy Test
+for i in range(100):
+	xs = np.append(xs, i);
+	ys = np.append(ys, sr.lock_in_get_data());
+	#ys = np.append(ys, np.random.randint(10,size=1));
+	plotter.plot_xy('SR 860', xs, ys, label='test data')
+	time.sleep(0.03)
+
+send.message('test')
+
+sr.close_connection()
+
+send.message(str(time.time() - start_time))

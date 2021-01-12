@@ -7,7 +7,7 @@ import atomize.device_modules.config.messenger_socket_client as send
 ```
 After that the function should be used as follows:
 ```python
-send.message('A message to print')
+send.message('A message to print','One more message', ...)
 ```
 
 ## File handling

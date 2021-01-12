@@ -5,6 +5,7 @@ import atomize.device_modules.config.messenger_socket_client as send
 
 plotter = LivePlotClient()
 
+
 xs=np.array([]);
 ys=np.array([]);
 

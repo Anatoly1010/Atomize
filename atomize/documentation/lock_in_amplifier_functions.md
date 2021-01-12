@@ -54,35 +54,30 @@ Currently for SR-810, 830, 850 the specified sensitivity should be from the arra
 For SR-860, 865a 1 nV is also available. If there is no sensitivity setting fitting the argument the nearest available value is used and warning is printed.<br/>
 ```python3
 lock_in_ref_mode(*mode)
-Arguments: mode = integer (0 or 1); Output: integer or none.
-Example: lock_in_ref_mode('0') sets the device to external modulation mode.
+Arguments: mode = string (['Internal', 'External', 'Dual', 'Chop']); Output: string.
+Example: lock_in_ref_mode('External') sets the device to external modulation mode.
 ```
-This function queries or sets the modulation mode, i.e. if the internal modulation or an external modulation input is used. If there is no argument the function will return the current modulation mode. If there is an argument the specified modulation mode will be set. Possible modulation modes and their meaning are the following:<br/>
-SR-810, 830, 850:<br/>
-'0' - External mode; '1' - Internal mode.<br/>
-SR-860, 865a:<br/>
-'0' - External mode; '1' - Internal mode; '2' - dual mode; '3' - chop mode.<br/>
+This function queries or sets the modulation mode, i.e. if the internal modulation or an external modulation input is used. If there is no argument the function will return the current modulation mode. If there is an argument the specified modulation mode will be set. Possible modulation modes are the following:<br/>
+SR-810, 830, 850: ['Internal', 'External']<br/>
+SR-860, 865a: ['Internal', 'External', 'Dual', 'Chop']<br/>
 ```python3
 lock_in_ref_slope(*mode)
-Arguments: mode = integer (0, 1 or 2); Output: integer or none.
-Example: lock_in_ref_slope('1') sets the reference trigger to TTL rising edge.
+Arguments: mode = string (['Sine', 'PosTTL', 'NegTTL']); Output: string.
+Example: lock_in_ref_slope('PosTTL') sets the reference trigger to TTL rising edge.
 ```
-This function queries or sets the reference trigger when using the external reference mode. If there is no argument the function will return the current reference trigger. If there is an argument the specified reference trigger mode will be set. Note that at frequencies below 1 Hz, the a TTL reference must be used. Possible reference trigger modes and their meaning are the following:<br/>
-'0' - sine zero crossing; '1' - TTL rising edge; '2' - TTL falling edge.<br/>
+This function queries or sets the reference trigger when using the external reference mode. If there is no argument the function will return the current reference trigger. If there is an argument the specified reference trigger mode will be set. Note that at frequencies below 1 Hz, the a TTL reference must be used. Possible reference trigger modes are the following: ['Sine', 'PosTTL', 'NegTTL']. They correspond to sine zero crossing, TTL rising edge, TTL falling edge, respectively.<br/>
 ```python3
 lock_in_sync_filter(*mode)
-Arguments: mode = integer (0 or 1); Output: integer or none.
-Example: lock_in_sync_filter('1') turns on synchronous filtering.
+Arguments: mode = string (['Off', 'On']); Output: string.
+Example: lock_in_sync_filter('On') turns on synchronous filtering.
 ```
-This function queries or sets the synchronous filter status. If there is no argument the function will return the current status. If there is an argument the specified status will be set. Note that synchronous filtering is turned on only if the detection frequency is less than 200 Hz. Possible synchronous filter status and their meaning are the following:<br/>
-'0' - synchronous filtering is off; '1' - synchronous filtering below 200 Hz.<br/>
+This function queries or sets the synchronous filter status. If there is no argument the function will return the current status. If there is an argument the specified status will be set. Note that synchronous filtering is turned on only if the detection frequency is less than 200 Hz. Possible synchronous filter status are the following: ['Off', 'On'].<br/>
 ```python3
 lock_in_lp_filter(*mode)
-Arguments: mode = integer (0-3); Output: integer or none.
-Example: lock_in_lp_filter('1') sets the low pass filter slope to 12 dB/oct.
+Arguments: mode = string (['6 dB', '12 dB', '18 dB', '24 dB']); Output: string.
+Example: lock_in_lp_filter('12 dB') sets the low pass filter slope to 12 dB/oct.
 ```
-This function queries or sets the low pass filter slope. If there is no argument the function will return the current slope. If there is an argument the specified slope will be set. Possible low pass filter slopes and their meaning are the following:<br/>
-'0' - 6 dB/oct; '1' - 12 dB/oct; '2' - 18 dB/oct; '3' - 24 dB/oct.<br/>
+This function queries or sets the low pass filter slope. If there is no argument the function will return the current slope. If there is an argument the specified slope will be set. Possible low pass filter slopes are the following: ['6 dB', '12 dB', '18 dB', '24 dB']. They correspond to 6 dB/oct, 12 dB/oct, 18 dB/oct, 24 dB/oct, respectively.<br/>
 ```python3
 lock_in_harmonic(*harmonic)
 Arguments: harmonic = integer (1-19999; 1-99); Output: integer or none.

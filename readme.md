@@ -6,18 +6,20 @@ Remote control of spectrometers is usually carried out using home-written progra
 
 Atomize uses [liveplot library](https://github.com/PhilReinhold/liveplot) based on pyqtgraph as a main graphics library. [Liveplot](https://github.com/PhilReinhold/liveplot) was originally developed by Phil Reinhold. Since several minor improvements have been made to use it in Atomize, the latest version of liveplot is included to Atomize.
 
-[Python Programming Language](https://www.python.org/) is used inside experimental scripts, which opens up almost unlimited possibilities for raw experimetnal data treatment. In addition, with PyQt, one can create experimental scripts with a simple graphical interface, allowing users not familiar with Python to use it.
-Several examples of scripts (with dummy data) are provided in /atomize/tests/ directory, including a GUI script with extended comments inside.
+[Python Programming Language](https://www.python.org/) is used inside experimental scripts, which opens up almost unlimited possibilities for raw experimetnal data treatment. In addition, with PyQt, one can create experimental scripts with a simple graphical interface, allowing users not familiar with Python to use it. Several examples of scripts (with dummy data) are provided in /atomize/tests/ directory, including a GUI script with extended comments inside.<br/>
+At the moment, the program has been tested only on Ubuntu 18.04 LTS and 20.04 LTS.
 
-### Status: early in development; waiting for device tests
+### Status: early in development; device testing
 
 ## Requirements
-- [Python (tested with 3.8+)](https://www.python.org/)
+- [Python (tested with 3.6+)](https://www.python.org/)
 - [Numpy](https://numpy.org/)
-- [Scipy](https://www.scipy.org/)
+- [Scipy;](https://www.scipy.org/) optional, for math modules
 - [PyQt5](http://www.riverbankcomputing.com/software/pyqt/download)
 - [pyqtgraph](http://www.pyqtgraph.org)
+- [PyVisa](https://pyvisa.readthedocs.io/en/latest/)
 - [PyVisa-py](https://github.com/pyvisa/pyvisa-py)
+- [Pyserial](https://pypi.org/project/pyserial/)
 - [Pylint;](https://www.pylint.org/) optional, for syntax checking
 
 ## Basic usage
@@ -172,6 +174,7 @@ oscilloscope_run()
 oscilloscope_get_curve(channel)
 oscilloscope_sensitivity(*channel)
 oscilloscope_offset(*channel)
+oscilloscope_horizontal_offset(*h_offset)
 oscilloscope_coupling(*coupling)
 oscilloscope_impedance(*impedance)
 oscilloscope_trigger_mode(*mode)

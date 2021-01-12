@@ -3,6 +3,7 @@
 
 import os
 import gc
+import sys
 import time
 import pyvisa
 from pyvisa.constants import StopBits, Parity
@@ -29,6 +30,10 @@ timeconstant_dict = {'1 us': 0, '3 us': 1, '10 us': 2, '30 us': 3, '100 us': 4, 
 					'1 s': 12, '3 s': 13, '10 s': 14, '30 s': 15, '100 s': 16, '300 s': 17, 
 					'1 ks': 18, '3 ks': 19, '10 ks': 20, '30 ks': 21};
 helper_tc_list = [1, 3, 10, 30, 100, 300]
+ref_mode_dict = {'Internal': 0, 'External': 1, 'Dual': 2, 'Chop': 3}
+ref_slope_dict = {'Sine': 0, 'PosTTL': 1, 'NegTTL': 2}
+sync_dict = {'Off': 0, 'On': 1}
+lp_fil_dict = {'6 db': 0, '12 dB': 1, "18 dB": 2, "24 dB":3}
 
 # Ranges and limits
 ref_freq_min = 0.001
@@ -38,14 +43,15 @@ ref_ampl_max = 2
 harm_max = 99
 harm_min = 1
 
+
 #### Basic interaction functions
 def connection():
 	global status_flag
 	global device
-	
 	if config['interface'] == 'gpib':
 		try:
 			import Gpib
+			status_flag = 1
 			device = Gpib.Gpib(config['board_address'], config['gpib_address'])
 			try:
 				# test should be here
@@ -55,14 +61,19 @@ def connection():
 				else:
 					send.message('During test errors are found')
 					status_flag = 0;
+					sys.exit();
 			except pyvisa.VisaIOError:
-				status_flag = 0;	
+				send.message("No connection")
+				status_flag = 0;
+				sys.exit();
 		except pyvisa.VisaIOError:
 			send.message("No connection")
 			device.close()
 			status_flag = 0
+			sys.exit();
 	elif config['interface'] == 'rs232':
 		try:
+			status_flag = 1
 			rm = pyvisa.ResourceManager()
 			device=rm.open_resource(config['serial_address'], read_termination=config['read_termination'],
 			write_termination=config['write_termination'], baud_rate=config['baudrate'],
@@ -76,17 +87,22 @@ def connection():
 				else:
 					send.message('During test errors are found')
 					status_flag = 0;
+					sys.exit();
 			except pyvisa.VisaIOError:
-				status_flag = 0;	
+				status_flag = 0;
+				device.close()
+				send.message("No connection")
+				sys.exit();
 		except pyvisa.VisaIOError:
 			send.message("No connection")
 			device.close()
 			status_flag = 0
+			sys.exit();
 	elif config['interface'] == 'ethernet':
 		try:
+			status_flag=1;
 			rm = pyvisa.ResourceManager()
-			device=rm.open_resource(config['ethernet_address'], read_termination=config['read_termination'],
-			write_termination=config['write_termination'])
+			device=rm.open_resource(config['ethernet_address'])
 			device.timeout=config['timeout']; # in ms
 			try:
 				# test should be here
@@ -96,12 +112,17 @@ def connection():
 				else:
 					send.message('During test errors are found')
 					status_flag = 0;
+					sys.exit();
 			except pyvisa.VisaIOError:
-				status_flag = 0;	
+				send.message("No connection")
+				device.close()
+				status_flag = 0;
+				sys.exit();
 		except pyvisa.VisaIOError:
 			send.message("No connection")
 			device.close()
 			status_flag = 0
+			sys.exit();
 
 def close_connection():
 	status_flag = 0;
@@ -114,6 +135,7 @@ def device_write(command):
 		device.write(command)
 	else:
 		send.message("No Connection")
+		sys.exit()
 
 def device_query(command):
 	if status_flag == 1:
@@ -128,6 +150,7 @@ def device_query(command):
 		return answer
 	else:
 		send.message("No Connection")
+		sys.exit()
 
 #### Device specific functions
 def lock_in_name():
@@ -245,74 +268,64 @@ def lock_in_sensitivity(*sensitivity):
 		send.message("Invalid Argument")
 
 def lock_in_ref_mode(*mode):
-	if len(mode)==1:
-		flag = int(mode[0]);
-		if flag==0:
-			device_write('RSRC '+str(flag))
-		elif flag==1:
-			device_write('RSRC '+str(flag))
-		elif flag==2:
-			device_write('RSRC '+str(flag))
-		elif flag==3:
-			device_write('RSRC '+str(flag))
+	if  len(mode)==1:
+		md = str(mode[0])
+		if md in ref_mode_dict:
+			flag = ref_mode_dict[md]
+			device_write("RSRC "+ str(flag))
 		else:
-			send.message("Invalid Argument")
+			send.message("Invalid mode")
 	elif len(mode)==0:
-		answer = int(device_query("RSRC?"))
+		raw_answer = int(device_query("RSRC?"))
+		answer = cutil.search_keys_dictionary(ref_mode_dict, raw_answer)
 		return answer
 	else:
-		send.message("Invalid Argument")
+		send.message("Invalid argumnet")
 
 def lock_in_ref_slope(*mode):
-	if len(mode)==1:
-		flag = int(mode[0]);
-		if flag==0:
-			device_write('RTRG '+str(flag))
-		elif flag==1:
-			device_write('RTRG '+str(flag))
-		elif flag==2:
-			device_write('RTRG '+str(flag))
+	if  len(mode)==1:
+		md = str(mode[0])
+		if md in ref_slope_dict:
+			flag = ref_slope_dict[md]
+			device_write("RTRG "+ str(flag))
 		else:
-			send.message("Invalid Argument")
+			send.message("Invalid mode")
 	elif len(mode)==0:
-		answer = int(device_query("RTRG?"))
+		raw_answer = int(device_query("RTRG?"))
+		answer = cutil.search_keys_dictionary(ref_slope_dict, raw_answer)
 		return answer
 	else:
-		send.message("Invalid Argument")
+		send.message("Invalid argumnet")
 
 def lock_in_sync_filter(*mode):
-	if len(mode)==1:
-		flag = int(mode[0]);
-		if flag==0:
-			device_write('SYNC '+str(flag))
-		elif flag==1:
-			device_write('SYNC '+str(flag))
+	if  len(mode)==1:
+		md = str(mode[0])
+		if md in sync_dict:
+			flag = sync_dict[md]
+			device_write("SYNC "+ str(flag))
 		else:
-			send.message("Invalid Argument")
+			send.message("Invalid argument")
 	elif len(mode)==0:
-		answer = int(device_query("SYNC?"))
+		raw_answer = int(device_query("SYNC?"))
+		answer = cutil.search_keys_dictionary(sync_dict, raw_answer)
 		return answer
 	else:
-		send.message("Invalid Argument")
+		send.message("Invalid argumnet")
 
 def lock_in_lp_filter(*mode):
-	if len(mode)==1:
-		flag = int(mode[0]);
-		if flag==0:
-			device_write('OFSL '+str(flag))
-		elif flag==1:
-			device_write('OFSL '+str(flag))
-		elif flag==2:
-			device_write('OFSL '+str(flag))
-		elif flag==3:
-			device_write('OFSL '+str(flag))
+	if  len(mode)==1:
+		md = str(mode[0])
+		if md in lp_fil_dict:
+			flag = lp_fil_dict[md]
+			device_write("OFSL "+ str(flag))
 		else:
-			send.message("Invalid Argument")
+			send.message("Invalid mode")
 	elif len(mode)==0:
-		answer = int(device_query("OFSL?"))
+		raw_answer = int(device_query("OFSL?"))
+		answer = cutil.search_keys_dictionary(lp_fil_dict, raw_answer)
 		return answer
 	else:
-		send.message("Invalid Argument")
+		send.message("Invalid argumnet")
 
 def lock_in_harmonic(*harmonic):
 	if len(harmonic)==1:
@@ -337,3 +350,4 @@ def lock_in_query(command):
 
 if __name__ == "__main__":
     main()
+

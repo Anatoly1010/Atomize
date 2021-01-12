@@ -28,6 +28,10 @@ wavefunction_dic = {'Sin': 'SINusoid', 'Sq': 'SQUare', 'Ramp': 'RAMP', 'Pulse': 
 					'Arb': 'ARBitrary'};
 ac_type_dic = {'Norm': "NORMal", 'Ave': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
 
+# Limits and Ranges:
+tr_delay_max = 10
+tr_delay_min = 0.000000004
+
 #### Basic interaction functions
 def connection():
 	global status_flag
@@ -439,6 +443,25 @@ def oscilloscope_trigger_low_level(*level):
 			return answer
 		else:
 			send.message("Incorrect channel is given")
+	else:
+		send.message("Invalid argument")
+
+def oscilloscope_trigger_delay(*delay):
+	if len(delay)==1:
+		temp = delay[0].split(" ")
+		offset = float(temp[0])
+		scaling = temp[1];
+		if offset <= tr_delay_max and offset >= tr_delay_min:
+			if scaling in timebase_dict:
+				coef = timebase_dict[scaling]
+				device_write(":TRIGger:DELay:TDELay:TIME "+ str(offset/coef))
+			else:
+				send.message("Incorrect trigger delay")
+		else:
+			send.message("Incorrect trigger delay")
+	elif len(delay)==0:
+		answer = float(device_query(":TRIGger:DELay:TDELay:TIME?"))*1000000
+		return answer
 	else:
 		send.message("Invalid argument")
 

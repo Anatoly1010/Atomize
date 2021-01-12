@@ -3,10 +3,10 @@
 
 import socket
 
-def message(text):
+def message(*text):
 	sock = socket.socket()
 	sock.connect(('localhost', 9091))
-	sock.send(text.encode())
+	sock.send(str(text).encode())
 	sock.close()
 
 if __name__ == "__main__":

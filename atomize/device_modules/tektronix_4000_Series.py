@@ -12,7 +12,7 @@ import atomize.device_modules.config.messenger_socket_client as send
 #### Inizialization
 # setting path to *.ini file
 path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','tektronix_4000_config.ini')
+path_config_file = os.path.join(path_current_directory, 'config','tektronix_4032_config.ini')
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
@@ -21,6 +21,7 @@ config = cutil.read_conf_util(path_config_file)
 number_averag_list = [2, 4, 8, 16, 32, 64, 128, 256, 512]
 points_list = [1000, 10000, 100000, 1000000, 10000000];
 timebase_dict = {' s': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000,};
+timebase_helper_list = [1, 2, 4, 10, 20, 40, 100, 200, 400]
 scale_dict = {' V': 1, 'mV': 1000,};
 ac_type_dic = {'Norm': "SAMple", 'Ave': "AVErage", 'Hres': "HIRes",'Peak': "PEAKdetect"}
 
@@ -32,26 +33,34 @@ def connection():
 	if config['interface'] == 'ethernet':
 		rm = pyvisa.ResourceManager()
 		try:
+			status_flag = 1
 			device=rm.open_resource(config['ethernet_address'])
 			device.timeout=config['timeout']; # in ms
-			device.read_termination = config['read_termination']  # for WORD (a kind of binary) format
+			device.read_termination = config['read_termination']
 			try:
+				# test should be here
 				answer = int(device_query('*TST?'))
 				if answer==0:
 					status_flag = 1;
 				else:
-					send.message('During self-test errors are found')
+					send.message('During test errors are found')
 					status_flag = 0;
-			except BrokenPipeError:
+					sys.exit()
+			except pyvisa.VisaIOError:
 				send.message("No connection")
-				status_flag = 0;	
-		except BrokenPipeError:
+				status_flag = 0;
+				device.close()
+				sys.exit()
+		except pyvisa.VisaIOError:
 			send.message("No connection")
+			device.close()
 			status_flag = 0
+			sys.exit()
 
 def close_connection():
 	status_flag = 0;
 	gc.collect()
+	device.close()
 
 def device_write(command):
 	if status_flag == 1:
@@ -59,6 +68,7 @@ def device_write(command):
 		device.write(command)
 	else:
 		send.message("No connection")
+		sys.exit()
 
 def device_query(command):
 	if status_flag == 1:
@@ -66,6 +76,7 @@ def device_query(command):
 		return answer
 	else:
 		send.message("No connection")
+		sys.exit()
 
 def device_query_ascii(command):
 	if status_flag == 1:
@@ -73,11 +84,12 @@ def device_query_ascii(command):
 		return answer
 	else:
 		send.message("No connection")
+		sys.exit()
 
 def device_read_binary(command):
 	if status_flag==1:
-		answer = device.query_binary_values(command,'i', is_big_endian=True, container=np.array)
-		# maybe also h?
+		answer = device.query_binary_values(command,'b', is_big_endian=True, container=np.array)
+		# RPBinary, value from 0 to 255. 'b'
 		# Endianness is primarily expressed as big-endian (BE) or little-endian (LE).
 		# A big-endian system stores the most significant byte of a word at the smallest memory address 
 		# and the least significant byte at the largest. A little-endian system, in contrast, stores 
@@ -85,6 +97,7 @@ def device_read_binary(command):
 		return answer
 	else:
 		send.message("No connection")
+		sys.exit()
 
 #### Device specific functions
 def oscilloscope_name():
@@ -110,6 +123,8 @@ def oscilloscope_record_length(*points):
 	if len(points)==1:
 		temp = int(points[0]);
 		poi = min(points_list, key=lambda x: abs(x - temp))
+		if int(poi) != temp:
+			send.message("Desired record length cannot be set, the nearest available value is used")
 		device_write("HORizontal:RECOrdlength "+ str(poi))
 	elif len(points)==0:
 		answer = int(device_query('HORizontal:RECOrdlength?'))
@@ -135,6 +150,8 @@ def oscilloscope_number_of_averages(*number_of_averages):
 	if len(number_of_averages)==1:
 		temp = int(number_of_averages[0]);
 		numave = min(number_averag_list, key=lambda x: abs(x - temp))
+		if int(numave) != temp:
+			send.message("Desired number of averages cannot be set, the nearest available value is used")
 		ac = oscilloscope_acquisition_type()
 		if ac == 'AVE':
 			device_write("ACQuire:NUMAVg " + str(numave))
@@ -151,15 +168,19 @@ def oscilloscope_number_of_averages(*number_of_averages):
 		send.message("Invalid argument")
 
 def oscilloscope_timebase(*timebase):
-	if len(timebase)==1:
-		temp = timebase[0].split(" ")
-		tb = float(temp[0])
-		scaling = temp[1];
-		if scaling in timebase_dict:
-			coef = timebase_dict[scaling]
-			device_write("HORizontal:SCAle "+ str(tb/coef))
+	if  len(timebase)==1:
+		if timebase[0]!='800 ns':
+			temp = timebase[0].split(' ')
+			number_tb = min(timebase_helper_list, key=lambda x: abs(x - int(temp[0])))
+			if int(number_tb) != int(temp[0]):
+				send.message("Desired time constant cannot be set, the nearest available value is used")
+			if temp[1] in timebase_dict:
+				coef = timebase_dict[temp[1]]
+				device_write("HORizontal:SCAle "+ str(number_tb/coef))
+			else:
+				send.message("Incorrect timebase")
 		else:
-			send.message("Incorrect timebase")
+			device_write("HORizontal:SCAle "+ str(800/1000000000))
 	elif len(timebase)==0:
 		answer = float(device_query("HORizontal:SCAle?"))*1000000
 		return answer
@@ -172,25 +193,30 @@ def oscilloscope_time_resolution():
 	return answer
 
 def oscilloscope_start_acquisition():
-	#start_time = datetime.now()
-	device_query('*ESR?;ACQuire:STATE RUN;ACQuire:STOPAfter SEQ;*OPC?') # return 1, if everything is ok;
+	#start_time = time.time()
+	device_query('*ESR?')
+	device_write('ACQuire:STATE RUN;:ACQuire:STOPAfter SEQ')
+	device_query('*OPC?') # return 1, if everything is ok;
 	# the whole sequence is the following 1-clearing; 2-3-digitizing; 4-checking of the completness
-	#end_time=datetime.now()
-	send.message('Acquisition completed')
-	#print("Duration of Acquisition: {}".format(end_time - start_time))
+	#end_time=time.time()
+	send.message('Acquisition completed') 
+	#send.message("Duration of Acquisition: {}".format(end_time - start_time))
 
 def oscilloscope_preamble(channel):
 	if channel=='CH1':
 		device_write('DATa:SOUrce CH1')
+		preamble = device_query("WFMOutpre?")
 	elif channel=='CH2':
 		device_write('DATa:SOUrce CH2')
+		preamble = device_query("WFMOutpre?")
 	elif channel=='CH3':
 		device_write('DATa:SOUrce CH3')
+		preamble = device_query("WFMOutpre?")
 	elif channel=='CH4':
 		device_write('DATa:SOUrce CH4')
+		preamble = device_query("WFMOutpre?")
 	else:
-		send.message("Invalid channel is given")
-	preamble = device_query_ascii("WFMOutpre?")	
+		send.message("Invalid channel is given")	
 	return preamble
 
 def oscilloscope_stop():
@@ -214,8 +240,8 @@ def oscilloscope_get_curve(channel):
 	device_write('DATa:ENCdg RIBinary')
 
 	array_y = device_read_binary('CURVe?')
-	#x_orig=float(device_query("WFMOutpre:XZEro?"))
-	#x_inc=float(device_query("WFMOutpre:XINcr?"))
+	x_orig=float(device_query("WFMOutpre:XZEro?"))
+	x_inc=float(device_query("WFMOutpre:XINcr?"))
 
 	y_ref=float(device_query("WFMOutpre:YOFf?"))
 	y_inc=float(device_query("WFMOutpre:YMUlt?"))
@@ -224,10 +250,10 @@ def oscilloscope_get_curve(channel):
 	#print(y_orig)
 	#print(y_ref)
 	array_y = (array_y - y_ref)*y_inc + y_orig
-	#array_x= list(map(lambda x: x_inc*(x+1) + x_orig, list(range(len(array_y)))))
-	#final_data = list(zip(array_x,array_y))
+	array_x= list(map(lambda x: x_inc*(x+1) + x_orig, list(range(len(array_y)))))
+	#final_data = np.asarray(list(zip(array_x,array_y)))
 
-	return array_y
+	return arra_x,array_y
 
 def oscilloscope_sensitivity(*channel):
 	if len(channel)==2:
@@ -304,6 +330,22 @@ def oscilloscope_offset(*channel):
 			return answer
 		else:
 			send.message("Incorrect channel is given")
+	else:
+		send.message("Invalid argument")
+
+def oscilloscope_trigger_delay(*delay):
+	if len(delay)==1:
+		temp = delay[0].split(" ")
+		offset = float(temp[0])
+		scaling = temp[1];
+		if scaling in timebase_dict:
+			coef = timebase_dict[scaling]
+			device_write("HORizontal:DELay:TIMe "+ str(offset/coef))
+		else:
+			send.message("Incorrect trigger delay")
+	elif len(delay)==0:
+		answer = float(device_query("HORizontal:DELay:TIMe?"))*1000000
+		return answer
 	else:
 		send.message("Invalid argument")
 
@@ -432,16 +474,16 @@ def oscilloscope_trigger_low_level(*level):
 	elif len(level)==1:
 		ch = str(level[0])
 		if ch == 'CH1':
-			answer = device_query("TRIGger:A:LEVel:CH1?")
+			answer = float(device_query("TRIGger:A:LEVel:CH1?"))
 			return answer
 		elif ch == 'CH2':
-			answer = device_query("TRIGger:A:LEVel:CH2?")
+			answer = float(device_query("TRIGger:A:LEVel:CH2?"))
 			return answer
 		elif ch == 'CH3':
-			answer = device_query("TRIGger:A:LEVel:CH3?")
+			answer = float(device_query("TRIGger:A:LEVel:CH3?"))
 			return answer
 		elif ch == 'CH4':
-			answer = device_query("TRIGger:A:LEVel:CH4?")
+			answer = float(device_query("TRIGger:A:LEVel:CH4?"))
 			return answer
 		else:
 			send.message("Incorrect channel is given")
@@ -457,3 +499,4 @@ def oscilloscope_query(command):
 
 if __name__ == "__main__":
     main()
+
