@@ -1,5 +1,5 @@
 # Atomize - Split your spectrometer apart!
-![](https://github.com/Anatoly1010/Atomize/blob/master/logoAtomize.png)<br/>
+![](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/logoAtomize.png)<br/>
 A modular open source software for working with scientific devices and combining them into spectrometer.<br/>
 The general idea is close to [FSC2 software](http://users.physik.fu-berlin.de/~jtt/fsc2.phtml) developed by Jens Thomas Törring.<br/>
 Remote control of spectrometers is usually carried out using home-written programs, which are often restricted to doing a certain experiment with a specific set of devices. In contrast, the programs like [FSC2](http://users.physik.fu-berlin.de/~jtt/fsc2.phtml) and [Atomize](https://github.com/Anatoly1010/Atomize) are much more flexible, since they are based on a modular approach for communication with device and scripting language (EDL in FSC2; Python in Atomize) for data measuring.
@@ -93,13 +93,13 @@ Python is used to write an experimental script. Examples (with dummy data) can b
 	- Stanford Research Lock-In Amplifier (Gpib, RS-232)
 	SR-810; SR-830; SR-850 (untested).
 	- Stanford Research Lock-In Amplifier (Gpib, RS-232, ethernet)
-	SR-860 (untested); SR-865a (untested).
+	SR-860 (Tested 01/2021); SR-865a (untested).
 
 #### Oscilloscopes
 	- Keysight InfiniiVision 2000 X-Series (Ethernet); untested
 	- Keysight InfiniiVision 3000 X-Series (Ethernet); tested
 	- Keysight InfiniiVision 4000 X-Series (Ethernet); untested
-	- Tektronix 4000 Series (Ethenet); untested
+	- Tektronix 4000 Series (Ethenet); Tested 01/2021
 
 #### Arbitrary Wave Generators
 	- Wave Generator of Keysight InfiniiVision 2000 X-Series (Ethernet)
@@ -174,7 +174,7 @@ oscilloscope_run()
 oscilloscope_get_curve(channel)
 oscilloscope_sensitivity(*channel)
 oscilloscope_offset(*channel)
-oscilloscope_horizontal_offset(*h_offset)
+oscilloscope_trigger_delay(*h_offset)
 oscilloscope_coupling(*coupling)
 oscilloscope_impedance(*impedance)
 oscilloscope_trigger_mode(*mode)
@@ -253,5 +253,5 @@ turn_off(number)
 ```
 
 ## Screenshots
-![](https://github.com/Anatoly1010/Atomize/blob/master/screenshot.png)
-![](https://github.com/Anatoly1010/Atomize/blob/master/screenshot2.png)
+![](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot.png)
+![](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot2.png)
