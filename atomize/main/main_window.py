@@ -183,9 +183,10 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         text = self.process_python.readAllStandardOutput().data().decode()
         text_errors_script = self.process_python.readAllStandardError().data().decode()
-        if text == '' and text_errors_script == '':
+        if text_errors_script == '':
+        #if text == '' and text_errors_script == '':
             self.text_errors.appendPlainText("Script done!")
-        elif text == '' and text_errors_script != '':
+        elif text_errors_script != '':
             self.text_errors.appendPlainText(text_errors_script)
             self.text_errors.verticalScrollBar().setValue(self.text_errors.verticalScrollBar().maximum())
 
