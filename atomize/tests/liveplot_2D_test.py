@@ -30,16 +30,16 @@ while i <= 100:
 	#np.savetxt(f, zs, fmt='%.10f', delimiter=' ', newline='\n', header='field: %d' % i, footer='', comments='#', encoding=None)
 	
 	# Plot_z Test
-	plotter.plot_z('Plot Z Test', data, start_step=((0,1),(0.3,0.001)), xname='Time', 
-	xscale='s', yname='Magnetic Field', yscale='T', zname='Intensity', zscale='V')
+	#plotter.plot_z('Plot Z Test', data, start_step=((0,1),(0.3,0.001)), xname='Time', 
+	#xscale='s', yname='Magnetic Field', yscale='T', zname='Intensity', zscale='V')
 	
 
 	# Append_z Test
-	#plotter.append_z('Append Z Test', data[i-1], start_step=((0,1),(0.3,0.001)), xname='Time', 
-	#xscale='s', yname='Magnetic Field', yscale='T', zname='Intensity', zscale='V')
+	plotter.append_z('Append Z Test', data[i-1], start_step=((0,1),(0.3,0.001)), xname='Time', 
+	xscale='s', yname='Magnetic Field', yscale='T', zname='Intensity', zscale='V')
 
 	# Label Test
-	#plotter.label('Append Z Test', 'step: %d' % i)
+	plotter.label('Append Z Test', 'step: %d' % i)
 
 
 #open(path_to_file, "w").close()

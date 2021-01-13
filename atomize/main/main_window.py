@@ -251,7 +251,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         self.text_errors.appendPlainText(str(data))
         if data=='Script stopped':
-            self.process_python.terminate()
+            self.process_python.close()
 
 def main():
     """

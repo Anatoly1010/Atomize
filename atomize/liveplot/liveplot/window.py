@@ -75,11 +75,15 @@ class MainWindow(QMainWindow):
         self.meta = json.loads(conn.read(300).decode())
         if self.meta['arrsize'] != 0:
             memory.lock()
-            ba = memory.data()[0:self.meta['arrsize']]
-            arr = np.frombuffer(memoryview(ba))
-            memory.unlock()
-            conn.write(b'ok')
-            arr = arr.reshape(self.meta['shape']).copy()
+            raw_data = memory.data()
+            if raw_data!=None:
+                ba = raw_data[:self.meta['arrsize']]
+                arr = np.frombuffer(memoryview(ba), dtype=self.meta['dtype'])
+                memory.unlock()
+                conn.write(b'ok')
+                arr = arr.reshape(self.meta['shape']).copy()
+            else: 
+                arr = None
         else:
             arr = None
         self.do_operation(arr)
@@ -271,7 +275,7 @@ class MainWindow(QMainWindow):
         self.dockarea.addDock(pw, position=['bottom', 'right'][self.insert_dock_right])
 
     def sizeHint(self):
-        return QSize(1000, 600)
+        return QSize(1400, 1000)
 
 
 class NameList(QDockWidget):
@@ -337,9 +341,9 @@ class NameList(QDockWidget):
 
 
 def main():
-    if os.name == 'nt':
+    if os.name == 'Windows':
         import ctypes
-        myappid = 'philreinhold.liveplot'
+        myappid = 'liveplot'
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
     app = QApplication([])
