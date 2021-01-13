@@ -169,8 +169,14 @@ def oscilloscope_number_of_averages(*number_of_averages):
 
 def oscilloscope_timebase(*timebase):
 	if  len(timebase)==1:
-		if timebase[0]!='800 ns':
-			temp = timebase[0].split(' ')
+		temp = timebase[0].split(' ')
+		if temp[1] == 'ns' and float(temp[0])>=60 and float(temp[0])<=90:
+			if timebase!='80 ns':
+				device_write("HORizontal:SCAle "+ str(80/1000000000))
+				send.message("Desired time constant cannot be set, the nearest available value is used")
+			else:
+				device_write("HORizontal:SCAle "+ str(80/1000000000))				
+		else:
 			number_tb = min(timebase_helper_list, key=lambda x: abs(x - int(temp[0])))
 			if int(number_tb) != int(temp[0]):
 				send.message("Desired time constant cannot be set, the nearest available value is used")
@@ -179,8 +185,6 @@ def oscilloscope_timebase(*timebase):
 				device_write("HORizontal:SCAle "+ str(number_tb/coef))
 			else:
 				send.message("Incorrect timebase")
-		else:
-			device_write("HORizontal:SCAle "+ str(800/1000000000))
 	elif len(timebase)==0:
 		answer = float(device_query("HORizontal:SCAle?"))*1000000
 		return answer
@@ -240,20 +244,20 @@ def oscilloscope_get_curve(channel):
 	device_write('DATa:ENCdg RIBinary')
 
 	array_y = device_read_binary('CURVe?')
-	x_orig=float(device_query("WFMOutpre:XZEro?"))
-	x_inc=float(device_query("WFMOutpre:XINcr?"))
-
+	#x_orig=float(device_query("WFMOutpre:XZEro?"))
+	#x_inc=float(device_query("WFMOutpre:XINcr?"))
+	#send.message(preamble)
 	y_ref=float(device_query("WFMOutpre:YOFf?"))
 	y_inc=float(device_query("WFMOutpre:YMUlt?"))
 	y_orig=float(device_query("WFMOutpre:YZEro?"))
-	#print(y_inc)
-	#print(y_orig)
-	#print(y_ref)
+	#send.message(y_inc)
+	#send.message(y_orig)
+	#send.message(y_ref)
 	array_y = (array_y - y_ref)*y_inc + y_orig
-	array_x= list(map(lambda x: x_inc*(x+1) + x_orig, list(range(len(array_y)))))
+	#array_x= list(map(lambda x: x_inc*(x+1) + x_orig, list(range(len(array_y)))))
 	#final_data = np.asarray(list(zip(array_x,array_y)))
 
-	return arra_x,array_y
+	return array_y
 
 def oscilloscope_sensitivity(*channel):
 	if len(channel)==2:

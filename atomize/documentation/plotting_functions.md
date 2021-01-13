@@ -64,7 +64,7 @@ label('label', 'text: %d' % DynamicValue)
 
 ## Clearing
 ```python
-clear()
+remove('name_of_plot')
 ```
 # Minimal examples of using these functions inside the experimental script
 

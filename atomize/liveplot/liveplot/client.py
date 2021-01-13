@@ -206,6 +206,7 @@ class LivePlotClient(object):
             'name': name,
             'operation': 'remove'
         })
+        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
 
     def disconnect_received(self):
             self.is_connected = False
