@@ -7,7 +7,7 @@ Remote control of spectrometers is usually carried out using home-written progra
 Atomize uses [liveplot library](https://github.com/PhilReinhold/liveplot) based on pyqtgraph as a main graphics library. [Liveplot](https://github.com/PhilReinhold/liveplot) was originally developed by Phil Reinhold. Since several minor improvements have been made to use it in Atomize, the latest version of liveplot is included to Atomize.
 
 [Python Programming Language](https://www.python.org/) is used inside experimental scripts, which opens up almost unlimited possibilities for raw experimetnal data treatment. In addition, with PyQt, one can create experimental scripts with a simple graphical interface, allowing users not familiar with Python to use it. Several examples of scripts (with dummy data) are provided in /atomize/tests/ directory, including a GUI script with extended comments inside.<br/>
-At the moment, the program has been tested only on Ubuntu 18.04 LTS and 20.04 LTS.
+At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and Windows 10.
 
 ### Status: early in development; device testing
 
@@ -19,7 +19,6 @@ At the moment, the program has been tested only on Ubuntu 18.04 LTS and 20.04 LT
 - [pyqtgraph](http://www.pyqtgraph.org)
 - [PyVisa](https://pyvisa.readthedocs.io/en/latest/)
 - [PyVisa-py](https://github.com/pyvisa/pyvisa-py)
-- [Pyserial](https://pypi.org/project/pyserial/)
 - [Pylint;](https://www.pylint.org/) optional, for syntax checking
 
 ## Basic usage
@@ -62,12 +61,15 @@ plotter.plotter_functions()
 To communicate with a device one should:
 1) modify the config file (/atomize/device_modules/config/) of the desired device accordingly.
 Usually you need to specify the interface type and interface settings.
-2) import the module or modules in your script:
+2) import the module or modules in your script and initialize the appropriate class. A class always
+has the same name as the module file. Initialization connect the desired device, if the settings are correct.
 ```python
 import atomize.device_modules.keysight_3000_Xseries as keys
-import atomize.device_modules.Lakeshore331 as tc
-name_oscilloscope = keys.oscilloscope_name()
-temperature = tc.tc_temperature('CH A')
+import atomize.device_modules.lakeshore331 as tc
+dsox3034t = keys.keysight_3000_Xseries()
+lakeshore331 = tc.lakeshore331()
+name_oscilloscope = dsox3034t.oscilloscope_name()
+temperature = lakeshore331.tc_temperature('CH A')
 ```
 The same idea is valid for plotting and file handling modules. The description of available
 functions is given below.
