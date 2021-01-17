@@ -9,17 +9,18 @@ Atomize uses [liveplot library](https://github.com/PhilReinhold/liveplot) based 
 [Python Programming Language](https://www.python.org/) is used inside experimental scripts, which opens up almost unlimited possibilities for raw experimetnal data treatment. In addition, with PyQt, one can create experimental scripts with a simple graphical interface, allowing users not familiar with Python to use it. Several examples of scripts (with dummy data) are provided in /atomize/tests/ directory, including a GUI script with extended comments inside.<br/>
 At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and Windows 10.
 
-### Status: early in development; device testing
+### Status: in development; device testing
 
 ## Requirements
 - [Python (tested with 3.6+)](https://www.python.org/)
 - [Numpy](https://numpy.org/)
-- [Scipy;](https://www.scipy.org/) optional, for math modules
 - [PyQt5](http://www.riverbankcomputing.com/software/pyqt/download)
 - [pyqtgraph](http://www.pyqtgraph.org)
 - [PyVisa](https://pyvisa.readthedocs.io/en/latest/)
 - [PyVisa-py](https://github.com/pyvisa/pyvisa-py)
-- [Pylint;](https://www.pylint.org/) optional, for syntax checking
+- [OpenGL;](https://pypi.org/project/PyOpenGL/) highly recommended for efficient plotting 
+- [Scipy;](https://www.scipy.org/) optional, for math modules
+- [GPIB driver;](https://linux-gpib.sourceforge.io/) optional
 
 ## Basic usage
 
@@ -39,7 +40,7 @@ or using bash option to open specified script:
 
 The text editor used for editing  can be specified in atomize/config.ini
 
-2. [Liveplot](https://github.com/PhilReinhold/liveplot)  Author: Phil Reinhold
+2. [Liveplot](https://github.com/PhilReinhold/liveplot) Author: Phil Reinhold
 
 Install from the source directory (from atomize/liveplot):
 
@@ -49,11 +50,11 @@ Start the window (optional; atomize opens it)
 
 	python3 -m liveplot
 
-To communicate with Liveplot inside a script it should be imported and initialized:
+To communicate with Liveplot inside a script the general function module should be
+imported and the Liveplot window should be open.
 ```python
-from liveplot import LivePlotClient
-plotter = LivePlotClient()
-plotter.plotter_functions()
+import atomize.general_modules.general_functions as general
+general.plot_1d(arguments)
 ```
 
 3. Using device modules
@@ -66,25 +67,35 @@ has the same name as the module file. Initialization connect the desired device,
 ```python
 import atomize.device_modules.keysight_3000_Xseries as keys
 import atomize.device_modules.lakeshore331 as tc
-dsox3034t = keys.keysight_3000_Xseries()
-lakeshore331 = tc.lakeshore331()
+dsox3034t = keys.Keysight_3000_Xseries()
+lakeshore331 = tc.Lakeshore331()
 name_oscilloscope = dsox3034t.oscilloscope_name()
 temperature = lakeshore331.tc_temperature('CH A')
 ```
 The same idea is valid for plotting and file handling modules. The description of available
 functions is given below.
 ```python
-from liveplot import LivePlotClient
+import atomize.general_modules.general_functions as general
 import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
-plotter = LivePlotClient()
 file_handler = openfile.Saver_Opener()
 head, data = file_handler.open_1D_dialog(header=0)
-plotter.plot_xy('1D Plot', data[0], data[1], label='test_data', yname='Y axis', yscale='V')
+general.plot_1d('1D Plot', data[0], data[1], label='test_data', yname='Y axis', yscale='V')
 ```
-4. Experimental script
+4. Experimental scripts
 
 Python is used to write an experimental script. Examples (with dummy data) can be found in
 /atomize/tests/ directory.
+
+5. Speeding up plotting functions
+
+It is highly recommended to use OpenGL, if you want to plot data with more than 2000 points.
+On Ubuntu 18.04 LTS, 20.04 LTS python openGL bindings can be installed as:
+
+	apt-get install python3-pyqt5.qtopengl
+
+On Windows 10 one should use:
+	
+	pip install PyOpenGL PyOpenGL_accelerate
 
 ## Available devices
 #### Temperature Controllers
@@ -118,6 +129,7 @@ Python is used to write an experimental script. Examples (with dummy data) can b
 	53230A/220A (untested).
 
 #### Magnetic Field Controller
+	- Bruker BH15 (GPIB); Tested 01/2021
 	- Bruker ER031M (RS-232 using arduino emulated keyboard) tested
 
 #### Balances
@@ -129,6 +141,7 @@ Python is used to write an experimental script. Examples (with dummy data) can b
 ## [Available general functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
 ```python3
 message('A message to print')
+wait('number + scaling')
 open_1D(path, header=0)
 open_1D_dialog(self, directory='', header=0)
 save_1D_dialog(data, directory='', header='')
@@ -142,12 +155,12 @@ create_file_dialog(directory='')
 
 ## [Available plotting functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
 ```python3
-plot_xy('name', Xdata, Ydata, **args)
-append_y('name', value, start_step=(x[0], x[1]-x[0]), label='label', **args)
-plot_z('name', data, start_step=((Xstart, Xstep), (Ystart, Ystep)), **args)
-append_z('name', data, start_step=((Xstart, Xstep), (Ystart, Ystep)), **args)
-label('label', 'text: %d' % DynamicValue)
-clear()
+plot_1d('name', Xdata, Ydata, **args)
+append_1d('name', value, start_step=(x[0], x[1]-x[0]), label='label', **args)
+plot_2d('name', data, start_step=((Xstart, Xstep), (Ystart, Ystep)), **args)
+append_2d('name', data, start_step=((Xstart, Xstep), (Ystart, Ystep)), **args)
+text_label('label', 'text', DynamicValue)
+plot_remove('name')
 ```
 ## Available function for devices
 ### [Temperature controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/temperature_controller_functions.md)
@@ -176,7 +189,7 @@ oscilloscope_run()
 oscilloscope_get_curve(channel)
 oscilloscope_sensitivity(*channel)
 oscilloscope_offset(*channel)
-oscilloscope_trigger_delay(*h_offset)
+oscilloscope_trigger_delay(*delay)
 oscilloscope_coupling(*coupling)
 oscilloscope_impedance(*impedance)
 oscilloscope_trigger_mode(*mode)

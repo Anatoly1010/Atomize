@@ -3,6 +3,7 @@
 
 import os
 import sys
+import time
 import threading
 import configparser
 import platform
@@ -21,7 +22,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         super(MainWindow, self).__init__(*args, **kwargs)
         # absolute path to icon:
-        path_to_main=os.path.abspath(os.getcwd())
+        path_to_main = os.path.abspath(os.getcwd())
         self.icon_path = os.path.join(path_to_main,'atomize/main','Icon.png')
         self.setWindowIcon(QIcon(self.icon_path))
 
@@ -31,13 +32,14 @@ class MainWindow(QtWidgets.QMainWindow):
         uic.loadUi('atomize/main/gui/main_window.ui', self)        # Design file
 
         # important attribures
-        if len(sys.argv)> 1 and sys.argv[1]!='':  # for bash option
+        if len(sys.argv) > 1 and sys.argv[1] != '':  # for bash option
             self.script = sys.argv[1]
             self.open_file(self.script)
         elif len(sys.argv) == 1:
-            self.script='' # for not opened script
-        self.flag=1 # for not open two liveplot windows
-        self.path=os.path.join(path_to_main,'atomize/tests')
+            self.script = '' # for not opened script
+        self.flag = 1 # for not open two liveplot windows
+        self.test_flag = 0 # flag for not running script if test is failed
+        self.path = os.path.join(path_to_main,'atomize/tests')
         # Connection of different action to different Menus and Buttons
         self.button_open.clicked.connect(self.open_file_dialog)
         self.button_open.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
@@ -86,16 +88,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.system = platform.system()
         if self.system == 'Windows':
             self.process_text_editor.setProgram(str(config['DEFAULT']['editorW']))
-            self.process.setProgram('pylint.exe')
+            self.process.setProgram('python.exe')
             self.process_python.setProgram('python.exe')
             self.process_liveplot.setProgram('python.exe')
         elif self.system == 'Linux':
-            self.editor=str(config['DEFAULT']['editor'])
-            if self.editor=='nano' or self.editor=='vi':
+            self.editor = str(config['DEFAULT']['editor'])
+            if self.editor == 'nano' or self.editor == 'vi':
                 self.process_text_editor.setProgram('xterm')
             else:
                 self.process_text_editor.setProgram(str(config['DEFAULT']['editor']))
-            self.process.setProgram('pylint')
+            self.process.setProgram('python3')
             self.process_python.setProgram('python3')
             self.process_liveplot.setProgram('python3')
 
@@ -104,6 +106,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.process_liveplot.finished.connect(self.helper_liveplot)
         self.process.finished.connect(self.on_finished_checking)
         self.process_python.finished.connect(self.on_finished_script)
+
     def _on_destroyed(self):
         """
         A function to do some actions when the main window is closing.
@@ -111,6 +114,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.process_python.close() 
         self.process_liveplot.close()
         #print(self.process_liveplot.exitStatus())# Exit code 1 if the liveplot window is opened
+
     def quit(self):
         """
         A function to quit the programm
@@ -122,10 +126,43 @@ class MainWindow(QtWidgets.QMainWindow):
         ####
         #### QProcess: Destroyed while process ("python3") is still running.
         ####
+
     def start_experiment(self):
         """
         A function to run an experimental script using python.exe.
         """
+        if self.script != '':
+            stamp = os.stat(self.script).st_mtime
+        else:
+            self.text_errors.appendPlainText('No experimental script is opened')
+            return
+
+        self.test()
+        exec_code = self.process.waitForFinished()
+
+        if self.test_flag == 1:
+            self.text_errors.appendPlainText("Experiment cannot be started, since test is not passed")
+            return        # stop current function
+        elif self.test_flag == 0 and exec_code == True:
+            self.process_python.setArguments([self.script])
+            self.process_python.start()
+
+    def message_box_clicked(self, btn):
+        """
+        Message Box fow warning
+        """
+        if btn.text() == "Discrad and Run Experiment":
+            self.start_experiment()
+        elif btn.text() == "Update Script":
+            self.reload()
+        else:
+            return
+
+    def test(self):
+        """
+        A function to run a syntax check using pylint.
+        """
+
         if self.script != '':
             stamp = os.stat(self.script).st_mtime
         else:
@@ -137,29 +174,18 @@ class MainWindow(QtWidgets.QMainWindow):
             message = QMessageBox(self);  # Message Box for warning of updated file
             message.setWindowTitle("Your script has been changed!")
             message.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78); }")
-            message.addButton(QtWidgets.QPushButton('Discrad and Run'), QtWidgets.QMessageBox.YesRole)
-            message.addButton(QtWidgets.QPushButton('Update'), QtWidgets.QMessageBox.NoRole)
+            message.addButton(QtWidgets.QPushButton('Discrad and Run Experiment'), QtWidgets.QMessageBox.YesRole)
+            message.addButton(QtWidgets.QPushButton('Update Script'), QtWidgets.QMessageBox.NoRole)
             message.setText("Your experimental script has been changed   ");
             message.show();
             message.buttonClicked.connect(self.message_box_clicked)   # connect function clicked to button; get the button name
             return        # stop current function
 
-        self.process_python.setArguments([self.script])
-        self.process_python.start()
-    def message_box_clicked(self, btn):             # Message Box fow warning
-        if btn.text() == "Discrad and Run":
-            self.start_experiment()
-        elif btn.text() == "Update":
-            self.reload()
-        else:
-            return
-    def test(self):
-        """
-        A function to run a syntax check using pylint.
-        """
-        self.text_errors.appendPlainText("Testing... Please, wait!")
-        self.process.setArguments(['--errors-only', self.script])
+        #self.text_errors.appendPlainText("Testing... Please, wait!")
+        #self.process.setArguments(['--errors-only', self.script])
+        self.process.setArguments([self.script, 'test'])
         self.process.start()
+
     def reload(self):
         """
         A function to reload an experimental script.
@@ -167,16 +193,31 @@ class MainWindow(QtWidgets.QMainWindow):
         self.cached_stamp = os.stat(self.script).st_mtime
         text = open(self.script).read()
         self.textEdit.setPlainText(text)
+
     def on_finished_checking(self):
         """
-        A function to add the information about errors found during syntax checking to a dedicated text box in the main window of the programm.
+        A function to add the information about errors found during syntax checking
+        to a dedicated text box in the main window of the programm.
         """
+        #text = self.process.readAllStandardOutput().data().decode()
+        #if text == '':
+        #    self.text_errors.appendPlainText("No errors are found!")
+        #else:
+        #    self.text_errors.appendPlainText(text)
+        #    self.text_errors.verticalScrollBar().setValue(self.text_errors.verticalScrollBar().maximum())
+
+        # Version for real tests
         text = self.process.readAllStandardOutput().data().decode()
-        if text == '':
-            self.text_errors.appendPlainText("No errors are found!")
-        else:
-            self.text_errors.appendPlainText(text)
+        text_errors_script = self.process.readAllStandardError().data().decode()
+        if text_errors_script == '':
+        # if text == '' and text_errors_script == '':
+            self.text_errors.appendPlainText("No errors are found")
+            self.test_flag = 0
+        elif text_errors_script != '':
+            self.test_flag = 1
+            self.text_errors.appendPlainText(text_errors_script)
             self.text_errors.verticalScrollBar().setValue(self.text_errors.verticalScrollBar().maximum())
+
     def on_finished_script(self):
         """
         A function to add the information about errors found during syntax checking to a dedicated text box in the main window of the programm.
@@ -200,19 +241,21 @@ class MainWindow(QtWidgets.QMainWindow):
             self.flag = 1
         else:
             self.text_errors.appendPlainText('Liveplot already opened')
+
     def helper_liveplot(self):
         """
         A function to check whether there is an open liveplot window
         """
         self.flag = 0;
+
     def edit_file(self):
         """
         A function to open an experimental script in a text editor.
         """
         if self.system == 'Linux':
-            if self.editor=='nano':
+            if self.editor =='nano':
                 self.process_text_editor.setArguments(['-e','nano', self.script])
-            elif self.editor=='vi':
+            elif self.editor == 'vi':
                 self.process_text_editor.setArguments(['-e','vi', self.script])
             else:
                 self.process_text_editor.setArguments([self.script])
@@ -230,6 +273,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.textEdit.setPlainText(text)
         self.path = os.path.dirname(filename) # for memorizing the path to the last used folder
         self.script = filename
+
     def open_file_dialog(self):
         """
         A function to open a new window for choosing an experimental script.
@@ -250,7 +294,7 @@ class MainWindow(QtWidgets.QMainWindow):
         :param data: string
         """
         self.text_errors.appendPlainText(str(data))
-        if data=='Script stopped':
+        if data == 'Script stopped':
             self.process_python.close()
 
 def main():

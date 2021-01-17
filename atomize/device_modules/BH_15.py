@@ -7,7 +7,7 @@ import time
 import sys
 import math
 import atomize.device_modules.config.config_utils as cutil
-import atomize.device_modules.config.messenger_socket_client as send
+import atomize.general_modules.general_functions as general
 
 """
 Programming this field controller became a bit of a mess because of the
@@ -30,7 +30,7 @@ number of conditions to be taken into consideration:
 #### Inizialization
 # setting path to *.ini file
 path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','bh15_config.ini')
+path_config_file = os.path.join(path_current_directory, 'config','BH_15_config.ini')
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
@@ -59,7 +59,7 @@ fc_cf_resolution = 0.05
 max_retries = 300
 """
 To make sure the new setting for a center field or sweep width setting
-does arrive at the device we send it BH15_FC_MAX_SET_RETRIES times.
+does arrive at the device we general it BH15_FC_MAX_SET_RETRIES times.
 Remember, this is a device by Bruker...
 """
 max_set_retries = 3
@@ -71,7 +71,7 @@ min_field_step = 0.001
 max_recursion = 20
 max_add_steps = 100
 
-class bh15:
+class BH_15:
 	#### Device specific functions
 	def __init__(self):
 		if config['interface'] == 'gpib':
@@ -89,25 +89,25 @@ class bh15:
 					# Set IM0 sweep mode (we don't use it, just to make sure we don't trigger a sweep start inadvertently)
 					self.device_write('IM0')
 					# The device seems to need a bit of time after being switched to remote mode
-					time.sleep(1)
+					general.wait('1 s')
 
 				#except pyvisa.VisaIOError:
-				#	send.message("No connection")
+				#	general.message("No connection")
 				#	self.device.close()
 				#	self.status_flag = 0
 				#	sys.exit()
 				except BrokenPipeError:
-					send.message("No connection")
+					general.message("No connection")
 					self.device.close()
 					self.status_flag = 0
 					sys.exit()				
 			#except pyvisa.VisaIOError:
-			#	send.message("No connection")
+			#	general.message("No connection")
 			#	self.device.close()
 			#	self.status_flag = 0
 			#	sys.exit()
 			except BrokenPipeError:
-					send.message("No connection")
+					general.message("No connection")
 					self.device.close()
 					self.status_flag = 0
 					sys.exit()		
@@ -148,7 +148,7 @@ class bh15:
 		# given setting for the sweep width resolution of 0.1 G)
 
 		if field_step < min_field_step:
-			send.message(f"Field sweep step size {field_step} G too small \
+			general.message(f"Field sweep step size {field_step} G too small \
 				, minimum is {min_field_step} G.")
 			sys.exit()
 
@@ -165,7 +165,7 @@ class bh15:
 
 		if rem > 0 & (round(field_step/min_field_step) % round(fc_cf_resolution/min_field_step)) == 0:
 			start_field = round(start_field/fc_cf_resolution)*fc_cf_resolution;
-			send.message(f"Readjusting start field to {start_field} G.")
+			general.message(f"Readjusting start field to {start_field} G.")
 
 		self.start_field = start_field
 		self.field_step = field_step
@@ -177,13 +177,13 @@ class bh15:
 		#?
 		if self.is_init and self.max_field_dev/self.field_step >= 0.01 or self.is_init == False \
 		and self.is_act_field and math.floor(self.max_field_dev/fc_resolution) >= 1:
-			send.message(f"Maximum field error during experiment was {self.max_field_dev*1000} mG.")
+			general.message(f"Maximum field error during experiment was {self.max_field_dev*1000} mG.")
 			self.max_field_dev = 0.0
 			self.is_act_field = False
 
 	def magnet_sweep_up(self):
 		if self.is_init != True:
-			send.message("No sweep step size has been set - you must call the function magnet_setup() to be able to do sweeps.")
+			general.message("No sweep step size has been set - you must call the function magnet_setup() to be able to do sweeps.")
 			sys.exit()
 		# Check that the new field value is still within the allowed range
 		self.field_check(self.act_field + self.field_step)
@@ -219,7 +219,7 @@ class bh15:
 			the field can't be set with a useful combination of CF and SWA.
 			"""
 			if new_swa > max_swa or new_cf + 0.5*self.sw > max_field:
-				send.message(f"Cannot set field of {self.act_field + self.field_step} G.")
+				general.message(f"Cannot set field of {self.act_field + self.field_step} G.")
 			
 			self.fc_best_fit_search(new_cf, new_swa, True, 2);
 
@@ -227,7 +227,7 @@ class bh15:
 				and (new_cf + 0.5*self.sw) <= max_field:
 				pass
 			else:
-				send.message("Incorrect parameters")
+				general.message("Incorrect parameters")
 				sys.exit()
 
 			self.swa = new_swa
@@ -244,7 +244,7 @@ class bh15:
 
 	def magnet_sweep_down(self):
 		if self.is_init != True:
-			send.message("No sweep step size has been set - you must call the function magnet_setup() to be able to do sweeps.")
+			general.message("No sweep step size has been set - you must call the function magnet_setup() to be able to do sweeps.")
 			sys.exit()
 
 		self.field_check(self.act_field - self.field_step)
@@ -277,7 +277,7 @@ class bh15:
 			# When we're extremely near to the minimum field it may happen that
 			# the field can't be set with a useful combination of CF and SWA
 			if new_swa < min_swa or new_cf - 0.5*self.sw < min_field:
-				send.message(f"Can't set field of {self.act_field + self.field_step} G.")
+				general.message(f"Can't set field of {self.act_field + self.field_step} G.")
 			
 			self.fc_best_fit_search(new_cf, new_swa, False, 2);
 
@@ -285,7 +285,7 @@ class bh15:
 				and (new_cf + 0.5*self.sw) <= max_field:
 				pass
 			else:
-				send.message("Incorrect parameters")
+				general.message("Incorrect parameters")
 				sys.exit()
 
 			self.swa = new_swa
@@ -302,7 +302,7 @@ class bh15:
 
 	def magnet_reset_field(self):
 		if self.is_init != True:
-			send.message("Start field has not been defined  - you must call the function magnet_setup() before.")
+			general.message("Start field has not been defined  - you must call the function magnet_setup() before.")
 			sys.exit()	
 		self.fc_start_field()
 
@@ -314,7 +314,7 @@ class bh15:
 		elif len(field)==0:
 			return self.get_field()
 		else:
-			send.message("Incorrect argument")
+			general.message("Incorrect argument")
 			sys.exit()			
 
 	def magnet_field_step_size(self, *step):
@@ -328,7 +328,7 @@ class bh15:
 		elif len(step)==1:
 			field_step = float(step[0])
 			if field_step < 0.:
-				send.message("Invalid negative field step size.")
+				general.message("Invalid negative field step size.")
 				sys.exit()
 			steps = round(field_step/fc_resolution)
 			if steps == 0:
@@ -336,13 +336,13 @@ class bh15:
 
 			return steps*fc_resolution
 		else:
-			send.message("Invalid argument")
+			general.message("Invalid argument")
 			sys.exit()			
 
 	# Auxiliary functions
 	def get_field(self):
 		if self.is_act_field != True:
-			send.message("Field hasn't been set yet and is thus still unknown.")
+			general.message("Field hasn't been set yet and is thus still unknown.")
 			sys.exit()
 
 		return self.act_field
@@ -411,7 +411,7 @@ class bh15:
 		if field >= min_field and field <= max_field:
 			pass
 		else:
-			send.message("Incorrect parameters")
+			general.message("Incorrect parameters")
 			sys.exit()
 		# If no field has been set before (and thus the module doesn't even
 		# know what's the current field) do the initialization now
@@ -505,7 +505,7 @@ class bh15:
 			and (self.cf + 0.5*self.sw) <= max_field:
 			pass
 		else:
-			send.message("Incorrect parameters")
+			general.message("Incorrect parameters")
 			sys.exit()
 
 		"""
@@ -537,7 +537,7 @@ class bh15:
 			and (new_cf + 0.5*self.swa_step) <= max_field:
 			pass
 		else:
-			send.message("Incorrect parameters")
+			general.message("Incorrect parameters")
 			sys.exit()
 
 		if  dire == True:
@@ -593,7 +593,7 @@ class bh15:
 		if (sweep_width >= 0. and sweep_width <= self.max_sw):
 			pass
 		else:
-			send.message("Incorrect sweep width")
+			general.message("Incorrect sweep width")
 			sys.exit()
 
 		sweep_width = fc_sw_resolution*round(sweep_width/fc_sw_resolution)
@@ -616,7 +616,7 @@ class bh15:
 		if (center_field >= min_field and center_field <= max_field):
 			pass
 		else:
-			send.message("Incorrect center field")
+			general.message("Incorrect center field")
 			sys.exit()
 
 		i = max_set_retries
@@ -633,7 +633,7 @@ class bh15:
 		if (sweep_address >= min_swa and sweep_address <= max_swa):
 			pass
 		else:
-			send.message("Incorrect sweep address")
+			general.message("Incorrect sweep address")
 			sys.exit()
 
 		i = max_set_retries
@@ -739,7 +739,7 @@ class bh15:
 		if self.swa > max_swa or self.swa < min_swa or (self.cf + 0.5*self.sw) > \
 			max_field or (self.cf - 0.5*self.sw) < min_field:
 
-			send.message(f"Can't set field of {field} G.");
+			general.message(f"Can't set field of {field} G.");
 			sys.exit()
 
 		# Now we again got to deal with cases where the resulting center field
@@ -763,7 +763,7 @@ class bh15:
 				min_field and self.cf + 0.5*self.sw <= max_field:
 					pass
 				else:
-					send.message("Incorrect parameters")
+					general.message("Incorrect parameters")
 					sys.exit()
 
 		self.cf = self.fc_set_cf(self.cf)
@@ -844,7 +844,7 @@ class bh15:
 					is_overload = True
 					break
 				elif answer == 'LE2\r\n':
-					send.message("Probehead thermostat not in equilibrilum.")
+					general.message("Probehead thermostat not in equilibrilum.")
 					break
 				elif answer == 'LE4\r\n':
 					is_remote = True
@@ -856,7 +856,7 @@ class bh15:
 
 			# If remote LED isn't on we're out of luck...
 			if is_remote == False:
-				send.message("Device isn't in remote state.")
+				general.message("Device isn't in remote state.")
 				sys.exit()
 			
 			# If there's no overload we're done, otherwise we retry several
@@ -865,9 +865,9 @@ class bh15:
 				break
 
 			if (max_retries - 1) > 0:
-				time.sleep(1)
+				general.wait('1 s')
 			else:
-				send.message("Field regulation loop not balanced.")
+				general.message("Field regulation loop not balanced.")
 				sys.exit()
 
 	def fc_deviation(self, field):
@@ -883,10 +883,10 @@ class bh15:
 	def field_check(self, field):
 		field = float(field)
 		if field > max_field:
-			send.message(f"Field of {field} G is too high, maximum field is {max_field} G.")
+			general.message(f"Field of {field} G is too high, maximum field is {max_field} G.")
 			sys.exit()
 		if field < min_field:
-			send.message(f"Field of {field} G is too low, minimum field is {min_field} G.")
+			general.message(f"Field of {field} G is too low, minimum field is {min_field} G.")
 			sys.exit()
 
 	def device_write(self, command):
@@ -896,10 +896,10 @@ class bh15:
 				#print(command)
 				self.device.write(command)
 			except gpib.GpibError:
-				send.message("No answer")
+				general.message("No answer")
 				sys.exit()
 		else:
-			send.message("No connection")
+			general.message("No connection")
 			sys.exit()
 
 	def device_query(self, command):
@@ -908,14 +908,14 @@ class bh15:
 				command = str(str(command) + str(config['read_termination']))
 				#print(command)
 				self.device.write(command)
-				time.sleep(0.05)
+				general.wait('50 ms')
 				answer = self.device.read().decode("utf-8")
 				return answer
 			except gpib.GpibError:
-				send.message("No answer")
+				general.message("No answer")
 				sys.exit()
 		else:
-			send.message("No connection")
+			general.message("No connection")
 			sys.exit()
 
 def main():

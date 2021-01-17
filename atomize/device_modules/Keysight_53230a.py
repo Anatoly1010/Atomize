@@ -11,7 +11,7 @@ import atomize.device_modules.config.messenger_socket_client as send
 #### Inizialization
 # setting path to *.ini file
 path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','keysight53230a_config.ini')
+path_config_file = os.path.join(path_current_directory, 'config','Keysight_53230a_config.ini')
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)

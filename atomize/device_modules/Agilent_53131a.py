@@ -11,7 +11,7 @@ import atomize.device_modules.config.messenger_socket_client as send
 #### Inizialization
 # setting path to *.ini file
 path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','agilent53181a_config.ini')
+path_config_file = os.path.join(path_current_directory, 'config','Agilent_53131a_config.ini')
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
@@ -77,9 +77,9 @@ def freq_counter_frequency(channel):
 	elif channel=='CH2':
 		answer = float(device_query(':MEASURE:FREQ? (@2)'))
 		return answer
-	#elif channel=='CH3':
-	#	answer = float(device_query(':MEASURE:FREQ? (@3)'))
-	#	return answer
+	elif channel=='CH3':
+		answer = float(device_query(':MEASURE:FREQ? (@3)'))
+		return answer
 	else:
 		send.message('Invalid argument')
 
@@ -95,10 +95,10 @@ def freq_counter_impedance(*impedance):
 		if ch == 'CH1':
 			device_write(":INPut1:IMPedance " + str(imp))
 		elif ch == 'CH2':
-			#device_write(":INPut2:IMPedance " + str(imp))
-			send.message('The impedance for CH2 is only 50 Ohm')
+			device_write(":INPut2:IMPedance " + str(imp))
 		elif ch == 'CH3':
-			#send.message('The impedance for CH3 is only 50 Ohm')
+			send.message('The impedance for CH3 is only 50 Ohm')
+		else:
 			send.message('Invalid channel')
 	elif len(impedance)==1:
 		ch = str(impedance[0])
@@ -109,8 +109,7 @@ def freq_counter_impedance(*impedance):
 			answer = float(device_query(":INPut2:IMPedance?"))
 			return answer
 		elif ch == 'CH3':
-			#answer = float(device_query(":INPut3:IMPedance?"))
-			send.message('Invalid channel')
+			answer = float(device_query(":INPut3:IMPedance?"))
 			return answer
 	else:
 		send.message('Invalid argument')
@@ -122,10 +121,10 @@ def freq_counter_coupling(*coupling):
 		if ch == 'CH1':
 			device_write(":INPut1:COUPling " + str(cpl))
 		elif ch == 'CH2':
-			#device_write(":INPut2:COUPling " + str(cpl))
-			send.message('The coupling for CH2 is only AC')
+			device_write(":INPut2:COUPling " + str(cpl))
 		elif ch == 'CH3':
-			#send.message('The impedance for CH3 is only AC')
+			send.message('The impedance for CH3 is only AC')
+		else:
 			send.message('Invalid channel')
 	elif len(impedance)==1:
 		ch = str(coupling[0])
@@ -136,9 +135,8 @@ def freq_counter_coupling(*coupling):
 			answer = str(device_query(":INPut2:COUPling?"))
 			return answer
 		elif ch == 'CH3':
-			#answer = str(device_query(":INPut3:COUPling?"))
-			send.message('Invalid channel')
-			#return answer
+			answer = str(device_query(":INPut3:COUPling?"))
+			return answer
 	else:
 		send.message('Invalid argument')
 
@@ -174,8 +172,7 @@ def freq_counter_digits(*digits):
 	if  len(digits)==1:
 		val = int(digits[0])
 		if val >= 3 and val <=15:
-			print(":FREQuency:ARM:STOP:DIGits "+ str(val))
-			#device_write(":FREQuency:ARM:STOP:DIGits "+ str(val))
+			device_write(":FREQuency:ARM:STOP:DIGits "+ str(val))
 		else:
 			send.message("Invalid amount of digits")
 	elif len(digits)==0:
@@ -213,8 +210,7 @@ def freq_counter_expected_freq(*frequency):
 			elif ch == 'CH2':
 				device_write(":FREQuency:EXPected2 "+str(val*coef))
 			elif ch == 'CH3':
-				send.message("Incorrect channel is given")
-				#device_write(":FREQuency:EXPected3 "+str(val*coef))
+				device_write(":FREQuency:EXPected3 "+str(val*coef))
 			else:
 				send.message("Incorrect channel is given")
 		else:
@@ -237,12 +233,12 @@ def freq_counter_expected_freq(*frequency):
 				send.message("No expected frequency is found")
 		elif ch == 'CH3':
 			send.message("Incorrect channel is given")
-			#temp = int(evice_query(':FREQuency:EXPected3:AUTO?'))
-			#if temp == 0:
-				#answer = float(device_query(":FREQuency:EXPected3?"))
-				#return answer
-			#else:
-			#	send.message("No expected frequency is found")
+			temp = int(evice_query(':FREQuency:EXPected3:AUTO?'))
+			if temp == 0:
+				answer = float(device_query(":FREQuency:EXPected3?"))
+				return answer
+			else:
+				send.message("No expected frequency is found")
 		else:
 			send.message("Incorrect channel is given")
 	else:
@@ -255,12 +251,12 @@ def freq_counter_ratio(channel1, channel2):
 	elif channel1 == 'CH2' and channel2 =='CH1':
 		answer = float(device_query(':MEASure:FREQuency:RATio? (@2),(@1)'))
 		return answer
-	#elif channel1 == 'CH1' and channel2 =='CH3':
-	#	answer = float(device_query(':MEASure:FREQuency:RATio? (@1),(@3)'))
-	#	return answer
-	#elif channel1 == 'CH3' and channel2 =='CH1':
-	#	answer = float(device_query(':MEASure:FREQuency:RATio? (@3),(@1)'))
-	#	return answer
+	elif channel1 == 'CH1' and channel2 =='CH3':
+		answer = float(device_query(':MEASure:FREQuency:RATio? (@1),(@3)'))
+		return answer
+	elif channel1 == 'CH3' and channel2 =='CH1':
+		answer = float(device_query(':MEASure:FREQuency:RATio? (@3),(@1)'))
+		return answer
 	else:
 		send.message('Invalid argument')
 
@@ -271,9 +267,9 @@ def freq_counter_period(channel):
 	elif channel=='CH2':
 		answer = float(device_query(':MEASURE:PERiod? (@2)'))*1000000
 		return answer
-	#elif channel=='CH3':
-	#	answer = float(device_query(':MEASURE:PERiod? (@3)'))*1000000
-	#	return answer
+	elif channel=='CH3':
+		answer = float(device_query(':MEASURE:PERiod? (@3)'))*1000000
+		return answer
 	else:
 		send.message('Invalid argument')
 
@@ -283,7 +279,6 @@ def freq_counter_command(command):
 def freq_counter_query(command):
 	answer = device_query(command)
 	return answer
-
 
 if __name__ == "__main__":
     main()

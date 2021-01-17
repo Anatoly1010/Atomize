@@ -12,7 +12,7 @@ import atomize.device_modules.config.messenger_socket_client as send
 #### Inizialization
 # setting path to *.ini file
 path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','lakeshore336_config.ini')
+path_config_file = os.path.join(path_current_directory, 'config','Lakeshore_332_config.ini')
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
@@ -109,23 +109,10 @@ def tc_temperature(channel):
 		except TypeError:
 			answer = 'No Connection';
 		return answer
-	elif channel=='C':
-		try:
-			answer = float(device_query('KRDG? C'))
-		except TypeError:
-			answer = 'No Connection';
-		return answer
-	elif channel=='D':
-		try:
-			answer = float(device_query('KRDG? D'))
-		except TypeError:
-			answer = 'No Connection';
-		return answer
 	else:
 		print("Invalid Argument")	
 
 def tc_setpoint(*temp):
-
 	if len(temp)==1:
 		temp = float(temp[0]);
 		if temp < 330 and temp > 0.5:
@@ -142,16 +129,11 @@ def tc_setpoint(*temp):
 		print("Invalid Argument")
 
 def tc_heater_range(*heater):
-	if len(heater)==1:
+	if  len(heater)==1:
 		hr = str(heater[0])
-		if loop == 1 or loop == 2 and hr in heater_dict:
+		if hr in heater_dict:
 			flag = heater_dict[hr]
 			device_write("RANGE " + str(loop) + ', ' + str(flag))
-		elif loop == 3 or loop == 4:
-			if heater == 'On':
-				device_write('RANGE ' + str(loop) + ', ' + str(1))
-			elif heater == 'Off':
-				device_write('RANGE ' + str(loop) + ', ' + str(0))
 		else:
 			print("Invalid heater range")
 	elif len(heater)==0:
@@ -159,7 +141,7 @@ def tc_heater_range(*heater):
 		answer = cutil.search_keys_dictionary(heater_dict, raw_answer)
 		return answer
 	else:
-		print("Invalid Argument")							
+		print("Invalid Argument")								
 
 def tc_heater_state():
 	answer1 = tc_heater_range()

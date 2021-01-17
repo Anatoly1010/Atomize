@@ -1,28 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os
 import gc
+import os
 import time
 import pyvisa
 from pyvisa.constants import StopBits, Parity
 import atomize.device_modules.config.config_utils as cutil
 import atomize.device_modules.config.messenger_socket_client as send
 
-# in tc_heater_range() check answer = int(device_query('RANGE?')) and tc_heater answer = float(device_query('HTR?'))
-# maybe we need to indicate a loop for them
-
 #### Inizialization
 # setting path to *.ini file
 path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','lakeshore335_config.ini')
+path_config_file = os.path.join(path_current_directory, 'config','Lakeshore_325_config.ini')
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
 loop = config['loop'] # information about the loop used
 
 # auxilary dictionaries
-heater_dict = {'50 W': 3, '5 W': 2, '0.5 W': 1, 'Off': 0};
+heater_dict = {'25 W': 2, '2.5 W': 1, 'Off': 0};
 
 #### Basic interaction functions
 def connection():
@@ -35,7 +32,7 @@ def connection():
 			device = Gpib.Gpib(config['board_address'], config['gpib_address'])
 			try:
 				# test should be here
-				answer = int(device_query('*TST?'))
+				answer = device_query('*TST?')
 				if answer==0:
 					status_flag = 1;
 				elif answer==1:
@@ -96,7 +93,7 @@ def device_query(command):
 
 #### Device specific functions
 def tc_name():
-	answer = device_query('*IDN?')
+	answer = config['name'] 
 	return answer
 
 def tc_temperature(channel):
@@ -132,11 +129,16 @@ def tc_setpoint(*temp):
 		print("Invalid Argument")
 
 def tc_heater_range(*heater):
-	if  len(heater)==1:
+	if len(heater)==1:
 		hr = str(heater[0])
-		if hr in heater_dict:
+		if loop ==1 and hr in heater_dict:
 			flag = heater_dict[hr]
 			device_write("RANGE " + str(loop) + ', ' + str(flag))
+		elif loop == 2:
+			if hr == 'On':
+				device_write('RANGE ' + str(loop) + ', ' + str(1))
+			elif hr == 'Off':
+				device_write('RANGE ' + str(loop) + ', ' + str(0))
 		else:
 			print("Invalid heater range")
 	elif len(heater)==0:
@@ -144,7 +146,7 @@ def tc_heater_range(*heater):
 		answer = cutil.search_keys_dictionary(heater_dict, raw_answer)
 		return answer
 	else:
-		print("Invalid Argument")								
+		print("Invalid Argument")							
 
 def tc_heater_state():
 	answer1 = tc_heater_range()
@@ -158,6 +160,7 @@ def tc_command(command):
 def tc_query(command):
 	answer = device_query(command)
 	return answer
+
 
 if __name__ == "__main__":
     main()

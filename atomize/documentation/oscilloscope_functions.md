@@ -64,7 +64,7 @@ Arguments: channel = string (['CH1, CH2, CH3, CH4']); Output: array of the mixed
 Example: oscilloscope_preamble('CH3') returs the preamble from channel 3.
 ```
 This function requests the preamble information for the selected waveform source. The preamble data contains information concerning the vertical and horizontal scaling of the data of the corresponding channel.<br/>
-Preamble format (Keysight): [format, type, points, count, xincrement, xorigin, xreference, yincrement, yorigin, yreference]
+Preamble format (Keysight): [format, type, points, count, xincrement, xorigin, xreference, yincrement, yorigin, yreference]<br/>
 Preamble format (Tektronix): [data width, bits per point, encoding, format of the binary data, byte order, channel, coupling,
 vert scale, horiz scale, record length, acq mode, number of points in waveform, point format, horiz units,
 xincrement, xorigin, displayed?, vert units, vert scale mult factor, yoff, yorigin]<br/>

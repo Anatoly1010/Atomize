@@ -1,15 +1,19 @@
 # List of available general functions
 
 ## Print a line in the main window
-To call this function a corresponding module should be imported:
+To call this function a corresponding general function module should be imported. After that
+ the function should be used as follows:
 ```python
-import atomize.device_modules.config.messenger_socket_client as send
+import atomize.general_modules.general_functions as general
+general.message('A message to print','One more message', ...)
 ```
-After that the function should be used as follows:
+## Wait for the specified amount of time
+To call this function a corresponding general function module should be imported. Function has
+one argument, which is a string of number and scaling factor (ks, s, ms, us):
 ```python
-send.message('A message to print','One more message', ...)
+import atomize.general_modules.general_functions as general
+general.wait('10 ms')
 ```
-
 ## File handling
 To open or save raw experimental data one can use a special module based on Tkinter.
 Alternatively, it ispossible to use the CSV Exporter embedded into Pyqtgraph for saving 1D data
@@ -125,48 +129,44 @@ newline='n', header='field: %d' % i, footer='', comments='#', encoding=None)
 # Minimal examples of using these functions inside the experimental script
 ## Open file
 ```python
-from liveplot import LivePlotClient
+import atomize.general_modules.general_functions as general
 import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 
-plotter = LivePlotClient()
-file_handler =openfile.Saver_Opener()
+file_handler = openfile.Saver_Opener()
 
 head, data = file_handler.open_2D_dialog(header=0):
 
-plotter.plot_z('Plot Z Test', dat, start_step=((0,1),(0.3,0.001)), xname='Time', 
+general.plot_2d('Plot Z Test', dat, start_step=((0,1),(0.3,0.001)), xname='Time', 
 	xscale='s', yname='Magnetic Field', yscale='T', zname='Intensity', zscale='V')
 ```
 ## Save file in the end of the script
 ```python
-import time
 import numpy as np
-from liveplot import LivePlotClient
-import atomize.device_modules.config.messenger_socket_client as send
+import atomize.general_modules.general_functions as general
 import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 
-plotter = LivePlotClient()
 file_handler = openfile.Saver_Opener()
 
-data=[];
-step=10;
+data = [];
+step = 10;
 i = 0;
-send.message('Test of saving data')
+general.message('Test of saving data')
 path_to_file = file_handler.create_file_dialog(directory='')
 
 ## 2D Experiment
 while i <= 10:
-	i=i+1;
-	axis_x=np.arange(4000)
-	ch_time=np.random.randint(250, 500, 1)
-	zs = 1 + 100*np.exp(-axis_x/ch_time)+7*np.random.normal(size=(4000))
+	i = i + 1;
+	axis_x = np.arange(4000)
+	ch_time = np.random.randint(250, 500, 1)
+	zs = 1 + 100*np.exp(-axis_x/ch_time) + 7*np.random.normal(size=(4000))
 	data.append(zs)
-	time.sleep(0.1)	
+	general.wait('100 ms')	
 
-	plotter.plot_z('Plot Z Test', data, start_step=((0,1),(0.3,0.001)),
+	general.plot_2d('Plot Z Test', data, start_step=((0,1),(0.3,0.001)),
 	xname='Time', xscale='s', yname='Magnetic Field', yscale='T', zname='Intensity',
 	zscale='V')
 
-f=open(path_to_file,'a')
+f = open(path_to_file,'a')
 np.savetxt(f, data, fmt='%.10f', delimiter=',', newline='n',
 	header='field: %d' % i, footer='', comments='#', encoding=None)
 f.close()
@@ -174,34 +174,31 @@ f.close()
 
 ## Save file during the script
 ```python
-import time
 import numpy as np
-from liveplot import LivePlotClient
-import atomize.device_modules.config.messenger_socket_client as send
+import atomize.general_modules.general_functions as general
 import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 
-plotter = LivePlotClient()
 file_handler = openfile.Saver_Opener()
 
-data=[];
-step=10;
+data = [];
+step = 10;
 i = 0;
-send.message('Test of saving data')
+general.message('Test of saving data')
 path_to_file = file_handler.create_file_dialog(directory='', fmt='')
 
 f = open(path_to_file,'a')
 ## 2D Experiment
 while i <= 10:
-	i=i+1;
-	axis_x=np.arange(4000)
-	ch_time=np.random.randint(250, 500, 1)
-	zs = 1 + 100*np.exp(-axis_x/ch_time)+7*np.random.normal(size=(4000))
+	i = i + 1;
+	axis_x = np.arange(4000)
+	ch_time = np.random.randint(250, 500, 1)
+	zs = 1 + 100*np.exp(-axis_x/ch_time) + 7*np.random.normal(size=(4000))
 	data.append(zs)
-	time.sleep(0.1)
+	general.wait('100 ms')
 	np.savetxt(f, zs, fmt='%.10f', delimiter=' ', newline='n', 
 	header='field: %d' % i, footer='', comments='#', encoding=None)
 
-	plotter.plot_z('Plot Z Test', data, start_step=((0,1),(0.3,0.001)),
+	general.plot_2d('Plot Z Test', data, start_step=((0,1),(0.3,0.001)),
 	xname='Time', xscale='s', yname='Magnetic Field', yscale='T', zname='Intensity',
 	zscale='V')
 

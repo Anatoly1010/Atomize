@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os
 import gc
+import os
 import time
 import pyvisa
 from pyvisa.constants import StopBits, Parity
@@ -12,7 +12,7 @@ import atomize.device_modules.config.messenger_socket_client as send
 #### Inizialization
 # setting path to *.ini file
 path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','lakeshore332_config.ini')
+path_config_file = os.path.join(path_current_directory, 'config','Lakeshore_331_config.ini')
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
@@ -93,8 +93,9 @@ def device_query(command):
 
 #### Device specific functions
 def tc_name():
-	answer = config['name'] 
-	return answer
+	send.message('LakeShore')
+	#answer = config['name'] 
+	#return answer
 
 def tc_temperature(channel):
 	if channel=='A':
