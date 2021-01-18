@@ -79,8 +79,8 @@ functions is given below.
 import atomize.general_modules.general_functions as general
 import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 file_handler = openfile.Saver_Opener()
-head, data = file_handler.open_1D_dialog(header=0)
-general.plot_1d('1D Plot', data[0], data[1], label='test_data', yname='Y axis', yscale='V')
+head, data = file_handler.open_1D_dialog(header = 0)
+general.plot_1d('1D Plot', data[0], data[1], label = 'test_data', yname = 'Y axis', yscale = 'V')
 ```
 4. Experimental scripts
 
@@ -144,23 +144,23 @@ On Windows 10 one should use:
 ```python3
 message('A message to print')
 wait('number + scaling')
-open_1D(path, header=0)
-open_1D_dialog(self, directory='', header=0)
-save_1D_dialog(data, directory='', header='')
-open_2D(path, header=0)
-open_2D_dialog(directory='', header=0)
-open_2D_appended(path, header=0, chunk_size=1)
-open_2D_appended_dialog(directory='', header=0, chunk_size=1)
-save_2D_dialog(data, directory='', header='')
-create_file_dialog(directory='')
+open_1D(path, header = 0)
+open_1D_dialog(self, directory = '', header = 0)
+save_1D_dialog(data, directory = '', header = '')
+open_2D(path, header = 0)
+open_2D_dialog(directory = '', header = 0)
+open_2D_appended(path, header = 0, chunk_size = 1)
+open_2D_appended_dialog(directory = '', header = 0, chunk_size = 1)
+save_2D_dialog(data, directory = '', header = '')
+create_file_dialog(directory = '')
 ```
 
 ## [Available plotting functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
 ```python3
 plot_1d('name', Xdata, Ydata, **args)
-append_1d('name', value, start_step=(x[0], x[1]-x[0]), label='label', **args)
-plot_2d('name', data, start_step=((Xstart, Xstep), (Ystart, Ystep)), **args)
-append_2d('name', data, start_step=((Xstart, Xstep), (Ystart, Ystep)), **args)
+append_1d('name', value, start_step = (x[0], x[1]-x[0]), label = 'label', **args)
+plot_2d('name', data, start_step = ((Xstart, Xstep), (Ystart, Ystep)), **args)
+append_2d('name', data, start_step = ((Xstart, Xstep), (Ystart, Ystep)), **args)
 text_label('label', 'text', DynamicValue)
 plot_remove('name')
 ```
