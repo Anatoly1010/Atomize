@@ -12,7 +12,7 @@ import atomize.general_modules.general_functions as general
 #### Inizialization
 # setting path to *.ini file
 path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','CWplus_150_config.ini')
+path_config_file = os.path.join(path_current_directory, 'config','CPWplus_150_config.ini')
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
@@ -24,9 +24,11 @@ if len(sys.argv) > 1:
 else:
     test_flag = 'None'
 
+test_sign = '+'
 test_weight = 1
+test_dimension = 'kg'
 
-class CWplus_150:
+class CPWplus_150:
     #### Basic interaction functions
     def __init__(self):
         if test_flag != 'test':
@@ -38,10 +40,6 @@ class CWplus_150:
                     write_termination=config['write_termination'], baud_rate=config['baudrate'],
                     data_bits=config['databits'], parity=config['parity'], stop_bits=config['stopbits'])
                     self.device.timeout = config['timeout'] # in ms
-                    #serial.Serial("/dev/ttyUSB0", 9600, timeout=3, bytesize=8, parity='N')
-
-                    self.field = 0.
-                    self.field_step = 0.
 
                     try:
                         # test should be here
@@ -92,13 +90,21 @@ class CWplus_150:
 
     def balance_weight(self):
         if test_flag != 'test':
-            answer = self.device_query('G')
-            #decoded_bytes = bytes_answer[0:len(bytes_answer)-2].decode("utf-8") 
-            return answer
+            raw_answer = self.device_query('G')
+            if raw_answer.split(" ")[1] == '':
+                try:
+                    weight = float(raw_answer.split(" ")[2])
+                except ValueError:
+                    weight = -0.5
+            else:
+                try:
+                    weight = float(raw_answer.split(" ")[1])
+                except ValueError:
+                    weight = -0.5
+            return weight
 
         elif test_flag == 'test':
-            answer = test_weight
-            return answer
+            return test_weight
 
 def main():
     pass

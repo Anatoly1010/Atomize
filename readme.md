@@ -135,7 +135,7 @@ On Windows 10 one should use:
 	- Bruker ER031M (RS-232 using arduino emulated keyboard) tested
 
 #### Balances
-	- CW 150 (RS-232) tested
+	- CPWplus 150 (RS-232); Tested 01/2021
 
 #### Other
 	- Solid-state Relay RODOS-10N (Ethernet) tested
