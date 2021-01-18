@@ -18,6 +18,7 @@ At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and W
 - [pyqtgraph](http://www.pyqtgraph.org)
 - [PyVisa](https://pyvisa.readthedocs.io/en/latest/)
 - [PyVisa-py](https://github.com/pyvisa/pyvisa-py)
+- [PySerial;](https://pypi.org/project/pyserial/) for serial instruments
 - [OpenGL;](https://pypi.org/project/PyOpenGL/) highly recommended for efficient plotting 
 - [Scipy;](https://www.scipy.org/) optional, for math modules
 - [GPIB driver;](https://linux-gpib.sourceforge.io/) optional
@@ -65,8 +66,8 @@ Usually you need to specify the interface type and interface settings.
 2) import the module or modules in your script and initialize the appropriate class. A class always
 has the same name as the module file. Initialization connect the desired device, if the settings are correct.
 ```python
-import atomize.device_modules.keysight_3000_Xseries as keys
-import atomize.device_modules.lakeshore331 as tc
+import atomize.device_modules.Keysight_3000_Xseries as keys
+import atomize.device_modules.Lakeshore331 as tc
 dsox3034t = keys.Keysight_3000_Xseries()
 lakeshore331 = tc.Lakeshore331()
 name_oscilloscope = dsox3034t.oscilloscope_name()
@@ -99,13 +100,13 @@ On Windows 10 one should use:
 
 ## Available devices
 #### Temperature Controllers
-	- LakeShore (Gpib, RS-232)
+	- LakeShore (GPIB, RS-232)
 	325 (untested); 331 (untested); 332 (untested); 335; 336 (untested); 340.
 
 #### Lock-in Amplifiers
-	- Stanford Research Lock-In Amplifier (Gpib, RS-232)
+	- Stanford Research Lock-In Amplifier (GPIB, RS-232)
 	SR-810; SR-830; SR-850 (untested).
-	- Stanford Research Lock-In Amplifier (Gpib, RS-232, ethernet)
+	- Stanford Research Lock-In Amplifier (GPIB, RS-232, Ethernet)
 	SR-860 (Tested 01/2021); SR-865a (untested).
 
 #### Oscilloscopes
@@ -123,20 +124,21 @@ On Windows 10 one should use:
 	Available via corresponding oscilloscope module.
 
 #### Frequency Counters
-	- Agilent Frequency Counter (Gpib)
+	- Agilent Frequency Counter (GPIB)
 	53181A (untested); 53131A/132A.
-	- Keysight Frequency Counter (Gpib)
+	- Keysight Frequency Counter (GPIB, RS-232, Ethernet)
 	53230A/220A (untested).
 
 #### Magnetic Field Controller
 	- Bruker BH15 (GPIB); Tested 01/2021
+	- Bruker ER032M (GPIB); available via BH15 module
 	- Bruker ER031M (RS-232 using arduino emulated keyboard) tested
 
 #### Balances
 	- CW 150 (RS-232) tested
 
 #### Other
-	- Solid-state Relay RODOS-10N (ethernet) tested
+	- Solid-state Relay RODOS-10N (Ethernet) tested
 
 ## [Available general functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
 ```python3
@@ -253,7 +255,12 @@ freq_counter_query(command)
 ### [Magnetic field controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)
 ```python3
 magnet_name()
+magnet_setup(start_field, step_field)
 magnet_field(*field)
+magnet_sweep_up()
+magnet_sweep_down()
+magnet_reset_field()
+magnet_field_step_size(*step)
 magnet_command(command)
 ```
 ### [Balances](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)

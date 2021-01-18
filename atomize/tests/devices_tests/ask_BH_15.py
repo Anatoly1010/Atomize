@@ -1,4 +1,3 @@
-import time
 import numpy as np
 import atomize.general_modules.general_functions as general
 import atomize.device_modules.BH_15 as bh
@@ -6,14 +5,15 @@ import atomize.device_modules.BH_15 as bh
 
 bh15 = bh.BH_15()
 
-bh15.magnet_setup(500, 1)
+bh15.magnet_setup(2000, 10)
 #general.message(bh15.device_write('SS175.000'))
 #general.message(bh15.device_query('LE'))
 
 i = 0
-while i<5:
+while i < 50:
 
-    bh15.magnet_field(3500 + 50*i)
+    #bh15.magnet_field(20000 + 900*i)
+    bh15.magnet_sweep_up()
     general.message(bh15.magnet_field())
     general.wait('2 s')
     i = i + 1

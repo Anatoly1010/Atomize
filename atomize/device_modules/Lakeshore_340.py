@@ -3,10 +3,11 @@
 
 import os
 import gc
-import time
+import sys
 import pyvisa
+from pyvisa.constants import StopBits, Parity
 import atomize.device_modules.config.config_utils as cutil
-import atomize.device_modules.config.messenger_socket_client as send
+import atomize.general_modules.general_functions as general
 
 #### Inizialization
 # setting path to *.ini file
@@ -18,155 +19,254 @@ config = cutil.read_conf_util(path_config_file)
 loop = config['loop'] # information about the loop used
 
 # auxilary dictionaries
-heater_dict = {'10 W': 5, '1 W': 4, 'Off': 0};
+heater_dict = {'10 W': 5, '1 W': 4, '100 mW': 3, '10 mW': 2, '1 mW': 1, 'Off': 0,};
 
-#### Basic interaction functions
-def connection():
-	global status_flag
-	global device
-	if config['interface'] == 'gpib':
-		try:
-			import Gpib
-			device = Gpib.Gpib(config['board_address'], config['gpib_address'])
-			try:
-				# test should be here
-				answer = device_query('*TST?')
-				if answer==0:
-					status_flag = 1;
-				elif answer==1:
-					print('During test errors are found')
-					status_flag = 0;
-			except pyvisa.VisaIOError:
-				status_flag = 0;	
-		except pyvisa.VisaIOError:
-			print("No connection")
-			device.close()
-			status_flag = 0
+# Ranges and limits
+temperature_max = 320
+temperature_min = 0.3
+test_heater_range = '5 W'
+test_heater_percentage = 1.
 
-	elif config['interface'] == 'rs232':
-		try:
-			rm = pyvisa.ResourceManager()
-			device=rm.open_resource(config['serial_address'], read_termination=config['read_termination'],
-			write_termination=config['write_termination'], baud_rate=config['baudrate'],
-			data_bits=config['databits'], parity=config['parity'], stop_bits=config['stopbits'])
-			device.timeout=config['timeout']; # in ms
-			try:
-				# test should be here
-				answer = device_query('*TST?')
-				if answer==0:
-					status_flag = 1;
-				elif answer==1:
-					print('During test errors are found')
-					status_flag = 0;
-			except pyvisa.VisaIOError:
-				status_flag = 0;	
-		except pyvisa.VisaIOError:
-			print("No connection")
-			device.close()
-			status_flag = 0
+# Test run parameters
+# These values are returned by the modules in the test run 
+if len(sys.argv) > 1:
+    test_flag = sys.argv[1]
+else:
+    test_flag = 'None'
 
-def close_connection():
-	status_flag = 0;
-	#device.close()
-	gc.collect()
+test_temperature = 200.
+test_set_point = 298.
 
-def device_write(command):
-	if status_flag==1:
-		device.write(command)
-	else:
-		print("No Connection")
+class Lakeshore_340:
+    #### Basic interaction functions
+    def __init__(self):
+        if test_flag != 'test':
+            if config['interface'] == 'gpib':
+                try:
+                    import Gpib
+                    self.status_flag = 1
+                    self.device = Gpib.Gpib(config['board_address'], config['gpib_address'])
+                    try:
+                        # test should be here
+                        self.device_write('*CLS')
+                        answer = int(self.device_query('*TST?'))
+                        if answer == 0:
+                            self.status_flag = 1
+                        else:
+                            general.message('During internal device test errors are found')
+                            self.status_flag = 0
+                            sys.exit()
+                    except BrokenPipeError:
+                        general.message("No connection")
+                        self.status_flag = 0;
+                        sys.exit()
+                except BrokenPipeError:
+                    general.message("No connection")
+                    self.status_flag = 0
+                    sys.exit()
 
-def device_query(command):
-	if status_flag == 1:
-		if config['interface'] == 'gpib':
-			device.write(command)
-			time.sleep(0.05)
-			answer = device.read()
-		elif config['interface'] == 'rs232':
-			answer = device.query(command)
-		return answer
-	else:
-		print("No Connection")
+            elif config['interface'] == 'rs232':
+                try:
+                    self.status_flag = 1
+                    rm = pyvisa.ResourceManager()
+                    self.device = rm.open_resource(config['serial_address'], read_termination=config['read_termination'],
+                    write_termination=config['write_termination'], baud_rate=config['baudrate'],
+                    data_bits=config['databits'], parity=config['parity'], stop_bits=config['stopbits'])
+                    self.device.timeout = config['timeout'] # in ms
+                    try:
+                        # test should be here
+                        self.device_write('*CLS')
+                        answer = self.device_query('*TST?')
+                        if answer == 0:
+                            self.status_flag = 1
+                        else:
+                            general.message('During internal device test errors are found')
+                            self.status_flag = 0
+                            sys.exit()
+                    except pyvisa.VisaIOError:
+                        self.status_flag = 0
+                        general.message("No connection")
+                        sys.exit()
+                    except BrokenPipeError:
+                        general.message("No connection")
+                        self.status_flag = 0
+                        sys.exit()
+                except pyvisa.VisaIOError:
+                    general.message("No connection")
+                    self.status_flag = 0
+                    sys.exit()
+                except BrokenPipeError:
+                    general.message("No connection")
+                    self.status_flag = 0
+                    sys.exit()
 
-#### Device specific functions
-def tc_name():
-	answer = config['name'] 
-	return answer
+        elif test_flag == 'test':
+            pass
 
-def tc_temperature(channel):
-	if channel=='A':
-		try:
-			answer = float(device_query('KRDG? A'))
-		except TypeError:
-			answer = 'No Connection';
-		return answer
-	elif channel=='B':
-		try:
-			answer = float(device_query('KRDG? B'))
-		except TypeError:
-			answer = 'No Connection';
-		return answer
-	elif channel=='C':
-		try:
-			answer = float(device_query('KRDG? C'))
-		except TypeError:
-			answer = 'No Connection';
-		return answer
-	elif channel=='D':
-		try:
-			answer = float(device_query('KRDG? D'))
-		except TypeError:
-			answer = 'No Connection';
-		return answer
-	else:
-		print("Invalid Argument")
+    def close_connection(self):
+        if test_flag != 'test':
+            self.status_flag = 0;
+            gc.collect()
+        elif test_flag == 'test':
+            pass
 
-def tc_setpoint(*temp):
-	if len(temp)==1:
-		temp = float(temp[0]);
-		if temp < 310 and temp > 0.5:
-			device.write('SETP '+ str(loop) + ', ' + str(temp))
-		else:
-			print("Invalid Argument")
-	elif len(temp)==0:
-		try:
-			answer = float(device_query('SETP? '+ str(loop)))
-		except TypeError:
-			answer = 'No Connection';
-		return answer	
-	else:
-		print("Invalid Argument")
+    def device_write(self, command):
+        if self.status_flag == 1:
+            command = str(command)
+            self.device.write(command)
+        else:
+            general.message("No Connection")
+            self.status_flag = 0
+            sys.exit()
 
-def tc_heater_range(*heater):
-	if  len(heater)==1:
-		hr = str(heater[0])
-		if hr in heater_dict:
-			flag = heater_dict[hr]
-			device_write("RANGE " + str(loop) + ', ' + str(flag))
-		else:
-			print("Invalid heater range")
-	elif len(heater)==0:
-		raw_answer = int(device_query("RANGE?"))
-		answer = cutil.search_keys_dictionary(heater_dict, raw_answer)
-		return answer
-	else:
-		print("Invalid Argument")								
+    def device_query(self, command):
+        if self.status_flag == 1:
+            if config['interface'] == 'gpib':
+                self.device.write(command)
+                general.wait('50 ms')
+                answer = self.device.read()
+            elif config['interface'] == 'rs232':
+                answer = self.device.query(command)
+            return answer
+        else:
+            general.message("No Connection")
+            self.status_flag = 0
+            sys.exit()
 
-def tc_heater_state():
-	answer1 = tc_heater_range()
-	try:
-		answer = float(device_query('HTR?'))
-	except TypeError:
-		answer = 'No Connection';
-	full_answer = [answer, answer1]
-	return full_answer
+    #### device specific functions
+    def tc_name(self):
+        if test_flag != 'test':
+            answer = self.device_query('*IDN?')
+            return answer
+        elif test_flag == 'test':
+            answer = config['name']
+            return answer
 
-def tc_command(command):
-	device_write(command)
+    def tc_temperature(self, channel):
+        if test_flag != 'test':
+            if channel == 'A':
+                answer = float(self.device_query('KRDG? A'))
+                return answer
+            elif channel == 'B':
+                answer = float(self.device_query('KRDG? B'))
+                return answer
+            elif channel == 'C':
+                answer = float(self.device_query('KRDG? C'))
+                return answer
+            elif channel == 'D':
+                answer = float(self.device_query('KRDG? D'))
+                return answer                
+            else:
+                general.message("Invalid argument")
+                sys.exit()
+        
+        elif test_flag == 'test':
+            assert(channel == 'A' or channel == 'B' or channel == 'C' or \
+                channel == 'D'), "Incorrect channel"
+            answer = test_temperature
+            return answer
 
-def tc_query(command):
-	answer = device_query(command)
-	return answer
+    def tc_setpoint(self, *temp):
+        if test_flag != 'test':
+            if int(loop) == 1 or int(loop) == 2 or int(loop) == 3 or \
+                    int(loop) == 4:
+                if len(temp) == 1:
+                    temp = float(temp[0])
+                    if temp <= temperature_max and temp >= temperature_min:
+                        self.device.write('SETP ' + str(loop) + ',' + str(temp))
+                    else:
+                        general.message("Incorrect set point temperature")
+                        sys.exit()
+                elif len(temp) == 0:
+                    answer = float(self.device_query('SETP? ' + str(loop)))
+                    return answer   
+                else:
+                    general.message("Invalid argument")
+                    sys.exit()
+            else:
+                general.message("Invalid loop")
+                sys.exit()              
+
+        elif test_flag == 'test':
+            if len(temp) == 1:
+                temp = float(temp[0])
+                assert(temp <= temperature_max and temp >= temperature_min), 'Incorrect set point temperature is reached'
+                assert(int(loop) == 1 or int(loop) == 2 or int(loop) == 3 or \
+                    int(loop) == 4), 'Invalid loop'
+            elif len(temp) == 0:
+                answer = test_set_point
+                return answer
+
+    def tc_heater_range(self, *heater):
+        if test_flag != 'test':
+            if  len(heater) == 1:
+                hr = str(heater[0])
+                if hr in heater_dict:
+                    flag = heater_dict[hr]
+                    self.device_write("RANGE " + str(loop) + ',' + str(flag))
+                else:
+                    general.message("Invalid heater range")
+                    sys.exit()
+            elif len(heater) == 0:
+                raw_answer = int(self.device_query("RANGE? " + str(loop)))
+                answer = cutil.search_keys_dictionary(heater_dict, raw_answer)
+                return answer
+            else:
+                general.message("Invalid argument")
+                sys.exit()
+
+        elif test_flag == 'test':                           
+            if  len(heater) == 1:
+                hr = str(heater[0])
+                if hr in heater_dict:
+                    flag = heater_dict[hr]
+                else:
+                    assert(1 == 2), "Invalid heater range"
+            elif len(heater) == 0:
+                answer = test_heater_range
+                return answer
+            else:
+                assert(1 == 2), "Invalid heater range"
+
+    def tc_heater_state(self):
+        if test_flag != 'test':
+            answer1 = self.tc_heater_range()
+            if int(loop) == 1 or int(loop) == 2:
+                answer = float(self.device_query('HTR? ' + str(loop)))
+                full_answer = [answer, answer1]
+                return full_answer
+            elif int(loop) == 3 or int(loop) == 4:
+                answer = float(self.device_query('AOUT? ' + str(int(loop) - 2)))
+                full_answer = [answer, answer1]
+                return full_answer
+            else:
+                general.message('Invalid loop')
+                sys.exit()
+
+        elif test_flag == 'test':
+            assert(int(loop) == 1 or int(loop) == 2 or \
+                int(loop) == 3 or int(loop) == 4), 'Invalid loop'
+            answer1 = test_heater_range
+            answer = test_heater_percentage
+            full_answer = [answer, answer1]
+            return full_answer
+
+    def tc_command(self, command):
+        if test_flag != 'test':
+            self.device_write(command)
+        elif test_flag == 'test':
+            pass
+
+    def tc_query(self, command):
+        if test_flag != 'test':
+            answer = self.device_query(command)
+            return answer
+        elif test_flag == 'test':
+            answer = None
+            return answer
+
+def main():
+    pass
 
 if __name__ == "__main__":
     main()

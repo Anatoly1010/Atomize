@@ -2,7 +2,7 @@
 
 ```python3
 freq_counter_name()
-Arguments: none; Output: string(name).
+Arguments: none; Output: string.
 ```
 The function returns device name.
 ```python3
@@ -11,7 +11,7 @@ Arguments: channel = string (['CH1', 'CH2', 'CH3']); Output: float.
 Example: freq_counter_frequency('CH1') returns the measured frequency from channel 1.
 ```
 This function returns a floating point value with the measured frequency (in Hz) from the specified channel. Refer to the device manual for the frequency range of different channels.<br/>
-Agilent 53181a has two channels; Agielnt 53131a - three.<br/>
+Agilent 53181a has two channels; Agielnt 53131a, Keysight 53230a - three.<br/>
 ```python3
 freq_counter_impedance(*impedance)
 Arguments: impedance = two strings ('channel string', 'impedance string (1 M, 50)')
@@ -20,7 +20,7 @@ Examples: freq_counter_impedance('CH1', '1 M') sets the impedance of the channel
 freq_counter_impedance('CH2') returns the current impedance of the channel 2.
 ```
 The function queries (if called with one argument) or sets (if called with two arguments) the impedance of one of the channels of the frequency counter. If there is a second argument this will be set as a new impedance. If there is no second argument the current impedance for the specified channel is returned.<br/>
-For Agilent 53181a impedance can be changed only for the first channel; for Agielnt 53131a for channel 1 and 2.<br/>
+For Agilent 53181a impedance can be changed only for the first channel; for Agielnt 53131a, Keysight 53230a for channel 1 and 2.<br/>
 ```python3
 freq_counter_coupling(*coupling)
 Arguments: coupling = two strings ('channel string', 'coupling string ('AC', 'DC')') or 
@@ -29,16 +29,16 @@ Examples: freq_counter_coupling('CH1', 'AC') sets the coupling of the channel 1 
 freq_counter_coupling('CH2') returns the current coupling of the channel 2.
 ```
 The function queries (if called with one argument) or sets (if called with two arguments) the coupling of one of the channels of the frequency counter. If there is a second argument this will be set as a new coupling. If there is no second argument the current coupling for the specified channel is returned.<br/>
-For Agilent 53181a coupling can be changed only for the first channel; for Agielnt 53131a for channel 1 and 2.<br/>
+For Agilent 53181a coupling can be changed only for the first channel; for Agielnt 53131a, Keysight 53230a for channel 1 and 2.<br/>
 ```python3
 freq_counter_stop_mode(*mode)
 Arguments: mode = string from a specified dictionary; Output: string.
 Example: freq_counter_stop_mode('Tim') sets the digits mode.
 ```
 This function queries or sets the stop arm for frequency, frequency ratio, and period measurements. The type should be from the following array:<br/>
-['Im', 'Ext', 'Tim', 'Dig'] for Agilent 53181a and Agilent 53131.<br/>
+['Im', 'Ext', 'Tim', 'Dig'] for Agilent 53181a and Agilent 53131a.<br/>
 In automatic (immediate or 'Im') mode the device does the fastest possible acquisistion, in gate time mode it measures for the specified gate time, and in digits mode the time required for a measurement depends on the number of digits requested. This setting influences the resolution of the results. Use automatic mode for fast measurements or choose a desired resolution by using freq_counter_gate_time() to set the gate time for gate time ('Tim') mode or freq_counter_digits() for digits ('Dig') mode.<br/>
-For Keysight 53230a two possible modes can be used from an array: ['Im', 'Tim', 'Event'].<br/>
+For Keysight 53230a possible modes are: ['Im', 'Tim', 'Event'].<br/>
 ```python3
 freq_counter_start_mode(*mode)
 Arguments: mode = string from a specified dictionary; Output: string.
@@ -103,7 +103,7 @@ frequency ratio, time interval, totalize, and phase measurements.
 The function for sending an arbitrary command from a programming guide to the device in a string format. No output is expected.<br/>
 ```python3
 freq_counter_query(command)
-Arguments: command = string; Output: string (answer).
+Arguments: command = string; Output: string.
 Example: freq_counter_query(':MEASure:PHASe? (@1),(@2)'). This command queries
 an measurement of the phase between channel 1 and 2.
 ```

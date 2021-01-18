@@ -72,6 +72,7 @@ class SR_865a:
                     self.device = Gpib.Gpib(config['board_address'], config['gpib_address'])
                     try:
                         # test should be here
+                        self.device_write('*CLS')
                         answer = int(self.device_query('*TST?'))
                         if answer == 0:
                             self.status_flag = 1
@@ -97,6 +98,7 @@ class SR_865a:
                     self.device.timeout = config['timeout']; # in ms
                     try:
                         # test should be here
+                        self.device_write('*CLS')
                         answer = int(self.device_query('*TST?'))
                         if answer == 0:
                             self.status_flag = 1
@@ -128,6 +130,7 @@ class SR_865a:
                     self.device.timeout = config['timeout'] # in ms
                     try:
                         # test should be here
+                        self.device_write('*CLS')
                         answer = int(self.device_query('*TST?'))
                         if answer == 0:
                             self.status_flag = 1
@@ -167,6 +170,7 @@ class SR_865a:
             self.device.write(command)
         else:
             general.message("No Connection")
+            self.status_flag = 0
             sys.exit()
 
     def device_query(self, command):
@@ -182,6 +186,7 @@ class SR_865a:
             return answer
         else:
             general.message("No Connection")
+            self.status_flag = 0
             sys.exit()
 
     #### device specific functions

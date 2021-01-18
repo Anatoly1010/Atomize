@@ -55,6 +55,7 @@ test_num_aver = 2
 test_timebase = '100 ms'
 test_delay = 0
 test_coupling = 'AC'
+test_impedance = 1000000
 test_tr_mode = 'Normal'
 test_tr_channel = 'CH1'
 test_trigger_level = 0.
@@ -79,6 +80,7 @@ class Keysight_4000_Xseries:
                     self.device.timeout = config['timeout'] # in ms
                     self.device.read_termination = config['read_termination']  # for WORD (a kind of binary) format
                     try:
+                        self.device_write('*CLS')
                         answer = int(self.device_query('*TST?'))
                         if answer == 0:
                             self.status_flag = 1
@@ -119,6 +121,7 @@ class Keysight_4000_Xseries:
             self.device.write(command)
         else:
             general.message("No connection")
+            self.status_flag = 0
             sys.exit()
 
     def device_query(self, command):
@@ -127,6 +130,7 @@ class Keysight_4000_Xseries:
             return answer
         else:
             general.message("No connection")
+            self.status_flag = 0
             sys.exit()
 
     def device_query_ascii(self, command):
@@ -135,6 +139,7 @@ class Keysight_4000_Xseries:
             return answer
         else:
             general.message("No connection")
+            self.status_flag = 0
             sys.exit()
 
     def device_read_binary(self, command):
@@ -144,6 +149,7 @@ class Keysight_4000_Xseries:
             return answer
         else:
             general.message("No connection")
+            self.status_flag = 0
             sys.exit()
 
     #### device specific functions
@@ -655,6 +661,8 @@ class Keysight_4000_Xseries:
                 ch = str(impedance[0])
                 assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
                      or ch == 'CH4'), 'Invalid channel is given'
+                answer = test_impedance
+                return answer
             else:
                 assert(1 == 2), 'Invalid impedance argument'
 

@@ -1,7 +1,7 @@
 # List of available functions for temperature controllers
 ```python3
 tc_name()
-Arguments: none; Output: string(name).
+Arguments: none; Output: string.
 ```
 The function returns device name.
 ```python3
@@ -26,13 +26,15 @@ The function queries or sets the heater range. If an argument is specified the f
 Note that arguments are devices specific. Currently a set of ['50 W','5 W','0.5 W','Off'] can be used for LakeShore 331, 332, 335, while for LakeShore 340 a set ['10 W','1 W','Off'] is used.<br/>
 For LakeShore 336 a loop 1 or 2 can be used with a set of ['50 W','5 W','0.5 W','Off']. The loop 3 and 4 can be used only with ['On','Off'] set.<br/>
 For LakeShore 325 a loop 1 can be used with a set of ['25 W','2.5 W','Off']. The loop 2 can be used only with ['On','Off'] set.<br/>
-The values '50 W','5 W', and'0.5 W' are shown as High, Medium, and Low on the device display.<br/>
+The values '50 W', '5 W', and '0.5 W' are shown as High, Medium, and Low on the device display. The exact values depends on the resistance used.<br/>
 ```python3
 tc_heater_state()
 Arguments: none; Output: array([string(heater_range), float(heater_percent)]).
 Example: tc_heater() returns the array of the heater range and heater percent.
 ```
-The function for reading the current heater value in percent.<br/>
+The function for reading the current heater value in percent for the specified loop. The loop config can be: 1, 2 for LakeShore 325, 331, 332, 335; 1, 2, 3, 4 for LakeShore 336, 340.<br/>
+For LakeShore 325, 331, 332, 335  loop 1 is a control loop, while loop 2 is an analog output.<br/>
+For LakeShore 336, 340 loop 1, 2 are control loops, while loop 3, 4 are analog outputs (1 and 2 (or 3 and 4 for some models), respectively).<br/>
 ```python3
 tc_command(command)
 Arguments: command = string; Output: none.
@@ -42,7 +44,7 @@ the loop should not be specified. Check the programming guide.
 The function for sending an arbitrary command from a programming guide to the device in a string format. No output is expected.<br/>
 ```python3
 tc_query(command)
-Arguments: command = string; Output: string (answer).
+Arguments: command = string; Output: string.
 Example: tc_command('PID? 1'). Note that for some controller models the loop
 should not be specified. Check the programming guide.
 ```

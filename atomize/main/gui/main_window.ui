@@ -237,7 +237,7 @@
      </spacer>
     </item>
     <item row="12" column="1" colspan="3">
-     <widget class="QPlainTextEdit" name="text_errors">
+     <widget class="CodeEditor" name="text_errors">
       <property name="minimumSize">
        <size>
         <width>0</width>
@@ -330,6 +330,9 @@
       <property name="sizeAdjustPolicy">
        <enum>QAbstractScrollArea::AdjustToContents</enum>
       </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
      </widget>
     </item>
     <item row="12" column="0">
@@ -411,7 +414,7 @@
      <x>0</x>
      <y>0</y>
      <width>1089</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>

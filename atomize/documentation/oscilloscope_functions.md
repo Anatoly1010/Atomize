@@ -1,7 +1,7 @@
 # List of available functions for oscilloscopes
 ```python3
 oscilloscope_name()
-Arguments: none; Output: string(name).
+Arguments: none; Output: string.
 ```
 The function returns device name.
 ```python3
@@ -159,7 +159,7 @@ to be captured even thoughthe trigger condition has not been met.
 The function for sending an arbitrary command from a programming guide to the device in a string format. No output is expected.<br/>
 ```python3
 oscilloscope_query(command)
-Arguments: command = string; Output: string (answer).
+Arguments: command = string; Output: string.
 Example: oscilloscope_query(':MEASure:FREQuency?'). This command queries an measurement
 and outputs the frequency of the cycle on the screen closest to the trigger reference.
 ```

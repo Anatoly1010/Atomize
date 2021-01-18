@@ -1,7 +1,7 @@
 # List of available functions for lock-in amplifiers
 ```python3
 lock_in_name()
-Arguments: none; Output: string(name).
+Arguments: none; Output: string.
 ```
 The function returns device name.
 ```python3
@@ -94,7 +94,7 @@ slope. The parameter equals to 0 selects 6 dB/oct.
 The function for sending an arbitrary command from a programming guide to the device in a string format. No output is expected.<br/>
 ```python3
 lock_in_query(command)
-Arguments: command = string; Output: string (answer).
+Arguments: command = string; Output: string.
 Example: lock_in_command('OFSL?'). This example queries the low pass filter slope.
 ```
 The function for sending an arbitrary command from a programming guide to the device in a string format. An output in a string format is expected.<br/>

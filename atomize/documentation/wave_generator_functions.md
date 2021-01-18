@@ -1,7 +1,7 @@
 # List of available functions for wave generators
 ```python3
 wave_gen_name()
-Arguments: none; Output: string(name).
+Arguments: none; Output: string.
 ```
 The function returns device name.
 ```python3
@@ -122,6 +122,6 @@ Arguments: command = string; Output: none.
 The function for sending an arbitrary command from a programming guide to the device in a string format. No output is expected.<br/>
 ```python3
 wave_gen_query(command)
-Arguments: command = string; Output: string (answer).
+Arguments: command = string; Output: string.
 ```
 The function for sending an arbitrary command from a programming guide to the device in a string format. An output in a string format is expected.<br/>

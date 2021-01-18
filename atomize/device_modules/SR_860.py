@@ -72,6 +72,7 @@ class SR_860:
                     self.device = Gpib.Gpib(config['board_address'], config['gpib_address'])
                     try:
                         # test should be here
+                        self.device_write('*CLS')
                         answer = int(self.device_query('*TST?'))
                         if answer == 0:
                             self.status_flag = 1
@@ -81,12 +82,13 @@ class SR_860:
                             sys.exit()
                     except BrokenPipeError:
                         general.message("No connection")
-                        self.status_flag = 0;
+                        self.status_flag = 0
                         sys.exit()
                 except BrokenPipeError:
                     general.message("No connection")
                     self.status_flag = 0
                     sys.exit()
+
             elif config['interface'] == 'rs232':
                 try:
                     self.status_flag = 1
@@ -97,13 +99,14 @@ class SR_860:
                     self.device.timeout = config['timeout'] # in ms
                     try:
                         # test should be here
+                        self.device_write('*CLS')
                         answer = int(self.device_query('*TST?'))
                         if answer == 0:
                             self.status_flag = 1
                         else:
                             general.message('During internal device test errors are found')
                             self.status_flag = 0
-                            sys.exit();
+                            sys.exit()
                     except pyvisa.VisaIOError:
                         self.status_flag = 0
                         general.message("No connection")
@@ -120,6 +123,7 @@ class SR_860:
                     general.message("No connection")
                     self.status_flag = 0
                     sys.exit()
+
             elif config['interface'] == 'ethernet':
                 try:
                     self.status_flag = 1
@@ -128,6 +132,7 @@ class SR_860:
                     self.device.timeout = config['timeout'] # in ms
                     try:
                         # test should be here
+                        self.device_write('*CLS')
                         answer = int(self.device_query('*TST?'))
                         if answer == 0:
                             self.status_flag = 1
@@ -167,6 +172,7 @@ class SR_860:
             self.device.write(command)
         else:
             general.message("No Connection")
+            self.status_flag = 0
             sys.exit()
 
     def device_query(self, command):
@@ -182,6 +188,7 @@ class SR_860:
             return answer
         else:
             general.message("No Connection")
+            self.status_flag = 0
             sys.exit()
 
     #### device specific functions
@@ -206,7 +213,7 @@ class SR_860:
                 answer = float(self.device_query('FREQ?'))
                 return answer
             else:
-                general.message("Invalid Argument")
+                general.message("Invalid argument")
                 sys.exit()
 
         elif test_flag == 'test':

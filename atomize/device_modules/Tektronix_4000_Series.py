@@ -38,6 +38,7 @@ else:
 test_start = 1
 test_stop = 1000
 test_record_length = 2000
+test_impedance = 1000000
 test_acquisition_type = 'Norm'
 test_num_aver = 2
 test_timebase = '100 ms'
@@ -60,6 +61,7 @@ class Tektronix_4000_Series:
                     self.device.read_termination = config['read_termination']
                     try:
                         # test should be here
+                        self.device_write('*CLS')
                         answer = int(self.device_query('*TST?'))
                         if answer == 0:
                             self.status_flag = 1
@@ -100,6 +102,7 @@ class Tektronix_4000_Series:
             self.device.write(command)
         else:
             general.message("No connection")
+            self.status_flag = 0
             sys.exit()
 
     def device_query(self, command):
@@ -108,6 +111,7 @@ class Tektronix_4000_Series:
             return answer
         else:
             general.message("No connection")
+            self.status_flag = 0
             sys.exit()
 
     def device_query_ascii(self, command):
@@ -116,6 +120,7 @@ class Tektronix_4000_Series:
             return answer
         else:
             general.message("No connection")
+            self.status_flag = 0
             sys.exit()
 
     def device_read_binary(self, command):
@@ -129,6 +134,7 @@ class Tektronix_4000_Series:
             return answer
         else:
             general.message("No connection")
+            self.status_flag = 0
             sys.exit()
 
     #### device specific functions
@@ -686,6 +692,8 @@ class Tektronix_4000_Series:
                 ch = str(impedance[0])
                 assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
                      or ch == 'CH4'), 'Invalid channel is given'
+                answer = test_impedance
+                return answer
             else:
                 assert(1 == 2), 'Invalid impedance argument'
 

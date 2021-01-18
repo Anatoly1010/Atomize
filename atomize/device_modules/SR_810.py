@@ -72,6 +72,7 @@ class SR_810:
                     self.device = Gpib.Gpib(config['board_address'], config['gpib_address'])
                     try:
                         # test should be here
+                        self.device_write('*CLS')
                         answer = int(self.device_query('*TST?'))
                         if answer == 0:
                             self.status_flag = 1
@@ -81,7 +82,7 @@ class SR_810:
                             sys.exit()
                     except BrokenPipeError:
                         general.message("No connection")
-                        self.status_flag = 0;
+                        self.status_flag = 0
                         sys.exit()
                 except BrokenPipeError:
                     general.message("No connection")
@@ -97,6 +98,7 @@ class SR_810:
                     self.device.timeout = config['timeout'] # in ms
                     try:
                         # test should be here
+                        self.device_write('*CLS')
                         answer = int(self.device_query('*TST?'))
                         if answer == 0:
                             self.status_flag = 1
@@ -136,6 +138,7 @@ class SR_810:
             self.device.write(command)
         else:
             general.message("No Connection")
+            self.status_flag = 0
             sys.exit()
 
     def device_query(self, command):
@@ -149,6 +152,7 @@ class SR_810:
             return answer
         else:
             general.message("No Connection")
+            self.status_flag = 0
             sys.exit()
 
     #### device specific functions
