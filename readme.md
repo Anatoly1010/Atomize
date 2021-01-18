@@ -252,7 +252,7 @@ freq_counter_period(channel)
 freq_counter_command(command)
 freq_counter_query(command)
 ```
-### [Magnetic field controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)
+### [Magnetic field controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/magnet_functions.md)
 ```python3
 magnet_name()
 magnet_setup(start_field, step_field)
