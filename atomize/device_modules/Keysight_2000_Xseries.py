@@ -18,7 +18,7 @@ path_config_file = os.path.join(path_current_directory, 'config','Keysight_2012a
 config = cutil.read_conf_util(path_config_file)
 
 # auxilary dictionaries
-points_list = [100, 250, 500, 1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000]
+points_list = [99, 247, 479, 959, 1919, 3839, 7679, 16000, 32000, 64000, 128000, 256000, 512000]
 #should be checked, since it is incorrect for 2000 Series
 timebase_dict = {'s': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000,};
 scale_dict = {'V': 1, 'mV': 1000,};

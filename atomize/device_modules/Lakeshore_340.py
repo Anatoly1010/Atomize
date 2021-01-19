@@ -16,16 +16,17 @@ path_config_file = os.path.join(path_current_directory, 'config','Lakeshore_340_
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
-loop = config['loop'] # information about the loop used
+loop_config = config['loop'] # information about the loop used
 
 # auxilary dictionaries
 heater_dict = {'10 W': 5, '1 W': 4, '100 mW': 3, '10 mW': 2, '1 mW': 1, 'Off': 0,};
+lock_dict = {'Local-Locked': 0, 'Remote-Locked': 1, 'Local-Unlocked': 2, 'Remote-Unlocked': 3,}
+loop_list = [1, 2, 3, 4]
+sens_dict = {1: 'A', 2: 'B', }
 
 # Ranges and limits
 temperature_max = 320
 temperature_min = 0.3
-test_heater_range = '5 W'
-test_heater_percentage = 1.
 
 # Test run parameters
 # These values are returned by the modules in the test run 
@@ -36,6 +37,10 @@ else:
 
 test_temperature = 200.
 test_set_point = 298.
+test_lock = 'Local-Locked'
+test_heater_range = '5 W'
+test_heater_percentage = 1.
+test_sensor = 1
 
 class Lakeshore_340:
     #### Basic interaction functions
@@ -168,17 +173,16 @@ class Lakeshore_340:
 
     def tc_setpoint(self, *temp):
         if test_flag != 'test':
-            if int(loop) == 1 or int(loop) == 2 or int(loop) == 3 or \
-                    int(loop) == 4:
+            if int(loop_config) in loop_list:
                 if len(temp) == 1:
                     temp = float(temp[0])
                     if temp <= temperature_max and temp >= temperature_min:
-                        self.device.write('SETP ' + str(loop) + ',' + str(temp))
+                        self.device.write('SETP ' + str(loop_config) + ',' + str(temp))
                     else:
                         general.message("Incorrect set point temperature")
                         sys.exit()
                 elif len(temp) == 0:
-                    answer = float(self.device_query('SETP? ' + str(loop)))
+                    answer = float(self.device_query('SETP? ' + str(loop_config)))
                     return answer   
                 else:
                     general.message("Invalid argument")
@@ -191,8 +195,7 @@ class Lakeshore_340:
             if len(temp) == 1:
                 temp = float(temp[0])
                 assert(temp <= temperature_max and temp >= temperature_min), 'Incorrect set point temperature is reached'
-                assert(int(loop) == 1 or int(loop) == 2 or int(loop) == 3 or \
-                    int(loop) == 4), 'Invalid loop'
+                assert(int(loop_config) in loop_list), 'Invalid loop argument'
             elif len(temp) == 0:
                 answer = test_set_point
                 return answer
@@ -203,12 +206,16 @@ class Lakeshore_340:
                 hr = str(heater[0])
                 if hr in heater_dict:
                     flag = heater_dict[hr]
-                    self.device_write("RANGE " + str(loop) + ',' + str(flag))
+                    if int(loop_config) in loop_list:
+                        self.device_write("RANGE " + str(loop_config) + ',' + str(flag))
+                    else:
+                        general.message('Invalid loop')
+                        sys.exit()
                 else:
                     general.message("Invalid heater range")
                     sys.exit()
             elif len(heater) == 0:
-                raw_answer = int(self.device_query("RANGE? " + str(loop)))
+                raw_answer = int(self.device_query("RANGE? " + str(loop_config)))
                 answer = cutil.search_keys_dictionary(heater_dict, raw_answer)
                 return answer
             else:
@@ -220,6 +227,7 @@ class Lakeshore_340:
                 hr = str(heater[0])
                 if hr in heater_dict:
                     flag = heater_dict[hr]
+                    assert(int(loop_config) in loop_list), 'Invalid loop argument'
                 else:
                     assert(1 == 2), "Invalid heater range"
             elif len(heater) == 0:
@@ -228,15 +236,15 @@ class Lakeshore_340:
             else:
                 assert(1 == 2), "Invalid heater range"
 
-    def tc_heater_state(self):
+    def tc_heater_power(self):
         if test_flag != 'test':
             answer1 = self.tc_heater_range()
-            if int(loop) == 1 or int(loop) == 2:
-                answer = float(self.device_query('HTR? ' + str(loop)))
+            if int(loop_config) == 1 or int(loop_config) == 2:
+                answer = float(self.device_query('HTR? ' + str(loop_config)))
                 full_answer = [answer, answer1]
                 return full_answer
-            elif int(loop) == 3 or int(loop) == 4:
-                answer = float(self.device_query('AOUT? ' + str(int(loop) - 2)))
+            elif int(loop_config) == 3 or int(loop_config) == 4:
+                answer = float(self.device_query('AOUT? ' + str(loop_config)))
                 full_answer = [answer, answer1]
                 return full_answer
             else:
@@ -244,12 +252,100 @@ class Lakeshore_340:
                 sys.exit()
 
         elif test_flag == 'test':
-            assert(int(loop) == 1 or int(loop) == 2 or \
-                int(loop) == 3 or int(loop) == 4), 'Invalid loop'
+            assert(int(loop_config) in loop_list), 'Invalid loop argument'
             answer1 = test_heater_range
             answer = test_heater_percentage
             full_answer = [answer, answer1]
             return full_answer
+
+    def tc_sensor(self, *sensor):
+        if test_flag != 'test':
+            if len(sensor) == 1:
+                sens = int(sensor[0])
+                if loop_config in loop_list:
+                    pass
+                else:
+                    general.message('Invalid loop')
+                    sys.exit()
+                    if sens in sens_dict:
+                        flag = sens_dict[sens]
+                        self.device_write('CSET '+ str(loop_config) + ',' + str(flag) +',1,0,0')
+                    else:
+                        general.message('Invalid sensor')
+                        sys.exit()
+
+            elif len(sensor) == 0:
+                raw_answer1 = self.device_query('CSET?' + str(loop_config))
+                raw_answer2 = str(raw_answer1[0])
+                answer = cutil.search_keys_dictionary(sens_dict, raw_answer2)
+                return answer
+
+        elif test_flag == 'test':
+            if len(sensor) == 1:
+                sens = int(sensor[0])
+                assert(lp in loop_list), 'Invalid loop argument'
+                assert(sens in sens_dict), 'Invalid sensor'
+            elif len(sensor) == 0:
+                answer = test_sensor
+                return answer
+
+    def tc_lock_keyboard(self, *lock):
+        if test_flag != 'test':
+            if len(lock) == 1:
+                lk = str(lock[0])
+                if lk in lock_dict:
+                    flag = lock_dict[lk]
+                    if flag == 0:
+                        self.device_write('LOCK 1,123')
+                        self.device_write('MODE 1')
+                    elif flag == 1:
+                        self.device_write('LOCK 1,123')
+                        self.device_write('MODE 2')
+                    elif flag == 2:
+                        self.device_write('LOCK 0,123')
+                        self.device_write('MODE 1')
+                    elif flag == 3:
+                        self.device_write('LOCK 0,123')
+                        self.device_write('MODE 2')
+                else:
+                    general.message("Invalid argument")
+                    sys.exit()
+            elif len(lock) == 0:
+                raw_answer1 = self.device_query('LOCK?')
+                answer1 = int(raw_answer1[0])
+                answer2 = int(self.device_query('MODE?'))
+                if answer1 == 1 and answer2 == 1:
+                    answer_flag = 0
+                    answer = cutil.search_keys_dictionary(lock_dict, answer_flag)
+                    return answer
+                elif answer1 == 1 and answer2 == 2:
+                    answer_flag = 1
+                    answer = cutil.search_keys_dictionary(lock_dict, answer_flag)
+                    return answer
+                elif answer1 == 0 and answer2 == 1:
+                    answer_flag = 2
+                    answer = cutil.search_keys_dictionary(lock_dict, answer_flag)
+                    return answer
+                elif answer1 == 0 and answer2 == 2:
+                    answer_flag = 3
+                    answer = cutil.search_keys_dictionary(lock_dict, answer_flag)
+                    return answer
+            else:
+                general.message("Invalid argument")
+                sys.exit()                      
+
+        elif test_flag == 'test':
+            if len(lock) == 1:
+                lk = str(lock[0])
+                if lk in lock_dict:
+                    flag = lock_dict[lk]
+                else:
+                    assert(1 == 2), "Invalid lock argument"
+            elif len(lock) == 0:
+                answer = test_lock
+                return answer    
+            else:
+                assert(1 == 2), "Invalid argument"
 
     def tc_command(self, command):
         if test_flag != 'test':

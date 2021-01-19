@@ -101,7 +101,9 @@ On Windows 10 one should use:
 ## Available devices
 #### Temperature Controllers
 	- LakeShore (GPIB, RS-232)
-	325 (untested); 331 (untested); 332 (untested); 335; 336 (untested); 340.
+	325 (untested); 331 (untested); 332 (untested); 335 (Tested 01/21); 336 (untested); 340.
+	- Oxford Instruments (RS-232)
+	ITC 503 (untested).
 
 #### Lock-in Amplifiers
 	- Stanford Research Lock-In Amplifier (GPIB, RS-232)
@@ -113,7 +115,7 @@ On Windows 10 one should use:
 	- Keysight InfiniiVision 2000 X-Series (Ethernet); untested
 	- Keysight InfiniiVision 3000 X-Series (Ethernet); tested
 	- Keysight InfiniiVision 4000 X-Series (Ethernet); untested
-	- Tektronix 4000 Series (Ethenet); Tested 01/2021
+	- Tektronix 4000 Series (Ethernet); Tested 01/2021
 
 #### Arbitrary Wave Generators
 	- Wave Generator of Keysight InfiniiVision 2000 X-Series (Ethernet)
@@ -171,7 +173,12 @@ tc_name()
 tc_temperature(channel)
 tc_setpoint(*temp)
 tc_heater_range(*heater)
-tc_heater_state()
+tc_heater_power()
+tc_heater_power_limit(power)
+tc_state(*mode)
+tc_sensor(*sensor)
+tc_gas_flow(*flow)
+tc_lock_keyboard(*lock)
 tc_command(command)
 tc_query(command)
 ```
@@ -268,7 +275,7 @@ magnet_command(command)
 balance_weight()
 ```
 ### [Other](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)
-#### Solid-sate Relay RODOS-10N (ethernet)
+#### Solid-sate Relay RODOS-10N (Ethernet)
 ```python3
 turn_on(number)
 turn_off(number)
