@@ -76,13 +76,7 @@ class Keysight_2000_Xseries:
                     self.device.read_termination = config['read_termination']  # for WORD (a kind of binary) format
                     try:
                         self.device_write('*CLS')
-                        answer = int(self.device_query('*TST?'))
-                        if answer == 0:
-                            self.status_flag = 1
-                        else:
-                            general.message('During internal device test errors are found')
-                            self.status_flag = 0
-                            sys.exit()
+                        self.status_flag = 1
                     except pyvisa.VisaIOError:
                         general.message("No connection")
                         self.status_flag = 0
