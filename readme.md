@@ -103,7 +103,7 @@ On Windows 10 one should use:
 	- Lakeshore (GPIB, RS-232)
 	325; 331; 332; 335; 336; 340; Tested 01/21
 	- Oxford Instruments (RS-232)
-	ITC 503 (untested).
+	ITC 503; Tested 01/21
 
 #### Lock-in Amplifiers
 	- Stanford Research Lock-In Amplifier (GPIB, RS-232)

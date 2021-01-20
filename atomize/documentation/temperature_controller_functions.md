@@ -11,7 +11,7 @@ Example: tc_temperature('A') returns the temperature of channel A in Kelvin.
 ```
 This function is for reading temperature from specified channel.<br/>
 Note that arguments can be devices specific. A set of ['A','B'] is used for Lakeshore 325, 331, 332, and 335, while for Lakeshore 336, 340 a set of four channel ['A','B','C','D'] is used.<br/>
-For Oxford Instruments ITC 503 channel should be one from the following: [1, 2, 3]. Both tc_temperature('1') and tc_temperature(1) are valid. Note that there are models with different numbers of channels. Please, refer to manual.<br/>
+For Oxford Instruments ITC 503 channel should be one from the following: ['1', '2', '3']. Only tc_temperature('1') is valid, not tc_temperature(1) are valid. Note that there are models with different numbers of channels. Please, refer to manual.<br/>
 ```python3
 tc_setpoint(*temp)
 Arguments: temp = float; Output: float or none.
@@ -45,10 +45,11 @@ Arguments: power_percent = decimal (0 - 99.9); Output: decimal.
 The argument is the percentage of the heater power limit that can be set via tc_heater_power_limit(). If the device isn't in manual or gas flow control mode a warning will be shown and the heater power remains unchanged.
 ```python3
 tc_heater_power_limit(power)
-Arguments: power = decimal (0 - 40); Output: none.
+Arguments: power = decimal (0 - 40 corresponds to Volts ); Output: none.
 Example: tc_heater_power_limit(10) sets the heater power to 10 V.
 ```
-This function is available only for Oxford Instruments ITC 503 and should be called with one argument. In manual mode or when only the gas flow is controlled this function sets the maximum heater voltage that ITC 503 may deliver. If the device isn't in manual or gas flow control mode a warning will be shown and the heater power remains unchanged.
+This function is available only for Oxford Instruments ITC 503 and should be called with one argument. In manual mode or when only the gas flow is controlled this function sets the maximum heater voltage that ITC 503 may deliver. If the device isn't in manual or gas flow control mode a warning will be shown and the heater power remains unchanged.<br/>
+It is not possible to query the heater power limit by calling this function without argument. To check the limit one should press and hold the recessed limit button. After that the heater man button shpuld be pressed. The display will show approximate value of the heater limit in volts. 
 ```python3
 tc_state(*mode)
 Arguments: mode = string; Output: string.

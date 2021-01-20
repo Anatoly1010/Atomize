@@ -9,6 +9,9 @@ from pyvisa.constants import StopBits, Parity
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
+# Note that device answers on every command. 
+# We should use query function even when writing data to the device.
+
 #### Inizialization
 # setting path to *.ini file
 path_current_directory = os.path.dirname(__file__)
@@ -20,7 +23,7 @@ config = cutil.read_conf_util(path_config_file)
 # auxilary dictionaries
 state_dict = {'Manual-Manual': 0, 'Auto-Manual': 1, 'Manual-Auto': 2, 'Auto-Auto': 3,}
 sensor_list = [1, 2, 3]
-lock_dict = {'Local-Locked': 0, 'Remote-Locked': 1, 'Local-Unlocked': 2, 'Remote-Unlocked': 3,}
+lock_dict = {'Local-Locked': 'C0', 'Remote-Locked': 'C1', 'Local-Unlocked': 'C2', 'Remote-Unlocked': 'C3',}
 
 # Ranges and limits
 temperature_max = 320
@@ -52,22 +55,24 @@ class ITC_503:
     def __init__(self):
         if test_flag != 'test':
             if config['interface'] == 'gpib':
-                try:
-                    import Gpib
-                    self.status_flag = 1
-                    self.device = Gpib.Gpib(config['board_address'], config['gpib_address'])
-                    try:
-                        # test should be here
-                        self.device_write('Q0') # \r terminator
-                        self.device_write('C3') # Remote and Unlocked; C1 - remote and locked
-                    except BrokenPipeError:
-                        general.message("No connection")
-                        self.status_flag = 0;
-                        sys.exit()  
-                except BrokenPipeError:        
-                    general.message("No connection")
-                    self.status_flag = 0
-                    sys.exit()
+                general.message('Invalid interface')
+                sys.exit()
+                #try:
+                #    import Gpib
+                #    self.status_flag = 1
+                #    self.device = Gpib.Gpib(config['board_address'], config['gpib_address'])
+                #    try:
+                #        # test should be here
+                #        self.device_write('Q0') # \r terminator
+                #        self.device_query('C3') # Remote and Unlocked; C1 - remote and locked
+                #    except BrokenPipeError:
+                #        general.message("No connection")
+                #        self.status_flag = 0;
+                #        sys.exit()  
+                #except BrokenPipeError:        
+                #    general.message("No connection")
+                #    self.status_flag = 0
+                #    sys.exit()
 
             elif config['interface'] == 'rs232':
                 try:
@@ -80,7 +85,7 @@ class ITC_503:
                     try:
                         # test should be here
                         self.device_write('Q0') # \r terminator
-                        self.device_write('C3') # Remote and Unlocked; C1 - remote and locked
+                        self.device_query('C3') # Remote and Unlocked; C1 - remote and locked
                     except pyvisa.VisaIOError:
                         self.status_flag = 0
                         general.message("No connection")
@@ -120,9 +125,11 @@ class ITC_503:
     def device_query(self, command):
         if self.status_flag == 1:
             if config['interface'] == 'gpib':
-                self.device.write(command)
-                general.wait('50 ms')
-                answer = self.device.read()
+                general.message('Invalid interface')
+                sys.exit()
+                #self.device.write(command)
+                #general.wait('50 ms')
+                #answer = self.device.read()
             elif config['interface'] == 'rs232':
                 answer = self.device.query(command)
             return answer
@@ -146,21 +153,21 @@ class ITC_503:
             # If the first character is a '+' or '-' the sensor is returning
             # temperatures in degree Celsius, otherwise in Kelvin
             if channel == '1':
-                raw_answer = str(self.device_query('R1'))
+                raw_answer = str(self.device_query('R1')[1:])
                 if raw_answer[0] == '+' or raw_answer[0] == '-':
                     answer = float(raw_answer) + 273.16 # convert to Kelvin
                 else:
                     answer = float(raw_answer)
                     return answer
             elif channel == '2':
-                answer = float(self.device_query('R2'))
+                raw_answer = str(self.device_query('R2')[1:])
                 if raw_answer[0] == '+' or raw_answer[0] == '-':
                     answer = float(raw_answer) + 273.16 # convert to Kelvin
                 else:
                     answer = float(raw_answer)
                     return answer
             elif channel == '3':
-                answer = float(self.device_query('R3'))
+                raw_answer = str(self.device_query('R3')[1:])
                 if raw_answer[0] == '+' or raw_answer[0] == '-':
                     answer = float(raw_answer) + 273.16 # convert to Kelvin
                 else:
@@ -180,12 +187,12 @@ class ITC_503:
             if len(temp) == 1:
                 temp = float(temp[0])
                 if temp <= temperature_max and temp >= temperature_min:
-                    self.device.write('T' + f'{temp:.3f}')
+                    self.device.query('T' + f'{temp:.3f}')
                 else:
                     general.message("Incorrect set point temperature")
                     sys.exit()
             elif len(temp) == 0:
-                answer = float(self.device_query('R0'))
+                answer = float(self.device_query('R0')[1:])
                 return answer   
             else:
                 general.message("Invalid argument")
@@ -204,22 +211,22 @@ class ITC_503:
             if  len(mode) == 1:
                 md = str(mode[0])
                 if md in state_dict:
-                    flag = state_dict[hr]
-                    if flaf == 2 or flag == 3:
+                    flag = state_dict[md]
+                    if flag == 2 or flag == 3:
                         raw_answer = self.device_query('X')
                         answer = raw_answer[2:4]
                         if answer == 'A5' or answer == 'A6' or answer == 'A7' or answer == 'A8':
                             general.message('Cannot set state to GAS AUTO while in AutoGFS phase.')
                         else:
-                        self.device_write("A" + str(flag))
+                            self.device_query("A" + str(flag))
                     else:
-                        self.device_write("A" + str(flag))
+                        self.device_query("A" + str(flag))
                 else:
                     general.message("Invalid temperature controller state")
                     sys.exit()
             elif  len(mode) == 0:
                 raw_answer = self.device_query('X')
-                answer_flag = raw_answer[3:4]
+                answer_flag = int(raw_answer[3:4])
                 answer = cutil.search_keys_dictionary(state_dict, answer_flag)
                 return answer                    
             else:
@@ -230,7 +237,7 @@ class ITC_503:
             if len(mode) == 1:
                 md = str(mode[0])
                 if md in state_dict:
-                    flag = state_dict[hr]
+                    flag = state_dict[md]
                 else:
                     assert(1 == 2), "Invalid heater range"
             elif  len(mode) == 0:
@@ -242,10 +249,10 @@ class ITC_503:
     def tc_heater_power(self, *power_percent):
         if test_flag != 'test':
             if len(power_percent) == 0:
-                answer = float(self.device_query('R5'))
+                answer = float(self.device_query('R5')[1:])
                 return answer
             elif len(power_percent) == 1:
-                pw = float(power_percent)
+                pw = float(power_percent[0])
                 raw_answer = self.device_query('X')
                 answer = raw_answer[2:4]
                 if answer[0] != 'A':
@@ -254,7 +261,7 @@ class ITC_503:
                 else:
                     if answer == 'A0' or answer == 'A2':
                         if pw >= power_percent_min and pw <= power_percent_max:
-                            self.device_write('O' + f'{pw:.1f}')
+                            self.device_query('O' + f'{pw:.1f}')
                         else:
                             general.message("Invalid heater power percent")
                             sys.exit()
@@ -266,11 +273,12 @@ class ITC_503:
                 answer = test_heater_percentage
                 return answer
             elif len(power_percent) == 1:
-                pw = float(power_percent)
+                pw = float(power_percent[0])
                 assert(pw >= power_percent_min and pw <= power_percent_max), "Invalid heater power"
 
     def tc_heater_power_limit(self, power):
         if test_flag != 'test':
+            pw = float(power)
             raw_answer = self.device_query('X')
             answer = raw_answer[2:4]
             if answer[0] != 'A':
@@ -279,14 +287,15 @@ class ITC_503:
             else:
                 if answer == 'A0' or answer == 'A2':
                     if pw >= power_min and pw <= power_max:
-                            self.device_write('M' + f'{pw:.1f}')
-                        else:
-                            general.message("Invalid heater power")
-                            sys.exit()
+                        self.device_query('M' + f'{pw:.1f}')
                     else:
-                        general.message("Cannot change heater power while heater power is controlled by the device")
+                        general.message("Invalid heater power")
+                        sys.exit()
+                else:
+                    general.message("Cannot change heater power while heater power is controlled by the device")
 
         elif test_flag == 'test':
+            pw = float(power)
             assert(pw >= power_min and pw <= power_max), "Invalid heater power range"
 
     def tc_sensor(self, *sensor):
@@ -294,7 +303,7 @@ class ITC_503:
             if len(sensor) == 1:
                 sens = int(sensor[0])
                 if sens in sensor_list:
-                    self.device_write('H' + str(sens))
+                    self.device_query('H' + str(sens))
                 else:
                     general.message('Invalid sensor')
                     sys.exit()
@@ -318,10 +327,10 @@ class ITC_503:
     def tc_gas_flow(self, *flow):
         if test_flag != 'test':
             if len(flow) == 0:
-                answer = float(self.device_query('R7'))
+                answer = float(self.device_query('R7')[1:])
                 return answer
             elif len(flow) == 1:
-                fl = float(flow)
+                fl = float(flow[0])
                 raw_answer = self.device_query('X')
                 answer = raw_answer[2:4]
                 if answer[0] != 'A':
@@ -330,19 +339,19 @@ class ITC_503:
                 else:
                     if answer == 'A0' or answer == 'A1':
                         if fl >= flow_percent_min and fl <= flow_percent_max:
-                            self.device_write('G' + f'{fl:.1f}')
+                            self.device_query('G' + f'{fl:.1f}')
                         else:
                             general.message("Invalid gas flow percent")
                             sys.exit()
-                else:
-                    general.message("Cannot gas flow percentage while flow is controlled by the device")
+                    else:
+                        general.message("Cannot gas flow percentage while flow is controlled by the device")
 
         elif test_flag == 'test':
             if len(flow) == 0:
                 answer = test_flow
                 return answer
             elif len(flow) == 1:
-                fl = float(flow)
+                fl = float(flow[0])
                 assert(fl >= flow_percent_min and fl <= flow_percent_max), "Invalid gas flow percent"
 
     def tc_lock_keyboard(self, *lock):
@@ -351,7 +360,7 @@ class ITC_503:
                 lk = str(lock[0])
                 if lk in lock_dict:
                     flag = lock_dict[lk]
-                    self.device_write("C" + str(flag))
+                    self.device_query(str(flag))
                 else:
                     general.message("Invalid argument")
                     sys.exit()
@@ -373,13 +382,13 @@ class ITC_503:
                     assert(1 == 2), "Invalid lock argument"
             elif len(lock) == 0:
                 answer = test_lock
-                return answer    
+                return answer
             else:
                 assert(1 == 2), "Invalid argument"
 
     def tc_command(self, command):
         if test_flag != 'test':
-            self.device_write(command)
+            self.device_query(command)
         elif test_flag == 'test':
             pass
 
