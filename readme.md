@@ -101,7 +101,7 @@ On Windows 10 one should use:
 ## Available devices
 #### Temperature Controllers
 	- LakeShore (GPIB, RS-232)
-	325 (untested); 331 (untested); 332 (untested); 335 (Tested 01/21); 336 (untested); 340.
+	325; 331; 332; 335; 336; 340; Tested 01/21
 	- Oxford Instruments (RS-232)
 	ITC 503 (untested).
 
@@ -109,7 +109,7 @@ On Windows 10 one should use:
 	- Stanford Research Lock-In Amplifier (GPIB, RS-232)
 	SR-810; SR-830; SR-850 (untested).
 	- Stanford Research Lock-In Amplifier (GPIB, RS-232, Ethernet)
-	SR-860 (Tested 01/2021); SR-865a (untested).
+	SR-860; SR-865a; Tested 01/2021
 
 #### Oscilloscopes
 	- Keysight InfiniiVision 2000 X-Series (Ethernet); untested
@@ -140,7 +140,7 @@ On Windows 10 one should use:
 	- CPWplus 150 (RS-232); Tested 01/2021
 
 #### Other
-	- Solid-state Relay RODOS-10N (Ethernet) tested
+	- Solid-state Relay RODOS-10N (Ethernet); Tested 01/2021
 
 ## [Available general functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
 ```python3
@@ -198,7 +198,7 @@ oscilloscope_run()
 oscilloscope_get_curve(channel)
 oscilloscope_sensitivity(*channel)
 oscilloscope_offset(*channel)
-oscilloscope_trigger_delay(*delay)
+oscilloscope_horizontal_offset(*h_offset)
 oscilloscope_coupling(*coupling)
 oscilloscope_impedance(*impedance)
 oscilloscope_trigger_mode(*mode)

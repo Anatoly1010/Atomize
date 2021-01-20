@@ -7,7 +7,7 @@ import sys
 import pyvisa
 from pyvisa.constants import StopBits, Parity
 import atomize.device_modules.config.config_utils as cutil
-import atomize.general_modules.general_functions as general
+#import atomize.general_modules.general_functions as general
 
 #### Inizialization
 # setting path to *.ini file
@@ -40,7 +40,7 @@ test_set_point = 298.
 test_lock = 'Local-Locked'
 test_heater_range = '5 W'
 test_heater_percentage = 1.
-test_sensor = 1
+test_sensor = 'A'
 
 class Lakeshore_332:
     #### Basic interaction functions
@@ -142,7 +142,10 @@ class Lakeshore_332:
     def tc_name(self):
         if test_flag != 'test':
             answer = self.device_query('*IDN?')
-            return answer
+            if config['interface'] == 'gpib':
+                return answer.decode()
+            elif config['interface'] == 'rs232':
+                return answer
         elif test_flag == 'test':
             answer = config['name']
             return answer
@@ -256,23 +259,26 @@ class Lakeshore_332:
                 else:
                     general.message('Invalid loop')
                     sys.exit()
-                    if sens in sens_dict:
-                        flag = sens_dict[sens]
-                        self.device_write('CSET '+ str(loop_config) + ',' + str(flag) +',0,2')
-                    else:
-                        general.message('Invalid sensor')
-                        sys.exit()
+                if sens in sens_dict:
+                    flag = sens_dict[sens]
+                    self.device_write('CSET '+ str(loop_config) + ',' + str(flag) +',0,2')
+                else:
+                    general.message('Invalid sensor')
+                    sys.exit()
 
             elif len(sensor) == 0:
                 raw_answer1 = self.device_query('CSET?' + str(loop_config))
-                raw_answer2 = str(raw_answer1[0])
-                answer = cutil.search_keys_dictionary(sens_dict, raw_answer2)
+                if config['interface'] == 'gpib':
+                    raw_answer2 = str(raw_answer1.decode()[0])
+                elif config['interface'] == 'rs232':
+                    raw_answer2 = str(raw_answer1[0])
+                answer = raw_answer2
                 return answer
 
         elif test_flag == 'test':
             if len(sensor) == 1:
                 sens = int(sensor[0])
-                assert(lp in loop_list), 'Invalid loop argument'
+                assert(loop_config in loop_list), 'Invalid loop argument'
                 assert(sens in sens_dict), 'Invalid sensor'
             elif len(sensor) == 0:
                 answer = test_sensor
@@ -301,7 +307,10 @@ class Lakeshore_332:
                     sys.exit()
             elif len(lock) == 0:
                 raw_answer1 = self.device_query('LOCK?')
-                answer1 = int(raw_answer1[0])
+                if config['interface'] == 'gpib':
+                    answer1 = int(raw_answer1.decode()[0])
+                elif config['interface'] == 'rs232':
+                    answer1 = int(raw_answer1[0])
                 answer2 = int(self.device_query('MODE?'))
                 if answer1 == 1 and answer2 == 0:
                     answer_flag = 0
@@ -355,3 +364,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+l = Lakeshore_332()
+print(l.tc_sensor())

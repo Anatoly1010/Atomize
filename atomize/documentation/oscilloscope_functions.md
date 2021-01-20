@@ -9,12 +9,12 @@ oscilloscope_record_length(*points)
 Arguments: points = integer from a specified dictionary; Output: integer.
 Example: oscilloscope_record_length(4000) sets the number of waveform points to 4000.
 ```
-This function queries or sets the number of waveform points to be transferred using oscilloscope_get_curve() function. The number of points should be from the following array:<br/>
-[100, 250, 500, 1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000].
-Please, note that the possible number of points for Keysight 3000 X-series does not match the one given in the programming guide.
-For Keysight 2000 X-series the situation is worse and the following array should be used:<br/>
-[100, 250, 500, 1000, ... 3839, ...]<br/>
+This function queries or sets the number of waveform points to be transferred using oscilloscope_get_curve() function.<br/>
+Please, note that the possible number of points for Keysight 3000 X-series does not match the one given in the programming guide.<br/>
+The number of points in averaging mode should be from the following array: [100, 250, 500, 1000, 2000, 4000, 8000].<br/>
+For Keysight 2000 X-series the situation is worse and the following array should be used: [99, 247, 479, 959, 1919, 3839, 7679].<br/>
 For Keysight 4000 X-series the number of points given in the programming guide should be checked.<br/>
+If one would like to use Keysight oscilloscopes without averaging (in normal or high-resolution mode), the number of points in the waveform is usually the same as specified in the programming manual. You can change the number of points array in the module to correctly set o properly set this parameter in normal or high-resolution mode.<br/>
 Fot Tektronix 4000 Series the following array should be used: [1000, 10000, 100000, 1000000, 10000000].<br/>
 The maximum amount of points that can be transferred depend on the waveform points mode. Please, refer to the manual.<br/>
 ```python3
@@ -102,12 +102,12 @@ to 100 mV. oscilloscope_offset('CH2') returns the current offset of the channel 
 ```
 The function queries (if called with one argument) or sets (if called with two arguments) the offset setting of one of the channels of the oscilloscope. If there is a second argument this will be set as a new offset setting. If there is no second argument the current offset setting for the specified channel is returned. The offset range depends on the type of oscilliscope and the vertical scale factor for used channel. Please, refer to device manual.<br/>
 ```python3
-oscilloscope_trigger_delay(*delay):
-Arguments: delay= string ('number + scaling (s, ms, us, ns)'); Output: float (in us).
-Examples: oscilloscope_trigger_delay('100 ms') sets the delay of acquisition data so that the
-resulting waveform is centered 100 ms after the trigger occurs.
+oscilloscope_horizontal_offset(*h_offset)
+Arguments: h_offset = string ('number + scaling (s, ms, us, ns)'); Output: float (in us).
+Examples: oscilloscope_horizontal_offset('100 ms') sets the time base delay to 100 ms.
 ```
-The function queries or sets the horizontal delay time (position) that is used when delay is on (the default mode). If there is no argument the function will return the current delay mode in us. If there is an argument the specified delay mode will be set.<br/>
+The function queries or sets the horizontal delay time (position). This delay is the time between the trigger event and the delay reference point on the screen. If there is no argument the function will return the current delay mode in us. If there is an argument the specified delay mode will be set. The valid range for delay settings depends on the time/division
+setting for the main time base.<br/>
 ```python3
 oscilloscope_coupling(*coupling)
 Arguments: coupling = two strings ('channel string', 'coupling string (AC, DC)')

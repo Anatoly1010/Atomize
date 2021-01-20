@@ -40,7 +40,7 @@ test_set_point = 298.
 test_lock = 'Remote-Locked'
 test_heater_range = '5 W'
 test_heater_percentage = 1.
-test_sensor = 1
+test_sensor = 'A'
 
 class Lakeshore_335:
     #### Basic interaction functions

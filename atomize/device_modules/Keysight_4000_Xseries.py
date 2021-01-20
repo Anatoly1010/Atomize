@@ -31,8 +31,6 @@ wavefunction_dic = {'Sin': 'SINusoid', 'Sq': 'SQUare', 'Ramp': 'RAMP', 'Pulse': 
 ac_type_dic = {'Norm': "NORMal", 'Ave': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
 
 # Limits and Ranges (depends on the exact model):
-tr_delay_max = 10
-tr_delay_min = 0.000000004
 numave_min = 2
 numave_max = 65536
 timebase_max = 50
@@ -53,7 +51,7 @@ test_record_length = 2000
 test_acquisition_type = 'Norm'
 test_num_aver = 2
 test_timebase = '100 ms'
-test_delay = 0
+test_h_offset = '10 ms'
 test_coupling = 'AC'
 test_impedance = 1000000
 test_tr_mode = 'Normal'
@@ -510,45 +508,39 @@ class Keysight_4000_Xseries:
             else:
                 assert(1 == 2), "Incorrect offset argument"
 
-    def oscilloscope_trigger_delay(self, *delay):
+    def oscilloscope_horizontal_offset(self, *h_offset):
         if test_flag != 'test':
-            if len(delay) == 1:
-                temp = delay[0].split(" ")
+            if len(h_offset) == 1:
+                temp = h_offset[0].split(" ")
                 offset = float(temp[0])
                 scaling = temp[1]
                 if scaling in timebase_dict:
                     coef = timebase_dict[scaling]
-                    if offset/coef <= tr_delay_max and offset/coef >= tr_delay_min:
-                        self.device_write(":TRIGger:DELay:TDELay:TIME "+ str(offset/coef))
-                    else:
-                        general.message("Incorrect trigger delay range")
-                        sys.exit()                       
+                    self.device_write(":TIMebase:DELay "+ str(offset/coef))
                 else:
-                    general.message("Incorrect trigger delay")
+                    general.message("Incorrect horizontal offset")
                     sys.exit()
-            elif len(delay) == 0:
-                answer = float(self.device_query(":TRIGger:DELay:TDELay:TIME?"))*1000000
+            elif len(h_offset) == 0:
+                answer = float(self.device_query(":TIMebase:DELay?"))*1000000
                 return answer
             else:
                 general.message("Invalid argument")
                 sys.exit()
 
         elif test_flag == 'test':
-            if len(delay) == 1:
+            if len(h_offset) == 1:
                 temp = delay[0].split(" ")
                 offset = float(temp[0])
                 scaling = temp[1]
                 if scaling in timebase_dict:
                     coef = timebase_dict[scaling]
-                    assert(offset/coef <= tr_delay_max and \
-                        offset/coef >= tr_delay_min), 'Incorrect trigger delay value'
                 else:
-                    assert(1 == 2), 'Incorrect trigger delay scaling'
-            elif len(delay) == 0:
-                answer = test_delay
+                    assert(1 == 2), 'Incorrect horizontal offset scaling'
+            elif len(h_offset) == 0:
+                answer = test_h_offset
                 return answer
             else:
-                assert(1 == 2), 'Incorrect trigger delay argument'
+                assert(1 == 2), 'Incorrect horizontal offset argument'
 
     def oscilloscope_coupling(self, *coupling):
         if test_flag != 'test':

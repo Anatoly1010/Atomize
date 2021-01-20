@@ -22,7 +22,7 @@ loop_config = config['loop'] # information about the loop used
 heater_dict = {'50 W': 3, '5 W': 2, '0.5 W': 1, 'Off': 0,};
 lock_dict = {'Local-Locked': 0, 'Remote-Locked': 1, 'Local-Unlocked': 2, 'Remote-Unlocked': 3,}
 loop_list = [1, 2, 3, 4]
-sens_dict = {1: 'A', 2: 'B', 3: 'C', 4: 'D',}
+sens_dict = {0: 'None', 1: 'A', 2: 'B', 3: 'C', 4: 'D',}
 
 # Ranges and limits
 temperature_max = 320
@@ -40,7 +40,7 @@ test_set_point = 298.
 test_lock = 'Local-Locked'
 test_heater_range = '5 W'
 test_heater_percentage = 1.
-test_sensor = 1
+test_sensor = 'A'
 
 class Lakeshore_336:
     #### Basic interaction functions
@@ -142,7 +142,10 @@ class Lakeshore_336:
     def tc_name(self):
         if test_flag != 'test':
             answer = self.device_query('*IDN?')
-            return answer
+            if config['interface'] == 'gpib':
+                return answer.decode()
+            elif config['interface'] == 'rs232':
+                return answer
         elif test_flag == 'test':
             answer = config['name']
             return answer
@@ -267,23 +270,29 @@ class Lakeshore_336:
                 else:
                     general.message('Invalid loop')
                     sys.exit()
-                    if sens in sens_dict:
-                        flag = sens_dict[sens]
-                        self.device_write('OUTMODE '+ str(loop_config) + ',' + '1' + str(flag) +',0')
-                    else:
-                        general.message('Invalid sensor')
-                        sys.exit()
+                if sens in sens_dict:
+                    self.device_write('OUTMODE '+ str(loop_config) + ',' + '1,' + str(sens) +',0')
+                else:
+                    general.message('Invalid sensor')
+                    sys.exit()
 
             elif len(sensor) == 0:
                 raw_answer1 = self.device_query('OUTMODE?' + str(loop_config))
-                raw_answer2 = str(raw_answer1[2])
-                answer = cutil.search_keys_dictionary(sens_dict, raw_answer2)
-                return answer
+                if config['interface'] == 'gpib':
+                    raw_answer2 = int(raw_answer1.decode()[2])
+                elif config['interface'] == 'rs232':
+                    raw_answer2 = int(raw_answer1[2])
+                if raw_answer2 in sens_dict:
+                    answer = sens_dict[raw_answer2]
+                    return answer
+                else:
+                    general.message('Invalid response of the device')
+                    sys.exit()
 
         elif test_flag == 'test':
             if len(sensor) == 1:
                 sens = int(sensor[0])
-                assert(lp in loop_list), 'Invalid loop argument'
+                assert(loop_config in loop_list), 'Invalid loop argument'
                 assert(sens in sens_dict), 'Invalid sensor'
             elif len(sensor) == 0:
                 answer = test_sensor
@@ -312,7 +321,10 @@ class Lakeshore_336:
                     sys.exit()
             elif len(lock) == 0:
                 raw_answer1 = self.device_query('LOCK?')
-                answer1 = int(raw_answer1[0])
+                if config['interface'] == 'gpib':
+                    answer1 = int(raw_answer1.decode()[0])
+                elif config['interface'] == 'rs232':
+                    answer1 = int(raw_answer1[0])
                 answer2 = int(self.device_query('MODE?'))
                 if answer1 == 1 and answer2 == 0:
                     answer_flag = 0

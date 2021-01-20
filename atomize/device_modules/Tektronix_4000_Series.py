@@ -42,7 +42,7 @@ test_impedance = 1000000
 test_acquisition_type = 'Norm'
 test_num_aver = 2
 test_timebase = '100 ms'
-test_delay = 0
+test_h_offset = '10 ms'
 test_coupling = 'AC'
 test_tr_mode = 'Normal'
 test_tr_channel = 'CH1'
@@ -553,19 +553,19 @@ class Tektronix_4000_Series:
             else:
                 assert(1 == 2), "Incorrect offset argument"
 
-    def oscilloscope_trigger_delay(self, *delay):
+    def oscilloscope_horizontal_offset(self, *h_offset):
         if test_flag != 'test':
-            if len(delay) == 1:
-                temp = delay[0].split(" ")
+            if len(h_offset) == 1:
+                temp = h_offset[0].split(" ")
                 offset = float(temp[0])
                 scaling = temp[1]
                 if scaling in timebase_dict:
                     coef = timebase_dict[scaling]
                     self.device_write("HORizontal:DELay:TIMe " + str(offset/coef))
                 else:
-                    general.message("Incorrect trigger delay")
+                    general.message("Incorrect horizontal offset")
                     sys.exit()
-            elif len(delay) == 0:
+            elif len(h_offset) == 0:
                 answer = float(self.device_query("HORizontal:DELay:TIMe?"))*1000000
                 return answer
             else:
@@ -573,19 +573,19 @@ class Tektronix_4000_Series:
                 sys.exit()
 
         elif test_flag == 'test':
-            if len(delay) == 1:
-                temp = delay[0].split(" ")
+            if len(h_offset) == 1:
+                temp = h_offset[0].split(" ")
                 offset = float(temp[0])
                 scaling = temp[1]
                 if scaling in timebase_dict:
                     coef = timebase_dict[scaling]
                 else:
-                    assert(1 == 2), 'Incorrect trigger delay'
+                    assert(1 == 2), "Incorrect horizontal offset"
             elif len(delay) == 0:
                 answer = test_delay
                 return answer
             else:
-                assert(1 == 2), 'Incorrect trigger delay argument'
+                assert(1 == 2), "Incorrect horizontal offset argument"
 
     def oscilloscope_coupling(self, *coupling):
         if test_flag != 'test':
