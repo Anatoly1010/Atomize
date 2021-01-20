@@ -55,7 +55,7 @@ Arguments: mode = string; Output: string.
 Example: tc_state('Manual-Manual') sets the device to heater manual, gas manual state.
 ```
 This function can be used to change the state of the device and is available only for Oxford Instruments ITC 503. If an argument is specified the function sets a new state setting. If there is no argument the function returns the current state setting. The state should be one of the following:
-['Manual-Manual', 'Auto-Manual', ' Manaul-Auto', 'Auto-Auto']<br/>
+['Manual-Manual', 'Auto-Manual', ' Manual-Auto', 'Auto-Auto']<br/>
 The first part corresponds to the heater state setting, the second to the gas state setting.
 ```python3
 tc_sensor(*sensor)

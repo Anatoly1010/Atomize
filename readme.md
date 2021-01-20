@@ -100,7 +100,7 @@ On Windows 10 one should use:
 
 ## Available devices
 #### Temperature Controllers
-	- LakeShore (GPIB, RS-232)
+	- Lakeshore (GPIB, RS-232)
 	325; 331; 332; 335; 336; 340; Tested 01/21
 	- Oxford Instruments (RS-232)
 	ITC 503 (untested).
