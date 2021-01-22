@@ -12,14 +12,13 @@ import atomize.general_modules.general_functions as general
 #### Inizialization
 # setting path to *.ini file
 path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','ER_031M_config.ini')
+path_config_file = os.path.join(path_current_directory, 'config','Metrolab_PT2025_config.ini')
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
 
 # Ramges and limits
-min_field = -50
-max_field = 6000
+
 
 # Test run parameters
 # These values are returned by the modules in the test run 
@@ -30,7 +29,7 @@ else:
 
 test_field = 3500
 
-class ER_031M:
+class Metrolab_PT2025:
     #### Basic interaction functions
     def __init__(self):
         if test_flag != 'test':
@@ -65,6 +64,15 @@ class ER_031M:
                     self.status_flag = 0
                     sys.exit()
 
+            # measure field in Tesla
+            self.device_write('D1')
+            # switch to multiplexer A
+            self.device_write('PA')            
+            # switch to AUTO mode
+            self.device_write('A1')
+            # activate the search, starting at about 3.5 T
+            self.device_write('H3500')
+
         elif test_flag == 'test':
             pass
 
@@ -77,16 +85,31 @@ class ER_031M:
 
     def device_write(self, command):
         if self.status_flag == 1:
-            general.wait('900 ms') # very important to have timeout here
             command = str(command)
-            self.device.write(command.encode())
+            self.device.write(command)
         else:
-            self.status_flag = 0
             general.message("No Connection")
+            self.status_flag = 0
+            sys.exit()
+
+    def device_query(self, command):
+        if self.status_flag == 1:
+            if config['interface'] == 'gpib':
+                general.message('Invalid interface')
+                sys.exit()
+                #self.device.write(command)
+                #general.wait('50 ms')
+                #answer = self.device.read()
+            elif config['interface'] == 'rs232':
+                answer = self.device.query(command)
+            return answer
+        else:
+            general.message("No Connection")
+            self.status_flag = 0
             sys.exit()
 
     #### device specific functions
-    def magnet_name(self):
+    def gaussmeter_name(self):
         if test_flag != 'test':
             answer = config['name']
             return answer
@@ -94,47 +117,23 @@ class ER_031M:
             answer = config['name']
             return answer
 
-    def magnet_setup(self, start_field, field_step):
+    def gaussmeter_field(self):
         if test_flag != 'test':
-            if start_field <= max_field and start_field >= min_field:
-                self.field = start_field
-                self.field_step = field_step
-            else:
-                general.message('Incorrect field range')
-                sys.exit()
+                answer = self.device_query('ENQ')
+                return answer
         elif test_flag == 'test':
-            assert(start_field <= max_field and start_field >= min_field), 'Incorrect field range'
-            self.field = start_field
-            self.field_step = field_step
+            answer = test_field
+            return answer
 
-    def magnet_field(self, *field):
+    def gaussmeter_status(self):
         if test_flag != 'test':
-            if len(field) == 1:
-                if field <= max_field and field >= min_field:
-                    #field_controller_write('cf'+str(field)+'\r')
-                    self.device_write('cf' + str(field))
-                    self.field = field
-                else:
-                    general.message('Incorrect field range')
-                    sys.exit()
-            elif len(field) == 0:
-                answer = self.field
+                answer = self.device_query('S3')
                 return answer
-            else:
-                send.message("Invalid argument")
-                sys.exit()
-
         elif test_flag == 'test':
-            if len(field) == 1:
-                assert(field <= max_field and field >= min_field), 'Incorrect field range'
-                self.field = field
-            elif len(field) == 0:
-                answer = test_field
-                return answer
-            else:
-                assert(1 == 2), 'Invalid argument'
+            answer = test_field
+            return answer
 
-    def magnet_command(self, command):
+    def gaussmeter_command(self, command):
         if test_flag != 'test':
             command = str(command)
             self.device_write(command)

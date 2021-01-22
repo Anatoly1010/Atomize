@@ -7,3 +7,5 @@ build
 dist
 *.egg-info
 atomize/logos
+atomize/device_modules/Metrolab_PT2025.py
+atomize/device_modules/config/Metrolab_PT2025_config.ini
