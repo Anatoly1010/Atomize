@@ -35,10 +35,13 @@ Available via corresponding oscilloscope module.
 - Keysight Frequency Counter (GPIB, RS-232, Ethernet)
 53230A/220A (untested).
 
-## Magnetic Field Controller
+## Magnetic Field Controllers
 - Bruker BH15 (GPIB); Tested 01/2021
 - Bruker ER032M (GPIB); available via BH15 module
 - Bruker ER031M (RS-232 using arduino emulated keyboard) tested
+
+## Power Supplies
+- Rigol DP800 Series (RS-232, Ethernet); untested
 
 ## Balances
 - CPWplus 150 (RS-232); Tested 01/2021

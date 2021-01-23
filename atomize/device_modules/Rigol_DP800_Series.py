@@ -7,40 +7,33 @@ import sys
 import pyvisa
 from pyvisa.constants import StopBits, Parity
 import atomize.device_modules.config.config_utils as cutil
-import atomize.general_modules.general_functions as general
+#import atomize.general_modules.general_functions as general
 
 #### Inizialization
 # setting path to *.ini file
 path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','SR_860_config.ini')
+path_config_file = os.path.join(path_current_directory, 'config','Rigol_DP832_config.ini')
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
+specific_parameters = cutil.read_specific_parameters(path_config_file)
 
 # auxilary dictionaries
-sensitivity_dict = {'1 nV': 27, '2 nV': 26, '5 nV': 25, '10 nV': 24, '20 nV': 23, '50 nV': 22,
-                    '100 nV': 21, '200 nV': 20, '500 nV': 19, '1 uV': 18, '2 uV': 17, '5 uV': 16,
-                    '10 uV': 15, '20 uV': 14, '50 uV': 13, '100 uV': 12, '200 uV': 11, '500 uV': 10, 
-                    '1 mV': 9, '2 mV': 8, '5 mV': 7, '10 mV': 6, '20 mV': 5, '50 mV': 4,
-                    '100 mV': 3, '200 mV': 2, '500 mV': 1, '1 V': 0};
-helper_sens_list = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000]
-timeconstant_dict = {'1 us': 0, '3 us': 1, '10 us': 2, '30 us': 3, '100 us': 4, '300 us': 5,
-                    '1 ms': 6, '3 ms': 7, '10 ms': 8, '30 ms': 9, '100 ms': 10, '300 ms': 11,
-                    '1 s': 12, '3 s': 13, '10 s': 14, '30 s': 15, '100 s': 16, '300 s': 17, 
-                    '1 ks': 18, '3 ks': 19, '10 ks': 20, '30 ks': 21};
-helper_tc_list = [1, 3, 10, 30, 100, 300, 1000]
-ref_mode_dict = {'Internal': 0, 'External': 1, 'Dual': 2, 'Chop': 3}
-ref_slope_dict = {'Sine': 0, 'PosTTL': 1, 'NegTTL': 2}
-sync_dict = {'Off': 0, 'On': 1}
-lp_fil_dict = {'6 db': 0, '12 dB': 1, "18 dB": 2, "24 dB": 3}
+voltage_dict = {'V': 1, 'mV': 1000,}
+current_dict = {'A': 1, 'mA': 1000,}
+channel_dict = {'CH1': 1, 'CH2': 2, 'CH3': 3,}
+state_dict = {'On': 'ON', 'Off': 'OFF',}
+preset_dict = {'Default': 'DEFAULT', 'User1': 'USER1', 'User2': 'USER2', \
+                'User3': 'USER3', 'User4': 'USER4',}
 
 # Ranges and limits
-ref_freq_min = 0.001
-ref_freq_max = 500000
-ref_ampl_min = 0.000000001
-ref_ampl_max = 2
-harm_max = 99
-harm_min = 1
+channels = int(specific_parameters['channels'])
+voltage_min = 0.
+current_min = 0.
+voltage_max_dict = {'CH1': int(specific_parameters['ch1_voltage_max']), \
+'CH2': int(specific_parameters['ch2_voltage_max']), 'CH3': int(specific_parameters['ch3_voltage_max']),}
+current_max_dict = {'CH1': int(specific_parameters['ch1_current_max']), \
+'CH2': int(specific_parameters['ch2_current_max']), 'CH3': int(specific_parameters['ch3_current_max']),}
 
 # Test run parameters
 # These values are returned by the modules in the test run 
@@ -49,47 +42,16 @@ if len(sys.argv) > 1:
 else:
     test_flag = 'None'
 
-test_signal = 0.001
-test_frequency = 10000
-test_phase = 10
-test_timeconstant = '10 ms'
-test_amplitude = 0.3
-test_sensitivity = '100 mV'
-test_ref_mode = 'Internal'
-test_ref_slope = 'Sine'
-test_sync = 'On'
-test_lp_filter = '6 dB'
-test_harmonic = 1
+test_voltage = 1.
+test_current = 0.2
+test_state = 'Off'
+test_measure = [2.0, 0.05, 0.10]
 
-class SR_860:
+class Rigol_DP800_Series:
     #### Basic interaction functions
     def __init__(self):
         if test_flag != 'test':
-            if config['interface'] == 'gpib':
-                try:
-                    import Gpib
-                    self.status_flag = 1
-                    self.device = Gpib.Gpib(config['board_address'], config['gpib_address'])
-                    try:
-                        # test should be here
-                        self.device_write('*CLS')
-                        answer = int(self.device_query('*TST?'))
-                        if answer == 0:
-                            self.status_flag = 1
-                        else:
-                            general.message('During internal device test errors are found')
-                            self.status_flag = 0
-                            sys.exit()
-                    except BrokenPipeError:
-                        general.message("No connection")
-                        self.status_flag = 0
-                        sys.exit()
-                except BrokenPipeError:
-                    general.message("No connection")
-                    self.status_flag = 0
-                    sys.exit()
-
-            elif config['interface'] == 'rs232':
+            if config['interface'] == 'rs232':
                 try:
                     self.status_flag = 1
                     rm = pyvisa.ResourceManager()
@@ -100,13 +62,6 @@ class SR_860:
                     try:
                         # test should be here
                         self.device_write('*CLS')
-                        answer = int(self.device_query('*TST?'))
-                        if answer == 0:
-                            self.status_flag = 1
-                        else:
-                            general.message('During internal device test errors are found')
-                            self.status_flag = 0
-                            sys.exit()
                     except pyvisa.VisaIOError:
                         self.status_flag = 0
                         general.message("No connection")
@@ -133,13 +88,6 @@ class SR_860:
                     try:
                         # test should be here
                         self.device_write('*CLS')
-                        answer = int(self.device_query('*TST?'))
-                        if answer == 0:
-                            self.status_flag = 1
-                        else:
-                            general.message('During internal device test errors are found')
-                            self.status_flag = 0
-                            sys.exit()
                     except pyvisa.VisaIOError:
                         general.message("No connection")
                         self.status_flag = 0
@@ -156,7 +104,7 @@ class SR_860:
                     general.message("No connection")
                     self.status_flag = 0
                     sys.exit()
-        elif test_flag == 'test':
+        if test_flag == 'test':
             pass
 
     def close_connection(self):
@@ -177,11 +125,7 @@ class SR_860:
 
     def device_query(self, command):
         if self.status_flag == 1:
-            if config['interface'] == 'gpib':
-                self.device.write(command)
-                general.wait('50 ms')
-                answer = self.device.read()
-            elif config['interface'] == 'rs232':
+            if config['interface'] == 'rs232':
                 answer = self.device.query(command)
             elif config['interface'] == 'ethernet':
                 answer = self.device.query(command)
@@ -192,7 +136,7 @@ class SR_860:
             sys.exit()
 
     #### device specific functions
-    def lock_in_name(self):
+    def power_supply_name(self):
         if test_flag != 'test':
             answer = self.device_query('*IDN?')
             return answer
@@ -200,395 +144,373 @@ class SR_860:
             answer = config['name']
             return answer
 
-    def lock_in_ref_frequency(self, *frequency):
+    def power_supply_voltage(self, *voltage):
         if test_flag != 'test':
-            if len(frequency) == 1:
-                freq = float(frequency[0])
-                if freq >= ref_freq_min and freq <= ref_freq_max:
-                    self.device_write('FREQ '+ str(freq))
+            if len(voltage) == 2:
+                ch = str(voltage[0])
+                temp = voltage[1].split(" ")
+                vtg = float(temp[0])
+                scaling = temp[1]
+
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag <= channels:
+                        vtg_max = voltage_max_dict[ch]
+                        if scaling in voltage_dict:
+                            coef = voltage_dict[scaling]
+                            if vtg/coef >= voltage_min and vtg/coef <= vtg_max:
+                                self.device_write(':SOURce' + str(flag) + ':VOLTage' + str(vtg/coef))
+                            else:
+                                general.message("Incorrect voltage range")
+                                sys.exit()
+                        else:
+                            general.message("Incorrect voltage scaling")
+                            sys.exit()
+                    else:
+                        general.message("Invalid channel")
+                        sys.exit()
                 else:
-                    general.message("Incorrect frequency")
+                    general.message("Invalid channel")
                     sys.exit()
-            elif len(frequency) == 0:
-                answer = float(self.device_query('FREQ?'))
-                return answer
+
+            elif len(voltage) == 1:
+                ch = str(voltage[0])
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag <= channels:
+                        answer = float(self.device_query(':SOURce' + str(flag) + ':VOLTage?'))
+                        return answer
+                    else:
+                        general.message("Invalid channel")
+                        sys.exit()
+                else:
+                    general.message("Invalid channel")
+                    sys.exit()
             else:
                 general.message("Invalid argument")
                 sys.exit()
 
         elif test_flag == 'test':
-            if len(frequency) == 1:
-                freq = float(frequency[0])
-                assert(freq >= ref_freq_min and freq <= ref_freq_max), "Incorrect frequency is reached"
-            elif len(frequency) == 0:
-                answer = test_frequency
+            if len(voltage) == 2:
+                ch = str(voltage[0])
+                temp = voltage[1].split(" ")
+                vtg = float(temp[0])
+                scaling = temp[1]
+                assert(ch in channel_dict), 'Invalid channel argument'
+                flag = channel_dict[ch]
+                assert(flag <= channels), "Invalid channel"
+                assert(scaling in voltage_dict), 'Invalid scaling argument'
+                vtg_max = voltage_max_dict[ch]
+                coef = voltage_dict[scaling]
+                assert(vtg/coef >= voltage_min and vtg/coef <= vtg_max), "Incorrect voltage range"
+            elif len(voltage) == 1:
+                ch = str(voltage[0])
+                assert(ch in channel_dict), 'Invalid channel argument'
+                flag = channel_dict[ch]
+                assert(flag <= channels), "Invalid channel"
+                answer = test_voltage
                 return answer
 
-    def lock_in_phase(self, *degree):
+    def power_supply_current(self, *current):
         if test_flag != 'test':
-            if len(degree) == 1:
-                degs = float(degree[0])
-                if degs >= -360000 and degs <= 360000:
-                    self.device_write('PHAS '+str(degs))
-                else:
-                    general.message("Incorrect phase")
-                    sys.exit()
-            elif len(degree) == 0:
-                answer = float(self.device_query('PHAS?'))
-                return answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
+            if len(current) == 2:
+                ch = str(current[0])
+                temp = current[1].split(" ")
+                curr = float(temp[0])
+                scaling = temp[1]
 
-        elif test_flag == 'test':
-            if len(degree) == 1:
-                degs = float(degree[0])
-                assert(degs >= -360000 and degs <= 360000), "Incorrect phase is reached"
-            elif len(degree) == 0:
-                answer = test_phase
-                return answer
-
-    def lock_in_time_constant(self, *timeconstant):
-        if test_flag != 'test':
-            if  len(timeconstant) == 1:
-                temp = timeconstant[0].split(' ')
-                if float(temp[0]) > 30 and temp[1] == 'ks':
-                    general.message("Desired sensitivity cannot be set, the nearest available value is used")
-                    self.device_write("OFLT "+ str(21))
-                else:
-                    number_tc = min(helper_tc_list, key=lambda x: abs(x - int(temp[0])))
-                    if int(number_tc) == 1000 and temp[1] == 'us':
-                        number_tc = 1
-                        temp[1] = 'ms'
-                    elif int(number_tc) == 1000 and temp[1] == 'ms':
-                        number_tc = 1
-                        temp[1] = 's'
-                    elif int(number_tc) == 1000 and temp[1] == 's':
-                        number_tc = 1
-                        temp[1] = 'ks'
-                    if int(number_tc) != int(temp[0]):
-                        general.message("Desired time constant cannot be set, the nearest available value is used")
-                    tc = str(number_tc) + ' ' + temp[1]
-                    if tc in timeconstant_dict:
-                        flag = timeconstant_dict[tc]
-                        self.device_write("OFLT "+ str(flag))
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag <= channels:
+                        curr_max = current_max_dict[ch]
+                        if scaling in current_dict:
+                            coef = current_dict[scaling]
+                            if curr/coef >= current_min and curr/coef <= curr_max:
+                                self.device_write(':SOURce' + str(flag) + ':CURRent' + str(curr/coef))
+                            else:
+                                general.message("Incorrect current range")
+                                sys.exit()
+                        else:
+                            general.message("Incorrect current scaling")
+                            sys.exit()
                     else:
-                        general.message("Invalid time constant value (too high/too low)")
+                        general.message("Invalid channel")
                         sys.exit()
-            elif len(timeconstant) == 0:
-                raw_answer = int(self.device_query("OFLT?"))
-                answer = cutil.search_keys_dictionary(timeconstant_dict, raw_answer)
-                return answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
-
-        elif test_flag == 'test':
-            if  len(timeconstant) == 1:
-                temp = timeconstant[0].split(' ')
-                if float(temp[0]) > 30 and temp[1] == 'ks':
-                    tc = '30 ks'
                 else:
-                    number_tc = min(helper_tc_list, key=lambda x: abs(x - int(temp[0])))
-                    if int(number_tc) == 1000 and temp[1] == 'us':
-                        number_tc = 1
-                        temp[1] = 'ms'
-                    elif int(number_tc) == 1000 and temp[1] == 'ms':
-                        number_tc = 1
-                        temp[1] = 's'
-                    elif int(number_tc) == 1000 and temp[1] == 's':
-                        number_tc = 1
-                        temp[1] = 'ks'
-                    tc = str(number_tc) + ' ' + temp[1]
-                    if tc in timeconstant_dict:
-                        pass
-                    else:
-                        assert(1 == 2), "Incorrect time constant is used"
-            elif len(timeconstant) == 0:
-                answer = test_timeconstant
-                return answer
-
-    def lock_in_ref_amplitude(self, *amplitude):
-        if test_flag != 'test':
-            if len(amplitude) == 1:
-                ampl = float(amplitude[0]);
-                if ampl <= ref_ampl_max and ampl >= ref_ampl_min:
-                    self.device_write('SLVL '+ str(ampl))
-                else:
-                    self.device_write('SLVL '+ str(ref_ampl_min))
-                    general.message("Invalid Argument")
+                    general.message("Invalid channel")
                     sys.exit()
-            elif len(amplitude) == 0:
-                answer = float(self.device_query("SLVL?"))
-                return answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
 
-        elif test_flag == 'test':
-            if len(amplitude) == 1:
-                ampl = float(amplitude[0]);
-                assert(ampl <= ref_ampl_max and ampl >= ref_ampl_min), "Incorrect amplitude is reached"
-            elif len(amplitude) == 0:
-                answer = test_amplitude
-                return answer
-
-    def lock_in_get_data(self, *channel):
-        if test_flag != 'test':
-            if len(channel) == 0:
-                answer = float(self.device_query('OUTP? 0'))
-                return answer
-            elif len(channel) == 1 and int(channel[0]) == 1:
-                answer = float(self.device_query('OUTP? 0'))
-                return answer
-            elif len(channel) == 1 and int(channel[0]) == 2:
-                answer = float(self.device_query('OUTP? 1'))
-                return answer
-            elif len(channel) == 1 and int(channel[0]) == 3:
-                answer = float(self.device_query('OUTP? 2'))
-                return answer
-            elif len(channel) == 1 and int(channel[0]) == 4:
-                answer = float(self.device_query('OUTP? 3'))
-                return answer
-            elif len(channel) == 2 and int(channel[0]) == 1 and int(channel[1]) == 2:
-                answer_string = self.device_query('SNAP? 0,1')
-                answer_list = answer_string.split(',')
-                list_of_floats = [float(item) for item in answer_list]
-                x = list_of_floats[0]
-                y = list_of_floats[1]
-                return x, y
-            elif len(channel) == 3 and int(channel[0]) == 1 and int(channel[1]) == 2 and int(channel[2]) == 3:
-                answer_string = self.device_query('SNAP? 0,1,2')
-                answer_list = answer_string.split(',')
-                list_of_floats = [float(item) for item in answer_list]
-                x = list_of_floats[0]
-                y = list_of_floats[1]
-                r = list_of_floats[2]
-                return x, y, r
-        elif test_flag == 'test':
-            if len(channel) == 0:
-                answer = test_signal
-                return answer
-            elif len(channel) == 1 
-                assert(int(channel[0]) == 1 or int(channel[0]) == 2 or \
-                    int(channel[0]) == 3 or int(channel[0]) == 4), 'Invalid channel is given'
-                answer = test_signal
-                return answer
-            elif len(channel) == 2 and int(channel[0]) == 1 and int(channel[1]) == 2:
-                x = y = test_signal
-                return x, y
-            elif len(channel) == 3 and int(channel[0]) == 1 and int(channel[1]) == 2 and int(channel[2]) == 3:
-                x = y = r = test_signal
-                return x, y, r
-
-    def lock_in_sensitivity(self, *sensitivity):
-        if test_flag != 'test':
-            if len(sensitivity) == 1:
-                temp = sensitivity[0].split(' ')
-                if float(temp[0]) > 1 and temp[1] == 'V':
-                    general.message("Desired sensitivity cannot be set, the nearest available value is used")
-                    self.device_write("SCAL "+ str(0))
-                else:
-                    number_sens = min(helper_sens_list, key=lambda x: abs(x - int(temp[0])))
-                    if int(number_sens) == 1000 and temp[1] == 'nV':
-                        number_sens = 1
-                        temp[1] = 'uV'
-                    elif int(number_sens) == 1000 and temp[1] == 'uV':
-                        number_sens = 1
-                        temp[1] = 'mV'
-                    elif int(number_sens) == 1000 and temp[1] == 'mV':
-                        number_sens = 1
-                        temp[1] = 'V'
-                    sens = str(number_sens) + ' ' + temp[1]
-                    if int(number_sens) != int(temp[0]):
-                        general.message("Desired sensitivity cannot be set, the nearest available value is used")
-                    if sens in sensitivity_dict:
-                        flag = sensitivity_dict[sens]
-                        self.device_write("SCAL "+ str(flag))
+            elif len(current) == 1:
+                ch = str(current[0])
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag <= channels:
+                        answer = float(self.device_query(':SOURce' + str(flag) + ':CURRent?'))
+                        return answer
                     else:
-                        general.message("Invalid sensitivity value (too high/too low)")
+                        general.message("Invalid channel")
                         sys.exit()
-            elif len(sensitivity) == 0:
-                raw_answer = int(self.device_query("SCAL?"))
-                answer = cutil.search_keys_dictionary(sensitivity_dict, raw_answer)
-                return answer
+                else:
+                    general.message("Invalid channel")
+                    sys.exit()
             else:
-                general.message("Invalid Argument")
+                general.message("Invalid argument")
                 sys.exit()
 
         elif test_flag == 'test':
-            if  len(sensitivity) == 1:
-                temp = sensitivity[0].split(' ')
-                if float(temp[0]) > 1 and temp[1] == 'V':
-                    sens = '1 V'
-                else:
-                    number_sens = min(helper_sens_list, key=lambda x: abs(x - int(temp[0])))
-                    if int(number_sens) == 1000 and temp[1] == 'nV':
-                        number_sens = 1
-                        temp[1] = 'uV'
-                    elif int(number_sens) == 1000 and temp[1] == 'uV':
-                        number_sens = 1
-                        temp[1] = 'mV'
-                    elif int(number_sens) == 1000 and temp[1] == 'mV':
-                        number_sens = 1
-                        temp[1] = 'V'
-                    tc = str(number_sens) + ' ' + temp[1]
-                    if tc in sensitivity_dict:
-                        pass
+            if len(current) == 2:
+                ch = str(current[0])
+                temp = current[1].split(" ")
+                curr = float(temp[0])
+                scaling = temp[1]
+                assert(ch in channel_dict), 'Invalid channel argument'
+                flag = channel_dict[ch]
+                assert(flag <= channels), "Invalid channel"
+                assert(scaling in current_dict), 'Invalid scaling argument'
+                curr_max = current_max_dict[ch]
+                coef = current_dict[scaling]
+                assert(curr/coef >= current_min and curr/coef <= curr_max), "Incorrect current range"
+            elif len(current) == 1:
+                ch = str(current[0])
+                assert(ch in channel_dict), 'Invalid channel argument'
+                flag = channel_dict[ch]
+                assert(flag <= channels), "Invalid channel"
+                answer = test_current
+                return answer
+
+    def power_supply_overvoltage(self, *voltage):
+        if test_flag != 'test':
+            if len(voltage) == 2:
+                ch = str(voltage[0])
+                temp = voltage[1].split(" ")
+                vtg = float(temp[0])
+                scaling = temp[1]
+
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag <= channels:
+                        vtg_max = voltage_max_dict[ch]
+                        if scaling in voltage_dict:
+                            coef = voltage_dict[scaling]
+                            if vtg/coef >= voltage_min and vtg/coef <= vtg_max + 3:
+                                self.device_write(':SOURce' + str(flag) + ':VOLTage:PROTection' + str(vtg/coef))
+                            else:
+                                general.message("Incorrect overvoltage protection range")
+                                sys.exit()
+                        else:
+                            general.message("Incorrect overvoltage protection scaling")
+                            sys.exit()
                     else:
-                        assert(1 == 2), "Incorrect sensitivity is used"
-            elif len(sensitivity) == 0:
-                answer = test_sensitivity
-                return answer
-
-    def lock_in_ref_mode(self, *mode):
-        if test_flag != 'test':
-            if  len(mode) == 1:
-                md = str(mode[0])
-                if md in ref_mode_dict:
-                    flag = ref_mode_dict[md]
-                    self.device_write("RSRC "+ str(flag))
+                        general.message("Invalid channel")
+                        sys.exit()
                 else:
-                    general.message("Invalid mode")
+                    general.message("Invalid channel")
+                    sys.exit()    
+            
+            elif len(voltage) == 1:
+                ch = str(voltage[0])
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag <= channels:
+                        answer = float(self.device_query(':SOURce' + str(flag) + ':VOLTage:PROTection?'))
+                        return answer
+                    else:
+                        general.message("Invalid channel")
+                        sys.exit()
+                else:
+                    general.message("Invalid channel")
                     sys.exit()
-            elif len(mode) == 0:
-                raw_answer = int(self.device_query("RSRC?"))
-                answer = cutil.search_keys_dictionary(ref_mode_dict, raw_answer)
-                return answer
             else:
-                general.message("Invalid argumnet")
+                general.message("Invalid argument")
                 sys.exit()
 
         elif test_flag == 'test':
-            if len(mode) == 1:
-                md = str(mode[0])
-                if md in ref_mode_dict:
-                    pass
-                else:
-                    assert(1 == 2), "Incorrect ref mode is used"
-            elif len(mode) == 0:
-                answer = test_ref_mode
+            if len(voltage) == 2:
+                ch = str(voltage[0])
+                temp = voltage[1].split(" ")
+                vtg = float(temp[0])
+                scaling = temp[1]
+                assert(ch in channel_dict), 'Invalid channel argument'
+                flag = channel_dict[ch]
+                assert(flag <= channels), "Invalid channel"
+                assert(scaling in voltage_dict), 'Invalid scaling argument'
+                vtg_max = voltage_max_dict[ch]
+                coef = voltage_dict[scaling]
+                assert(vtg/coef >= voltage_min and vtg/coef <= vtg_max), "Incorrect overvoltage protection range"
+            elif len(voltage) == 1:
+                ch = str(voltage[0])
+                assert(ch in channel_dict), 'Invalid channel argument'
+                flag = channel_dict[ch]
+                assert(flag <= channels), "Invalid channel"
+                answer = test_voltage
                 return answer
 
-    def lock_in_ref_slope(self, *mode):
+    def power_supply_overcurrent(self, *current):
         if test_flag != 'test':
-            if len(mode) == 1:
-                md = str(mode[0])
-                if md in ref_slope_dict:
-                    flag = ref_slope_dict[md]
-                    self.device_write("RTRG "+ str(flag))
+            if len(current) == 2:
+                ch = str(current[0])
+                temp = current[1].split(" ")
+                curr = float(temp[0])
+                scaling = temp[1]
+
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag <= channels:
+                        curr_max = current_max_dict[ch]
+                        if scaling in current_dict:
+                            coef = current_dict[scaling]
+                            if curr/coef >= current_min and curr/coef <= curr_max + 0.3:
+                                self.device_write(':SOURce' + str(flag) + ':CURRent:PROTection' + str(curr/coef))
+                            else:
+                                general.message("Incorrect overcurrent protection range")
+                                sys.exit()                           
+                        else:
+                                general.message("Incorrect overcurrent protection scaling")
+                                sys.exit()
+                    else:
+                        general.message("Invalid channel")
+                        sys.exit()
                 else:
-                    general.message("Invalid mode")
+                    general.message("Invalid channel")
                     sys.exit()
-            elif len(mode) == 0:
-                raw_answer = int(self.device_query("RTRG?"))
-                answer = cutil.search_keys_dictionary(ref_slope_dict, raw_answer)
-                return answer
+
+            elif len(current) == 1:
+                ch = str(current[0])
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag <= channels:
+                        answer = float(self.device_query(':SOURce' + str(flag) + ':CURRent:PROTection?'))
+                        return answer
+                    else:
+                        general.message("Invalid channel")
+                        sys.exit()
+                else:
+                    general.message("Invalid channel")
+                    sys.exit()
             else:
-                general.message("Invalid argumnet")
+                general.message("Invalid argument")
                 sys.exit()
 
         elif test_flag == 'test':
-            if  len(mode) == 1:
-                md = str(mode[0])
-                if md in ref_slope_dict:
-                    pass
-                else:
-                    assert(1 == 2), "Incorrect ref slope is used"
-            elif len(mode) == 0:
-                answer = test_ref_slope
-                return answer             
-
-    def lock_in_sync_filter(self, *mode):
-        if test_flag != 'test':
-            if len(mode) == 1:
-                md = str(mode[0])
-                if md in sync_dict:
-                    flag = sync_dict[md]
-                    self.device_write("SYNC "+ str(flag))
-                else:
-                    general.message("Invalid argument")
-                    sys.exit()
-            elif len(mode) == 0:
-                raw_answer = int(self.device_query("SYNC?"))
-                answer = cutil.search_keys_dictionary(sync_dict, raw_answer)
+            if len(current) == 2:
+                ch = str(current[0])
+                temp = current[1].split(" ")
+                curr = float(temp[0])
+                scaling = temp[1]
+                assert(ch in channel_dict), 'Invalid channel argument'
+                flag = channel_dict[ch]
+                assert(flag <= channels), "Invalid channel"
+                assert(scaling in current_dict), 'Invalid overcurrent protection scaling'
+                curr_max = current_max_dict[ch]
+                coef = current_dict[scaling]
+                assert(curr/coef >= current_min and curr/coef <= curr_max), "Incorrect overcurrent protection range"
+            elif len(current) == 1:
+                ch = str(current[0])
+                assert(ch in channel_dict), 'Invalid channel argument'
+                flag = channel_dict[ch]
+                assert(flag <= channels), "Invalid channel"
+                answer = test_current
                 return answer
+
+    def power_supply_channel_state(self, *state):
+        if test_flag != 'test':
+            if len(state) == 2:
+                ch = str(state[0])
+                st = str(state[1])
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag <= channels:
+                        if st in state_dict:
+                            self.device_write(':OUTPut CH' + str(flag) + ',' + str(state_dict[st]))
+                        else:
+                            general.message("Invalid state argument")
+                            sys.exit()
+                    else:
+                        general.message("Invalid channel")
+                        sys.exit()
+                else:
+                    general.message("Invalid channel")
+                    sys.exit()
+
+            elif len(state) == 1:
+                ch = str(state[0])
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag <= channels:
+                        raw_answer = float(self.device_query(':OUTPut? CH' + str(flag)))
+                        answer = cutil.search_keys_dictionary(state_dict, raw_answer)
+                        return answer
+                    else:
+                        general.message("Invalid channel")
+                        sys.exit()
+                else:
+                    general.message("Invalid channel")
+                    sys.exit()
             else:
-                general.message("Invalid argumnet")
+                general.message("Invalid argument")
                 sys.exit()
 
         elif test_flag == 'test':
-            if len(mode) == 1:
-                md = str(mode[0])
-                if md in sync_dict:
-                    pass
-                else:
-                    assert(1 == 2), "Incorrect sync filter parameter"
-            elif len(mode) == 0:
-                answer = test_sync
-                return answer   
+            if len(state) == 2:
+                ch = str(state[0])
+                st = str(state[1])
+                assert(ch in channel_dict), 'Invalid channel argument'
+                flag = channel_dict[ch]
+                assert(flag <= channels), "Invalid channel"
+                assert(st in state_dict), 'Invalid state argument'
+            elif len(state) == 1:
+                ch = str(state[0])
+                assert(ch in channel_dict), 'Invalid channel argument'
+                flag = channel_dict[ch]
+                assert(flag <= channels), "Invalid channel"
+                answer = test_state
+                return answer        
 
-    def lock_in_lp_filter(self, *mode):
+    def power_supply_measure(self, channel):
         if test_flag != 'test':
-            if len(mode) == 1:
-                md = str(mode[0])
-                if md in lp_fil_dict:
-                    flag = lp_fil_dict[md]
-                    self.device_write("OFSL "+ str(flag))
+            ch = str(channel)
+            if ch in channel_dict:
+                flag = channel_dict[ch]
+                if flag <= channels:
+                    raw_answer = self.device_query(':MEASure:ALL? CH' + str(flag))
+                    return raw_answer
                 else:
-                    general.message("Invalid mode")
+                    general.message('Invalid channel')
                     sys.exit()
-            elif len(mode) == 0:
-                raw_answer = int(self.device_query("OFSL?"))
-                answer = cutil.search_keys_dictionary(lp_fil_dict, raw_answer)
-                return answer
             else:
-                general.message("Invalid argumnet")
+                general.message('Invalid channel')
                 sys.exit()
 
         elif test_flag == 'test':
-            if len(mode) == 1:
-                md = str(mode[0])
-                if md in lp_fil_dict:
-                    pass
-                else:
-                    assert(1 == 2), "Incorrect low pass filter is used"
-            elif len(mode) == 0:
-                answer = test_lp_filter
-                return answer   
+            ch = str(channel)
+            assert(ch in channel_dict), 'Invalid channel'
+            flag = channel_dict[ch]
+            assert(flag <= channels), 'Invalid channel'
+            answer = test_measure
+            return answer
 
-    def lock_in_harmonic(self, *harmonic):
+    def power_supply_set_preset(self, preset):
         if test_flag != 'test':
-            if len(harmonic) == 1:
-                harm = int(harmonic[0]);
-                if harm <= harm_max and harm >= harm_min:
-                    self.device_write('HARM '+ str(harm))
-                else:
-                    self.device_write('HARM '+ str(harm_min))
-                    general.message("Invalid Argument")
-                    sys.exit()
-            elif len(harmonic) == 0:
-                answer = int(self.device_query("HARM?"))
-                return answer
+            prst = str(preset)
+            if prst in preset_dict:
+                flag = preset_dict[prst]
+                self.device_write(':PRESet:KEY ' + str(flag))
+                self.device_write(':PRESet:APPLy')
             else:
-                general.message("Invalid Argument")
+                general.message('Invalid preset argument')
                 sys.exit()
 
         elif test_flag == 'test':
-            if len(harmonic) == 1:
-                harm = float(harmonic[0])
-                assert(harm <= harm_max and harm >= harm_min), "Incorrect harmonic is reached"
-            elif len(harmonic) == 0:
-                answer = test_harmonic
-                return answer
+            prst = str(preset)
+            assert(prst in preset_dict), 'Invalid preset argument'
 
-    def lock_in_command(self, command):
+    def power_supply_command(self, command):
         if test_flag != 'test':
             self.device_write(command)
         elif test_flag == 'test':
             pass
 
-    def lock_in_query(self, command):
+    def power_supply_query(self, command):
         if test_flag != 'test':
             answer = self.device_query(command)
             return answer
@@ -601,4 +523,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

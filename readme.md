@@ -131,10 +131,13 @@ On Windows 10 one should use:
 	- Keysight Frequency Counter (GPIB, RS-232, Ethernet)
 	53230A/220A (untested).
 
-#### Magnetic Field Controller
+#### Magnetic Field Controllers
 	- Bruker BH15 (GPIB); Tested 01/2021
-	- Bruker ER032M (GPIB); available via BH15 module
+	- Bruker ER032M (GPIB); Available via BH15 module
 	- Bruker ER031M (RS-232 using arduino emulated keyboard) tested
+
+#### Power Supplies
+	- Rigol DP800 Series (RS-232, Ethernet); untested
 
 #### Balances
 	- CPWplus 150 (RS-232); Tested 01/2021
@@ -269,6 +272,19 @@ magnet_sweep_down()
 magnet_reset_field()
 magnet_field_step_size(*step)
 magnet_command(command)
+```
+### [Power supplies](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/power_supply_functions.md)
+```python3
+power_supply_name()
+power_supply_voltage(*voltage)
+power_supply_current(*current)
+power_supply_overvoltage(*voltage)
+power_supply_overcurrent(*current)
+power_supply_channel_state(*state)
+power_supply_measure(channel)
+power_supply_preset(preset)
+power_supply_command(command)
+power_supply_query(command)
 ```
 ### [Balances](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)
 ```python3

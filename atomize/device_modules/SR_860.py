@@ -369,7 +369,7 @@ class SR_860:
             if len(channel) == 0:
                 answer = test_signal
                 return answer
-            elif len(channel) == 1 
+            elif len(channel) == 1:
                 assert(int(channel[0]) == 1 or int(channel[0]) == 2 or \
                     int(channel[0]) == 3 or int(channel[0]) == 4), 'Invalid channel is given'
                 answer = test_signal
