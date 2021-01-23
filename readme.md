@@ -9,7 +9,11 @@ Atomize uses [liveplot library](https://github.com/PhilReinhold/liveplot) based 
 [Python Programming Language](https://www.python.org/) is used inside experimental scripts, which opens up almost unlimited possibilities for raw experimental data treatment. In addition, with PyQt, one can create experimental scripts with a simple graphical interface, allowing users not familiar with Python to use it. Several examples of scripts (with dummy data) are provided in /atomize/tests/ directory, including a GUI script with extended comments inside.<br/>
 At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and Windows 10.
 
+If you would like to write a module for the device that is not currently available, please, read this [instruction.](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/wtiting_modules.md)
+
 ### Status: in development; device testing
+
+### [Documentations](https://github.com/Anatoly1010/Atomize/tree/master/atomize/documentation)
 
 ## Requirements
 - [Python (tested with 3.6+)](https://www.python.org/)
@@ -61,8 +65,7 @@ general.plot_1d(arguments)
 3. Using device modules
 
 To communicate with a device one should:
-1) modify the config file (/atomize/device_modules/config/) of the desired device accordingly.
-Usually you need to specify the interface type and interface settings.
+1) modify the config file (/atomize/device_modules/config/) of the desired device accordingly. Choose the desired protocol (rs-232, gpib, ethernet) and correct the settings of the specified protocol in accordance with device settings. A little bit more detailed information about protocol settings can be found [here.](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md)
 2) import the module or modules in your script and initialize the appropriate class. A class always
 has the same name as the module file. Initialization connect the desired device, if the settings are correct.
 ```python
