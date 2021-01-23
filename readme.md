@@ -9,11 +9,11 @@ Atomize uses [liveplot library](https://github.com/PhilReinhold/liveplot) based 
 [Python Programming Language](https://www.python.org/) is used inside experimental scripts, which opens up almost unlimited possibilities for raw experimental data treatment. In addition, with PyQt, one can create experimental scripts with a simple graphical interface, allowing users not familiar with Python to use it. Several examples of scripts (with dummy data) are provided in /atomize/tests/ directory, including a GUI script with extended comments inside.<br/>
 At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and Windows 10.
 
-If you would like to write a module for the device that is not currently available, please, read this [instruction.](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/wtiting_modules.md)
+If you would like to write a module for the device that is not currently available, please, read this [instruction.](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/writing_modules.md)
+
+Detailed documentation can be found [here](https://github.com/Anatoly1010/Atomize/tree/master/atomize/documentation)
 
 ### Status: in development; device testing
-
-### [Documentations](https://github.com/Anatoly1010/Atomize/tree/master/atomize/documentation)
 
 ## Requirements
 - [Python (tested with 3.6+)](https://www.python.org/)
