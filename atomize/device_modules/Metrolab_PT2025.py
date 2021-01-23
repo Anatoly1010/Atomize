@@ -16,6 +16,7 @@ path_config_file = os.path.join(path_current_directory, 'config','Metrolab_PT202
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
+specific_parameters = cutil.read_specific_parameters(path_config_file)
 
 # Ramges and limits
 

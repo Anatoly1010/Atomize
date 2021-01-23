@@ -19,6 +19,7 @@ path_config_file = os.path.join(path_current_directory, 'config','ITC_503_config
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
+specific_parameters = cutil.read_specific_parameters(path_config_file)
 
 # auxilary dictionaries
 state_dict = {'Manual-Manual': 0, 'Auto-Manual': 1, 'Manual-Auto': 2, 'Auto-Auto': 3,}
@@ -26,6 +27,7 @@ sensor_list = [1, 2, 3]
 lock_dict = {'Local-Locked': 'C0', 'Remote-Locked': 'C1', 'Local-Unlocked': 'C2', 'Remote-Unlocked': 'C3',}
 
 # Ranges and limits
+config_channels = int(specific_parameters['channels'])
 temperature_max = 320
 temperature_min = 0.3
 power_percent_min = 0
@@ -152,35 +154,42 @@ class ITC_503:
             channel = str(channel)
             # If the first character is a '+' or '-' the sensor is returning
             # temperatures in degree Celsius, otherwise in Kelvin
-            if channel == '1':
-                raw_answer = str(self.device_query('R1')[1:])
-                if raw_answer[0] == '+' or raw_answer[0] == '-':
-                    answer = float(raw_answer) + 273.16 # convert to Kelvin
+            if config_channels >= int(channel):
+                if channel == '1':
+                    raw_answer = str(self.device_query('R1')[1:])
+                    if raw_answer[0] == '+' or raw_answer[0] == '-':
+                        answer = float(raw_answer) + 273.16 # convert to Kelvin
+                    else:
+                        answer = float(raw_answer)
+                        return answer
+                elif channel == '2':
+                    raw_answer = str(self.device_query('R2')[1:])
+                    if raw_answer[0] == '+' or raw_answer[0] == '-':
+                        answer = float(raw_answer) + 273.16 # convert to Kelvin
+                    else:
+                        answer = float(raw_answer)
+                        return answer
+                elif channel == '3':
+                    raw_answer = str(self.device_query('R3')[1:])
+                    if raw_answer[0] == '+' or raw_answer[0] == '-':
+                        answer = float(raw_answer) + 273.16 # convert to Kelvin
+                    else:
+                        answer = float(raw_answer)
+                        return answer
                 else:
-                    answer = float(raw_answer)
-                    return answer
-            elif channel == '2':
-                raw_answer = str(self.device_query('R2')[1:])
-                if raw_answer[0] == '+' or raw_answer[0] == '-':
-                    answer = float(raw_answer) + 273.16 # convert to Kelvin
-                else:
-                    answer = float(raw_answer)
-                    return answer
-            elif channel == '3':
-                raw_answer = str(self.device_query('R3')[1:])
-                if raw_answer[0] == '+' or raw_answer[0] == '-':
-                    answer = float(raw_answer) + 273.16 # convert to Kelvin
-                else:
-                    answer = float(raw_answer)
-                    return answer
+                    general.message("Invalid channel")
+                    sys.exit()
             else:
-                general.message("Invalid argument")
+                general.message("Invalid channel")
                 sys.exit()
         
         elif test_flag == 'test':
-            assert(channel == '1' or channel == '2' or channel == '3'), "Incorrect channel"
-            answer = test_temperature
-            return answer
+            if config_channels >= int(channel):
+                assert(channel == '1' or channel == '2' or channel == '3'), "Incorrect channel"
+                answer = test_temperature
+                return answer
+            else:
+                assert(1 == 2), "Incorrect channel"
 
     def tc_setpoint(self, *temp):
         if test_flag != 'test':
@@ -302,7 +311,7 @@ class ITC_503:
         if test_flag != 'test':
             if len(sensor) == 1:
                 sens = int(sensor[0])
-                if sens in sensor_list:
+                if sens in sensor_list and config_channels >= int(channel):
                     self.device_query('H' + str(sens))
                 else:
                     general.message('Invalid sensor')
@@ -320,6 +329,7 @@ class ITC_503:
             if len(sensor) == 1:
                 sens = int(sensor[0])
                 assert(sens in sensor_list), 'Invalid sensor argument'
+                assert(config_channels >= int(channel)), 'Invalid sensor argument'
             elif len(sensor) == 0:
                 answer = test_sensor
                 return answer

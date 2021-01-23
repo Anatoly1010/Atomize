@@ -15,8 +15,12 @@ path_config_file = os.path.join(path_current_directory, 'config','Tektronix_4032
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
+specific_parameters = cutil.read_specific_parameters(path_config_file)
 
 # auxilary dictionaries
+channel_dict = {'CH1': 'CH1', 'CH2': 'CH2', 'CH3': 'CH3', 'CH4': 'CH4',}
+trigger_channel_dict = {'CH1': 'CH1', 'CH2': 'CH2', 'CH3': 'CH3', 'CH4': 'CH4', \
+                        'Ext': 'EXTernal', 'Line': 'LINE',}
 number_averag_list = [2, 4, 8, 16, 32, 64, 128, 256, 512]
 points_list = [1000, 10000, 100000, 1000000, 10000000];
 timebase_dict = {'s': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000,};
@@ -25,8 +29,8 @@ scale_dict = {'V': 1, 'mV': 1000,};
 ac_type_dic = {'Norm': "SAMple", 'Ave': "AVErage", 'Hres': "HIRes",'Peak': "PEAKdetect"}
 
 # Ranges and limits
-sensitivity_min = 0.001
-sensitivity_max = 5
+sensitivity_min = float(specific_parameters['sensitivity_min'])
+sensitivity_max = float(specific_parameters['sensitivity_max'])
 
 # Test run parameters
 # These values are returned by the modules in the test run 
@@ -43,6 +47,7 @@ test_acquisition_type = 'Norm'
 test_num_aver = 2
 test_timebase = '100 ms'
 test_h_offset = '10 ms'
+test_sensitivity = 0.1
 test_coupling = 'AC'
 test_tr_mode = 'Normal'
 test_tr_channel = 'CH1'
@@ -349,28 +354,29 @@ class Tektronix_4000_Series:
 
     def oscilloscope_preamble(self, channel):
         if test_flag != 'test':
-            if channel == 'CH1':
-                self.device_write('DATa:SOUrce CH1')
-                preamble = self.device_query("WFMOutpre?")
-            elif channel == 'CH2':
-                self.device_write('DATa:SOUrce CH2')
-                preamble = self.device_query("WFMOutpre?")
-            elif channel == 'CH3':
-                self.device_write('DATa:SOUrce CH3')
-                preamble = self.device_query("WFMOutpre?")
-            elif channel == 'CH4':
-                self.device_write('DATa:SOUrce CH4')
-                preamble = self.device_query("WFMOutpre?")
+            ch = str(channel)
+            if ch in channel_dict:
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                    self.device_write('DATa:SOUrce ' + str(flag))
+                    preamble = self.device_query("WFMOutpre?")
+                    return preamble
+                else:
+                    general.message("Invalid channel is given")
+                    sys.exit()
             else:
                 general.message("Invalid channel is given")
                 sys.exit()
-            return preamble
 
         elif test_flag == 'test':
-            assert(channel == 'CH1' or channel == 'CH2' or channel == 'CH3'\
-             or channel == 'CH4'), 'Invalid channel is given'
-            preamble = np.arange(21)
-            return preamble
+            ch = str(channel)
+            assert(ch in channel_dict), 'Invalid channel is given'
+            flag = channel_dict[ch]
+            if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                assert(1 == 2), 'Invalid channel is given'
+            else:
+                preamble = np.arange(21)
+                return preamble
 
     def oscilloscope_stop(self):
         if test_flag != 'test':
@@ -386,40 +392,43 @@ class Tektronix_4000_Series:
 
     def oscilloscope_get_curve(self, channel):
         if test_flag != 'test':
-            if channel == 'CH1':
-                self.device_write('DATa:SOUrce CH1')
-            elif channel == 'CH2':
-                self.device_write('DATa:SOUrce CH2')
-            elif channel == 'CH3':
-                self.device_write('DATa:SOUrce CH3')
-            elif channel == 'CH4':
-                self.device_write('DATa:SOUrce CH4')
-            else:
-                general.message("Invalid channel is given")
-                sys.exit()
-                
-            self.device_write('DATa:ENCdg RIBinary')
+            ch = str(channel)
+            if ch in channel_dict:
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                    self.device_write('DATa:SOUrce ' + str(flag))
+                    self.device_write('DATa:ENCdg RIBinary')
 
-            array_y = self.device_read_binary('CURVe?')
-            #x_orig=float(self.device_query("WFMOutpre:XZEro?"))
-            #x_inc=float(self.device_query("WFMOutpre:XINcr?"))
-            #general.message(preamble)
-            y_ref = float(self.device_query("WFMOutpre:YOFf?"))
-            y_inc = float(self.device_query("WFMOutpre:YMUlt?"))
-            y_orig = float(self.device_query("WFMOutpre:YZEro?"))
-            #general.message(y_inc)
-            #general.message(y_orig)
-            #general.message(y_ref)
-            array_y = (array_y - y_ref)*y_inc + y_orig
-            #array_x= list(map(lambda x: x_inc*(x+1) + x_orig, list(range(len(array_y)))))
-            #final_data = np.asarray(list(zip(array_x,array_y)))
-            return array_y
+                    array_y = self.device_read_binary('CURVe?')
+                    #x_orig=float(self.device_query("WFMOutpre:XZEro?"))
+                    #x_inc=float(self.device_query("WFMOutpre:XINcr?"))
+                    #general.message(preamble)
+                    y_ref = float(self.device_query("WFMOutpre:YOFf?"))
+                    y_inc = float(self.device_query("WFMOutpre:YMUlt?"))
+                    y_orig = float(self.device_query("WFMOutpre:YZEro?"))
+                    #general.message(y_inc)
+                    #general.message(y_orig)
+                    #general.message(y_ref)
+                    array_y = (array_y - y_ref)*y_inc + y_orig
+                    #array_x= list(map(lambda x: x_inc*(x+1) + x_orig, list(range(len(array_y)))))
+                    #final_data = np.asarray(list(zip(array_x,array_y)))
+                    return array_y
+                else:
+                    general.message('Invalid channel')
+                    sys.exit()
+            else:
+                general.message('Invalid channel')
+                sys.exit()            
 
         elif test_flag == 'test':
-            assert(channel == 'CH1' or channel == 'CH2' or channel == 'CH3'\
-             or channel == 'CH4'), 'Invalid channel is given'
-            array_y = np.arange(test_stop - test_start + 1)
-            return array_y
+            ch = str(channel)
+            assert(ch in channel_dict), 'Invalid channel is given'
+            flag = channel_dict[ch]
+            if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                assert(1 == 2), 'Invalid channel is given'
+            else:
+                array_y = np.arange(test_stop - test_start + 1)
+                return array_y
 
     def oscilloscope_sensitivity(self, *channel):
         if test_flag != 'test':
@@ -431,16 +440,15 @@ class Tektronix_4000_Series:
                 if scaling in scale_dict:
                     coef = scale_dict[scaling]
                     if val/coef >= sensitivity_min and val/coef <= sensitivity_max:
-                        if ch == 'CH1':
-                            self.device_write("CH1:SCAle " + str(val/coef))
-                        elif ch == 'CH2':
-                            self.device_write("CH2:SCAle " + str(val/coef))
-                        elif ch == 'CH3':
-                            self.device_write("CH3:SCAle " + str(val/coef))
-                        elif ch == 'CH4':
-                            self.device_write("CH4:SCAle " + str(val/coef))
+                        if ch in channel_dict:
+                            flag = channel_dict[ch]
+                            if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                                self.device_write(str(flag) + ':SCAle ' + str(val/coef))
+                            else:
+                                general.message("Invalid channel is given")
+                                sys.exit()
                         else:
-                            general.message("Incorrect channel is given")
+                            general.message("Invalid channel is given")
                             sys.exit()
                     else:
                         general.message("Incorrect sensitivity range")
@@ -448,20 +456,17 @@ class Tektronix_4000_Series:
                 else:
                     general.message("Incorrect scaling factor")
                     sys.exit()
+
             elif len(channel) == 1:
                 ch = str(channel[0])
-                if ch == 'CH1':
-                    answer = float(self.device_query("CH1:SCAle?"))*1000
-                    return answer
-                elif ch == 'CH2':
-                    answer = float(self.device_query("CH2:SCAle?"))*1000
-                    return answer
-                elif ch == 'CH3':
-                    answer = float(self.device_query("CH3:SCAle?"))*1000
-                    return answer
-                elif ch == 'CH4':
-                    answer = float(self.device_query("CH4:SCAle?"))*1000
-                    return answer
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        answer = float(self.device_query(str(flag) + ':SCAle?'))*1000
+                        return answer
+                    else:
+                        general.message("Invalid channel is given")
+                        sys.exit()
                 else:
                     general.message("Incorrect channel is given")
                     sys.exit()
@@ -478,15 +483,24 @@ class Tektronix_4000_Series:
                 if scaling in scale_dict:
                     coef = scale_dict[scaling]
                     assert(val/coef >= sensitivity_min and val/coef <= \
-                        sensitivity_max), "Incorrect sensitivity range"                    
-                    assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid channel is given'
+                        sensitivity_max), "Incorrect sensitivity range"
+                    assert(ch in channel_dict), 'Invalid channel is given'
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                        assert(1 == 2), 'Invalid channel is given'
+                    else:
+                        pass
                 else:
                     assert(1 == 2), "Incorrect sensitivity argument"
             elif len(channel) == 1:
                 ch = str(channel[0])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid channel is given'
+                assert(ch in channel_dict), 'Invalid channel is given'
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid channel is given'
+                else:
+                    answer = test_sensitivity
+                    return answer
             else:
                 assert(1 == 2), "Incorrect sensitivity argument"
 
@@ -499,34 +513,30 @@ class Tektronix_4000_Series:
                 scaling = str(temp[1]);
                 if scaling in scale_dict:
                     coef = scale_dict[scaling]
-                    if ch == 'CH1':
-                        self.device_write("CH1:OFFSet " + str(val/coef))
-                    elif ch == 'CH2':
-                        self.device_write("CH2:OFFSet " + str(val/coef))
-                    elif ch == 'CH3':
-                        self.device_write("CH3:OFFSet " + str(val/coef))
-                    elif ch == 'CH4':
-                        self.device_write("CH4:OFFSet " + str(val/coef))
+                    if ch in channel_dict:
+                        flag = channel_dict[ch]
+                        if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                            self.device_write(str(flag) + ':OFFSet ' + str(val/coef))
+                        else:
+                            general.message("Invalid channel is given")
+                            sys.exit()
                     else:
-                        general.message("Incorrect channel is given")
+                        general.message("Invalid channel is given")
                         sys.exit()
                 else:
                     general.message("Incorrect scaling factor")
                     sys.exit()
+
             elif len(channel) == 1:
                 ch = str(channel[0])
-                if ch == 'CH1':
-                    answer = float(self.device_query("CH1:OFFSet?"))*1000
-                    return answer
-                elif ch == 'CH2':
-                    answer = float(self.device_query("CH2:OFFSet?"))*1000
-                    return answer
-                elif ch == 'CH3':
-                    answer = float(self.device_query("CH3:OFFSet?"))*1000
-                    return answer
-                elif ch == 'CH4':
-                    answer = float(self.device_query("CH4:OFFSet?"))*1000
-                    return answer
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        answer = float(self.device_query(str(flag) + ':OFFSet?'))*1000
+                        return answer
+                    else:
+                        general.message("Invalid channel is given")
+                        sys.exit()
                 else:
                     general.message("Incorrect channel is given")
                     sys.exit()
@@ -542,14 +552,23 @@ class Tektronix_4000_Series:
                 scaling = str(temp[1])
                 if scaling in scale_dict:
                     coef = scale_dict[scaling]
-                    assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid channel is given'
+                    assert(ch in channel_dict), 'Invalid channel is given'
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                        assert(1 == 2), 'Invalid channel is given'
+                    else:
+                        pass
                 else:
                     assert(1 == 2), "Incorrect offset argument"
             elif len(channel) == 1:
                 ch = str(channel[0])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid channel is given'
+                assert(ch in channel_dict), 'Invalid channel is given'
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid channel is given'
+                else:
+                    answer = test_sensitivity
+                    return answer
             else:
                 assert(1 == 2), "Incorrect offset argument"
 
@@ -592,31 +611,27 @@ class Tektronix_4000_Series:
             if len(coupling) == 2:
                 ch = str(coupling[0])
                 cpl = str(coupling[1])
-                if ch == 'CH1':
-                    self.device_write("CH1:COUPling " + str(cpl))
-                elif ch == 'CH2':
-                    self.device_write("CH2:COUPling " + str(cpl))
-                elif ch == 'CH3':
-                    self.device_write("CH3:COUPling " + str(cpl))
-                elif ch == 'CH4':
-                    self.device_write("CH4:COUPling " + str(cpl))
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        self.device_write(str(flag) + ':COUPling ' + str(cpl))
+                    else:
+                        general.message("Invalid channel is given")
+                        sys.exit()
                 else:
-                    general.message("Incorrect channel is given")
+                    general.message("Invalid channel is given")
                     sys.exit()
+
             elif len(coupling) == 1:
                 ch = str(coupling[0])
-                if ch == 'CH1':
-                    answer = self.device_query("CH1:COUPling?")
-                    return answer
-                elif ch == 'CH2':
-                    answer = self.device_query("CH2:COUPling?")
-                    return answer
-                elif ch == 'CH3':
-                    answer = self.device_query("CH3:COUPling?")
-                    return answer
-                elif ch == 'CH4':
-                    answer = self.device_query("CH4:COUPling?")
-                    return answer
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        answer = self.device_query(str(flag) + ':COUPling?')
+                        return answer
+                    else:
+                        general.message("Invalid channel is given")
+                        sys.exit()
                 else:
                     general.message("Incorrect channel is given")
                     sys.exit()
@@ -628,17 +643,24 @@ class Tektronix_4000_Series:
             if len(coupling) == 2:
                 ch = str(coupling[0])
                 cpl = str(coupling[1])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid channel is given'
+                assert(ch in channel_dict), 'Invalid channel is given'
                 assert(cpl == 'AC' or cpl == 'DC'), 'Invalid coupling is given'
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid channel is given'
+                else:
+                    pass
             elif len(coupling) == 1:
                 ch = str(coupling[0])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid channel is given'
-                answer = test_coupling
-                return answer
+                assert(ch in channel_dict), 'Invalid channel is given'
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid channel is given'
+                else:
+                    answer = test_coupling
+                    return answer
             else:
-                asser(1 == 2), 'Invalid coupling argument'
+                assert(1 == 2), 'Invalid coupling argument'
 
     def oscilloscope_impedance(self, *impedance):
         if test_flag != 'test':
@@ -649,31 +671,28 @@ class Tektronix_4000_Series:
                     cpl = 'MEG'
                 elif cpl == '50':
                     cpl = 'FIFty'
-                if ch == 'CH1':
-                    self.device_write("CH1:TERmination " + str(cpl))
-                elif ch == 'CH2':
-                    self.device_write("CH2:TERmination " + str(cpl))
-                elif ch == 'CH3':
-                    self.device_write("CH3:TERmination " + str(cpl))
-                elif ch == 'CH4':
-                    self.device_write("CH4:TERmination " + str(cpl))
+
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        self.device_write(str(flag) + ':TERmination ' + str(cpl))
+                    else:
+                        general.message("Invalid channel is given")
+                        sys.exit()
                 else:
-                    general.message("Incorrect channel is given")
+                    general.message("Invalid channel is given")
                     sys.exit()
+
             elif len(impedance) == 1:
                 ch = str(impedance[0])
-                if ch == 'CH1':
-                    answer = self.device_query("CH1:TERmination?")
-                    return answer
-                elif ch == 'CH2':
-                    answer = self.device_query("CH2:TERmination?")
-                    return answer
-                elif ch == 'CH3':
-                    answer = self.device_query("CH3:TERmination?")
-                    return answer
-                elif ch == 'CH4':
-                    answer = self.device_query("CH4:TERmination?")
-                    return answer
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        answer = self.device_query(str(flag) + ':TERmination?')
+                        return answer
+                    else:
+                        general.message("Invalid channel is given")
+                        sys.exit()
                 else:
                     general.message("Incorrect channel is given")
                     sys.exit()
@@ -685,15 +704,22 @@ class Tektronix_4000_Series:
             if len(impedance) == 2:
                 ch = str(impedance[0])
                 cpl = str(impedance[1])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid channel is given'
+                assert(ch in channel_dict), 'Invalid channel is given'
                 assert(cpl == '1 M' or cpl == '50'), 'Invalid impedance is given'
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid channel is given'
+                else:
+                    pass
             elif len(impedance) == 1:
                 ch = str(impedance[0])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid channel is given'
-                answer = test_impedance
-                return answer
+                assert(ch in channel_dict), 'Invalid channel is given'
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid channel is given'
+                else:
+                    answer = test_impedance
+                    return answer
             else:
                 assert(1 == 2), 'Invalid impedance argument'
 
@@ -729,30 +755,35 @@ class Tektronix_4000_Series:
         if test_flag != 'test':    
             if len(channel) == 1:
                 ch = str(channel[0])
-                if ch == 'CH1':
-                    self.device_write("TRIGger:A:EDGE:SOUrce " + 'CH1')
-                elif ch == 'CH2':
-                    self.device_write("TRIGger:A:EDGE:SOUrce " + 'CH2')
-                elif ch == 'CH3':
-                    self.device_write("TRIGger:A:EDGE:SOUrce " + 'CH3')
-                elif ch == 'CH4':
-                    self.device_write("TRIGger:A:EDGE:SOUrce " + 'CH4')
-                elif ch == 'Line':
-                    self.device_write("TRIGger:A:EDGE:SOUrce " + 'LINE')
+                if ch in trigger_channel_dict:
+                    flag = trigger_channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        self.device_write("TRIGger:A:EDGE:SOUrce " + str(flag))
+                    elif flag[0] != 'C':
+                        self.device_write('TRIGger:A:EDGE:SOUrce ' + str(flag))
+                    else:
+                        general.message("Invalid trigger channel is given")
+                        sys.exit()
                 else:
-                    general.message("Incorrect trigger channel is given")
+                    general.message("Invalid trigger channel is given")
                     sys.exit()
+
             elif len(channel) == 0:
                 answer = self.device_query("TRIGger:A:EDGE:SOUrce?")
                 return answer
             else:
                 general.message("Invalid argument")
                 sys.exit()
+
         if test_flag == 'test':        
             if len(channel) == 1:
                 ch = str(channel[0])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4' or ch == 'Line'), 'Invalid trigger channel is given'
+                assert(ch in trigger_channel_dict), 'Invalid channel is given'
+                flag = trigger_channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid trigger channel is given'
+                else:
+                    pass
             elif len(channel) == 0:
                 answer = test_tr_channel
                 return answer
@@ -766,51 +797,56 @@ class Tektronix_4000_Series:
                 lvl = level[1]
                 if lvl != 'ECL' and lvl != 'TTL':
                     lvl = float(level[1])
-                if ch == 'CH1':
-                    self.device_write("TRIGger:A:LEVel:CH1"+str(lvl))
-                elif ch == 'CH2':
-                    self.device_write("TRIGger:A:LEVel:CH2 "+str(lvl))
-                elif ch == 'CH3':
-                    self.device_write("TRIGger:A:LEVel:CH3 "+str(lvl))
-                elif ch == 'CH4':
-                    self.device_write("TRIGger:A:LEVel:CH4 "+str(lvl))
+
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        self.device_write("TRIGger:A:LEVel:" + str(flag) + str(lvl))
+                    else:
+                        general.message("Invalid trigger channel is given")
+                        sys.exit()
                 else:
-                    general.message("Incorrect trigger channel is given")
+                    general.message("Invalid trigger channel is given")
                     sys.exit()
+
             elif len(level) == 1:
                 ch = str(level[0])
-                if ch == 'CH1':
-                    answer = float(self.device_query("TRIGger:A:LEVel:CH1?"))
-                    return answer
-                elif ch == 'CH2':
-                    answer = float(self.device_query("TRIGger:A:LEVel:CH2?"))
-                    return answer
-                elif ch == 'CH3':
-                    answer = float(self.device_query("TRIGger:A:LEVel:CH3?"))
-                    return answer
-                elif ch == 'CH4':
-                    answer = float(self.device_query("TRIGger:A:LEVel:CH4?"))
-                    return answer
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        answer = self.device_query('TRIGger:A:LEVel:' + str(flag) + '?')
+                        return answer
+                    else:
+                        general.message("Invalid channel is given")
+                        sys.exit()
                 else:
                     general.message("Incorrect channel is given")
                     sys.exit()
             else:
                 general.message("Invalid argument")
                 sys.exit()
+
         elif test_flag == 'test':
             if len(level) == 2:
                 ch = str(level[0])
                 lvl = level[1]
                 if lvl != 'ECL' and lvl != 'TTL':
                     lvl = float(level[1])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid trigger channel is given'
+                assert(ch in channel_dict), 'Invalid channel is given'
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid trigger channel is given'
+                else:
+                    pass
             elif len(level) == 1:
                 ch = str(level[0])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid trigger channel is given'
-                answer = test_trigger_level
-                return answer
+                assert(ch in channel_dict), 'Invalid trigger channel is given'
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid channel is given'
+                else:
+                    answer = test_trigger_level
+                    return answer
             else:
                 assert(1 == 2), "Invalid trigger level argument"
 

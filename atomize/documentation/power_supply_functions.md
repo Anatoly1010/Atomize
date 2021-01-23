@@ -43,24 +43,27 @@ The state argument should be 'On' or 'Off', which means that the output is enabl
 ```python3
 power_supply_measure(channel)
 Arguments: channel = string ('channel string' ['CH1','CH2','CH3']); Output: array of values.
-Example: power_supply_measure('CH1') queries the voltage, current and power measured on the output terminal of the channel 1.
+Example: power_supply_measure('CH1') queries the voltage, current and power measured on the output terminal of
+the channel 1.
 ```
-The function can be called only with one argument and queries the voltage, current and power measured on the output terminal of the specified channel. The functiob returns measured values in Volts, Ampers, Watts separeted by commas.<br/>
+The function can be called only with one argument and queries the voltage, current and power measured on the output terminal of the specified channel. The function returns measured values in Volts, Ampers, Watts separeted by commas.<br/>
 ```python3
 power_supply_preset(preset)
 Arguments: preset = string ('preset string' ['Default','User1','User2','User3']); Output: none.
 Example: power_supply_preset('User1') sets the preset settings with the name 'User1'.
 ```
-The function can be called only with one argument and allows restoring the instrument to the default setting ('Default' argument) or recall the user-defined setting ('User<n>' arguments).<br/>
+The function can be called only with one argument and allows restoring the instrument to the default setting ('Default' argument) or recall the user-defined setting ('UserN' arguments).<br/>
 ```python3
 power_supply_command(command)
 Arguments: command = string; Output: none.
-Example: power_supply_command(':APPL CH1,5,1'). This example sets the voltage and current of CH1 to 5V and 1A respectively.
+Example: power_supply_command(':APPL CH1,5,1'). This example sets the voltage and current of CH1
+to 5V and 1A, respectively.
 ```
 The function for sending an arbitrary command from a programming guide to the device in a string format. No output is expected.<br/>
 ```python3
 power_supply_query(command)
 Arguments: command = string; Output: string.
-Example: power_supply_query(':APPL? CH1'). This example queries the voltage and current setting values of CH1 and the query returns CH1:8V/5A,5.000,1.0000.
+Example: power_supply_query(':APPL? CH1'). This example queries the voltage and current setting values of CH1 
+and the query returns CH1:30V/5A,5.000,1.0000.
 ```
 The function for sending an arbitrary command from a programming guide to the device in a string format. An output in a string format is expected.<br/>

@@ -16,11 +16,15 @@ path_config_file = os.path.join(path_current_directory, 'config','Keysight_4000_
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
+specific_parameters = cutil.read_specific_parameters(path_config_file)
 
 # auxilary dictionaries
 points_list = [100, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000,\
                 2000000, 4000000, 8000000]
 # have to be checked
+channel_dict = {'CH1': 'CHAN1', 'CH2': 'CHAN2', 'CH3': 'CHAN3', 'CH4': 'CHAN4',}
+trigger_channel_dict = {'CH1': 'CHAN1', 'CH2': 'CHAN2', 'CH3': 'CHAN3', 'CH4': 'CHAN4', \
+                        'Ext': 'EXTernal', 'Line': 'LINE', 'WGen1': 'WGEN1', 'WGen2': 'WGEN2',}
 timebase_dict = {'s': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000,};
 scale_dict = {'V': 1, 'mV': 1000,};
 frequency_dict = {'MHz': 1000000, 'kHz': 1000, 'Hz': 1, 'mHz': 0.001,};
@@ -31,14 +35,15 @@ wavefunction_dic = {'Sin': 'SINusoid', 'Sq': 'SQUare', 'Ramp': 'RAMP', 'Pulse': 
 ac_type_dic = {'Norm': "NORMal", 'Ave': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
 
 # Limits and Ranges (depends on the exact model):
+analog_channels = int(specific_parameters['analog_channels'])
 numave_min = 2
 numave_max = 65536
-timebase_max = 50
-timebase_min = 0.0000000005
-sensitivity_min = 0.001
-sensitivity_max = 5
-wave_gen_freq_max = 5000000
-wave_gen_freq_min = 0.1
+timebase_max = float(specific_parameters['timebase_max'])
+timebase_min = float(specific_parameters['timebase_min'])
+sensitivity_min = float(specific_parameters['sensitivity_min'])
+sensitivity_max = float(specific_parameters['sensitivity_max'])
+wave_gen_freq_max = float(specific_parameters['wave_gen_freq_max'])
+wave_gen_freq_min = float(specific_parameters['wave_gen_freq_min'])
 
 # Test run parameters
 # These values are returned by the modules in the test run 
@@ -52,6 +57,8 @@ test_acquisition_type = 'Norm'
 test_num_aver = 2
 test_timebase = '100 ms'
 test_h_offset = '10 ms'
+test_sensitivity = 0.1
+test_offset = 0.1
 test_coupling = 'AC'
 test_impedance = 1000000
 test_tr_mode = 'Normal'
@@ -304,25 +311,29 @@ class Keysight_4000_Xseries:
 
     def oscilloscope_preamble(self, channel):
         if test_flag != 'test':
-            if channel == 'CH1':
-                self.device_write(':WAVeform:SOURce CHAN1')
-            elif channel == 'CH2':
-                self.device_write(':WAVeform:SOURce CHAN2')
-            elif channel == 'CH3':
-                self.device_write(':WAVeform:SOURce CHAN3')
-            elif channel == 'CH4':
-                self.device_write(':WAVeform:SOURce CHAN4')
+            ch = str(channel)
+            if ch in channel_dict:
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                    self.device_write(':WAVeform:SOURce ' + str(flag))
+                    preamble = self.device_query_ascii(":WAVeform:PREamble?")   
+                    return preamble
+                else:
+                    general.message("Invalid channel is given")
+                    sys.exit()
             else:
                 general.message("Invalid channel is given")
                 sys.exit()
-            preamble = self.device_query_ascii(":WAVeform:PREamble?")   
-            return preamble
 
         elif test_flag == 'test':
-            assert(channel == 'CH1' or channel == 'CH2' or channel == 'CH3'\
-             or channel == 'CH4'), 'Invalid channel is given'
-            preamble = np.arange(10)
-            return preamble
+            ch = str(channel)
+            assert(ch in channel_dict), 'Invalid channel is given'
+            flag = channel_dict[ch]
+            if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                assert(1 == 2), 'Invalid channel is given'
+            else:
+                preamble = np.arange(10)
+                return preamble
 
     def oscilloscope_stop(self):
         if test_flag != 'test':
@@ -346,37 +357,40 @@ class Keysight_4000_Xseries:
 
     def oscilloscope_get_curve(self, channel):
         if test_flag != 'test':
-            if channel == 'CH1':
-                self.device_write(':WAVeform:SOURce CHAN1')
-            elif channel == 'CH2':
-                self.device_write(':WAVeform:SOURce CHAN2')
-            elif channel == 'CH3':
-                self.device_write(':WAVeform:SOURce CHAN3')
-            elif channel == 'CH4':
-                self.device_write(':WAVeform:SOURce CHAN4')
+            ch = str(channel)
+            if ch in channel_dict:
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                    self.device_write(':WAVeform:SOURce ' + str(flag))
+                    array_y = self.device_read_binary(':WAVeform:DATA?')
+                    preamble = self.device_query_ascii(":WAVeform:PREamble?")
+                    #x_orig = preamble[5]
+                    y_inc = preamble[7]
+                    y_orig = preamble[8]
+                    y_ref = preamble[9]
+                    #print(y_inc)
+                    #print(y_orig)
+                    #print(y_ref)
+                    array_y = (array_y - y_ref)*y_inc + y_orig
+                    #array_x = list(map(lambda x: resolution*(x+1) + 1000000*x_orig, list(range(points))))
+                    #final_data = list(zip(array_x,array_y))
+                    return array_y
+                else:
+                    general.message("Invalid channel is given")
+                    sys.exit()
             else:
                 general.message("Invalid channel is given")
                 sys.exit()
-            
-            array_y = self.device_read_binary(':WAVeform:DATA?')
-            preamble = self.device_query_ascii(":WAVeform:PREamble?")
-            #x_orig = preamble[5]
-            y_inc = preamble[7]
-            y_orig = preamble[8]
-            y_ref = preamble[9]
-            #print(y_inc)
-            #print(y_orig)
-            #print(y_ref)
-            array_y = (array_y - y_ref)*y_inc + y_orig
-            #array_x = list(map(lambda x: resolution*(x+1) + 1000000*x_orig, list(range(points))))
-            #final_data = list(zip(array_x,array_y))
-            return array_y
 
         elif test_flag == 'test':
-            assert(channel == 'CH1' or channel == 'CH2' or channel == 'CH3'\
-             or channel == 'CH4'), 'Invalid channel is given'
-            array_y = np.arange(test_record_length)
-            return array_y
+            ch = str(channel)
+            assert(ch in channel_dict), 'Invalid channel is given'
+            flag = channel_dict[ch]
+            if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                assert(1 == 2), 'Invalid channel is given'
+            else:
+                array_y = np.arange(test_record_length)
+                return array_y
 
     def oscilloscope_sensitivity(self, *channel):
         if test_flag != 'test':
@@ -388,16 +402,15 @@ class Keysight_4000_Xseries:
                 if scaling in scale_dict:
                     coef = scale_dict[scaling]
                     if val/coef >= sensitivity_min and val/coef <= sensitivity_max:
-                        if ch == 'CH1':
-                            self.device_write(":CHAN1:SCALe " + str(val/coef))
-                        elif ch == 'CH2':
-                            self.device_write(":CHAN2:SCALe " + str(val/coef))
-                        elif ch == 'CH3':
-                            self.device_write(":CHAN3:SCALe " + str(val/coef))
-                        elif ch == 'CH4':
-                            self.device_write(":CHAN4:SCALe " + str(val/coef))
+                        if ch in channel_dict:
+                            flag = channel_dict[ch]
+                            if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                                self.device_write(':' + str(flag) + ':SCALe ' + str(val/coef))
+                            else:
+                                general.message("Invalid channel is given")
+                                sys.exit()
                         else:
-                            general.message("Incorrect channel is given")
+                            general.message("Invalid channel is given")
                             sys.exit()
                     else:
                         general.message("Incorrect sensitivity range")
@@ -405,20 +418,17 @@ class Keysight_4000_Xseries:
                 else:
                     general.message("Incorrect scaling factor")
                     sys.exit()
+
             elif len(channel) == 1:
                 ch = str(channel[0])
-                if ch == 'CH1':
-                    answer = float(self.device_query(":CHAN1:SCALe?"))*1000
-                    return answer
-                elif ch == 'CH2':
-                    answer = float(self.device_query(":CHAN2:SCALe?"))*1000
-                    return answer
-                elif ch == 'CH3':
-                    answer = float(self.device_query(":CHAN3:SCALe?"))*1000
-                    return answer
-                elif ch == 'CH4':
-                    answer = float(self.device_query(":CHAN4:SCALe?"))*1000
-                    return answer
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        answer = float(self.device_query(":" + str(flag) + ":SCALe?"))*1000
+                        return answer
+                    else:
+                        general.message("Incorrect channel is given")
+                        sys.exit()
                 else:
                     general.message("Incorrect channel is given")
                     sys.exit()
@@ -436,14 +446,21 @@ class Keysight_4000_Xseries:
                     coef = scale_dict[scaling]
                     assert(val/coef >= sensitivity_min and val/coef <= \
                         sensitivity_max), "Incorrect sensitivity range"
-                    assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid channel is given'
+                    assert(ch in channel_dict), 'Invalid channel is given'
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                        assert(1 == 2), 'Invalid channel is given'
                 else:
                     assert(1 == 2), "Incorrect sensitivity argument"
             elif len(channel) == 1:
                 ch = str(channel[0])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid channel is given'
+                assert(ch in channel_dict), 'Invalid channel is given'
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid channel is given'
+                else:
+                    answer = test_sensitivity*1000
+                    return answer
             else:
                 assert(1 == 2), "Incorrect sensitivity argument"
 
@@ -456,38 +473,33 @@ class Keysight_4000_Xseries:
                 scaling = str(temp[1]);
                 if scaling in scale_dict:
                     coef = scale_dict[scaling]
-                    if ch == 'CH1':
-                        self.device_write(":CHAN1:OFFSet " + str(val/coef))
-                    elif ch == 'CH2':
-                        self.device_write(":CHAN2:OFFSet " + str(val/coef))
-                    elif ch == 'CH3':
-                        self.device_write(":CHAN3:OFFSet " + str(val/coef))
-                    elif ch == 'CH4':
-                        self.device_write(":CHAN4:OFFSet " + str(val/coef))
+                    if ch in channel_dict:
+                        flag = channel_dict[ch]
+                        if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                            self.device_write(':' + str(flag) + ':OFFSet ' + str(val/coef))
+                        else:
+                            general.message("Invalid channel is given")
+                            sys.exit()
                     else:
                         general.message("Incorrect channel is given")
                         sys.exit()
                 else:
                     general.message("Incorrect scaling factor")
                     sys.exit()
+
             elif len(channel) == 1:
                 ch = str(channel[0])
-                if ch == 'CH1':
-                    answer = float(self.device_query(":CHAN1:OFFSet?"))*1000
-                    return answer
-                elif ch == 'CH2':
-                    answer = float(self.device_query(":CHAN2:OFFSet?"))*1000
-                    return answer
-                elif ch == 'CH3':
-                    answer = float(self.device_query(":CHAN3:OFFSet?"))*1000
-                    return answer
-                elif ch == 'CH4':
-                    answer = float(self.device_query(":CHAN4:OFFSet?"))*1000
-                    return answer
-                else:
-                    general.message("Incorrect channel is given")
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        answer = float(self.device_query(":" + str(flag) + ":OFFSet?"))*1000
+                        return answer
+                    else:
+                        general.message("Incorrect channel is given")
+                        sys.exit()
             else:
                 general.message("Invalid argument")
+                sys.exit()
 
         elif test_flag == 'test':
             if len(channel) == 2:
@@ -497,14 +509,21 @@ class Keysight_4000_Xseries:
                 scaling = str(temp[1])
                 if scaling in scale_dict:
                     coef = scale_dict[scaling]
-                    assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid channel is given'
+                    assert(ch in channel_dict), 'Invalid channel is given'
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                        assert(1 == 2), 'Invalid channel is given'
                 else:
                     assert(1 == 2), "Incorrect offset argument"
             elif len(channel) == 1:
                 ch = str(channel[0])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid channel is given'
+                assert(ch in channel_dict), 'Invalid channel is given'
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid channel is given'
+                else:
+                    answer = test_offset*1000
+                    return answer
             else:
                 assert(1 == 2), "Incorrect offset argument"
 
@@ -547,31 +566,27 @@ class Keysight_4000_Xseries:
             if len(coupling) == 2:
                 ch = str(coupling[0])
                 cpl = str(coupling[1])
-                if ch == 'CH1':
-                    self.device_write(":CHAN1:COUPling " + str(cpl))
-                elif ch == 'CH2':
-                    self.device_write(":CHAN2:COUPling " + str(cpl))
-                elif ch == 'CH3':
-                    self.device_write(":CHAN3:COUPling " + str(cpl))
-                elif ch == 'CH4':
-                    self.device_write(":CHAN4:COUPling " + str(cpl))
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        self.device_write(':' + str(flag) + ':COUPling ' + str(cpl))
+                    else:
+                        general.message("Invalid channel is given")
+                        sys.exit()
                 else:
                     general.message("Incorrect channel is given")
                     sys.exit()
+
             elif len(coupling) == 1:
                 ch = str(coupling[0])
-                if ch == 'CH1':
-                    answer = self.device_query(":CHAN1:COUPling?")
-                    return answer
-                elif ch == 'CH2':
-                    answer = self.device_query(":CHAN2:COUPling?")
-                    return answer
-                elif ch == 'CH3':
-                    answer = self.device_query(":CHAN3:COUPling?")
-                    return answer
-                elif ch == 'CH4':
-                    answer = self.device_query(":CHAN4:COUPling?")
-                    return answer
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        answer = self.device_query(":" + str(flag) + ":COUPling?")
+                        return answer
+                    else:
+                        general.message("Incorrect channel is given")
+                        sys.exit()
                 else:
                     general.message("Incorrect channel is given")
                     sys.exit()
@@ -583,13 +598,17 @@ class Keysight_4000_Xseries:
             if len(coupling) == 2:
                 ch = str(coupling[0])
                 cpl = str(coupling[1])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid channel is given'
+                assert(ch in channel_dict), 'Invalid channel is given'
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid channel is given'
                 assert(cpl == 'AC' or cpl == 'DC'), 'Invalid coupling is given'
             elif len(coupling) == 1:
                 ch = str(coupling[0])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid channel is given'
+                assert(ch in channel_dict), 'Invalid channel is given'
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid channel is given'
                 answer = test_coupling
                 return answer
             else:
@@ -604,31 +623,27 @@ class Keysight_4000_Xseries:
                     cpl = 'ONEMeg'
                 elif cpl == '50':
                     cpl = 'FIFTy'
-                if ch == 'CH1':
-                    self.device_write(":CHAN1:IMPedance " + str(cpl))
-                elif ch == 'CH2':
-                    self.device_write(":CHAN2:IMPedance " + str(cpl))
-                elif ch == 'CH3':
-                    self.device_write(":CHAN3:IMPedance " + str(cpl))
-                elif ch == 'CH4':
-                    self.device_write(":CHAN4:IMPedance " + str(cpl))
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        self.device_write(':' + str(flag) + ':IMPedance ' + str(cpl))
+                    else:
+                        general.message("Invalid channel is given")
+                        sys.exit()
                 else:
                     general.message("Incorrect channel is given")
                     sys.exit()
+
             elif len(impedance) == 1:
                 ch = str(impedance[0])
-                if ch == 'CH1':
-                    answer = self.device_query(":CHAN1:IMPedance?")
-                    return answer
-                elif ch == 'CH2':
-                    answer = self.device_query(":CHAN2:IMPedance?")
-                    return answer
-                elif ch == 'CH3':
-                    answer = self.device_query(":CHAN3:IMPedance?")
-                    return answer
-                elif ch == 'CH4':
-                    answer = self.device_query(":CHAN4:IMPedance?")
-                    return answer
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        answer = self.device_query(":" + str(flag) + ":IMPedance?")
+                        return answer
+                    else:
+                        general.message("Incorrect channel is given")
+                        sys.exit()
                 else:
                     general.message("Incorrect channel is given")
                     sys.exit()
@@ -640,13 +655,17 @@ class Keysight_4000_Xseries:
             if len(impedance) == 2:
                 ch = str(impedance[0])
                 cpl = str(impedance[1])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid channel is given'
+                assert(ch in channel_dict), 'Invalid channel is given'
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid channel is given'
                 assert(cpl == '1 M' or cpl == '50'), 'Invalid impedance is given'
             elif len(impedance) == 1:
                 ch = str(impedance[0])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid channel is given'
+                assert(ch in channel_dict), 'Invalid channel is given'
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid channel is given'
                 answer = test_impedance
                 return answer
             else:
@@ -683,27 +702,21 @@ class Keysight_4000_Xseries:
         if test_flag != 'test':
             if len(channel) == 1:
                 ch = str(channel[0])
-                if ch == 'CH1':
-                    self.device_write(":TRIGger[:EDGE]:SOURce " + 'CHAN1')
-                elif ch == 'CH2':
-                    self.device_write(":TRIGger[:EDGE]:SOURce " + 'CHAN2')
-                elif ch == 'CH3':
-                    self.device_write(":TRIGger[:EDGE]:SOURce " + 'CHAN3')
-                elif ch == 'CH4':
-                    self.device_write(":TRIGger[:EDGE]:SOURce " + 'CHAN4')
-                elif ch == 'Ext':
-                    self.device_write(":TRIGger[:EDGE]:SOURce " + 'EXTernal')
-                elif ch == 'Line':
-                    self.device_write(":TRIGger[:EDGE]:SOURce " + 'LINE')
-                elif ch == 'WGen1':
-                    self.device_write(":TRIGger[:EDGE]:SOURce " + 'WGEN1')
-                elif ch == 'WGen2':
-                    self.device_write(":TRIGger[:EDGE]:SOURce " + 'WGEN2')
+                if ch in trigger_channel_dict:
+                    flag = trigger_channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        self.device_write(':TRIGger:EDGE:SOURce ' + str(flag))
+                    elif flag[0] != 'C':
+                        self.device_write(':TRIGger:EDGE:SOURce ' + str(flag))
+                    else:
+                        general.message("Invalid trigger channel is given")
+                        sys.exit()
                 else:
                     general.message("Incorrect trigger channel is given")
                     sys.exit()
+
             elif len(channel) == 0:
-                answer = self.device_query(":TRIGger[:EDGE]:SOURce?")
+                answer = self.device_query(":TRIGger:EDGE:SOURce?")
                 return answer
             else:
                 general.message("Invalid argument")
@@ -712,9 +725,10 @@ class Keysight_4000_Xseries:
         if test_flag == 'test':        
             if len(channel) == 1:
                 ch = str(channel[0])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4' or ch == 'Line' or ch == 'Ext' or \
-                     ch == 'WGen1' or ch == 'WGen2'), 'Invalid trigger channel is given'
+                assert(ch in trigger_channel_dict), 'Invalid trigger channel is given'
+                flag = trigger_channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid trigger channel is given'
             elif len(channel) == 0:
                 answer = test_tr_channel
                 return answer
@@ -726,31 +740,26 @@ class Keysight_4000_Xseries:
             if len(level) == 2:
                 ch = str(level[0])
                 lvl = float(level[1])
-                if ch == 'CH1':
-                    self.device_write(":TRIGger:LEVel:LOW " + str(lvl) + ', CHAN1')
-                elif ch == 'CH2':
-                    self.device_write(":TRIGger:LEVel:LOW " + str(lvl) + ', CHAN2')
-                elif ch == 'CH3':
-                    self.device_write(":TRIGger:LEVel:LOW " + str(lvl) + ', CHAN3')
-                elif ch == 'CH4':
-                    self.device_write(":TRIGger:LEVel:LOW " + str(lvl) + ', CHAN4')
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        self.device_write(':TRIGger:LEVel:LOW ' + str(lvl) + ', ' + str(flag))
+                    else:
+                        general.message("Incorrect channel is given")
+                        sys.exit()
                 else:
-                    general.message("Incorrect trigger channel is given")
+                    general.message("Incorrect channel is given")
                     sys.exit()
             elif len(level) == 1:
                 ch = str(level[0])
-                if ch == 'CH1':
-                    answer = self.device_query(":TRIGger:LEVel:LOW? " + 'CHAN1')
-                    return answer
-                elif ch == 'CH2':
-                    answer = self.device_query(":TRIGger:LEVel:LOW? " + 'CHAN2')
-                    return answer
-                elif ch == 'CH3':
-                    answer = self.device_query(":TRIGger:LEVel:LOW? " + 'CHAN3')
-                    return answer
-                elif ch == 'CH4':
-                    answer = self.device_query(":TRIGger:LEVel:LOW? " + 'CHAN4')
-                    return answer
+                if ch in channel_dict:
+                    flag = channel_dict[ch]
+                    if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                        answer = self.device_query(':TRIGger:LEVel:LOW? ' + str(flag))
+                        return answer
+                    else:
+                        general.message("Incorrect channel is given")
+                        sys.exit()
                 else:
                     general.message("Incorrect channel is given")
                     sys.exit()
@@ -762,12 +771,16 @@ class Keysight_4000_Xseries:
             if len(level) == 2:
                 ch = str(level[0])
                 lvl = float(level[1])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid trigger channel is given'
+                assert(ch in channel_dict), 'Invalid  channel is given'
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid  channel is given'
             elif len(level) == 1:
                 ch = str(level[0])
-                assert(ch == 'CH1' or ch == 'CH2' or ch == 'CH3'\
-                     or ch == 'CH4'), 'Invalid trigger channel is given'
+                assert(ch in channel_dict), 'Invalid  channel is given'
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                    assert(1 == 2), 'Invalid  channel is given'
                 answer = test_trigger_level
                 return answer
             else:

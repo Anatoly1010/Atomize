@@ -11,7 +11,7 @@ Example: tc_temperature('A') returns the temperature of channel A in Kelvin.
 ```
 This function is for reading temperature from specified channel.<br/>
 Note that arguments can be devices specific. A set of ['A','B'] is used for Lakeshore 325, 331, 332, and 335, while for Lakeshore 336, 340 a set of four channel ['A','B','C','D'] is used.<br/>
-For Oxford Instruments ITC 503 channel should be one from the following: ['1', '2', '3']. Only tc_temperature('1') is valid, not tc_temperature(1) are valid. Note that there are models with different numbers of channels. Please, refer to manual.<br/>
+For Oxford Instruments ITC 503 channel should be one from the following: ['1', '2', '3']. Only tc_temperature('1') is valid, not tc_temperature(1) are valid. Note that there are models with different numbers of channels. Please, refer to manual and specify this setting in the configuration file.<br/>
 ```python3
 tc_setpoint(*temp)
 Arguments: temp = float; Output: float or none.
@@ -37,7 +37,7 @@ Example: tc_heater() returns the array of the heater range and heater percent.
 This function is for reading the current heater value in percent for the specified loop. The loop config (should be indicated in the configuration file) can be: 1, 2 for Lakeshore 325, 331, 332, 335; 1, 2, 3, 4 for Lakeshore 336, 340.<br/>
 For Lakeshore 325, 331, 332, 335  loop 1 is a control loop, while loop 2 is an analog output.<br/>
 For Lakeshore 336, 340 loop 1, 2 are control loops, while loop 3, 4 are analog outputs (1 and 2 (or 3 and 4 for some models), respectively).<br/>
-For Oxford Instruments ITC 503 in manual mode this function allows to adjust the heater power by calling it with an argument between 0 and 99.9:
+For Oxford Instruments ITC 503 the function returns only heater power as a percentage of the maximum power. In addition in manual mode of ITC 503 this function allows to adjust the heater power by calling it with an argument between 0 and 99.9:
 ```python3
 tc_heater_power(*power_percent)
 Arguments: power_percent = decimal (0 - 99.9); Output: decimal.

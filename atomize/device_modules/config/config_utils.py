@@ -12,10 +12,6 @@ def read_conf_util(path_config_file):
 
     # loading configuration parameters
     name = config['DEFAULT']['name']
-    try:
-        loop = int(config['DEFAULT']['loop'])
-    except ValueError:
-        loop = config['DEFAULT']['loop']
     interface = config['DEFAULT']['type']
     timeout = int(config['DEFAULT']['timeout'])
 
@@ -42,31 +38,31 @@ def read_conf_util(path_config_file):
     elif stopbits == 'two':
         stopbits = StopBits.two
 
-    if config['SERIAL']['writetermination'] == 'r':
+    if config['SERIAL']['write_termination'] == 'r':
         write_termination = '\r'
-    elif config['SERIAL']['writetermination'] == 'n':
+    elif config['SERIAL']['write_termination'] == 'n':
         write_termination = '\n'
-    elif config['SERIAL']['writetermination'] == 'rn':
+    elif config['SERIAL']['write_termination'] == 'rn':
         write_termination = '\r\n'
-    elif config['SERIAL']['writetermination'] == 'nr':
+    elif config['SERIAL']['write_termination'] == 'nr':
         write_termination = '\n\r'
     else:
         write_termination = '\n'
 
-    if config['SERIAL']['readtermination'] == 'r':
+    if config['SERIAL']['read_termination'] == 'r':
         read_termination = '\r'
-    elif config['SERIAL']['readtermination'] == 'n':
+    elif config['SERIAL']['read_termination'] == 'n':
         read_termination = '\n'
-    elif config['SERIAL']['readtermination'] == 'rn':
+    elif config['SERIAL']['read_termination'] == 'rn':
         read_termination = '\r\n'
-    elif config['SERIAL']['readtermination'] == 'nr':
+    elif config['SERIAL']['read_termination'] == 'nr':
         read_termination = '\n\r'
     else:
         read_termination = '\n'
 
     ethernet_address = config['ETHERNET']['address'];
 
-    return {'name': name, 'interface': interface, 'timeout': timeout, 'loop': loop,
+    return {'name': name, 'interface': interface, 'timeout': timeout,
     'board_address': board_address, 'gpib_address': gpib_address, 'serial_address': serial_address,
     'baudrate': baudrate, 'databits': databits, 'parity': parity, 'stopbits': stopbits,
     'write_termination': write_termination, 'read_termination': read_termination,

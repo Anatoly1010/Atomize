@@ -7,7 +7,7 @@ import sys
 import pyvisa
 from pyvisa.constants import StopBits, Parity
 import atomize.device_modules.config.config_utils as cutil
-#import atomize.general_modules.general_functions as general
+import atomize.general_modules.general_functions as general
 
 #### Inizialization
 # setting path to *.ini file

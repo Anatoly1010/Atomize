@@ -16,6 +16,7 @@ path_config_file = os.path.join(path_current_directory, 'config','SR_865a_config
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
+specific_parameters = cutil.read_specific_parameters(path_config_file)
 
 # auxilary dictionaries
 sensitivity_dict = {'1 nV': 27, '2 nV': 26, '5 nV': 25, '10 nV': 24, '20 nV': 23, '50 nV': 22,

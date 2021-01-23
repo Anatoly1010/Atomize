@@ -16,6 +16,7 @@ path_config_file = os.path.join(path_current_directory, 'config','Agilent_53131a
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
+specific_parameters = cutil.read_specific_parameters(path_config_file)
 
 # auxilary dictionaries
 startarm_dic = {'Im': 'IMMediate', 'Ext': 'EXTernal',}
@@ -99,11 +100,12 @@ class Agilent_53131a:
             if config['interface'] == 'gpib':
                 self.device.write(command)
                 general.wait('50 ms')
-                answer = self.device.read()
+                raw_answer = self.device.read()
+                answer = raw_answer.decode()
+                return answer
             else:
                 general.message('Incorrect interface setting')
                 self.status_flag = 0
-            return answer
         else:
             general.message("No Connection")
             self.status_flag = 0

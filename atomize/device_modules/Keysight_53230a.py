@@ -16,6 +16,7 @@ path_config_file = os.path.join(path_current_directory, 'config','Keysight_53230
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
+specific_parameters = cutil.read_specific_parameters(path_config_file)
 
 # auxilary dictionaries
 startarm_dic = {'Im': 'IMMediate', 'Ext': 'EXTernal',}
@@ -163,11 +164,15 @@ class Keysight_53230a:
                 self.device.write(command)
                 general.wait('50 ms')
                 answer = self.device.read()
+                raw_answer = self.device.read()
+                answer = raw_answer.decode()
+                return answer
             elif config['interface'] == 'rs232':
                 answer = self.device.query(command)
+                return answer
             elif config['interface'] == 'ethernet':
                 answer = self.device.query(command)
-            return answer
+                return answer
         else:
             general.message("No Connection")
             self.status_flag = 0

@@ -7,7 +7,7 @@ import sys
 import pyvisa
 from pyvisa.constants import StopBits, Parity
 import atomize.device_modules.config.config_utils as cutil
-#import atomize.general_modules.general_functions as general
+import atomize.general_modules.general_functions as general
 
 #### Inizialization
 # setting path to *.ini file
@@ -16,7 +16,8 @@ path_config_file = os.path.join(path_current_directory, 'config','Lakeshore_332_
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
-loop_config = config['loop'] # information about the loop used
+specific_parameters = cutil.read_specific_parameters(path_config_file)
+loop_config = int(specific_parameters['loop']) # information about the loop used
 
 # auxilary dictionaries
 heater_dict = {'50 W': 3, '5 W': 2, '0.5 W': 1, 'Off': 0,};

@@ -16,7 +16,8 @@ path_config_file = os.path.join(path_current_directory, 'config','Lakeshore_340_
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
-loop_config = config['loop'] # information about the loop used
+specific_parameters = cutil.read_specific_parameters(path_config_file)
+loop_config = int(specific_parameters['loop']) # information about the loop used
 
 # auxilary dictionaries
 heater_dict = {'10 W': 5, '1 W': 4, '100 mW': 3, '10 mW': 2, '1 mW': 1, 'Off': 0,};

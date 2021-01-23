@@ -20,6 +20,7 @@ path_config_file = os.path.join(path_current_directory, 'config', 'Rodos_10N_con
 
 # configuration data
 config = cutil.read_conf_util(path_config_file)
+specific_parameters = cutil.read_specific_parameters(path_config_file)
 
 class Rodos_10N:
 
