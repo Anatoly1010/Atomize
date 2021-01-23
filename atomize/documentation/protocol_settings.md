@@ -13,8 +13,7 @@ Typical ethernet (via vxi-11; turn on it on the device) settings are:
 
 ### Device
 
-    Address: 192.168.2.20 (this address should be inserted in the device
-    configuration file)
+    Address: 192.168.2.20 (this address should be inserted in the device configuration file)
     Netmask: 255.255.255.0
     Gateway: 192.168.2.1 (the host address)
     DNS: 192.168.2.1 (the host address)

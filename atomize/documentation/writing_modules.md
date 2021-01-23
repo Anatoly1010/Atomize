@@ -30,7 +30,7 @@ class SR_860:
 The class inizialization function should connect computer to the device. Examples can be found in in atomize/device_modules/ directory. 
 
 ### Limits, Ranges, and Dictionaries
-Specify ranges and limits for the device inside a module and use (if possible) dictionaries for matching device specific syntax and general high-level Atomize functions:
+Specify ranges and limits for the device inside a module and use (if possible) dictionaries for matching device specific syntax and general high-level Atomize function arguments:
 ```python3
 # auxilary dictionaries
 current_dict = {'A': 1, 'mA': 1000,}
@@ -44,7 +44,7 @@ ref_freq_max = 500000
 ```
 
 ### Configuration Files
-Each device should has a configuration file. In this file the communication [protocol settings](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md) and device specific parameters (module for a series of the devices) should be specified. Examples can be found in atomize/device_modules/config/ directory. Reading of a configuration file can be done using a special function from the config_utils.py file:
+Each device should have a configuration file. In this file the communication [protocol settings](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md) and device specific parameters (module for a series of the devices) should be specified. Examples can be found in atomize/device_modules/config/ directory. Reading of a configuration file can be done using a special function from the config_utils.py file:
 ```python3
 import atomize.device_modules.config.config_utils as cutil
 # setting path to *.ini file
@@ -58,6 +58,7 @@ specific_parameters = cutil.read_specific_parameters(path_config_file)
 ### Device Specific Configuration Parameters
 When you write a module for a series of the devices, it is convenient to specify some parameters in the configuration file. For example, the number of analog channels of an oscilloscope or a temperature controller loop. In this case, the module should work universally at any given value of specific device parameters.
 ```python3
+# config.ini file
 [SPECIFIC]
 analog_channels = 4
 ```
