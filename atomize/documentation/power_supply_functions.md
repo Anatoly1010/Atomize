@@ -40,6 +40,7 @@ Example: power_supply_channel_state('CH1', 'On') enables the output of the first
 ```
 The function queries (if called with one argument) or sets (if called with two arguments) the state of the output of one of the channels of the power supply. If there is a second argument this will be set as a new state setting. If there is no second argument the current state setting for specified the channel is returned.<br/>
 The state argument should be 'On' or 'Off', which means that the output is enabled and disabled, respectively.<br/>
+SR DC205 has only one channel, however, it should be listed as the first argument for consistency.
 ```python3
 power_supply_measure(channel)
 Arguments: channel = string ('channel string' ['CH1','CH2','CH3']); Output: array of values.
