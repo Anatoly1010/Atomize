@@ -93,7 +93,7 @@ The function for sending an arbitrary command from a programming guide to the de
 ```python3
 tc_query(command)
 Arguments: command = string; Output: string.
-Example: tc_command('PID? 1'). Note that for some controller models the loop
+Example: tc_query('PID? 1'). Note that for some controller models the loop
 should not be specified. Check the programming guide.
 ```
 The function for sending an arbitrary command from a programming guide to the device in a string format. An output in a string format is expected.<br/>

@@ -40,6 +40,9 @@ Available via corresponding oscilloscope module.
 - Bruker ER032M (GPIB); available via BH15 module
 - Bruker ER031M (RS-232 using arduino emulated keyboard) tested
 
+## Gaussmeters
+- Lakeshore 455 DSP (RS-232); untested
+
 ## Power Supplies
 - Rigol DP800 Series (RS-232, Ethernet); untested
 
@@ -47,6 +50,6 @@ Available via corresponding oscilloscope module.
 - CPWplus 150 (RS-232); Tested 01/2021
 
 ## Other
-- Solid-state Relay RODOS-10N (Ethernet); Tested 01/2021d
+- Solid-state Relay RODOS-10N (Ethernet); Tested 01/2021
 
 

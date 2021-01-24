@@ -140,6 +140,9 @@ On Windows 10 one should use:
 	- Bruker ER032M (GPIB); Available via BH15 module
 	- Bruker ER031M (RS-232 using arduino emulated keyboard) tested
 
+#### Gaussmeters
+	- Lakeshore 455 DSP (RS-232); untested
+
 #### Power Supplies
 	- Rigol DP800 Series (RS-232, Ethernet); untested
 
@@ -276,6 +279,14 @@ magnet_sweep_down()
 magnet_reset_field()
 magnet_field_step_size(*step)
 magnet_command(command)
+```
+### [Gaussmeters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/gaussmeter_functions.md)
+```python3
+gaussmeter_name()
+gaussmeter_field()
+gaussmeter_units(*units)
+gaussmeter_command(command)
+gaussmeter_query(command)
 ```
 ### [Power supplies](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/power_supply_functions.md)
 ```python3

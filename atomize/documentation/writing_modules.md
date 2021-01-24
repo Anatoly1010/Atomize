@@ -3,7 +3,7 @@
 Please, read these rules carefully and try to follow them when writing a new module.
 
 ### Code Convention
-Atomize tries to adhere to PEP 484 [code condention.](https://www.python.org/dev/peps/pep-0484/)
+Atomize tries to adhere to PEP 8 [code convention.](https://www.python.org/dev/peps/pep-0008/)
 
 ### Function Naming
 It is highly recommended to use pre-existing function names when writing a module for a device class that is already present in Atomize. Also do not forget to change the documentation accordingly, if there are any peculiarities in using of your function.
@@ -15,7 +15,7 @@ target value:
 lock_in_time_constant('30 ms')
 lock_in_time_constant()
 ```
-The same function lock_in_time_constant() sets and queries the time constant of lock-in amplifier.
+In this example the same function lock_in_time_constant() sets and queries the time constant of lock-in amplifier.
 
 ### Device Class
 All functions should be combined into one class. The class must have the name of the module file:
@@ -56,7 +56,7 @@ specific_parameters = cutil.read_specific_parameters(path_config_file)
 ```
 
 ### Device Specific Configuration Parameters
-When you write a module for a series of the devices, it is convenient to specify some parameters in the configuration file. For example, the number of analog channels of an oscilloscope or a temperature controller loop. In this case, the module should work universally at any given value of specific device parameters.
+When you write a module for a series of the devices, it is convenient to specify some parameters in the configuration file. For example, the number of analog channels of an oscilloscope or a temperature controller loop. In this case, the module should work universally at any given values of specific device parameters.
 ```python3
 # config.ini file
 [SPECIFIC]
@@ -84,7 +84,7 @@ return answer
 
 ### Script Testing
 There is a test section in Atomize. During the test software checks that an experimental script has appropriate syntax and does not contain logical errors. It means that all the parameters during script execution do not go beyond the device limits. For instance, the test can detect that the field of the magnet is requested to be set to a value that the magnet cannot produce. During the test run the devices are not accessed, calls of the wait() function do not make the program sleep for the requested time, graphics are not drawn etc.<br/>
-In order to be able to run a test, one should specify inside a module appropriate values for all the device parameters (since the devices are not accessed) and describe what the function should do during the test run. Typically, it is just different assertion and checking:
+In order to be able to run a test, one should specify inside a module appropriate values for all the device parameters (since the devices are not accessed) and describe what the function should do during the test run. Typically, it is just different assertions and checkings:
 ```python3
 elif test_flag == 'test':
     if len(amplitude) == 1:
