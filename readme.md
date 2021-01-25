@@ -145,6 +145,7 @@ On Windows 10 one should use:
 
 #### Power Supplies
 	- Rigol DP800 Series (RS-232, Ethernet); Tested 01/2021
+	- Stanford Research DC205 (RS-232); Untested
 
 #### Balances
 	- CPWplus 150 (RS-232); Tested 01/2021
@@ -298,6 +299,8 @@ power_supply_overcurrent(*current)
 power_supply_channel_state(*state)
 power_supply_measure(channel)
 power_supply_preset(preset)
+power_supply_range(*range)
+power_supply_interlock()
 power_supply_command(command)
 power_supply_query(command)
 ```
