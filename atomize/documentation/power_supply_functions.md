@@ -5,17 +5,17 @@ Available devices:
 - Stanford Research DC205 (RS-232); Untested
 
 [power_supply_name()](#power_supply_name)<br/>
-[power_supply_voltage(*voltage)](#power_supply_voltage(*voltage))<br/>
-[power_supply_current(*current)](#power_supply_current(*current))<br/>
-[power_supply_overvoltage(*voltage)](#power_supply_overvoltage(*voltage))<br/>
-[power_supply_overcurrent(*current)](#power_supply_overcurrent(*current))<br/>
-[power_supply_channel_state(*state)](#power_supply_channel_state(*state))<br/>
-[power_supply_measure(channel)](#power_supply_measure(channel))<br/>
-[power_supply_preset(preset)](#powerpower_supply_preset_supply_name(preset))<br/>
-[power_supply_range(*range)](#power_supply_range(*range))<br/>
-[power_supply_interlock()](#power_supply_interlock())<br/>
-[power_supply_command(command)](#power_supply_command(command))<br/>
-[power_supply_query(command)](#power_supply_query(command))<br/>
+[power_supply_voltage(*voltage)](#power_supply_voltage)<br/>
+[power_supply_current(*current)](#power_supply_current)<br/>
+[power_supply_overvoltage(*voltage)](#power_supply_overvoltage)<br/>
+[power_supply_overcurrent(*current)](#power_supply_overcurrent)<br/>
+[power_supply_channel_state(*state)](#power_supply_channel_state)<br/>
+[power_supply_measure(channel)](#power_supply_measure)<br/>
+[power_supply_preset(preset)](#powerpower_supply_preset_supply_name)<br/>
+[power_supply_range(*range)](#power_supply_range)<br/>
+[power_supply_interlock()](#power_supply_interlock)<br/>
+[power_supply_command(command)](#power_supply_command)<br/>
+[power_supply_query(command)](#power_supply_query)<br/>
 
 ### power_supply_name()
 ```python3
