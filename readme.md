@@ -111,7 +111,7 @@ On Windows 10 one should use:
 
 #### Lock-in Amplifiers
 	- Stanford Research Lock-In Amplifier (GPIB, RS-232)
-	SR-810; SR-830; SR-850 (untested).
+	SR-810; SR-830; SR-850; untested
 	- Stanford Research Lock-In Amplifier (GPIB, RS-232, Ethernet)
 	SR-860; SR-865a; Tested 01/2021
 
@@ -138,10 +138,10 @@ On Windows 10 one should use:
 #### Magnetic Field Controllers
 	- Bruker BH15 (GPIB); Tested 01/2021
 	- Bruker ER032M (GPIB); Available via BH15 module
-	- Bruker ER031M (RS-232 using arduino emulated keyboard) tested
+	- Bruker ER031M (RS-232 using arduino emulated keyboard); Tested 01/2021
 
 #### Gaussmeters
-	- Lakeshore 455 DSP (RS-232); untested
+	- Lakeshore 455 DSP (RS-232); Tested 01/2021
 
 #### Power Supplies
 	- Rigol DP800 Series (RS-232, Ethernet); untested

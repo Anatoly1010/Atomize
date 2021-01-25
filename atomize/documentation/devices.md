@@ -41,7 +41,7 @@ Available via corresponding oscilloscope module.
 - Bruker ER031M (RS-232 using arduino emulated keyboard) tested
 
 ## Gaussmeters
-- Lakeshore 455 DSP (RS-232); untested
+- Lakeshore 455 DSP (RS-232); Tested 01/2021
 
 ## Power Supplies
 - Rigol DP800 Series (RS-232, Ethernet); untested

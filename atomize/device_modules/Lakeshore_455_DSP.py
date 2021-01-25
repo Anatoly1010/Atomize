@@ -50,6 +50,8 @@ class Lakeshore_455_DSP:
                     try:
                         # test should be here
                         self.device_write('*CLS')
+                        # device is slow, we need to wait a little bit
+                        general.wait('50 ms')
                         answer = int(self.device_query('*TST?'))
                         if answer == 0:
                             self.status_flag = 1
@@ -75,6 +77,8 @@ class Lakeshore_455_DSP:
 
             # measure field in Gauss
             self.device_write('UNIT 1')
+            # device is slow, we need to wait a little bit
+            general.wait('50 ms')
 
         elif test_flag == 'test':
             pass
