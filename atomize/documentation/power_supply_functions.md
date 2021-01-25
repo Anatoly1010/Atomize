@@ -4,7 +4,7 @@ Available devices:
 - Rigol DP800 Series (RS-232, Ethernet); Tested 01/2021
 - Stanford Research DC205 (RS-232); Untested
 
-[power_supply_name()](#power_supply_name())<br/>
+[power_supply_name()](#power_supply_name)<br/>
 [power_supply_voltage(*voltage)](#power_supply_voltage(*voltage))<br/>
 [power_supply_current(*current)](#power_supply_current(*current))<br/>
 [power_supply_overvoltage(*voltage)](#power_supply_overvoltage(*voltage))<br/>
