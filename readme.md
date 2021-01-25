@@ -103,25 +103,25 @@ On Windows 10 one should use:
 	pip install PyOpenGL PyOpenGL_accelerate
 
 ## Available devices
-#### Temperature Controllers
+#### [Temperature Controllers](#Temperature-controllers)
 	- Lakeshore (GPIB, RS-232)
 	325; 331; 332; 335; 336; 340; Tested 01/21
 	- Oxford Instruments (RS-232)
 	ITC 503; Tested 01/21
 
-#### Lock-in Amplifiers
+#### [Lock-in Amplifiers](#Lock-in-amplifiers)
 	- Stanford Research Lock-In Amplifier (GPIB, RS-232)
 	SR-810; SR-830; SR-850; untested
 	- Stanford Research Lock-In Amplifier (GPIB, RS-232, Ethernet)
 	SR-860; SR-865a; Tested 01/2021
 
-#### Oscilloscopes
+#### [Oscilloscopes](#Oscilloscopes)
 	- Keysight InfiniiVision 2000 X-Series (Ethernet); untested
 	- Keysight InfiniiVision 3000 X-Series (Ethernet); tested
 	- Keysight InfiniiVision 4000 X-Series (Ethernet); untested
 	- Tektronix 4000 Series (Ethernet); Tested 01/2021
 
-#### Arbitrary Wave Generators
+#### [Arbitrary Wave Generators](#Arbitrary-wave-generators)
 	- Wave Generator of Keysight InfiniiVision 2000 X-Series (Ethernet)
 	Available via corresponding oscilloscope module.
 	- Wave Generator of Keysight InfiniiVision 3000 X-Series (Ethernet)
@@ -129,28 +129,28 @@ On Windows 10 one should use:
 	- Wave Generator of Keysight InfiniiVision 4000 X-Series (Ethernet)
 	Available via corresponding oscilloscope module.
 
-#### Frequency Counters
+#### [Frequency Counters](#Frequency-counters)
 	- Agilent Frequency Counter (GPIB)
 	53181A (untested); 53131A/132A.
 	- Keysight Frequency Counter (GPIB, RS-232, Ethernet)
 	53230A/220A (untested).
 
-#### Magnetic Field Controllers
+#### [Magnetic Field Controllers](#Magnetic-field-controllers)
 	- Bruker BH15 (GPIB); Tested 01/2021
 	- Bruker ER032M (GPIB); Available via BH15 module
 	- Bruker ER031M (RS-232 using arduino emulated keyboard); Tested 01/2021
 
-#### Gaussmeters
+#### [Gaussmeters](#Gaussmeters)
 	- Lakeshore 455 DSP (RS-232); Tested 01/2021
 
-#### Power Supplies
+#### [Power Supplies](#Power-Supplies)
 	- Rigol DP800 Series (RS-232, Ethernet); Tested 01/2021
 	- Stanford Research DC205 (RS-232); Untested
 
-#### Balances
+#### [Balances](#Balances)
 	- CPWplus 150 (RS-232); Tested 01/2021
 
-#### Other
+#### [Other](#Other)
 	- Solid-state Relay RODOS-10N (Ethernet); Tested 01/2021
 
 ## [Available general functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
