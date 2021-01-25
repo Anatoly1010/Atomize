@@ -11,7 +11,7 @@ Available devices:
 [power_supply_overcurrent(*current)](#power_supply_overcurrentcurrent)<br/>
 [power_supply_channel_state(*state)](#power_supply_channel_statestate)<br/>
 [power_supply_measure(channel)](#power_supply_measurechannel)<br/>
-[power_supply_preset(preset)](#powerpower_supply_preset_supply_namepreset)<br/>
+[power_supply_preset(preset)](#power_supply_presetpreset)<br/>
 [power_supply_range(*range)](#power_supply_rangerange)<br/>
 [power_supply_interlock()](#power_supply_interlock)<br/>
 [power_supply_command(command)](#power_supply_commandcommand)<br/>
