@@ -44,7 +44,7 @@ Available via corresponding oscilloscope module.
 - Lakeshore 455 DSP (RS-232); Tested 01/2021
 
 ## Power Supplies
-- Rigol DP800 Series (RS-232, Ethernet); untested
+- Rigol DP800 Series (RS-232, Ethernet); Tested 01/2021
 
 ## Balances
 - CPWplus 150 (RS-232); Tested 01/2021

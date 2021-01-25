@@ -62,6 +62,7 @@ class Rigol_DP800_Series:
                     try:
                         # test should be here
                         self.device_write('*CLS')
+                        general.wait('50 ms')
                     except pyvisa.VisaIOError:
                         self.status_flag = 0
                         general.message("No connection")
@@ -127,8 +128,12 @@ class Rigol_DP800_Series:
         if self.status_flag == 1:
             if config['interface'] == 'rs232':
                 answer = self.device.query(command)
+                # device is quite slow
+                general.wait('10 ms')
             elif config['interface'] == 'ethernet':
                 answer = self.device.query(command)
+                # device is quite slow
+                general.wait('10 ms')
             return answer
         else:
             general.message("No Connection")
@@ -159,7 +164,7 @@ class Rigol_DP800_Series:
                         if scaling in voltage_dict:
                             coef = voltage_dict[scaling]
                             if vtg/coef >= voltage_min and vtg/coef <= vtg_max:
-                                self.device_write(':SOURce' + str(flag) + ':VOLTage' + str(vtg/coef))
+                                self.device_write(':SOURce' + str(flag) + ':VOLTage ' + str(vtg/coef))
                             else:
                                 general.message("Incorrect voltage range")
                                 sys.exit()
@@ -226,7 +231,7 @@ class Rigol_DP800_Series:
                         if scaling in current_dict:
                             coef = current_dict[scaling]
                             if curr/coef >= current_min and curr/coef <= curr_max:
-                                self.device_write(':SOURce' + str(flag) + ':CURRent' + str(curr/coef))
+                                self.device_write(':SOURce' + str(flag) + ':CURRent ' + str(curr/coef))
                             else:
                                 general.message("Incorrect current range")
                                 sys.exit()
@@ -293,7 +298,7 @@ class Rigol_DP800_Series:
                         if scaling in voltage_dict:
                             coef = voltage_dict[scaling]
                             if vtg/coef >= voltage_min and vtg/coef <= vtg_max + 3:
-                                self.device_write(':SOURce' + str(flag) + ':VOLTage:PROTection' + str(vtg/coef))
+                                self.device_write(':SOURce' + str(flag) + ':VOLTage:PROTection ' + str(vtg/coef))
                             else:
                                 general.message("Incorrect overvoltage protection range")
                                 sys.exit()
@@ -360,7 +365,7 @@ class Rigol_DP800_Series:
                         if scaling in current_dict:
                             coef = current_dict[scaling]
                             if curr/coef >= current_min and curr/coef <= curr_max + 0.3:
-                                self.device_write(':SOURce' + str(flag) + ':CURRent:PROTection' + str(curr/coef))
+                                self.device_write(':SOURce' + str(flag) + ':CURRent:PROTection ' + str(curr/coef))
                             else:
                                 general.message("Incorrect overcurrent protection range")
                                 sys.exit()                           
@@ -437,7 +442,7 @@ class Rigol_DP800_Series:
                 if ch in channel_dict:
                     flag = channel_dict[ch]
                     if flag <= channels:
-                        raw_answer = float(self.device_query(':OUTPut? CH' + str(flag)))
+                        raw_answer = self.device_query(':OUTPut? CH' + str(flag))
                         answer = cutil.search_keys_dictionary(state_dict, raw_answer)
                         return answer
                     else:
@@ -472,8 +477,9 @@ class Rigol_DP800_Series:
             if ch in channel_dict:
                 flag = channel_dict[ch]
                 if flag <= channels:
-                    raw_answer = self.device_query(':MEASure:ALL? CH' + str(flag))
-                    return raw_answer
+                    raw_answer = self.device_query(':MEASure:ALL? CH' + str(flag)).split(',')
+                    answer = [float(raw_answer[0]), float(raw_answer[1]), float(raw_answer[2])]
+                    return answer
                 else:
                     general.message('Invalid channel')
                     sys.exit()
