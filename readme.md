@@ -17,15 +17,16 @@ At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and W
 ### Status: in development; device testing
 
 ## Contents
-[-Requirements](#requirements)<br/>
-[-Basic usage](#basic-usage)<br/><br/>
-[-Available devices](#available-devices)<br/>
-[-Function for devices](#available-function-for-devices)<br/>
-[-General functions](#available-general-functions)<br/>
-[-Plotting functions](#available-plotting-functions)<br/>
-[-Screenshots](#screenshots)<br/>
-[-Writing modules](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/writing_modules.md)<br/>
-[-Protocol settings](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md)<br/>
+- [Requirements](#requirements)<br/>
+- [Basic usage](#basic-usage)<br/>
+- [Available devices](#available-devices)<br/>
+- [Function for devices](#available-function-for-devices)<br/>
+- [General functions](#available-general-functions)<br/>
+- [Plotting functions](#available-plotting-functions)<br/>
+- [Experimental script examples](https://github.com/Anatoly1010/Atomize/tree/master/atomize/tests)<br/>
+- [Screenshots](#screenshots)<br/>
+- [Writing modules](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/writing_modules.md)<br/>
+- [Protocol settings](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md)<br/>
 
 ## Requirements
 - [Python (tested with 3.6+)](https://www.python.org/)
