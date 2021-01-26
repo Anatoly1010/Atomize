@@ -1,6 +1,17 @@
 # Writing Modules
 
-Please, read these rules carefully and try to follow them when writing a new module.
+Please, read these rules carefully and try to follow them when writing a new module.<br/>
+
+[Code Convention](#code-convention)<br/>
+[Function Naming](#function-naming)<br/>
+[Function Clustering](#function-clustering)<br/>
+[Device Class](#device-class)<br/>
+[Class __init__() function](#class-__init__-function)<br/>
+[Limits, Ranges, and Dictionaries](#limits-ranges-and-dictionaries)<br/>
+[Configuration Files](#configuration-files)<br/>
+[Device Specific Configuration Parameters](#device-specific-configuration-parameters)<br/>
+[Dimensions](#dimensions)<br/>
+[Script Testing](#script-testing)<br/>
 
 ### Code Convention
 Atomize tries to adhere to PEP 8 [code convention.](https://www.python.org/dev/peps/pep-0008/)

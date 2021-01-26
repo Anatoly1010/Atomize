@@ -32,7 +32,7 @@ Example: power_supply_voltage('CH1', '10 V') sets the voltage of the first chann
 ```
 The function queries (if called with one argument) or sets (if called with two arguments) the voltage of one of the channels of the power supply. If there is a second argument this will be set as a new voltage. If there is no second argument the current voltage for specified the channel is returned in Volts.<br/>
 Note that this function returns the voltage setting of the instrument, not actual measured voltage. The latter can be achieved with power_supply_measure() function.<br/>
-Stanford Research DC205 has only one channel, however, it should be listed as the first argument for consistency. Also, the available range of SR DC205 depends on the range setting. Check function power_supply_range().
+Stanford Research DC205 has only one channel, however, it should be listed as the first argument for consistency. Also, the available range of SR DC205 depends on the range setting. Check function [power_supply_range()](#power_supply_rangerange).
 ### power_supply_current(*current)
 ```python3
 power_supply_current(*current)
@@ -69,7 +69,7 @@ Example: power_supply_channel_state('CH1', 'On') enables the output of the first
 ```
 The function queries (if called with one argument) or sets (if called with two arguments) the state of the output of one of the channels of the power supply. If there is a second argument this will be set as a new state setting. If there is no second argument the current state setting for specified the channel is returned.<br/>
 The state argument should be 'On' or 'Off', which means that the output is enabled and disabled, respectively.<br/>
-Stanford Research DC205 has only one channel, however, it should be listed as the first argument for consistency. For SR DC205 in case of using '100 V' range, the channel can be turned on only while the safety interlock is closed. See power_supply_interlock() function.
+Stanford Research DC205 has only one channel, however, it should be listed as the first argument for consistency. For SR DC205 in case of using '100 V' range, the channel can be turned on only while the safety interlock is closed. See [power_supply_interlock()](#power_supply_interlock) function. If the safety interlock is open a warning will be shown and the state remains unchanged.
 ### power_supply_measure(channel)
 ```python3
 power_supply_measure(channel)

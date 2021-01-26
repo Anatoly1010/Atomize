@@ -16,6 +16,17 @@ At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and W
 
 ### Status: in development; device testing
 
+## Contents
+[-Requirements](#requirements)<br/>
+[-Basic usage](#basic-usage)<br/><br/>
+[-Available devices](#available-devices)<br/>
+[-Function for devices](#available-function-for-devices)<br/>
+[-General functions](#available-general-functions)<br/>
+[-Plotting functions](#available-plotting-functions)<br/>
+[-Screenshots](#screenshots)<br/>
+[-Writing modules](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/writing_modules.md)<br/>
+[-Protocol settings](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md)<br/>
+
 ## Requirements
 - [Python (tested with 3.6+)](https://www.python.org/)
 - [Numpy](https://numpy.org/)
@@ -111,14 +122,14 @@ On Windows 10 one should use:
 
 #### [Lock-in Amplifiers](#lock-in-amplifiers-1)
 	- Stanford Research Lock-In Amplifier (GPIB, RS-232)
-	SR-810; SR-830; SR-850; untested
+	SR-810; SR-830; SR-850; Untested
 	- Stanford Research Lock-In Amplifier (GPIB, RS-232, Ethernet)
 	SR-860; SR-865a; Tested 01/2021
 
 #### [Oscilloscopes](#oscilloscopes-1)
-	- Keysight InfiniiVision 2000 X-Series (Ethernet); untested
-	- Keysight InfiniiVision 3000 X-Series (Ethernet); tested
-	- Keysight InfiniiVision 4000 X-Series (Ethernet); untested
+	- Keysight InfiniiVision 2000 X-Series (Ethernet); Untested
+	- Keysight InfiniiVision 3000 X-Series (Ethernet); Tested
+	- Keysight InfiniiVision 4000 X-Series (Ethernet); Untested
 	- Tektronix 4000 Series (Ethernet); Tested 01/2021
 
 #### [Arbitrary Wave Generators](#arbitrary-wave-generators-1)
@@ -131,9 +142,9 @@ On Windows 10 one should use:
 
 #### [Frequency Counters](#frequency-counters-1)
 	- Agilent Frequency Counter (GPIB)
-	53181A (untested); 53131A/132A.
+	53181A; 53131A/132A; Untested
 	- Keysight Frequency Counter (GPIB, RS-232, Ethernet)
-	53230A/220A (untested).
+	53230A/220A; Untested
 
 #### [Magnetic Field Controllers](#magnetic-field-controllers-1)
 	- Bruker BH15 (GPIB); Tested 01/2021

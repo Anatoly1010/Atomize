@@ -1,5 +1,9 @@
 # Protocol Settings
 
+[VXI-11](#vxi-11)
+[RS-232](#rs-232)
+[GPIB](#gpib)
+
 ## VXI-11
 Typical ethernet (via vxi-11; turn on it on the device) settings are:
 

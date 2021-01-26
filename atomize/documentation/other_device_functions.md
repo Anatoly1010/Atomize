@@ -1,5 +1,13 @@
 # List of available functions for other devices
 
+Available devices:
+- CPWplus 150 (RS-232); Tested 01/2021
+- Solid-state Relay RODOS-10N (Ethernet); Tested 01/2021
+
+[balance_weight()](#balance_weight)<br/>
+[turn_on(number)](#turn_onnumber)<br/>
+[turn_off(number)](#turn_offnumber)<br/>
+
 ## Balances
 ```python3
 balance_weight()

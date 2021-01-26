@@ -1,5 +1,20 @@
 # List of available general functions
 
+[general.message('string')](#print-a-line-in-the-main-window)<br/>
+[general.wait('10 ms')](#wait-for-the-specified-amount-of-time)<br/>
+[open_1D(path, header = 0)](#open_1D)<br/>
+[open_1D_dialog(self, directory = '', header = 0)](#open_1D_dialog)<br/>
+[save_1D_dialog(data, directory = '', header = '')](#save_1D_dialog)<br/>
+[open_2D(path, header = 0)](#open_2D)<br/>
+[open_2D_dialog(directory = '', header = 0)](#open_2D_dialog)<br/>
+[open_2D_appended(path, header = 0, chunk_size = 1)](#open_2D_appended)<br/>
+[open_2D_appended_dialog(directory = '', header = 0, chunk_size = 1)](#open_2D_appended_dialog)<br/>
+[save_2D_dialog(data, directory = '', header = '')](#save_2D_dialog)<br/>
+[create_file_dialog(directory = '')](#create_file_dialog)<br/>
+[Example1](#open-file)<br/>
+[Example2](#save-file-in-the-end-of-the-script)<br/>
+[Example3](#save-file-during-the-script)<br/>
+
 ## Print a line in the main window
 To call this function a corresponding general function module should be imported. After that
  the function should be used as follows:
@@ -25,8 +40,9 @@ import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 file_handler = openfile.Saver_Opener()
 ```
 After importing the functions should be used as follows:
+### open_1D()
 ```python	
-open_1D(path, header=0)
+open_1D(path, header = 0)
 ```
 	Simple function to open a specified file with comma separeted values;
 
@@ -35,8 +51,9 @@ open_1D(path, header=0)
 	This argument is optional, default value is 0.
 
 	Output: header as array of lists; data as numpy array
+### open_1D_dialog()
 ```python	
-open_1D_dialog(self, directory='', header=0)
+open_1D_dialog(self, directory = '', header = 0)
 ```
 	Function that returns a dialog to open a file with comma separeted values;
 	
@@ -45,8 +62,9 @@ open_1D_dialog(self, directory='', header=0)
 	All these arguments are optional, default values are shown above;
 
 	Output: header as array of lists; data as numpy array
+### save_1D_dialog()
 ```python
-save_1D_dialog(data, directory='', header='')
+save_1D_dialog(data, directory = '', header = '')
 ```
 	Function that returns a dialog to save data as comma separeted values;
 	
@@ -55,8 +73,9 @@ save_1D_dialog(data, directory='', header='')
 	header is a string to prepend to a file as a header;
 	All these arguments are optional, default values are shown above;
 	The values will be saved in '%.10f' format.
+### open_2D()
 ```python
-open_2D(path, header=0)
+open_2D(path, header = 0)
 ```
 	Simple function to open a specified file with 2D array of comma separeted values;
 
@@ -65,8 +84,9 @@ open_2D(path, header=0)
 	This argument is optional, default value is 0.
 
 	Output: header as array of lists; data as 2D numpy array
+### open_2D_dialog()
 ```python
-open_2D_dialog(directory='', header=0)
+open_2D_dialog(directory = '', header = 0)
 ```
 	Function that returns a dialog to open a file with 2D array of comma separeted values;
 	
@@ -75,8 +95,9 @@ open_2D_dialog(directory='', header=0)
 	All these arguments are optional, default values are shown above;
 
 	Output: header as array of lists; data as 2D numpy array
+### open_2D_appended()
 ```python
-open_2D_appended(path, header=0, chunk_size=1)
+open_2D_appended(path, header = 0, chunk_size = 1)
 ```
 	Function that returns a dialog to open a file with a single column array
 	of values from 2D array;
@@ -86,8 +107,9 @@ open_2D_appended(path, header=0, chunk_size=1)
 	chunk_size is Y axis size of the initial 2D array;
 
 	Output: header as array of lists; data as 2D numpy array
+### open_2D_appended_dialog()
 ```python
-open_2D_appended_dialog(directory='', header=0, chunk_size=1)
+open_2D_appended_dialog(directory = '', header = 0, chunk_size = 1)
 ```
 	Function that returns a dialog to open a file with a single column array
 	of values from 2D array;
@@ -98,8 +120,9 @@ open_2D_appended_dialog(directory='', header=0, chunk_size=1)
 	All these arguments are optional, default values are shown above;
 
 	Output: header as array of lists; data as 2D numpy array
+### save_2D_dialog()
 ```python
-save_2D_dialog(data, directory='', header='')
+save_2D_dialog(data, directory = '', header = '')
 ```
 	Function that returns a dialog to save a 2D array as comma separeted
 	values;
@@ -109,8 +132,9 @@ save_2D_dialog(data, directory='', header='')
 	header is a string to prepend to a file as a header;
 	All these arguments are optional, default values are shown above;
 	The values will be saved in '%.10f' format.
+### create_file_dialog()
 ```python
-create_file_dialog(directory='')
+create_file_dialog(directory = '')
 ```
 	Function that returns a dialog to enter a name for a file;
 	It can be used to manually saved your data inside the experimental
@@ -119,11 +143,12 @@ create_file_dialog(directory='')
 	directory is a path to preopened directory in the dialog window;
 	The argument is optional, default value is shown above;
 
-For saving inside the script by create_file_dialog() a typical numpy
+For saving inside the script by [create_file_dialog()](#create_file_dialog) a typical numpy
 function should be used:
 ```python
-np.savetxt(path_to_file, data_to_save, fmt='%.10f', delimiter=' ',
-newline='n', header='field: %d' % i, footer='', comments='#', encoding=None)
+np.savetxt(path_to_file, data_to_save, fmt = '%.10f', delimiter = ' ',
+newline = 'n', header = 'field: %d' % i, footer = '', comments = '#',
+encoding = None)
 ```
 
 # Minimal examples of using these functions inside the experimental script
@@ -134,10 +159,10 @@ import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 
 file_handler = openfile.Saver_Opener()
 
-head, data = file_handler.open_2D_dialog(header=0):
+head, data = file_handler.open_2D_dialog(header = 0):
 
-general.plot_2d('Plot Z Test', dat, start_step=((0,1),(0.3,0.001)), xname='Time', 
-	xscale='s', yname='Magnetic Field', yscale='T', zname='Intensity', zscale='V')
+general.plot_2d('Plot Z Test', dat, start_step = ((0, 1), (0.3, 0.001)), xname = 'Time', 
+	xscale = 's', yname = 'Magnetic Field', yscale = 'T', zname = 'Intensity', zscale = 'V')
 ```
 ## Save file in the end of the script
 ```python
@@ -151,24 +176,24 @@ data = [];
 step = 10;
 i = 0;
 general.message('Test of saving data')
-path_to_file = file_handler.create_file_dialog(directory='')
+path_to_file = file_handler.create_file_dialog(directory = '')
 
 ## 2D Experiment
 while i <= 10:
 	i = i + 1;
 	axis_x = np.arange(4000)
 	ch_time = np.random.randint(250, 500, 1)
-	zs = 1 + 100*np.exp(-axis_x/ch_time) + 7*np.random.normal(size=(4000))
+	zs = 1 + 100*np.exp(-axis_x/ch_time) + 7*np.random.normal(size = (4000))
 	data.append(zs)
 	general.wait('100 ms')	
 
-	general.plot_2d('Plot Z Test', data, start_step=((0,1),(0.3,0.001)),
-	xname='Time', xscale='s', yname='Magnetic Field', yscale='T', zname='Intensity',
-	zscale='V')
+	general.plot_2d('Plot Z Test', data, start_step = ((0, 1), (0.3, 0.001)),
+	xname = 'Time', xscale = 's', yname = 'Magnetic Field', yscale = 'T', zname = 'Intensity',
+	zscale = 'V')
 
-f = open(path_to_file,'a')
-np.savetxt(f, data, fmt='%.10f', delimiter=',', newline='n',
-	header='field: %d' % i, footer='', comments='#', encoding=None)
+f = open(path_to_file, 'a')
+np.savetxt(f, data, fmt = '%.10f', delimiter = ',', newline = 'n',
+	header = 'field: %d' % i, footer = '', comments = '#', encoding = None)
 f.close()
 ```
 
@@ -184,9 +209,9 @@ data = [];
 step = 10;
 i = 0;
 general.message('Test of saving data')
-path_to_file = file_handler.create_file_dialog(directory='', fmt='')
+path_to_file = file_handler.create_file_dialog(directory = '', fmt = '')
 
-f = open(path_to_file,'a')
+f = open(path_to_file, 'a')
 ## 2D Experiment
 while i <= 10:
 	i = i + 1;
@@ -195,12 +220,12 @@ while i <= 10:
 	zs = 1 + 100*np.exp(-axis_x/ch_time) + 7*np.random.normal(size=(4000))
 	data.append(zs)
 	general.wait('100 ms')
-	np.savetxt(f, zs, fmt='%.10f', delimiter=' ', newline='n', 
-	header='field: %d' % i, footer='', comments='#', encoding=None)
+	np.savetxt(f, zs, fmt = '%.10f', delimiter = ' ', newline = 'n', 
+	header = 'field: %d' % i, footer = '', comments = '#', encoding = None)
 
-	general.plot_2d('Plot Z Test', data, start_step=((0,1),(0.3,0.001)),
-	xname='Time', xscale='s', yname='Magnetic Field', yscale='T', zname='Intensity',
-	zscale='V')
+	general.plot_2d('Plot Z Test', data, start_step = ((0, 1), (0.3, 0.001)),
+	xname = 'Time', xscale = 's', yname = 'Magnetic Field', yscale = 'T', zname = 'Intensity',
+	zscale = 'V')
 
 f.close()
 ```
