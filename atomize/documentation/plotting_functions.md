@@ -7,8 +7,8 @@
 - [1D plotting](#1d-plotting)<br/>
 - [2D plotting](#2d-plotting)<br/>
 - [Dynamic labeling](#dynamic-labeling)<br/>
-- [Example1](#1d-plotting-1)<br/>
-- [Example2](#2d-plotting-1)<br/>
+- [Example 1](#1d-plotting-1)<br/>
+- [Example 2](#2d-plotting-1)<br/>
 
 ## General information
 Plotting of raw experimental data is available via [Liveplot](https://github.com/PhilReinhold/liveplot) library modified according to the aims of the project.

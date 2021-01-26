@@ -20,16 +20,16 @@ At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and W
 - [Requirements](#requirements)<br/>
 - [Basic usage](#basic-usage)<br/>
 - [Available devices](#available-devices)<br/>
--- [Temperature Controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/temperature_controller_functions.md)<br/>
--- [Lock-in Amplifiers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/lock_in_amplifier_functions.md)<br/>
--- [Oscilloscopes](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/oscilloscope_functions.md)<br/>
--- [Arbitrary Wave Generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/wave_generator_functions.md)<br/>
--- [Frequency Counters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/frequency_counter_functions.md)<br/>
--- [Magnetic Field Controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/magnet_functions.md)<br/>
--- [Gaussmeters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/gaussmeter_functions.md)<br/>
--- [Power Supplies](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/power_supply_functions.md)<br/>
--- [Balances](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)<br/>
--- [Other](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)<br/>
+    - [Temperature Controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/temperature_controller_functions.md)<br/>
+    - [Lock-in Amplifiers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/lock_in_amplifier_functions.md)<br/>
+    - [Oscilloscopes](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/oscilloscope_functions.md)<br/>
+    - [Arbitrary Wave Generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/wave_generator_functions.md)<br/>
+    - [Frequency Counters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/frequency_counter_functions.md)<br/>
+    - [Magnetic Field Controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/magnet_functions.md)<br/>
+    - [Gaussmeters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/gaussmeter_functions.md)<br/>
+    - [Power Supplies](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/power_supply_functions.md)<br/>
+    - [Balances](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)<br/>
+    - [Other](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)<br/>
 - [Function for devices](#available-function-for-devices)<br/>
 - [General functions](#available-general-functions)<br/>
 - [Plotting functions](#available-plotting-functions)<br/>

@@ -5,9 +5,9 @@
 - [Print function](#print-a-line-in-the-main-window)<br/>
 - [Waitfunction](#wait-for-the-specified-amount-of-time)<br/>
 - [File handling functions](#file-handling)<br/>
-- [Example1](#open-file)<br/>
-- [Example2](#save-file-in-the-end-of-the-script)<br/>
-- [Example3](#save-file-during-the-script)<br/>
+- [Example 1](#open-file)<br/>
+- [Example 2](#save-file-in-the-end-of-the-script)<br/>
+- [Example 3](#save-file-during-the-script)<br/>
 
 ## Available functions
 - [general.message('string')](#print-a-line-in-the-main-window)<br/>
