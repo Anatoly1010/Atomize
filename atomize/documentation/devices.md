@@ -1,5 +1,17 @@
 # List of available devices
 
+## Contents
+- [Temperature Controllers](#temperature-controllers)<br/>
+- [Lock-in Amplifiers](#lock-in-amplifiers)<br/>
+- [Oscilloscopes](#oscilloscopes)<br/>
+- [Arbitrary Wave Generators](#arbitrary-wave-generators)<br/>
+- [Frequency Counters](#frequency-counters)<br/>
+- [Magnetic Field Controllers](#magnetic-field-controllers)<br/>
+- [Gaussmeters](#gaussmeters)<br/>
+- [Power Supplies](#power-supplies)<br/>
+- [Balances](#balances)<br/>
+- [Other](#other)<br/>
+
 ## Temperature Controllers
 - Lakeshore (GPIB, RS-232)
 325; 331; 332; 335; 336; 340; Tested 01/21

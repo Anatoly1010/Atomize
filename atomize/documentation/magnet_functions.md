@@ -7,14 +7,15 @@ Available devices:
 - Bruker ER032M (GPIB); Available via BH15 module
 - Bruker ER031M (RS-232 using arduino emulated keyboard); Tested 01/2021
 
-[magnet_name()](#magnet_name<br/>
-[magnet_setup(start_field, step_field)](#magnet_setupstart_field-step_field)<br/>
-[magnet_field(*field)](#magnet_fieldfield)<br/>
-[magnet_sweep_up()](#magnet_sweep_up)<br/>
-[magnet_sweep_down()](#magnet_sweep_down)<br/>
-[magnet_reset_field()](#magnet_reset_field)<br/>
-[magnet_field_step_size(*step)](#magnet_field_step_sizestep)<br/>
-[magnet_command(command)](#magnet_commandcommand)<br/>
+Functions:
+- [magnet_name()](#magnet_name<br/>
+- [magnet_setup(start_field, step_field)](#magnet_setupstart_field-step_field)<br/>
+- [magnet_field(*field)](#magnet_fieldfield)<br/>
+- [magnet_sweep_up()](#magnet_sweep_up)<br/>
+- [magnet_sweep_down()](#magnet_sweep_down)<br/>
+- [magnet_reset_field()](#magnet_reset_field)<br/>
+- [magnet_field_step_size(*step)](#magnet_field_step_sizestep)<br/>
+- [magnet_command(command)](#magnet_commandcommand)<br/>
 
 ### magnet_name()
 ```python3

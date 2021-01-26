@@ -8,21 +8,22 @@ Available via corresponding oscilloscope module.
 - Wave Generator of Keysight InfiniiVision 4000 X-Series (Ethernet)
 Available via corresponding oscilloscope module.
 
-[wave_gen_name()](#wave_gen_name)<br/>
-[wave_gen_frequency(*frequency)](#wave_gen_frequencyfrequency)<br/>
-[wave_gen_pulse_width(*width)](#wave_gen_pulse_widthwidth)<br/>
-[wave_gen_function(*function)](#wave_gen_functionfunction)<br/>
-[wave_gen_amplitude(*amplitude)](#wave_gen_amplitudeamplitude)<br/>
-[wave_gen_offset(*offset)](#wave_gen_offsetoffset)<br/>
-[wave_gen_impedance(*impedance)](#wave_gen_impedanceimpedance)<br/>
-[wave_gen_run()](#wave_gen_run)<br/>
-[wave_gen_stop()](#wave_gen_stop)<br/>
-[wave_gen_arbitrary_function(list)](#wave_gen_arbitrary_functionlist)<br/>
-[wave_gen_arbitrary_clear()](#wave_gen_arbitrary_clear)<br/>
-[wave_gen_arbitrary_interpolation(*mode)](#wave_gen_arbitrary_interpolationmode)<br/>
-[wave_gen_arbitrary_points()](#wave_gen_arbitrary_points)<br/>
-[wave_gen_command(command)](#wave_gen_commandcommand)<br/>
-[wave_gen_query(command)](#wave_gen_querycommand)<br/>
+Functions:
+- [wave_gen_name()](#wave_gen_name)<br/>
+- [wave_gen_frequency(*frequency)](#wave_gen_frequencyfrequency)<br/>
+- [wave_gen_pulse_width(*width)](#wave_gen_pulse_widthwidth)<br/>
+- [wave_gen_function(*function)](#wave_gen_functionfunction)<br/>
+- [wave_gen_amplitude(*amplitude)](#wave_gen_amplitudeamplitude)<br/>
+- [wave_gen_offset(*offset)](#wave_gen_offsetoffset)<br/>
+- [wave_gen_impedance(*impedance)](#wave_gen_impedanceimpedance)<br/>
+- [wave_gen_run()](#wave_gen_run)<br/>
+- [wave_gen_stop()](#wave_gen_stop)<br/>
+- [wave_gen_arbitrary_function(list)](#wave_gen_arbitrary_functionlist)<br/>
+- [wave_gen_arbitrary_clear()](#wave_gen_arbitrary_clear)<br/>
+- [wave_gen_arbitrary_interpolation(*mode)](#wave_gen_arbitrary_interpolationmode)<br/>
+- [wave_gen_arbitrary_points()](#wave_gen_arbitrary_points)<br/>
+- [wave_gen_command(command)](#wave_gen_commandcommand)<br/>
+- [wave_gen_query(command)](#wave_gen_querycommand)<br/>
 
 ### wave_gen_name()
 ```python3

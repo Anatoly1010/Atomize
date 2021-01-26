@@ -6,19 +6,20 @@ Available devices:
 - Oxford Instruments (RS-232)
 ITC 503; Tested 01/21
 
-[tc_name()](#tc_name)<br/>
-[tc_temperature(channel)](#tc_temperaturechannel)<br/>
-[tc_setpoint(*temp)](#tc_setpointtemp)<br/>
-[tc_heater_range(*heater)](#tc_heater_rangeheater)<br/>
-[tc_heater_power()](#tc_heater_power)<br/>
-[tc_heater_power(*power_percent)](#tc_heater_powerpower_percent)<br/>
-[tc_heater_power_limit(power)](#tc_heater_power_limitpower)<br/>
-[tc_state(*mode)](#tc_statemode)<br/>
-[tc_sensor(*sensor)](#tc_sensorsensor)<br/>
-[tc_gas_flow(*flow)](#tc_gas_flowflow)<br/>
-[tc_lock_keyboard(*lock)](#tc_lock_keyboardlock)<br/>
-[tc_command(command)](#tc_commandcommand)<br/>
-[tc_query(command)](#tc_querycommand)<br/>
+Functions:
+- [tc_name()](#tc_name)<br/>
+- [tc_temperature(channel)](#tc_temperaturechannel)<br/>
+- [tc_setpoint(*temp)](#tc_setpointtemp)<br/>
+- [tc_heater_range(*heater)](#tc_heater_rangeheater)<br/>
+- [tc_heater_power()](#tc_heater_power)<br/>
+- [tc_heater_power(*power_percent)](#tc_heater_powerpower_percent)<br/>
+- [tc_heater_power_limit(power)](#tc_heater_power_limitpower)<br/>
+- [tc_state(*mode)](#tc_statemode)<br/>
+- [tc_sensor(*sensor)](#tc_sensorsensor)<br/>
+- [tc_gas_flow(*flow)](#tc_gas_flowflow)<br/>
+- [tc_lock_keyboard(*lock)](#tc_lock_keyboardlock)<br/>
+- [tc_command(command)](#tc_commandcommand)<br/>
+- [tc_query(command)](#tc_querycommand)<br/>
 
 
 ### tc_name()

@@ -6,20 +6,21 @@ SR-810; SR-830; SR-850; Untested
 - Stanford Research Lock-In Amplifier (GPIB, RS-232, Ethernet)
 SR-860; SR-865a; Tested 01/2021
 
-[lock_in_name()](#lock_in_name)<br/>
-[lock_in_ref_frequency(*frequency)](#lock_in_ref_frequencyfrequency)<br/>
-[lock_in_phase(*degree)](#lock_in_phasedegree)<br/>
-[lock_in_time_constant(*timeconstant)](#lock_in_time_constanttimeconstant)<br/>
-[lock_in_ref_amplitude(*amplitude)](#lock_in_ref_amplitudeamplitude)<br/>
-[lock_in_get_data(*channel)](#lock_in_get_datachannel)<br/>
-[lock_in_sensitivity(*sensitivity)](#lock_in_sensitivitysensitivity)<br/>
-[lock_in_ref_mode(*mode)](#lock_in_ref_modemode)<br/>
-[lock_in_ref_slope(*mode)](#lock_in_ref_slopemode)<br/>
-[lock_in_sync_filter(*mode)](#lock_in_sync_filtermode)<br/>
-[lock_in_lp_filter(*mode)](#lock_in_lp_filtermode)<br/>
-[lock_in_harmonic(*harmonic)](#lock_in_harmonicharmonic)<br/>
-[lock_in_command(command)](#lock_in_commandcommand)<br/>
-[lock_in_query(command)](#lock_in_querycommand)<br/>
+Functions:
+- [lock_in_name()](#lock_in_name)<br/>
+- [lock_in_ref_frequency(*frequency)](#lock_in_ref_frequencyfrequency)<br/>
+- [lock_in_phase(*degree)](#lock_in_phasedegree)<br/>
+- [lock_in_time_constant(*timeconstant)](#lock_in_time_constanttimeconstant)<br/>
+- [lock_in_ref_amplitude(*amplitude)](#lock_in_ref_amplitudeamplitude)<br/>
+- [lock_in_get_data(*channel)](#lock_in_get_datachannel)<br/>
+- [lock_in_sensitivity(*sensitivity)](#lock_in_sensitivitysensitivity)<br/>
+- [lock_in_ref_mode(*mode)](#lock_in_ref_modemode)<br/>
+- [lock_in_ref_slope(*mode)](#lock_in_ref_slopemode)<br/>
+- [lock_in_sync_filter(*mode)](#lock_in_sync_filtermode)<br/>
+- [lock_in_lp_filter(*mode)](#lock_in_lp_filtermode)<br/>
+- [lock_in_harmonic(*harmonic)](#lock_in_harmonicharmonic)<br/>
+- [lock_in_command(command)](#lock_in_commandcommand)<br/>
+- [lock_in_query(command)](#lock_in_querycommand)<br/>
 
 ### lock_in_name()
 ```python3

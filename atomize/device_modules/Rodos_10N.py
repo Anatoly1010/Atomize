@@ -27,13 +27,13 @@ class Rodos_10N:
     def __init(self):
         pass
 
-    def turn_on(self, number):
+    def relay_turn_on(self, number):
         s = socket(AF_INET, SOCK_DGRAM)
         msg = ("admin admin k" + str(number) + "=1").encode('utf-8')
         s.sendto(msg, (config['ethernet_address'], 8283))
         general.message(f"Channel {number} turned on")
 
-    def turn_off(self, number):
+    def relay_turn_off(self, number):
         s = socket(AF_INET, SOCK_DGRAM)
         msg = ("admin admin k" + str(number) + "=0").encode('utf-8')
         s.sendto(msg, (config['ethernet_address'], 8283))

@@ -6,28 +6,29 @@ Available devices:
 - Keysight InfiniiVision 4000 X-Series (Ethernet); Untested
 - Tektronix 4000 Series (Ethernet); Tested 01/2021
 
-[oscilloscope_name()](#oscilloscope_name)<br/>
-[oscilloscope_record_length(*points)](#oscilloscope_record_lengthpoints)<br/>
-[oscilloscope_acquisition_type(*ac_type)](#oscilloscope_acquisition_typeac_type)<br/>
-[oscilloscope_number_of_averages(*number_of_averages)](#oscilloscope_number_of_averagesnumber_of_averages)<br/>
-[oscilloscope_timebase(*timebase)](#oscilloscope_timebasetimebase)<br/>
-[oscilloscope_define_window(**kargs)](#oscilloscope_define_windowkargs)<br/>
-[oscilloscope_time_resolution()](#oscilloscope_time_resolution)<br/>
-[oscilloscope_start_acquisition()](#oscilloscope_start_acquisition)<br/>
-[oscilloscope_preamble(channel)](#oscilloscope_preamblechannel)<br/>
-[oscilloscope_stop()](#oscilloscope_stop)<br/>
-[oscilloscope_run()](#oscilloscope_run)<br/>
-[oscilloscope_get_curve(channel)](#oscilloscope_get_curvechannel)<br/>
-[oscilloscope_sensitivity(*channel)](#oscilloscope_sensitivitychannel)<br/>
-[oscilloscope_offset(*channel)](#oscilloscope_offsetchannel)<br/>
-[oscilloscope_horizontal_offset(*h_offset)](#oscilloscope_horizontal_offseth_offset)<br/>
-[oscilloscope_coupling(*coupling)](#oscilloscope_couplingcoupling)<br/>
-[oscilloscope_impedance(*impedance)](#oscilloscope_impedanceimpedance)<br/>
-[oscilloscope_trigger_mode(*mode)](#oscilloscope_trigger_modemode)<br/>
-[oscilloscope_trigger_channel(*channel)](#oscilloscope_trigger_channelchannel)<br/>
-[oscilloscope_trigger_low_level(*level)](#oscilloscope_trigger_low_levellevel)<br/>
-[oscilloscope_command(command)](#oscilloscope_commandcommand)<br/>
-[oscilloscope_query(command)](#oscilloscope_querycommand)<br/>
+Functions:
+- [oscilloscope_name()](#oscilloscope_name)<br/>
+- [oscilloscope_record_length(*points)](#oscilloscope_record_lengthpoints)<br/>
+- [oscilloscope_acquisition_type(*ac_type)](#oscilloscope_acquisition_typeac_type)<br/>
+- [oscilloscope_number_of_averages(*number_of_averages)](#oscilloscope_number_of_averagesnumber_of_averages)<br/>
+- [oscilloscope_timebase(*timebase)](#oscilloscope_timebasetimebase)<br/>
+- [oscilloscope_define_window(**kargs)](#oscilloscope_define_windowkargs)<br/>
+- [oscilloscope_time_resolution()](#oscilloscope_time_resolution)<br/>
+- [oscilloscope_start_acquisition()](#oscilloscope_start_acquisition)<br/>
+- [oscilloscope_preamble(channel)](#oscilloscope_preamblechannel)<br/>
+- [oscilloscope_stop()](#oscilloscope_stop)<br/>
+- [oscilloscope_run()](#oscilloscope_run)<br/>
+- [oscilloscope_get_curve(channel)](#oscilloscope_get_curvechannel)<br/>
+- [oscilloscope_sensitivity(*channel)](#oscilloscope_sensitivitychannel)<br/>
+- [oscilloscope_offset(*channel)](#oscilloscope_offsetchannel)<br/>
+- [oscilloscope_horizontal_offset(*h_offset)](#oscilloscope_horizontal_offseth_offset)<br/>
+- [oscilloscope_coupling(*coupling)](#oscilloscope_couplingcoupling)<br/>
+- [oscilloscope_impedance(*impedance)](#oscilloscope_impedanceimpedance)<br/>
+- [oscilloscope_trigger_mode(*mode)](#oscilloscope_trigger_modemode)<br/>
+- [oscilloscope_trigger_channel(*channel)](#oscilloscope_trigger_channelchannel)<br/>
+- [oscilloscope_trigger_low_level(*level)](#oscilloscope_trigger_low_levellevel)<br/>
+- [oscilloscope_command(command)](#oscilloscope_commandcommand)<br/>
+- [oscilloscope_query(command)](#oscilloscope_querycommand)<br/>
 
 ### oscilloscope_name()
 ```python3

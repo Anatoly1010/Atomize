@@ -3,11 +3,12 @@
 Available devices:
 - Lakeshore 455 DSP (RS-232); Tested 01/2021
 
-[gaussmeter_name()](#gaussmeter_name)<br/>
-[gaussmeter_field()](#gaussmeter_field)<br/>
-[gaussmeter_units(*units)](#gaussmeter_unitsunits)<br/>
-[gaussmeter_command(command)](#gaussmeter_commandcommand)<br/>
-[gaussmeter_query(command)](#gaussmeter_querycommand)<br/>
+Functions:
+- [gaussmeter_name()](#gaussmeter_name)<br/>
+- [gaussmeter_field()](#gaussmeter_field)<br/>
+- [gaussmeter_units(*units)](#gaussmeter_unitsunits)<br/>
+- [gaussmeter_command(command)](#gaussmeter_commandcommand)<br/>
+- [gaussmeter_query(command)](#gaussmeter_querycommand)<br/>
 
 ### gaussmeter_name()
 ```python3

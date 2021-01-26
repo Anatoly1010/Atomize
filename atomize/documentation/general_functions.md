@@ -1,19 +1,26 @@
 # List of available general functions
 
-[general.message('string')](#print-a-line-in-the-main-window)<br/>
-[general.wait('10 ms')](#wait-for-the-specified-amount-of-time)<br/>
-[open_1D(path, header = 0)](#open_1D)<br/>
-[open_1D_dialog(self, directory = '', header = 0)](#open_1D_dialog)<br/>
-[save_1D_dialog(data, directory = '', header = '')](#save_1D_dialog)<br/>
-[open_2D(path, header = 0)](#open_2D)<br/>
-[open_2D_dialog(directory = '', header = 0)](#open_2D_dialog)<br/>
-[open_2D_appended(path, header = 0, chunk_size = 1)](#open_2D_appended)<br/>
-[open_2D_appended_dialog(directory = '', header = 0, chunk_size = 1)](#open_2D_appended_dialog)<br/>
-[save_2D_dialog(data, directory = '', header = '')](#save_2D_dialog)<br/>
-[create_file_dialog(directory = '')](#create_file_dialog)<br/>
-[Example1](#open-file)<br/>
-[Example2](#save-file-in-the-end-of-the-script)<br/>
-[Example3](#save-file-during-the-script)<br/>
+## Contents
+- [Available functions](#available-functions)<br/>
+- [Print function](#print-a-line-in-the-main-window)<br/>
+- [Waitfunction](#wait-for-the-specified-amount-of-time)<br/>
+- [File handling functions](#file-handling)<br/>
+- [Example1](#open-file)<br/>
+- [Example2](#save-file-in-the-end-of-the-script)<br/>
+- [Example3](#save-file-during-the-script)<br/>
+
+## Available functions
+- [general.message('string')](#print-a-line-in-the-main-window)<br/>
+- [general.wait('10 ms')](#wait-for-the-specified-amount-of-time)<br/>
+- [open_1D(path, header = 0)](#open_1D)<br/>
+- [open_1D_dialog(self, directory = '', header = 0)](#open_1D_dialog)<br/>
+- [save_1D_dialog(data, directory = '', header = '')](#save_1D_dialog)<br/>
+- [open_2D(path, header = 0)](#open_2D)<br/>
+- [open_2D_dialog(directory = '', header = 0)](#open_2D_dialog)<br/>
+- [open_2D_appended(path, header = 0, chunk_size = 1)](#open_2D_appended)<br/>
+- [open_2D_appended_dialog(directory = '', header = 0, chunk_size = 1)](#open_2D_appended_dialog)<br/>
+- [save_2D_dialog(data, directory = '', header = '')](#save_2D_dialog)<br/>
+- [create_file_dialog(directory = '')](#create_file_dialog)<br/>
 
 ## Print a line in the main window
 To call this function a corresponding general function module should be imported. After that

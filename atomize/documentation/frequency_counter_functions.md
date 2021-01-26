@@ -6,20 +6,21 @@ Available devices:
 - Keysight Frequency Counter (GPIB, RS-232, Ethernet)
 53230A/220A; Untested
 
-[freq_counter_name()](#freq_counter_name)<br/>
-[freq_counter_frequency(channel)](#freq_counter_frequencychannel)<br/>
-[freq_counter_impedance(*impedance)](#freq_counter_impedanceimpedance)<br/>
-[freq_counter_coupling(*coupling)](#freq_counter_couplingcoupling)<br/>
-[freq_counter_stop_mode(*mode)](#freq_counter_stop_modemode)<br/>
-[freq_counter_start_mode(*mode)](#freq_counter_start_modemode)<br/>
-[freq_counter_gate_mode(*mode)](#freq_counter_gate_modemode)<br/>
-[freq_counter_digits(*digits)](#freq_counter_digitsdigits)<br/>
-[freq_counter_gate_time(*time)](#freq_counter_gate_timetime)<br/>
-[freq_counter_expected_freq(*frequency)](#freq_counter_expected_freqfrequency)<br/>
-[freq_counter_ratio(channel1, channel2)](#freq_counter_ratiochannel1-channel2)<br/>
-[freq_counter_period(channel)](#freq_counter_periodchannel)<br/>
-[freq_counter_command(command)](#freq_counter_commandcommand)<br/>
-[freq_counter_query(command)](#freq_counter_commandquery)<br/>
+Functions:
+- [freq_counter_name()](#freq_counter_name)<br/>
+- [freq_counter_frequency(channel)](#freq_counter_frequencychannel)<br/>
+- [freq_counter_impedance(*impedance)](#freq_counter_impedanceimpedance)<br/>
+- [freq_counter_coupling(*coupling)](#freq_counter_couplingcoupling)<br/>
+- [freq_counter_stop_mode(*mode)](#freq_counter_stop_modemode)<br/>
+- [freq_counter_start_mode(*mode)](#freq_counter_start_modemode)<br/>
+- [freq_counter_gate_mode(*mode)](#freq_counter_gate_modemode)<br/>
+- [freq_counter_digits(*digits)](#freq_counter_digitsdigits)<br/>
+- [freq_counter_gate_time(*time)](#freq_counter_gate_timetime)<br/>
+- [freq_counter_expected_freq(*frequency)](#freq_counter_expected_freqfrequency)<br/>
+- [freq_counter_ratio(channel1, channel2)](#freq_counter_ratiochannel1-channel2)<br/>
+- [freq_counter_period(channel)](#freq_counter_periodchannel)<br/>
+- [freq_counter_command(command)](#freq_counter_commandcommand)<br/>
+- [freq_counter_query(command)](#freq_counter_commandquery)<br/>
 
 ### freq_counter_name()
 ```python3

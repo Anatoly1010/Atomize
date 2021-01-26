@@ -4,18 +4,19 @@ Available devices:
 - Rigol DP800 Series (RS-232, Ethernet); Tested 01/2021
 - Stanford Research DC205 (RS-232); Untested
 
-[power_supply_name()](#power_supply_name)<br/>
-[power_supply_voltage(*voltage)](#power_supply_voltagevoltage)<br/>
-[power_supply_current(*current)](#power_supply_currentcurrent)<br/>
-[power_supply_overvoltage(*voltage)](#power_supply_overvoltagevoltage)<br/>
-[power_supply_overcurrent(*current)](#power_supply_overcurrentcurrent)<br/>
-[power_supply_channel_state(*state)](#power_supply_channel_statestate)<br/>
-[power_supply_measure(channel)](#power_supply_measurechannel)<br/>
-[power_supply_preset(preset)](#power_supply_presetpreset)<br/>
-[power_supply_range(*range)](#power_supply_rangerange)<br/>
-[power_supply_interlock()](#power_supply_interlock)<br/>
-[power_supply_command(command)](#power_supply_commandcommand)<br/>
-[power_supply_query(command)](#power_supply_querycommand)<br/>
+Functions:
+- [power_supply_name()](#power_supply_name)<br/>
+- [power_supply_voltage(*voltage)](#power_supply_voltagevoltage)<br/>
+- [power_supply_current(*current)](#power_supply_currentcurrent)<br/>
+- [power_supply_overvoltage(*voltage)](#power_supply_overvoltagevoltage)<br/>
+- [power_supply_overcurrent(*current)](#power_supply_overcurrentcurrent)<br/>
+- [power_supply_channel_state(*state)](#power_supply_channel_statestate)<br/>
+- [power_supply_measure(channel)](#power_supply_measurechannel)<br/>
+- [power_supply_preset(preset)](#power_supply_presetpreset)<br/>
+- [power_supply_range(*range)](#power_supply_rangerange)<br/>
+- [power_supply_interlock()](#power_supply_interlock)<br/>
+- [power_supply_command(command)](#power_supply_commandcommand)<br/>
+- [power_supply_query(command)](#power_supply_querycommand)<br/>
 
 ### power_supply_name()
 ```python3
