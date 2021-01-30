@@ -1,7 +1,7 @@
 # List of available functions for frequency counters
 
 Available devices:
-- Agilent Frequency Counter (GPIB)
+- Agilent Frequency Counter (GPIB, RS-232)
 53181A; 53131A/132A; Untested
 - Keysight Frequency Counter (GPIB, RS-232, Ethernet)
 53230A/220A; Untested
@@ -17,7 +17,6 @@ Functions:
 - [freq_counter_digits(*digits)](#freq_counter_digitsdigits)<br/>
 - [freq_counter_gate_time(*time)](#freq_counter_gate_timetime)<br/>
 - [freq_counter_expected_freq(*frequency)](#freq_counter_expected_freqfrequency)<br/>
-- [freq_counter_ratio(channel1, channel2)](#freq_counter_ratiochannel1-channel2)<br/>
 - [freq_counter_period(channel)](#freq_counter_periodchannel)<br/>
 - [freq_counter_command(command)](#freq_counter_commandcommand)<br/>
 - [freq_counter_query(command)](#freq_counter_commandquery)<br/>
@@ -39,7 +38,7 @@ Agilent 53181a has two channels; Agielnt 53131a, Keysight 53230a - three.<br/>
 ### freq_counter_impedance(*impedance)
 ```python3
 freq_counter_impedance(*impedance)
-Arguments: impedance = two strings ('channel string', 'impedance string (1 M, 50)')
+Arguments: impedance = two strings ('channel string', 'impedance string ['1 M', '50']')
 or one string ('channel string'); Output: string.
 Examples: freq_counter_impedance('CH1', '1 M') sets the impedance of the channel 1 to 1 MOhm.
 freq_counter_impedance('CH2') returns the current impedance of the channel 2.
@@ -49,7 +48,7 @@ For Agilent 53181a impedance can be changed only for the first channel; for Agie
 ### freq_counter_coupling(*coupling)
 ```python3
 freq_counter_coupling(*coupling)
-Arguments: coupling = two strings ('channel string', 'coupling string ('AC', 'DC')') or 
+Arguments: coupling = two strings ('channel string', 'coupling string ['AC', 'DC']') or 
 one string ('channel string'); Output: string.
 Examples: freq_counter_coupling('CH1', 'AC') sets the coupling of the channel 1 to AC.
 freq_counter_coupling('CH2') returns the current coupling of the channel 2.
@@ -60,28 +59,28 @@ For Agilent 53181a coupling can be changed only for the first channel; for Agiel
 ```python3
 freq_counter_stop_mode(*mode)
 Arguments: mode = string from a specified dictionary; Output: string.
-Example: freq_counter_stop_mode('Tim') sets the digits mode.
+Example: freq_counter_stop_mode('Timer') sets the digits mode.
 ```
 This function queries or sets the stop arm for frequency, frequency ratio, and period measurements. The type should be from the following array:<br/>
-['Im', 'Ext', 'Tim', 'Dig'] for Agilent 53181a and Agilent 53131a.<br/>
-In automatic (immediate or 'Im') mode the device does the fastest possible acquisistion, in gate time mode it measures for the specified gate time, and in digits mode the time required for a measurement depends on the number of digits requested. This setting influences the resolution of the results. Use automatic mode for fast measurements or choose a desired resolution by using [freq_counter_gate_time()](#freq_counter_gate_timetime) to set the gate time for gate time ('Tim') mode or [freq_counter_digits()](#freq_counter_digitsdigits) for digits ('Dig') mode.<br/>
-For Keysight 53230a possible modes are: ['Im', 'Tim', 'Event'].<br/>
+['Immediate', 'External', 'Timer', 'Digits'] for Agilent 53181a and Agilent 53131a.<br/>
+In automatic ('Immediate') mode the device does the fastest possible acquisistion, in gate time mode it measures for the specified gate time, and in digits mode the time required for a measurement depends on the number of digits requested. This setting influences the resolution of the results. Use automatic mode for fast measurements or choose a desired resolution by using [freq_counter_gate_time()](#freq_counter_gate_timetime) to set the gate time for gate time ('Timer') mode or [freq_counter_digits()](#freq_counter_digitsdigits) for digits ('Digits') mode.<br/>
+For Keysight 53230a possible modes are: ['Immediate', 'Timer', 'Events'].<br/>
 ### freq_counter_start_mode(*mode)
 ```python3
 freq_counter_start_mode(*mode)
 Arguments: mode = string from a specified dictionary; Output: string.
-Example: freq_counter_start_mode('Im') sets the automatic mode.
+Example: freq_counter_start_mode('Immediate') sets the automatic mode.
 ```
 This function queries or sets the start arm for frequency, frequency ratio, and period measurements. The type should be from the following array:<br/>
-['Im', 'Ext'].<br/>
+['Immediate', 'External'].<br/>
 ### freq_counter_gate_mode(*mode)
 ```python3
 freq_counter_gate_mode(*mode)
 Arguments: mode = string from a specified dictionary; Output: string.
-Example: freq_counter_gate_mode('Tim') sets the 'Time' mode.
+Example: freq_counter_gate_mode('Timer') sets the 'Time' mode.
 ```
 This function queries or sets the gate source for frequency, frequency ratio measurements. Currently, the type should be from the following array:
-['Tim', 'Ext'], where 'Time' coresponds to starting the measurement immediately after a trigger and trigger delay; 'Ext' configures the instrument to gate the measurement using the Gate In/Out BNC after a trigger and trigger delay.<br/>
+['Timer', 'External'], where 'Time' coresponds to starting the measurement immediately after a trigger and trigger delay; 'External' configures the instrument to gate the measurement using the Gate In/Out BNC after a trigger and trigger delay.<br/>
 This functions is available only for Keysight 53230a.
 ### freq_counter_digits(*digits)
 ```python3
@@ -89,15 +88,15 @@ freq_counter_digits(*digits)
 Arguments: digits = integer in the range of 3 to 15; Output: integer.
 Example: freq_counter_digits(5) sets the resolution to 5 digits.
 ```
-This function queries or sets the resolution in terms of digits used in arming frequency, period, and ratio measurements. To set this mode use [freq_counter_stop_mode()](#freq_counter_stop_modemode) function. The argument of the function should be an integer between 3 and 15. To query the number of digits call the function with no argument. A query is possible only if freq_counter_stop_mode('Dig') was called before.<br/>
+This function queries or sets the resolution in terms of digits used in arming frequency, period, and ratio measurements. To set this mode use [freq_counter_stop_mode()](#freq_counter_stop_modemode) function. The argument of the function should be an integer between 3 and 15. To query the number of digits call the function with no argument. A query is possible only if [freq_counter_stop_mode('Digits')](#freq_counter_stop_modemode) was called before.<br/>
 This function is available only for Agilent 53181a and 53131a.<br/>
 ### freq_counter_gate_time(*time)
 ```python3
 freq_counter_gate_time(*time)
-Arguments: time = string ('number + scaling (ks, s, ms, us, ns)'); Output: float.
+Arguments: time = string ('number + scaling (ks, s, ms, us, ns)'); Output: float (in seconds).
 Example: freq_counter_gate_time('100 ms') sets the gate time to 100 ms.
 ```
-This function queries or sets the gate time used in arming frequency, period, and ratio measurements. To set this mode use freq_counter_stop_mode() function. The argument of the function should be from 1 ms to 1000 s (Agilent 53181a, 53131a); from 10 us to 10 s (Keysight 53220a); from 10 ns to 10 s (Keysight 53230a). To query the gate call the function with no argument. A query is possible only if freq_counter_stop_mode('Tim') was called before.<br/>
+This function queries or sets the gate time used in arming frequency, period, and ratio measurements. To set this mode use [freq_counter_stop_mode()](#freq_counter_stop_modemode) function. The argument of the function should be from 1 ms to 1000 s (Adilent 53181a, 53131a); from 10 us to 10 s (Keysight 53220a); from 10 ns to 10 s (Keysight 53230a). To query the gate call the function with no argument. A query is possible only if [freq_counter_stop_mode('Timer')](#freq_counter_stop_modemode) was called before.<br/>
 ### freq_counter_expected_freq(*frequency)
 ```python3
 freq_counter_expected_freq(*frequency)
@@ -110,15 +109,6 @@ The function queries (if called with one argument) or sets (if called with two a
 If there is a second argument this will be set as a new approximate frequency of a signal. If there is no second argument the current approximate frequency of a signal for specified the channel is returned.<br/>
 For Agilent 53181a the approximate frequency can be set for channels 1 and 2; for Agielnt 53131a for channels 1, 2, and 3.<br/>
 This function is available only for Agilent 53181a and 53131a.<br/>
-### freq_counter_ratio(channel1, channel2)
-```python3
-freq_counter_ratio(channel1, channel2)
-Arguments: channel1 = string (['CH1', 'CH2', 'CH3']); channel2 = string (['CH1', 'CH2', 'CH3']);
-Output: float.
-Example: freq_counter_ratio('CH2', 'CH1') measures the frequency ratio between channel 2 and channel 1.
-```
-The function measures the frequency ratio between two specified inputs.<br/>
-For Agilent 53181a the ratio can be measured between channel 1 and 2; for Agielnt 53131a between channel 1 and 2 or 1 and 3; for Keysight 53230a for all available channels.<br/>
 ### freq_counter_period(channel)
 ```python3
 freq_counter_period(channel)

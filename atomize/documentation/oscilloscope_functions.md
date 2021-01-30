@@ -42,22 +42,19 @@ oscilloscope_record_length(*points)
 Arguments: points = integer from a specified dictionary; Output: integer.
 Example: oscilloscope_record_length(4000) sets the number of waveform points to 4000.
 ```
-This function queries or sets the number of waveform points to be transferred using [oscilloscope_get_curve()](#oscilloscope_get_curvechannel) function.<br/>
-Please, note that the possible number of points for Keysight 3000 X-series does not match the one given in the programming guide.<br/>
-The number of points in averaging mode should be from the following array: [100, 250, 500, 1000, 2000, 4000, 8000].<br/>
-For Keysight 2000 X-series the situation is worse and the following array should be used: [99, 247, 479, 959, 1919, 3839, 7679].<br/>
-For Keysight 4000 X-series the number of points given in the programming guide should be checked.<br/>
-If one would like to use Keysight oscilloscopes without averaging (in normal or high-resolution mode), the number of points in the waveform is usually the same as specified in the programming manual. You can change the number of points array in the module to correctly set o properly set this parameter in normal or high-resolution mode.<br/>
-Fot Tektronix 4000 Series the following array should be used: [1000, 10000, 100000, 1000000, 10000000].<br/>
-The maximum amount of points that can be transferred depend on the waveform points mode. Please, refer to the manual.<br/>
+This function queries or sets the number of waveform points to be transferred using [oscilloscope_get_curve()](#oscilloscope_get_curvechannel) function. If there is no number of points setting fitting the argument the nearest available value is used and warning is printed.<br/>
+If one would like to use Keysight oscilloscopes without averaging (in normal, peak or high-resolution mode), the number of points in the waveform is usually [100, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000]. The maximum available number of points depends on the timescale and can be substantially lower than 100000.<br/>
+In the average mode the number of points in the waveform is not the one specified in the programming manual. For Keysight 3000 X-series the correct array is [100, 250, 500, 1000, 2000, 4000, 8000]. For Keysight 2000 X-series: [99, 247, 479, 959, 1919, 3839, 7679]. For Keysight 4000 X-series the number of points for the average mode should be checked.<br/>
+To handle this situation more or less correctly, two different arrays (for average and all other modes) of available number of points are used in the modules for Keysight oscilloscopes.<br/>
+Fot Tektronix 4000 Series the available number of points is [1000, 10000, 100000, 1000000, 10000000].<br/>
 ### oscilloscope_acquisition_type(*ac_type)
 ```python3
 oscilloscope_acquisition_type(*ac_type)
 Arguments: ac_type = string froma specified dictionary; Output: string.
-Example: oscilloscope_acquisition_type('Ave') sets the acquisition type to the average mode.
+Example: oscilloscope_acquisition_type('Average') sets the acquisition type to the average mode.
 ```
 This function queries or sets the acquisition type. If there is no argument the function will return the current acquisition type. The type should be from the following array:<br/>
-['Norm', 'Ave', 'Hres', 'Peak']<br/>
+['Normal', 'Average', 'Hres', 'Peak']<br/>
 High-resolution (also known as smoothing) mode is used to reduce noise at slower sweep speeds where the digitizer samples faster than needed to fill memory for the displayed time range.<br/>
 ### oscilloscope_number_of_averages(*number_of_averages)
 ```python3

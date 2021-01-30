@@ -26,7 +26,7 @@ points_list = [1000, 10000, 100000, 1000000, 10000000];
 timebase_dict = {'s': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000,};
 timebase_helper_list = [1, 2, 4, 10, 20, 40, 100, 200, 400, 1000]
 scale_dict = {'V': 1, 'mV': 1000,};
-ac_type_dic = {'Norm': "SAMple", 'Ave': "AVErage", 'Hres': "HIRes",'Peak': "PEAKdetect"}
+ac_type_dic = {'Normal': "SAMple", 'Average': "AVErage", 'Hres': "HIRes",'Peak': "PEAKdetect"}
 
 # Ranges and limits
 sensitivity_min = float(specific_parameters['sensitivity_min'])
@@ -43,7 +43,7 @@ test_start = 1
 test_stop = 1000
 test_record_length = 2000
 test_impedance = 1000000
-test_acquisition_type = 'Norm'
+test_acquisition_type = 'Normal'
 test_num_aver = 2
 test_timebase = '100 ms'
 test_h_offset = '10 ms'
@@ -215,7 +215,8 @@ class Tektronix_4000_Series:
                     general.message("Invalid acquisition type")
                     sys.exit()
             elif len(ac_type) == 0:
-                answer = str(self.device_query("ACQuire:MODe?"))
+                raw_answer = str(self.device_query("ACQuire:MODe?"))
+                answer  = cutil.search_keys_dictionary(ac_type_dic, raw_answer)                
                 return answer
             else:
                 general.message("Invalid argument")

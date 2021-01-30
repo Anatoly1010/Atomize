@@ -19,17 +19,21 @@ config = cutil.read_conf_util(path_config_file)
 specific_parameters = cutil.read_specific_parameters(path_config_file)
 
 # auxilary dictionaries
+points_list = [100, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000]
+points_list_average = [99, 247, 479, 959, 1919, 3839, 7679]
+# Number of point is different for Average mode and three other modes
+
 channel_dict = {'CH1': 'CHAN1', 'CH2': 'CHAN2', 'CH3': 'CHAN3', 'CH4': 'CHAN4',}
 trigger_channel_dict = {'CH1': 'CHAN1', 'CH2': 'CHAN2', 'CH3': 'CHAN3', 'CH4': 'CHAN4', \
                         'Ext': 'EXTernal', 'Line': 'LINE', 'WGen': 'WGEN',}
-points_list = [99, 247, 479, 959, 1919, 3839, 7679, 16000, 32000, 64000, 128000, 256000, 512000]
+
 #should be checked, since it is incorrect for 2000 Series
 timebase_dict = {'s': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000,};
 scale_dict = {'V': 1, 'mV': 1000,};
 frequency_dict = {'MHz': 1000000, 'kHz': 1000, 'Hz': 1, 'mHz': 0.001,};
 wavefunction_dic = {'Sin': 'SINusoid', 'Sq': 'SQUare', 'Ramp': 'RAMP', 'Pulse': 'PULSe',
 					'DC': 'DC', 'Noise': 'NOISe',};
-ac_type_dic = {'Norm': "NORMal", 'Ave': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
+ac_type_dic = {'Normal': "NORMal", 'Aveage': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
 
 # Limits and Ranges:
 analog_channels = int(specific_parameters['analog_channels'])
@@ -138,8 +142,8 @@ class Keysight_2000_Xseries:
 
     def device_read_binary(self, command):
         if self.status_flag == 1:
-            answer = self.device.query_binary_values(command, 'h', is_big_endian=True, container=np.array)
-            # H for 3034T; h for 2012A
+            answer = self.device.query_binary_values(command, 'H', is_big_endian=True, container=np.array)
+            # H for 3034T; H for 2012A
             return answer
         else:
             general.message("No connection")
@@ -159,10 +163,18 @@ class Keysight_2000_Xseries:
         if test_flag != 'test': 
             if len(points) == 1:
                 temp = int(points[0])
-                poi = min(points_list, key = lambda x: abs(x - temp))
-                if int(poi) != temp:
-                    general.message("Desired record length cannot be set, the nearest available value is used")
-                self.device_write(":WAVeform:POINts "+ str(poi))
+                test_acq_type = oscilloscope_acquisition_type()
+                if test_acq_type == 'Average':
+                    poi = min(points_list_average, key = lambda x: abs(x - temp))
+                    if int(poi) != temp:
+                        general.message("Desired record length cannot be set, the nearest available value is used")
+                    self.device_write(":WAVeform:POINts " + str(poi))
+                else:
+                    poi = min(points_list, key = lambda x: abs(x - temp))
+                    if int(poi) != temp:
+                        general.message("Desired record length cannot be set, the nearest available value is used")
+                    self.device_write(":WAVeform:POINts " + str(poi))
+
             elif len(points) == 0:
                 answer = int(self.device_query(':WAVeform:POINts?'))
                 return answer
@@ -191,7 +203,8 @@ class Keysight_2000_Xseries:
                     general.message("Invalid acquisition type")
                     sys.exit()
             elif len(ac_type) == 0:
-                answer = str(self.device_query(":ACQuire:TYPE?"))
+                raw_answer = str(self.device_query(":ACQuire:TYPE?"))
+                answer  = cutil.search_keys_dictionary(ac_type_dic, raw_answer)
                 return answer
             else:
                 general.message("Invalid argument")

@@ -42,7 +42,7 @@ Available via corresponding oscilloscope module.
 Available via corresponding oscilloscope module.
 
 ## Frequency Counters
-- Agilent Frequency Counter (GPIB)
+- Agilent Frequency Counter (GPIB, RS-232)
 53181A (untested); 53131A/132A.
 - Keysight Frequency Counter (GPIB, RS-232, Ethernet)
 53230A/220A (untested).

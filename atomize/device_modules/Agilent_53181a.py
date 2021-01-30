@@ -19,10 +19,11 @@ config = cutil.read_conf_util(path_config_file)
 specific_parameters = cutil.read_specific_parameters(path_config_file)
 
 # auxilary dictionaries
-startarm_dic = {'Im': 'IMMediate', 'Ext': 'EXTernal',}
-stoparm_dic = {'Im': 'IMMediate', 'Ext': 'EXTernal', 'Tim': 'TIMer', 'Dig': 'DIGits',}
-scale_dict = {'ks': 1000,' s': 1, 'ms': 0.001,}
+startarm_dic = {'Immediate': 'IMMediate', 'External': 'EXTernal', }
+stoparm_dic = {'Immediate': 'IMMediate', 'External': 'EXTernal', 'Timer': 'TIMer', 'Digits': 'DIGits', }
+scale_dict = {'ks': 1000, 's': 1, 'ms': 0.001, }
 scalefreq_dict = {'GHz': 1000000000, 'MHz': 1000000, 'kHz': 1000, 'Hz': 1, }
+impedance_dict = {'1 M': 1000000, '50': 50, }
 
 # Ranges and limits
 min_digits = 3
@@ -38,13 +39,12 @@ else:
     test_flag = 'None'
 
 test_frequency = 10000
-test_impedance = 1000000
+test_impedance = '1 M'
 test_coupling = 'AC'
-test_gate_stop_mode = 'Im'
-test_gate_start_mode = 'Im'
+test_gate_stop_mode = 'Immediate'
+test_gate_start_mode = 'Immediate'
 test_digits = 10
 test_gate_time = 0.1
-test_ratio = 1
 test_expect_freq = 10000
 test_period = 10
 
@@ -60,17 +60,85 @@ class Agilent_53181a:
                     try:
                         # test should be here
                         self.device_write('*CLS')
-                        answer = int(self.device_query('*TST?'))
-                        if answer == 0:
-                            self.status_flag = 1
-                        else:
-                            general.message('During internal device test errors are found')
-                            self.status_flag = 0
-                            sys.exit()
+                        self.device_write( "*SRE 0" )
+                        self.device_write( "*ESE 0" )
+                        self.device_write( ":FORMAT ASC" )
+
+                        """
+                        Configure the counter to perform, as necessary, a pre-measurement step
+                        to automatically determine the approximate frequency of the signal to
+                        measure for both channels. This assumes that a representative cw signal
+                        is present at the inputs.
+                        """
+                        self.device_write(':FREQ:EXP1:AUTO ON')
+                        self.device_write(':FREQ:EXP2:AUTO ON')
+                        self.device_write(':FREQ:EXP3:AUTO ON')
+                        self.status_flag = 1
+                        # *TST? is very slow
+                        #answer = int(self.device_query('*TST?'))
+                        #if answer == 0:
+                        #    self.status_flag = 1
+                        #else:
+                        #    general.message('During internal device test errors are found')
+                        #    self.status_flag = 0
+                        #    sys.exit()
                     except BrokenPipeError:
                         general.message("No connection")
                         self.status_flag = 0
                         sys.exit()
+                except BrokenPipeError:
+                    general.message("No connection")
+                    self.status_flag = 0
+                    sys.exit()
+            
+            elif config['interface'] == 'rs232':
+                try:
+                    self.status_flag = 1
+                    rm = pyvisa.ResourceManager()
+                    self.device = rm.open_resource(config['serial_address'], read_termination=config['read_termination'],
+                    write_termination=config['write_termination'], baud_rate=config['baudrate'],
+                    data_bits=config['databits'], parity=config['parity'], stop_bits=config['stopbits'])
+                    self.device.timeout = config['timeout'] # in ms
+                    try:
+                        # test should be here
+                        self.device_write('*CLS')
+                        self.device_write( "*SRE 0" )
+                        self.device_write( "*ESE 0" )
+                        self.device_write( ":FORMAT ASC" )
+                        # Set trigger level to 50% (that's probably suitable for nearly all
+                        # measurements going to be done).
+                        self.device_write(':EVEN:LEV:REL 50')
+                        
+                        """
+                        Configure the counter to perform, as necessary, a pre-measurement step
+                        to automatically determine the approximate frequency of the signal to
+                        measure for both channels. This assumes that a representative cw signal
+                        is present at the inputs.
+                        """
+                        self.device_write(':FREQ:EXP1:AUTO ON')
+                        self.device_write(':FREQ:EXP2:AUTO ON')
+                        self.device_write(':FREQ:EXP3:AUTO ON')
+                        self.status_flag = 1
+                        # *TST? is very slow
+                        #answer = int(self.device_query('*TST?'))
+                        #if answer == 0:
+                        #    self.status_flag = 1
+                        #else:
+                        #    general.message('During internal device test errors are found')
+                        #    self.status_flag = 0
+                        #    sys.exit()
+                    except pyvisa.VisaIOError:
+                        self.status_flag = 0
+                        general.message("No connection")
+                        sys.exit()
+                    except BrokenPipeError:
+                        general.message("No connection")
+                        self.status_flag = 0
+                        sys.exit()
+                except pyvisa.VisaIOError:
+                    general.message("No connection")
+                    self.status_flag = 0
+                    sys.exit()
                 except BrokenPipeError:
                     general.message("No connection")
                     self.status_flag = 0
@@ -100,8 +168,10 @@ class Agilent_53181a:
             if config['interface'] == 'gpib':
                 self.device.write(command)
                 general.wait('50 ms')
-                raw_answer = self.device.read()
-                answer = raw_answer.decode()
+                answer = self.device.read().decode()
+                return answer
+            elif config['interface'] == 'rs232':
+                answer = self.device.query(command)
                 return answer
             else:
                 general.message('Incorrect interface setting')
@@ -123,10 +193,18 @@ class Agilent_53181a:
     def freq_counter_frequency(self, channel):
         if test_flag != 'test':
             if channel == 'CH1':
-                answer = float(self.device_query(':MEASURE:FREQ? (@1)'))
+                # make sure that the channel is correct
+                self.device_write(":FUNC 'FREQ 1'")
+                general.wait('30 ms')
+                answer = float(self.device_query(':READ?'))/1000
+                self.device_write(':INIT:CONT ON')
                 return answer
             elif channel == 'CH2':
-                answer = float(self.device_query(':MEASURE:FREQ? (@2)'))
+                # make sure that the channel is correct
+                self.device_write(":FUNC 'FREQ 2'")
+                general.wait('30 ms')
+                answer = float(self.device_query(':READ?'))/1000
+                self.device_write(':INIT:CONT ON')
                 return answer
             else:
                 general.message('Invalid argument')
@@ -142,23 +220,23 @@ class Agilent_53181a:
             if len(impedance) == 2:
                 ch = str(impedance[0])
                 imp = str(impedance[1])
-                if imp == '1 M':
-                    imp = '1.0E6'
-                elif imp == '50':
-                    imp = '50'
-                if ch == 'CH1':
-                    self.device_write(":INPut1:IMPedance " + str(imp))
-                elif ch == 'CH2':
-                    general.message('The impedance for CH3 is only 50 Ohm')
-                elif ch == 'CH3':
-                    general.message('Invalid channel')
+                if imp in impedance_dict:
+                    flag = impedance_dict[imp]
+                    if ch == 'CH1':
+                        self.device_write(":INPut1:IMPedance " + str(flag))
+                    elif ch == 'CH2':
+                        general.message('The impedance for CH2 is only 50 Ohm')
+                    elif ch == 'CH3':
+                        general.message('Invalid channel')
             elif len(impedance) == 1:
                 ch = str(impedance[0])
                 if ch == 'CH1':
-                    answer = float(self.device_query(":INPut1:IMPedance?"))
+                    raw_answer = float(self.device_query(":INPut1:IMPedance?"))
+                    answer = cutil.search_keys_dictionary(impedance_dict, raw_answer)
                     return answer
                 elif ch == 'CH2':
-                    answer = float(self.device_query(":INPut2:IMPedance?"))
+                    answer = '50'
+                    general.message('The impedance for CH2 is only 50 Ohm')
                     return answer
                 elif ch == 'CH3':
                     general.message('Invalid channel')
@@ -171,7 +249,7 @@ class Agilent_53181a:
                 ch = str(impedance[0])
                 imp = str(impedance[1])
                 assert(ch == 'CH1' or ch == 'CH2'), 'Invalid channel is given'
-                assert(cpl == '1 M' or cpl == '50'), 'Invalid impedance is given'
+                assert(imp in impedance_dict), 'Invalid impedance is given'
             elif len(impedance) == 1:
                 ch = str(impedance[0])
                 assert(ch == 'CH1' or ch == 'CH2'), 'Invalid channel is given'
@@ -197,7 +275,8 @@ class Agilent_53181a:
                     answer = str(self.device_query(":INPut1:COUPling?"))
                     return answer
                 elif ch == 'CH2':
-                    answer = str(self.device_query(":INPut2:COUPling?"))
+                    answer = 'AC'
+                    general.message('The coupling for CH2 is only AC')
                     return answer
                 elif ch == 'CH3':
                     general.message('Invalid channel')
@@ -212,6 +291,7 @@ class Agilent_53181a:
                 assert(ch == 'CH1' or ch == 'CH2'), 'Invalid channel is given'
                 assert(cpl == 'AC' or cpl == 'DC'), 'Invalid coupling is given'
             elif len(coupling) == 1:
+                ch = str(coupling[0])
                 assert(ch == 'CH1' or ch == 'CH2'), 'Invalid channel is given'
                 answer = test_coupling
                 return answer
@@ -224,12 +304,13 @@ class Agilent_53181a:
                 md = str(mode[0])
                 if md in stoparm_dic:
                     flag = stoparm_dic[md]
-                    self.device_write(":FREQuency:ARM:STOP:SOURce "+ str(flag))
+                    self.device_write(":FREQuency:ARM:STOP:SOURce " + str(flag))
                 else:
                     general.message("Invalid stop arm mode")
                     sys.exit()
             elif len(mode) == 0:
-                answer = str(self.device_query(':FREQuency:ARM:STOP:SOURce?'))
+                raw_answer = self.device_query(":FREQuency:ARM:STOP:SOURce?")
+                answer = cutil.search_keys_dictionary(stoparm_dic, raw_answer)
                 return answer
             else:
                 general.message("Invalid argument")
@@ -254,12 +335,13 @@ class Agilent_53181a:
                 md = str(mode[0])
                 if md in startarm_dic:
                     flag = startarm_dic[md]
-                    self.device_write(":FREQuency:ARM:START:SOURce "+ str(flag))
+                    self.device_write(":FREQuency:ARM:START:SOURce " + str(flag))
                 else:
                     general.message("Invalid start arm mode")
                     sys.exit()
             elif len(mode) == 0:
-                answer = str(self.device_query(':FREQuency:ARM:START:SOURce?'))
+                raw_answer = self.device_query(":FREQuency:ARM:START:SOURce?")
+                answer = cutil.search_keys_dictionary(startarm_dic, raw_answer)
                 return answer
             else:
                 general.message("Invalid argument")
@@ -283,7 +365,7 @@ class Agilent_53181a:
             if  len(digits) == 1:
                 val = int(digits[0])
                 if val >= min_digits and val <= max_digits:
-                    self.device_write(":FREQuency:ARM:STOP:DIGits "+ str(val))
+                    self.device_write(":FREQuency:ARM:STOP:DIGits " + str(val))
                 else:
                     general.message("Invalid amount of digits")
                     sys.exit()
@@ -313,7 +395,7 @@ class Agilent_53181a:
                 if scaling in scale_dict:
                     coef = scale_dict[scaling]
                     if tb*coef >= min_gate_time and tb*coef <= max_gate_time:
-                        self.device_write("GATE:STARt:DELay:TIME "+ str(tb*coef))
+                        self.device_write(":FREQuency:ARM:STOP:TIMer " + str(tb*coef))
                     else:
                         general.message("Incorrect gate time range")
                         sys.exit()
@@ -342,26 +424,6 @@ class Agilent_53181a:
                 return answer
             else:
                 assert(1 == 2), "Invalid argument"
-
-    def freq_counter_ratio(self, channel1, channel2):
-        if test_flag != 'test':
-            if channel1 == 'CH1' and channel2 == 'CH2':
-                answer = float(self.device_query(':MEASure:FREQuency:RATio? (@1),(@2)'))
-                return answer
-            elif channel1 == 'CH2' and channel2 == 'CH1':
-                answer = float(self.device_query(':MEASure:FREQuency:RATio? (@2),(@1)'))
-                return answer
-            else:
-                general.message('Invalid argument')
-                sys.exit()
-
-        elif test_flag == 'test':
-            assert(channel1 == 'CH1' or channel1 == 'CH2'), \
-            "Invalid channel 1 argument"
-            assert(channel2 == 'CH1' or channel2 == 'CH2'), \
-            "Invalid channel 2 argument"
-            answer = test_ratio
-            return answer
 
     def freq_counter_expected_freq(self, *frequency):
         if test_flag != 'test':

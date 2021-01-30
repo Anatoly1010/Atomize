@@ -21,7 +21,10 @@ specific_parameters = cutil.read_specific_parameters(path_config_file)
 # auxilary dictionaries
 points_list = [100, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000, 1000000,\
                 2000000, 4000000, 8000000]
-# have to be checked
+points_list_average = [100, 250, 500, 1000, 2000, 4000, 8000, 16000]
+# This have to be checked and corrected, 
+# since number of point is different for Average mode and three other modes
+
 channel_dict = {'CH1': 'CHAN1', 'CH2': 'CHAN2', 'CH3': 'CHAN3', 'CH4': 'CHAN4',}
 trigger_channel_dict = {'CH1': 'CHAN1', 'CH2': 'CHAN2', 'CH3': 'CHAN3', 'CH4': 'CHAN4', \
                         'Ext': 'EXTernal', 'Line': 'LINE', 'WGen1': 'WGEN1', 'WGen2': 'WGEN2',}
@@ -32,7 +35,8 @@ wavefunction_dic = {'Sin': 'SINusoid', 'Sq': 'SQUare', 'Ramp': 'RAMP', 'Pulse': 
                     'DC': 'DC', 'Noise': 'NOISe', 'Sinc': 'SINC', 'ERise': 'EXPRise',
                     'EFall': 'EXPFall', 'Card': 'CARDiac', 'Gauss': 'GAUSsian',
                     'Arb': 'ARBitrary'};
-ac_type_dic = {'Norm': "NORMal", 'Ave': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
+ac_type_dic = {'Normal': "NORMal", 'Average': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
+wave_gen_interpolation_dictionary = {'On': 1, 'Off': 0, }
 
 # Limits and Ranges (depends on the exact model):
 analog_channels = int(specific_parameters['analog_channels'])
@@ -71,7 +75,7 @@ test_wave_gen_amplitude = '500 mV'
 test_wave_gen_offset = 0.
 test_wave_gen_impedance = '1 M'
 test_wave_gen_interpolation = 'Off'
-test_wave_gen_points = [1, 0, 0]
+test_wave_gen_points = 10
 
 class Keysight_4000_Xseries:
     #### Basic interaction functions
@@ -164,10 +168,18 @@ class Keysight_4000_Xseries:
         if test_flag != 'test': 
             if len(points) == 1:
                 temp = int(points[0])
-                poi = min(points_list, key = lambda x: abs(x - temp))
-                if int(poi) != temp:
-                    general.message("Desired record length cannot be set, the nearest available value is used")
-                self.device_write(":WAVeform:POINts "+ str(poi))
+                test_acq_type = oscilloscope_acquisition_type()
+                if test_acq_type == 'Average':
+                    poi = min(points_list_average, key = lambda x: abs(x - temp))
+                    if int(poi) != temp:
+                        general.message("Desired record length cannot be set, the nearest available value is used")
+                    self.device_write(":WAVeform:POINts " + str(poi))
+                else:
+                    poi = min(points_list, key = lambda x: abs(x - temp))
+                    if int(poi) != temp:
+                        general.message("Desired record length cannot be set, the nearest available value is used")
+                    self.device_write(":WAVeform:POINts " + str(poi))
+
             elif len(points) == 0:
                 answer = int(self.device_query(':WAVeform:POINts?'))
                 return answer
@@ -196,7 +208,8 @@ class Keysight_4000_Xseries:
                     general.message("Invalid acquisition type")
                     sys.exit()
             elif len(ac_type) == 0:
-                answer = str(self.device_query(":ACQuire:TYPE?"))
+                raw_answer = str(self.device_query(":ACQuire:TYPE?"))
+                answer  = cutil.search_keys_dictionary(ac_type_dic, raw_answer)
                 return answer
             else:
                 general.message("Invalid argument")
@@ -1124,7 +1137,8 @@ class Keysight_4000_Xseries:
                         general.message("Incorrect interpolation control setting is given")
                         sys.exit()
                 elif len(mode) == 0:
-                    answer = self.device_query(":WGEN"+str(ch)+":ARBitrary:INTerpolate?")
+                    raw_answer = int(self.device_query(":WGEN"+str(ch)+":ARBitrary:INTerpolate?"))
+                    answer = cutil.search_keys_dictionary(wave_gen_interpolation_dictionary, raw_answer)
                     return answer
                 else:
                     general.message("Invalid argument")

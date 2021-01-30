@@ -152,7 +152,7 @@ On Windows 10 one should use:
 	Available via corresponding oscilloscope module.
 
 #### [Frequency Counters](#frequency-counters-1)
-	- Agilent Frequency Counter (GPIB)
+	- Agilent Frequency Counter (GPIB, RS-232)
 	53181A; 53131A/132A; Untested
 	- Keysight Frequency Counter (GPIB, RS-232, Ethernet)
 	53230A/220A; Untested
@@ -287,7 +287,6 @@ freq_counter_gate_mode(*mode)
 freq_counter_digits(*digits)
 freq_counter_gate_time(*time)
 freq_counter_expected_freq(*frequency)
-freq_counter_ratio(channel1, channel2)
 freq_counter_period(channel)
 freq_counter_command(command)
 freq_counter_query(command)

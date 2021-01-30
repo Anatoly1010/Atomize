@@ -4,13 +4,13 @@ import atomize.general_modules.general_functions as general
 
 start_time = time.time()
 
-xs = np.arange(5000);
+xs = np.arange(50);
 #ys = np.zeros(15000);
 #ys = np.random.rand(1,5000)
 
 # Plot_xy Test
-for i in range(10):
-    ys = np.random.rand(1,5000)
+for i in range(3):
+    ys = np.random.rand(1,50)
     #xs = np.append(xs, i);
     #ys = np.append(ys, np.random.randint(0, 10 + 1));
     #ys[i] = np.random.randint(0, 10 + 1);

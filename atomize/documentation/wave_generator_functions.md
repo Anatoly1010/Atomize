@@ -124,7 +124,12 @@ Keysight 4000 X-series wave generator has two channels, which should be specifie
 Example: wave_gen_arbitrary_function([0, 0.5, 1, 0.5, 0, -0.5, -1, -0.5, 0])
 sets the specified arbitrary waveform.
 ```
-This function downloads an arbitrary waveform in floating-point values format. The values have to be between -1.0 to +1.0. Function is not available for Keysight 2000 X-series oscilloscopes. For Keysight 3000 X-series wave generator channel key argument is absent.<br/>
+This function downloads an arbitrary waveform in floating-point values format. The values have to be between -1.0 to +1.0. The value -1.0 represents the minimum value, +1.0 - the maximum, and 0.0 is offset. These values can be changed by functions [wave_gen_amplitude(*amplitude)](#wave_gen_amplitudeamplitude) and [wave_gen_offset().](#wave_gen_offset)<br/>
+The setting of an arbitrary function can be done as follow:<br/>
+- [Wave_gen_frequency()](#wave_gen_frequencyfrequency) gives the repetition rate of an arbitrary function.
+- All available (depends on the used repetition rate) time interval is splitted by amount of points you indicate as an argument. It gives time per point. For instance, suppose the frequency is 10 Hz and we use 10 points: wave_gen_arbitrary_function([-1, -1, -1, 1, 1, 1, 1, -1, -1, -1]). It means the time step for one point will be (100 ms) / (10 points) = 10 ms.
+- If you have the offset equals to 2 V and the amplitude 4 V as a result of wave_gen_arbitrary_function([-1, -1, -1, 1, 1, 1, 1, -1, -1, -1]) for 10 Hz frequency one will have a pulse 40 ms long with the low level equals to 0 V and the high level equals to 4 V.<br/>
+Function is not available for Keysight 2000 X-series oscilloscopes. For Keysight 3000 X-series wave generator channel key argument is absent.<br/>
 ### wave_gen_arbitrary_clear()
 ```python3
 wave_gen_arbitrary_clear()
@@ -137,12 +142,11 @@ The function clears the arbitrary waveform memory and loads it with the default 
 ```python3
 wave_gen_arbitrary_interpolation(*mode)
 wave_gen_arbitrary_interpolation(*mode, channel = '1')
-Arguments: mode = string (['On', 'Off']); Key arguments: channel = ['1','2']; Output: integer.
+Arguments: mode = string (['On', 'Off']); Key arguments: channel = ['1','2']; Output: string.
 Keysight 4000 X-series wave generator has two channels, which should be specified by corresponding argument.
 Example: wave_gen_arbitrary_interpolation('On') turns on the interpolation control.
 ```
-This function enables or disables the interpolation control. If there is no argument the function will return the current interpolation setting 
-(0 means Off; 1 means On). If there is an argument the specified interpolation setting will be set. Function is not available for Keysight 2000 X-series oscilloscopes. For Keysight 3000 X-series wave generator channel key argument is absent.<br/>
+This function enables or disables the interpolation control. If there is no argument the function will return the current interpolation setting. If there is an argument the specified interpolation setting will be set. Function is not available for Keysight 2000 X-series oscilloscopes. For Keysight 3000 X-series wave generator channel key argument is absent.<br/>
 Interpolation specifies how lines are drawn between arbitrary waveform points:<br/>
 When ON (1), lines are drawn between points in the arbitrary waveform. Voltage levels change linearly between one point and the next.<br/>
 When OFF (0), all line segments in the arbitrary waveform are horizontal. The voltage level of one point remains until the next point.<br/>

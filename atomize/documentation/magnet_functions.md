@@ -8,7 +8,7 @@ Available devices:
 - Bruker ER031M (RS-232 using arduino emulated keyboard); Tested 01/2021
 
 Functions:
-- [magnet_name()](#magnet_name<br/>
+- [magnet_name()](#magnet_name)<br/>
 - [magnet_setup(start_field, step_field)](#magnet_setupstart_field-step_field)<br/>
 - [magnet_field(*field)](#magnet_fieldfield)<br/>
 - [magnet_sweep_up()](#magnet_sweep_up)<br/>
