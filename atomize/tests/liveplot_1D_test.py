@@ -14,7 +14,7 @@ for i in range(3):
     #xs = np.append(xs, i);
     #ys = np.append(ys, np.random.randint(0, 10 + 1));
     #ys[i] = np.random.randint(0, 10 + 1);
-    general.plot_1d('Plot XY Test', xs, ys[0], label='test data')
+    general.plot_1d('Plot XY Test', xs, ys[0], label='test data2')
     #general.wait('2 ms')
     
 

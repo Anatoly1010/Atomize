@@ -246,7 +246,7 @@ class SR_DC205:
                 sys.exit()
 
         elif test_flag == 'test':
-            elif len(interlock) == 0:
+            if len(interlock) == 0:
                 answer = test_lock
                 return answer
             else:

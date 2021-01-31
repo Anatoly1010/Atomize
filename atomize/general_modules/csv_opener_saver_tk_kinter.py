@@ -43,7 +43,7 @@ class Saver_Opener:
 
     def open_1D_dialog(self, directory = '', header = 0):
         if test_flag != 'test':
-            file_path = self.FileDialog(directory = directory, mode = 'Open')
+            file_path = self.file_dialog(directory = directory, mode = 'Open')
 
             header_array = [];
             file_to_read = open(file_path,'r')
@@ -62,7 +62,7 @@ class Saver_Opener:
 
     def save_1D_dialog(self, data, directory = '',header = ''):
         if test_flag != 'test':
-            file_path = self.FileDialog(directory = directory, mode = 'Save')
+            file_path = self.file_dialog(directory = directory, mode = 'Save')
 
             np.savetxt(file_path, np.transpose(data), fmt='%.10f', delimiter=',',\
              newline='\n', header=header, footer='', comments='#', encoding=None)
@@ -90,7 +90,7 @@ class Saver_Opener:
 
     def open_2D_dialog(self, directory = '', header = 0):
         if test_flag != 'test':
-            file_path = self.FileDialog(directory = directory, mode = 'Open')
+            file_path = self.file_dialog(directory = directory, mode = 'Open')
 
             header_array = [];
             file_to_read = open(file_path,'r')
@@ -126,7 +126,7 @@ class Saver_Opener:
 
     def open_2D_appended_dialog(self, directory = '', header = 0, chunk_size = 1):
         if test_flag != 'test':
-            file_path = self.FileDialog(directory = directory, mode = 'Open')
+            file_path = self.file_dialog(directory = directory, mode = 'Open')
 
             header_array = []
             file_to_read = open(file_path,'r')
@@ -145,7 +145,7 @@ class Saver_Opener:
 
     def save_2D_dialog(self, data, directory = '', header = ''):
         if test_flag != 'test':
-            file_path = self.FileDialog(directory = directory, mode = 'Save')
+            file_path = self.file_dialog(directory = directory, mode = 'Save')
             np.savetxt(file_path, data, fmt = '%.10f', delimiter = ',', newline = '\n', \
                 header = header, footer = '', comments = '#', encoding = None)
 
@@ -154,13 +154,13 @@ class Saver_Opener:
 
     def create_file_dialog(self,  directory = ''):
         if test_flag != 'test':
-            file_path = self.FileDialog(directory = directory, mode = 'Save')
+            file_path = self.file_dialog(directory = directory, mode = 'Save')
             open(file_path, "w").close()
             return file_path
         elif test_flag == 'test':
             return test_file_path
 
-    def FileDialog(self, directory = '', mode = 'Open'):
+    def file_dialog(self, directory = '', mode = 'Open'):
         root = tkinter.Tk()
         root.withdraw()
 
@@ -169,14 +169,14 @@ class Saver_Opener:
                 initialdir = directory,
                 filetypes = [("CSV", "*.csv"), ("TXT", "*.txt"),\
                 ("DAT", "*.dat"), ("all", "*.*")],
-                title='Select file to open')
+                title = 'Select file to open')
                 )
         elif mode == 'Save':
             file_path = filedialog.asksaveasfilename(**dict(
                 initialdir = directory,
                 filetypes = [("CSV", "*.csv"), ("TXT", "*.txt"),\
                 ("DAT", "*.dat"), ("all", "*.*")],
-                title='Select file to save')
+                title = 'Select file to save')
                 )
         return file_path
 

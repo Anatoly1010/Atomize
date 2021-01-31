@@ -370,8 +370,8 @@ class Rigol_DP800_Series:
                                 general.message("Incorrect overcurrent protection range")
                                 sys.exit()                           
                         else:
-                                general.message("Incorrect overcurrent protection scaling")
-                                sys.exit()
+                            general.message("Incorrect overcurrent protection scaling")
+                            sys.exit()
                     else:
                         general.message("Invalid channel")
                         sys.exit()

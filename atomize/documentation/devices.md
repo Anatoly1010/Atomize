@@ -57,6 +57,9 @@ Available via corresponding oscilloscope module.
 
 ## Power Supplies
 - Rigol DP800 Series (RS-232, Ethernet); Tested 01/2021
+- Stanford Research DC205 (RS-232); Untested
+- Stanford Research PS300 High Voltage Series (RS-232, GPIB); Untested
+PS310, PS325 (GPIB); PS350, PS355, PS365, PS370, PS375 (RS-232, GPIB)
 
 ## Balances
 - CPWplus 150 (RS-232); Tested 01/2021
