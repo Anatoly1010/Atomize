@@ -120,7 +120,7 @@ Arguments: none; Output: string.
 Example: power_supply_interlock() returns the interlock state ('On' or 'Off').
 ```
 This functions is only supported by Stanford Research DC205 and allows to query the interlock condition. The DC205 is designed with a safety interlock circuit that must be activated for the ±100 V output range to be enabled. To close the interlock, a low impedance circuit must be established between pins 1 and 2 of the rear-panel INTERLOCK header.
-###power_supply_rear_mode(*mode)
+### power_supply_rear_mode(*mode)
 ```python3
 power_supply_rear_mode(*mode)
 Arguments: string (['Front', 'Rear']); Output: string.
