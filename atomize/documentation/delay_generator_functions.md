@@ -55,7 +55,8 @@ delay_gen_amplitude_offset(*amplitude_offset)
 Arguments: amplitude_offset = three strings ('channel string' ['T0','A','B','AB','C','D','CD'],
 'amplitude + scaling ['V','mV']', 'offset + scaling ['V','mV']') or one string ('channel string');
 Output: string ('Amplitude: ## V; Offset: ## V').
-Example: delay_gen_amplitude_offset('A', '2 V', '2 V') sets the amplitude and the offset of the output channel A to 2 V, if the channel is operated in Variable mode.
+Example: delay_gen_amplitude_offset('A', '2 V', '2 V') sets the amplitude and the offset of the output channel A
+to 2 V, if the channel is operated in Variable mode.
 ```
 The function queries (if called with one argument) or sets (if called with three arguments) the amplitude and offset for the specified output channel of the delay generator, if this channel is operated in Variable mode (see function [delay_gen_output_mode()](#delay_gen_output_modemode)). If there are are a second and third arguments they will be set as a new amplitude and offset setting, respectively. If there is only one argument the current amplitude and offset settings for the specified output channel are returned as a string.<br/>
 Offset and amplitude should between -3 and +4 Vdc with 4 V maximum step size. The function is only available when the output channel is operated in Variable mode, see function [delay_gen_output_mode()](#delay_gen_output_modemode).
@@ -64,7 +65,8 @@ Offset and amplitude should between -3 and +4 Vdc with 4 V maximum step size. Th
 delay_gen_output_polarity(*polarity)
 Arguments: mode = two strings ('channel string' ['T0','A','B','AB','C','D','CD'], 
 'polarity string ['Inverted','Normal']') or one string ('channel string'); Output: string ('Inverted', or 'Normal').
-Example: delay_gen_output_polarity('C', 'Normal') sets the polarity for the channel C to Normal, if the channel is operated in TTL, ECL, or NIM mode.
+Example: delay_gen_output_polarity('C', 'Normal') sets the polarity for the channel C to Normal,
+if the channel is operated in TTL, ECL, or NIM mode.
 ```
 The function queries (if called with one argument) or sets (if called with two arguments) the polarity setting of logic pulses at the BNC outputs. If there is a second argument it will be set as a new polarity setting. If there is no second argument the current polarity setting for the specified output channel is returned as a string.<br/>
 Normal polarity means that the output will provide a rising edge at the specified time. The function is only available when the output channel is operated in TTL, ECL, or NIM mode, see function [delay_gen_output_mode()](#delay_gen_output_modemode).
