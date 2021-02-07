@@ -28,6 +28,7 @@ At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and W
     - [Magnetic Field Controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/magnet_functions.md)<br/>
     - [Gaussmeters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/gaussmeter_functions.md)<br/>
     - [Power Supplies](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/power_supply_functions.md)<br/>
+    - [Delay Generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/delay_generator_functions.md)<br/>
     - [Balances](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)<br/>
     - [Other](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)<br/>
 - [Function for devices](#available-function-for-devices)<br/>
@@ -169,6 +170,9 @@ On Windows 10 one should use:
 	- Rigol DP800 Series (RS-232, Ethernet); Tested 01/2021
 	- Stanford Research DC205 (RS-232); Untested
     - Stanford Research PS300 High Voltage Series (RS-232, GPIB); Untested
+
+#### [Delay Generators](#delay-generators-1)
+    - Stanford Research DG535 (GPIB); Untested
 
 #### [Balances](#balances-1)
 	- CPWplus 150 (RS-232); Tested 01/2021
@@ -326,6 +330,17 @@ power_supply_interlock()
 power_supply_rear_mode(*mode)
 power_supply_command(command)
 power_supply_query(command)
+```
+### [Delay generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/delay_generator_functions.md)
+```python3
+delay_gen_name()
+delay_gen_delay(*delay)
+delay_gen_impedance(*impedance)
+delay_gen_output_mode(*mode)
+delay_gen_amplitude_offset(*amplitude_offset)
+delay_gen_output_polarity(*polarity)
+delay_gen_command(command)
+delay_gen_query(command)
 ```
 ### [Balances](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)
 ```python3

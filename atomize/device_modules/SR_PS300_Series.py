@@ -100,7 +100,7 @@ class SR_PS300_Series:
                     self.status_flag = 0
                     sys.exit()
 
-        if test_flag == 'test':
+        elif test_flag == 'test':
             pass
 
     def close_connection(self):
@@ -125,9 +125,10 @@ class SR_PS300_Series:
                 self.device.write(command)
                 general.wait('50 ms')
                 answer = self.device.read().decode()
+                return answer
             elif config['interface'] == 'rs232':
                 answer = self.device.query(command)
-            return answer
+                return answer
         else:
             general.message("No Connection")
             self.status_flag = 0

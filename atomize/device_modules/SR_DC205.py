@@ -88,7 +88,7 @@ class SR_DC205:
                 general.message('Invalid interface')
                 sys.exit()
 
-        if test_flag == 'test':
+        elif test_flag == 'test':
             pass
 
     def close_connection(self):

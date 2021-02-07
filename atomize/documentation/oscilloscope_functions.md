@@ -133,7 +133,7 @@ Examples: oscilloscope_sensitivity('CH2', '100 mV') sets the sensitivity
 per division of the channel 2 to 100 mV. oscilloscope_sensitivity('CH2') returns
 the current sensitivity of the channel 2 in mV.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the sensitivity per division of one of the channels of the oscilloscope. If there is a second argument this will be set as a new sensitivity. If there is no second argument the current sensitivity for specified the channel is returned.<br/>
+The function queries (if called with one argument) or sets (if called with two arguments) the sensitivity per division of one of the channels of the oscilloscope. If there is a second argument it will be set as a new sensitivity. If there is no second argument the current sensitivity for specified the channel is returned.<br/>
 ### oscilloscope_offset(*channel)
 ```python3
 oscilloscope_offset(*channel)
@@ -142,7 +142,7 @@ or one string ('channel string'); Output: float (in mV).
 Examples: oscilloscope_offset('CH2', '100 mV') sets the offset setting of the channel 2
 to 100 mV. oscilloscope_offset('CH2') returns the current offset of the channel 2 in mV.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the offset setting of one of the channels of the oscilloscope. If there is a second argument this will be set as a new offset setting. If there is no second argument the current offset setting for the specified channel is returned. The offset range depends on the type of oscilliscope and the vertical scale factor for used channel. Please, refer to device manual.<br/>
+The function queries (if called with one argument) or sets (if called with two arguments) the offset setting of one of the channels of the oscilloscope. If there is a second argument it will be set as a new offset setting. If there is no second argument the current offset setting for the specified channel is returned. The offset range depends on the type of oscilliscope and the vertical scale factor for used channel. Please, refer to device manual.<br/>
 ### oscilloscope_horizontal_offset(*h_offset)
 ```python3
 oscilloscope_horizontal_offset(*h_offset)
@@ -159,7 +159,7 @@ or one string ('channel string'); Output: string.
 Examples: oscilloscope_coupling('CH2', 'AC') sets the coupling of the channel 2 to AC.
 oscilloscope_coupling('CH2') returns the current coupling of the channel 2.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the coupling of one of the channels of the oscilloscope. If there is a second argument this will be set as a new coupling. If there is no second argument the current coupling for the specified channel is returned.<br/>
+The function queries (if called with one argument) or sets (if called with two arguments) the coupling of one of the channels of the oscilloscope. If there is a second argument it will be set as a new coupling. If there is no second argument the current coupling for the specified channel is returned.<br/>
 ### oscilloscope_impedance(*impedance)
 ```python3
 oscilloscope_impedance(*impedance)
@@ -168,7 +168,7 @@ or one string ('channel string'); Output: string.
 Examples: oscilloscope_impedance('CH2', '1 M') sets the impedance of the channel 2 to 1 MOhm.
 oscilloscope_impedance('CH2') returns the current impedance of the channel 2.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the impedance of one of the channels of the oscilloscope. If there is a second argument this will be set as a new impedance. If there is no second argument the current impedance for the specified channel is returned. For Keysight 2000 X-Series the only available option is 1 MOhm.<br/>
+The function queries (if called with one argument) or sets (if called with two arguments) the impedance of one of the channels of the oscilloscope. If there is a second argument it will be set as a new impedance. If there is no second argument the current impedance for the specified channel is returned. For Keysight 2000 X-Series the only available option is 1 MOhm.<br/>
 ### oscilloscope_trigger_mode(*mode)
 ```python3
 oscilloscope_trigger_mode(*mode)
@@ -196,7 +196,7 @@ Examples: oscilloscope_trigger_low_level('CH2', 0.5) sets the low trigger
 voltage level of the channel 2 to 500 mV. oscilloscope_trigger_low_level('CH2')
 returns the current low trigger voltage level of the channel 2.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the low trigger voltage level voltage of one of the channels of the oscilloscope. If there is a second argument this will be set as a new low trigger voltage level. If there is no second argument the current low trigger voltage level for the specified channel is returned.<br/>
+The function queries (if called with one argument) or sets (if called with two arguments) the low trigger voltage level voltage of one of the channels of the oscilloscope. If there is a second argument it will be set as a new low trigger voltage level. If there is no second argument the current low trigger voltage level for the specified channel is returned.<br/>
 For Tektronix 4000 Series also presets 'ECL' and 'TTL' can be used as the first argument. ECL sets the threshold level to a preset ECL high level of -1.3 V. TTL sets the threshold level to a preset TTL high level of 1.4 V.<br/>
 ### oscilloscope_command(command)
 ```python3

@@ -9,6 +9,7 @@
 - [Magnetic Field Controllers](#magnetic-field-controllers)<br/>
 - [Gaussmeters](#gaussmeters)<br/>
 - [Power Supplies](#power-supplies)<br/>
+- [Delay Generators](#delay-generators)<br/>
 - [Balances](#balances)<br/>
 - [Other](#other)<br/>
 
@@ -60,6 +61,9 @@ Available via corresponding oscilloscope module.
 - Stanford Research DC205 (RS-232); Untested
 - Stanford Research PS300 High Voltage Series (RS-232, GPIB); Untested
 PS310, PS325 (GPIB); PS350, PS355, PS365, PS370, PS375 (RS-232, GPIB)
+
+## Delay Generators
+- Stanford Research DG535 (GPIB); Untested
 
 ## Balances
 - CPWplus 150 (RS-232); Tested 01/2021

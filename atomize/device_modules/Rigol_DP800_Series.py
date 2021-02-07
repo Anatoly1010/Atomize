@@ -105,7 +105,7 @@ class Rigol_DP800_Series:
                     general.message("No connection")
                     self.status_flag = 0
                     sys.exit()
-        if test_flag == 'test':
+        elif test_flag == 'test':
             pass
 
     def close_connection(self):

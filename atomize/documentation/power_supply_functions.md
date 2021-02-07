@@ -39,7 +39,7 @@ Arguments: voltage = two strings ('channel string' ['CH1','CH2','CH3'], 'number 
 or one string ('channel string'); Output: float (in V).
 Example: power_supply_voltage('CH1', '10 V') sets the voltage of the first channel to 10 V.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the voltage of one of the channels of the power supply. If there is a second argument this will be set as a new voltage. If there is no second argument the current voltage for specified the channel is returned in Volts.<br/>
+The function queries (if called with one argument) or sets (if called with two arguments) the voltage of one of the channels of the power supply. If there is a second argument it will be set as a new voltage. If there is no second argument the current voltage for specified the channel is returned in Volts.<br/>
 Note that this function returns the voltage setting of the instrument, not actual measured voltage. The latter can be achieved with [power_supply_measure()](#power_supply_measurechannel) function.<br/>
 Rigol DP800 power supply series has ['V', 'mV'] as the scaling dictionary.<br/>
 Stanford Research DC205 has only one channel, however, it should be listed as the first argument for consistency. Also, the available range of SR DC205 depends on the range setting. Check function [power_supply_range()](#power_supply_rangerange). Scaling dictionary is ['V', 'mV'].<br/>
@@ -51,7 +51,7 @@ Arguments: current = two strings ('channel string' ['CH1','CH2','CH3'], 'number 
 or one string ('channel string'); Output: float (in A).
 Example: power_supply_current('CH2', '100 mA') sets the current of the second channel to 100 mA.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the current of one of the channels of the power supply. If there is a second argument this will be set as a new current. If there is no second argument the current for specified the channel is returned in Ampers.<br/>
+The function queries (if called with one argument) or sets (if called with two arguments) the current of one of the channels of the power supply. If there is a second argument it will be set as a new current. If there is no second argument the current for specified the channel is returned in Ampers.<br/>
 This function is only supported by Rigol DP800 Series.
 ### power_supply_overvoltage(*voltage)
 ```python3
@@ -60,7 +60,7 @@ Arguments: voltage = two strings ('channel string' ['CH1','CH2','CH3'], 'number 
 or one string ('channel string'); Output: float (in V).
 Example: power_supply_overvoltage('CH1', '30 V') sets the overvoltage protection of the first channel to 30 V.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the overvoltage protection of one of the channels of the power supply. If there is a second argument this will be set as a new overvoltage protection setting. If there is no second argument the current overvoltage protection setting for specified the channel is returned in Volts.<br/>
+The function queries (if called with one argument) or sets (if called with two arguments) the overvoltage protection of one of the channels of the power supply. If there is a second argument it will be set as a new overvoltage protection setting. If there is no second argument the current overvoltage protection setting for specified the channel is returned in Volts.<br/>
 Rigol DP800 power supply series has ['V', 'mV'] as the scaling dictionary.<br/>
 Stanford Research PC300 high voltage supply series has only one channel, however, it should be listed as the first argument for consistency. The value of overvoltage (the voltage limit) to set must match the polarity of the power supply. The overvoltage value must be greater than or equal to the value indicated in [power_supply_voltage()](#power_supply_voltagevoltage) function. Scaling dictionary is ['kV', 'V'].<br/>
 This function is not supported by Stanford Research DC205.
@@ -71,7 +71,7 @@ Arguments: voltage = two strings ('channel string' ['CH1','CH2','CH3'], 'number 
 or one string ('channel string'); Output: float (in A).
 Example: power_supply_overcurrent('CH1', '3 A') sets the overcurrent protection of the first channel to 3 A.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the overcurrent protection of one of the channels of the power supply. If there is a second argument this will be set as a new overcurrent protection setting. If there is no second argument the current overcurrent protection setting for specified the channel is returned.<br/>
+The function queries (if called with one argument) or sets (if called with two arguments) the overcurrent protection of one of the channels of the power supply. If there is a second argument it will be set as a new overcurrent protection setting. If there is no second argument the current overcurrent protection setting for specified the channel is returned.<br/>
 Rigol DP800 power supply series has ['A', 'mA'] as the scaling dictionary. The function returns the overcurrent setting in A.<br/>
 Stanford Research PC300 high voltage supply series has only one channel, however, it should be listed as the first argument for consistency. The overcurrent (the current limit) value may be set from 0 to 105 % of full scale. Scaling dictionary is ['mA', 'uA']. The function returns the overcurrent setting in uA.<br/>
 This function is not supported by Stanford Research DC205.
@@ -82,7 +82,7 @@ Arguments: state = two strings ('channel string' ['CH1','CH2','CH3'], 'state ['O
 or one string ('channel string'); Output: string.
 Example: power_supply_channel_state('CH1', 'On') enables the output of the first channel.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the state of the output of one of the channels of the power supply. If there is a second argument this will be set as a new state setting. If there is no second argument the current state setting for specified the channel is returned.<br/>
+The function queries (if called with one argument) or sets (if called with two arguments) the state of the output of one of the channels of the power supply. If there is a second argument it will be set as a new state setting. If there is no second argument the current state setting for the specified channel is returned.<br/>
 The state argument should be 'On' or 'Off', which means that the output is enabled and disabled, respectively.<br/>
 Stanford Research DC205 has only one channel, however, it should be listed as the first argument for consistency. For SR DC205 in case of using '100 V' range, the channel can be turned on only while the safety interlock is closed. See [power_supply_interlock()](#power_supply_interlock) function. If the safety interlock is open a warning will be shown and the state remains unchanged.<br/>
 Stanford Research PC300 high voltage supply series has only one channel, however, it should be listed as the first argument for consistency. The setting 'On'  turns the high voltage ON, provided the front-panel high voltage switch is not in the OFF position. Also this function cannot query the state of the high voltage supply.
