@@ -6,7 +6,7 @@ import sys
 import telebot
 import datetime
 
-bot = telebot.TeleBot('1665901957:AAE0ABo-vtic-9mWlXVaYOnxCsqoQq_zRLs')
+bot = telebot.TeleBot('')
 
 xs = []
 ys = []
