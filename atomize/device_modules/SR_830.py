@@ -30,7 +30,7 @@ timeconstant_dict = {'10 us': 0, '30 us': 1, '100 us': 2, '300 us': 3,
                     '1 s': 10, '3 s': 11, '10 s': 12, '30 s': 13, '100 s': 14, '300 s': 15, 
                     '1 ks': 16, '3 ks': 17, '10 ks': 18, '30 ks': 19};
 helper_tc_list = [1, 3, 10, 30, 100, 300, 1000]
-ref_mode_dict = {'Internal': 0, 'External': 1,}
+ref_mode_dict = {'Internal': 1, 'External': 0,}
 ref_slope_dict = {'Sine': 0, 'PosTTL': 1, 'NegTTL': 2}
 sync_dict = {'Off': 0, 'On': 1}
 lp_fil_dict = {'6 db': 0, '12 dB': 1, "18 dB": 2, "24 dB": 3}
@@ -73,14 +73,8 @@ class SR_830:
                     self.device = Gpib.Gpib(config['board_address'], config['gpib_address'])
                     try:
                         # test should be here
+                        self.status_flag = 1
                         self.device_write('*CLS')
-                        answer = int(self.device_query('*TST?'))
-                        if answer == 0:
-                            self.status_flag = 1
-                        else:
-                            general.message('During internal device test errors are found')
-                            self.status_flag = 0
-                            sys.exit()
                     except BrokenPipeError:
                         general.message("No connection")
                         self.status_flag = 0
@@ -99,14 +93,8 @@ class SR_830:
                     self.device.timeout = config['timeout'] # in ms
                     try:
                         # test should be here
+                        self.status_flag = 1
                         self.device_write('*CLS')
-                        answer = int(self.device_query('*TST?'))
-                        if answer == 0:
-                            self.status_flag = 1
-                        else:
-                            general.message('During internal device test errors are found')
-                            self.status_flag = 0
-                            sys.exit()
                     except pyvisa.VisaIOError:
                         self.status_flag = 0
                         general.message("No connection")
@@ -147,7 +135,7 @@ class SR_830:
             if config['interface'] == 'gpib':
                 self.device.write(command)
                 general.wait('50 ms')
-                answer = self.device.read()
+                answer = self.device.read().decode()
             elif config['interface'] == 'rs232':
                 answer = self.device.query(command)
             return answer
@@ -306,29 +294,29 @@ class SR_830:
     def lock_in_get_data(self, *channel):
         if test_flag != 'test':
             if len(channel) == 0:
-                answer = float(self.device_query('OUTP? 0'))
-                return answer
-            elif len(channel) == 1 and int(channel[0]) == 1:
-                answer = float(self.device_query('OUTP? 0'))
-                return answer
-            elif len(channel) == 1 and int(channel[0]) == 2:
                 answer = float(self.device_query('OUTP? 1'))
                 return answer
-            elif len(channel) == 1 and int(channel[0]) == 3:
+            elif len(channel) == 1 and int(channel[0]) == 1:
+                answer = float(self.device_query('OUTP? 1'))
+                return answer
+            elif len(channel) == 1 and int(channel[0]) == 2:
                 answer = float(self.device_query('OUTP? 2'))
                 return answer
-            elif len(channel) == 1 and int(channel[0]) == 4:
+            elif len(channel) == 1 and int(channel[0]) == 3:
                 answer = float(self.device_query('OUTP? 3'))
                 return answer
+            elif len(channel) == 1 and int(channel[0]) == 4:
+                answer = float(self.device_query('OUTP? 4'))
+                return answer
             elif len(channel) == 2 and int(channel[0]) == 1 and int(channel[1]) == 2:
-                answer_string = self.device_query('SNAP? 0,1')
+                answer_string = self.device_query('SNAP? 1,2')
                 answer_list = answer_string.split(',')
                 list_of_floats = [float(item) for item in answer_list]
                 x = list_of_floats[0]
                 y = list_of_floats[1]
                 return x, y
             elif len(channel) == 3 and int(channel[0]) == 1 and int(channel[1]) == 2 and int(channel[2]) == 3:
-                answer_string = self.device_query('SNAP? 0,1,2')
+                answer_string = self.device_query('SNAP? 1,2,3')
                 answer_list = answer_string.split(',')
                 list_of_floats = [float(item) for item in answer_list]
                 x = list_of_floats[0]
@@ -357,10 +345,10 @@ class SR_830:
                 temp = sensitivity[0].split(' ')
                 if float(temp[0]) < 2 and temp[1] == 'nV':
                     send.message("Desired sensitivity cannot be set, the nearest available value is used")
-                    self.device_write("SCAL "+ str(0))
+                    self.device_write("SENS "+ str(0))
                 elif float(temp[0]) > 1 and temp[1] == 'V':
                     general.message("Desired sensitivity cannot be set, the nearest available value is used")
-                    self.device_write("SCAL "+ str(26))
+                    self.device_write("SENS "+ str(26))
                 else:
                     number_sens = min(helper_sens_list, key=lambda x: abs(x - int(temp[0])))
                     if int(number_sens) == 1000 and temp[1] == 'nV':
@@ -377,12 +365,12 @@ class SR_830:
                         general.message("Desired sensitivity cannot be set, the nearest available value is used")
                     if sens in sensitivity_dict:
                         flag = sensitivity_dict[sens]
-                        self.device_write("SCAL "+ str(flag))
+                        self.device_write("SENS "+ str(flag))
                     else:
                         general.message("Invalid sensitivity value (too high/too low)")
                         sys.exit()
             elif len(sensitivity) == 0:
-                raw_answer = int(self.device_query("SCAL?"))
+                raw_answer = int(self.device_query("SENS?"))
                 answer = cutil.search_keys_dictionary(sensitivity_dict, raw_answer)
                 return answer
             else:
@@ -422,12 +410,12 @@ class SR_830:
                 md = str(mode[0])
                 if md in ref_mode_dict:
                     flag = ref_mode_dict[md]
-                    self.device_write("RSRC "+ str(flag))
+                    self.device_write("FMOD "+ str(flag))
                 else:
                     general.message("Invalid mode")
                     sys.exit()
             elif len(mode) == 0:
-                raw_answer = int(self.device_query("RSRC?"))
+                raw_answer = int(self.device_query("FMOD?"))
                 answer = cutil.search_keys_dictionary(ref_mode_dict, raw_answer)
                 return answer
             else:
@@ -451,12 +439,12 @@ class SR_830:
                 md = str(mode[0])
                 if md in ref_slope_dict:
                     flag = ref_slope_dict[md]
-                    self.device_write("RTRG "+ str(flag))
+                    self.device_write("RSLP "+ str(flag))
                 else:
                     general.message("Invalid mode")
                     sys.exit()
             elif len(mode) == 0:
-                raw_answer = int(self.device_query("RTRG?"))
+                raw_answer = int(self.device_query("RSLP?"))
                 answer = cutil.search_keys_dictionary(ref_slope_dict, raw_answer)
                 return answer
             else:

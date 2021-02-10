@@ -179,7 +179,7 @@ class SR_865a:
             if config['interface'] == 'gpib':
                 self.device.write(command)
                 general.wait('50 ms')
-                answer = self.device.read()
+                answer = self.device.read().decode()
             elif config['interface'] == 'rs232':
                 answer = self.device.query(command)
             elif config['interface'] == 'ethernet':

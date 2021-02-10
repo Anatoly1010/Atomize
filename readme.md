@@ -134,7 +134,7 @@ On Windows 10 one should use:
 
 #### [Lock-in Amplifiers](#lock-in-amplifiers-1)
 	- Stanford Research Lock-In Amplifier (GPIB, RS-232)
-	SR-810; SR-830; SR-850; Untested
+	SR-810; SR-830; SR-850; Tested 02/2021
 	- Stanford Research Lock-In Amplifier (GPIB, RS-232, Ethernet)
 	SR-860; SR-865a; Tested 01/2021
 
@@ -154,7 +154,7 @@ On Windows 10 one should use:
 
 #### [Frequency Counters](#frequency-counters-1)
 	- Agilent Frequency Counter (GPIB, RS-232)
-	53181A; 53131A/132A; Untested
+	53181A; 53131A/132A; Tested 02/2021
 	- Keysight Frequency Counter (GPIB, RS-232, Ethernet)
 	53230A/220A; Untested
 

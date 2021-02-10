@@ -21,7 +21,7 @@ ITC 503; Tested 01/21
 
 ## Lock-in Amplifiers
 - Stanford Research Lock-In Amplifier (GPIB, RS-232)<br/>
-SR-810; SR-830; SR-850 (untested).
+SR-810; SR-830; SR-850 Tested 02/2021
 - Stanford Research Lock-In Amplifier (GPIB, RS-232, Ethernet)<br/>
 SR-860; SR-865a; Tested 01/2021
 
@@ -44,14 +44,14 @@ Available via corresponding oscilloscope module.
 
 ## Frequency Counters
 - Agilent Frequency Counter (GPIB, RS-232)
-53181A (untested); 53131A/132A.
+53181A; 53131A/132A; Tested 01/2021
 - Keysight Frequency Counter (GPIB, RS-232, Ethernet)
-53230A/220A (untested).
+53230A/220A; Untested
 
 ## Magnetic Field Controllers
 - Bruker BH15 (GPIB); Tested 01/2021
 - Bruker ER032M (GPIB); available via BH15 module
-- Bruker ER031M (RS-232 using arduino emulated keyboard) tested
+- Bruker ER031M (RS-232 using arduino emulated keyboard); Tested
 
 ## Gaussmeters
 - Lakeshore 455 DSP (RS-232); Tested 01/2021

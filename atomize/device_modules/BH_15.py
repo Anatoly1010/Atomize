@@ -309,6 +309,7 @@ class BH_15:
         if test_flag != 'test':
             if len(field) == 1:
                 self.set_field(field[0])
+                return self.get_field()
             elif len(field) == 0:
                 return self.get_field()
             else:
@@ -318,6 +319,7 @@ class BH_15:
         elif test_flag == 'test':
             if len(field) == 1:
                 self.set_field(field[0])
+                return self.get_field()
             elif len(field) == 0:
                 return self.get_field()
             else:
@@ -367,7 +369,7 @@ class BH_15:
             return self.act_field
 
         elif test_flag == 'test':
-            self.act_field = test_field
+            #self.act_field = test_field
             return self.act_field
 
     def set_field(self, field):
@@ -771,7 +773,7 @@ class BH_15:
                 # steps in the right direction
                 self.fc_best_fit_search(self.cf, self.swa, self.cf >= 0.5*(max_field - min_field), 2)
 
-                assert(self.swa >= min and self.swa <= max_swa and self.cf - 0.5*self.sw >= \
+                assert(self.swa >= min_swa and self.swa <= max_swa and self.cf - 0.5*self.sw >= \
                 min_field and self.cf + 0.5*self.sw <= max_field), "Incorrect parameters"
 
         self.cf = self.fc_set_cf(self.cf)

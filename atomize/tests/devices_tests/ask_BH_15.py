@@ -10,12 +10,11 @@ bh15.magnet_setup(2000, 10)
 #general.message(bh15.device_query('LE'))
 
 i = 0
-while i < 50:
+while i < 5:
 
-    #bh15.magnet_field(20000 + 900*i)
-    bh15.magnet_sweep_up()
+    a = float(bh15.magnet_field(0 + 10*i))
     general.message(bh15.magnet_field())
-    general.wait('2 s')
+    general.wait('200 ms')
     i = i + 1
     
 
