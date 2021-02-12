@@ -168,7 +168,7 @@ class Keysight_4000_Xseries:
         if test_flag != 'test': 
             if len(points) == 1:
                 temp = int(points[0])
-                test_acq_type = oscilloscope_acquisition_type()
+                test_acq_type = self.oscilloscope_acquisition_type()
                 if test_acq_type == 'Average':
                     poi = min(points_list_average, key = lambda x: abs(x - temp))
                     if int(poi) != temp:
@@ -234,13 +234,13 @@ class Keysight_4000_Xseries:
                 numave = int(number_of_averages[0])
                 if numave >= numave_min and numave <= numave_max:
                     ac = self.oscilloscope_acquisition_type()
-                    if ac == "AVER":
+                    if ac == "Average":
                         self.device_write(":ACQuire:COUNt " + str(numave))
-                    elif ac == 'NORM':
+                    elif ac == 'Normal':
                         general.message("Your are in NORM mode")
-                    elif ac == 'HRES':
+                    elif ac == 'Hres':
                         general.message("Your are in HRES mode")
-                    elif ac == 'PEAK':
+                    elif ac == 'Peak':
                         general.message("Your are in PEAK mode")
                 else:
                     general.message("Invalid number of averages")
