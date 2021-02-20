@@ -22,9 +22,9 @@ bh15 = bh.BH_15()
 sr830 = sr.SR_830()
 
 # Step 0. Initialization
-start_field = 2700
-end_field = 3700
-step_field = 5
+start_field = 2450
+end_field = 3950
+step_field = 2.5
 
 lock_in_sensitivity_standby = '1 V'
 lock_in_sensitivity_operate = '100 mV'
@@ -41,7 +41,7 @@ t3034.oscilloscope_record_length(points)
 t3034.oscilloscope_number_of_averages(averages)
 
 # Magnetic field for initiazilation
-field = 2700
+field = 2450
 sr830.lock_in_sensitivity(lock_in_sensitivity_standby)
 general.wait('20 ms')
 #sr830.lock_in_phase(lock_in_phase)
@@ -54,13 +54,13 @@ sr830.lock_in_time_constant(lock_in_time_constant)
 general.wait('20 ms')
 
 
-bh15.magnet_setup(2700, 5)
+bh15.magnet_setup(2450, 2.5)
 field_step_initialization = 10
-general.wait('15 s')
+#general.wait('15 s')
 
-step_1 = 5
-step_2 = 20
-step_3 = 5
+step_1 = 1
+step_2 = 2
+step_3 = 1
 
 data2D = []
 
@@ -97,11 +97,17 @@ while i <= step_1:
         x_axis = np.append(x_axis, field)
         signal = np.append(signal, sr830.lock_in_get_data())
         if (i % 2) == 0:
-            general.plot_1d('CW_Spectrum', x_axis, signal, xname='Magnetic Field',\
-                xscale='G', yname='Signal Intensity', yscale='V', label='Even')
+            if len(signal) % 5 == 0:
+                general.plot_1d('CW_Spectrum', x_axis, signal, xname='Magnetic Field',\
+                	xscale='G', yname='Signal Intensity', yscale='V', label='Even')
+            else:
+                pass
         elif (i % 2) == 1:
-            general.plot_1d('CW_Spectrum', x_axis, signal, xname='Magnetic Field',\
-                xscale='G', yname='Signal Intensity', yscale='V', label='Odd')
+            if len(signal) % 5 == 0:
+                general.plot_1d('CW_Spectrum', x_axis, signal, xname='Magnetic Field',\
+                    xscale='G', yname='Signal Intensity', yscale='V', label='Odd')
+            else:
+                pass
 
         field = field + step_field
         bh15.magnet_field(field)
@@ -146,6 +152,7 @@ i = 1
 t3034.wave_gen_run()
 integral_for_plotting = []
 t3034.wave_gen_frequency(str(freq_gen) + ' Hz')
+res = t3034.oscilloscope_time_resolution()
 
 while i <= step_2:
 
@@ -204,7 +211,10 @@ while i <= step_2:
         path_to_file_2D = os.path.join('/home/lmr-pc/Experimental_Data/Auto/', '2D_CW_pulses_and_power' + '.csv')
         file_save_2D = open(path_to_file_2D, 'ab')
 
-        head = 'Integral: ' + str(integral_value) + ' arb.u.'
+        head = 'Integral: ' + str(integral_value) + ' arb.u.\n' + \
+            'Resolution: ' + str(res) + ' us'
+
+
         np.savetxt(file_save_2D, signal_corrected, fmt='%.10f', delimiter=',', \
             newline='\n', header=head, footer='', comments='# ', encoding=None)
 
@@ -220,11 +230,17 @@ while i <= step_2:
         x_axis = np.append(x_axis, field)
         signal = np.append(signal, sr830.lock_in_get_data())
         if (i % 2) == 0:
-            general.plot_1d('CW_Spectrum', x_axis, signal, xname='Magnetic Field',\
-                xscale='G', yname='Signal Intensity', yscale='V', label='Even')
+            if len(signal) % 5 == 0:            
+                general.plot_1d('CW_Spectrum', x_axis, signal, xname='Magnetic Field',\
+                    xscale='G', yname='Signal Intensity', yscale='V', label='Even')
+            else:
+                pass
         elif (i % 2) == 1:
-            general.plot_1d('CW_Spectrum', x_axis, signal, xname='Magnetic Field',\
-                xscale='G', yname='Signal Intensity', yscale='V', label='Odd')
+            if len(signal) % 5 == 0:            
+                general.plot_1d('CW_Spectrum', x_axis, signal, xname='Magnetic Field',\
+                    xscale='G', yname='Signal Intensity', yscale='V', label='Odd')
+            else:
+                pass
 
         field = field + step_field
         bh15.magnet_field(field)
@@ -288,11 +304,17 @@ while i <= step_3:
         x_axis = np.append(x_axis, field)
         signal = np.append(signal, sr830.lock_in_get_data())
         if (i % 2) == 0:
-            general.plot_1d('CW_Spectrum', x_axis, signal, xname='Magnetic Field',\
-                xscale='G', yname='Signal Intensity', yscale='V', label='Even')
+            if len(signal) % 5 == 0:
+                general.plot_1d('CW_Spectrum', x_axis, signal, xname='Magnetic Field',\
+                    xscale='G', yname='Signal Intensity', yscale='V', label='Even')
+            else:
+                pass
         elif (i % 2) == 1:
-            general.plot_1d('CW_Spectrum', x_axis, signal, xname='Magnetic Field',\
-                xscale='G', yname='Signal Intensity', yscale='V', label='Odd')
+            if len(signal) % 5 == 0:
+                general.plot_1d('CW_Spectrum', x_axis, signal, xname='Magnetic Field',\
+                    xscale='G', yname='Signal Intensity', yscale='V', label='Odd')
+            else:
+                pass
 
         field = field + step_field
         bh15.magnet_field(field)

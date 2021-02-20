@@ -64,7 +64,7 @@ if test_flag != 'test':
     file_save_2D = open(path_to_file_2D, 'a')
 
     head = 'Date: ' + str(timenow) + '\n' + 'Averages: ' + str(averages) + '\n' + \
-         'Points: ' + str(points) + '\n' + 'Resolution: ' + str(res) + '\n' \
+         'Points: ' + str(points) + '\n' + 'Resolution: ' + str(res) + 'us \n' \
          'Wave gen frequency: ' + str(freq) + '\n' + 'Pulse width: ' + str(width) + '\n' + \
          'Number of pulses: ' + str(repeats) + '\n' + 'Integral: ' + str(integral_value) + ' Arb. u.'
 
