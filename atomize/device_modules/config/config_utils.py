@@ -23,20 +23,37 @@ def read_conf_util(path_config_file):
     databits = int(config['SERIAL']['databits'])
 
     parity = config['SERIAL']['parity']
-    if parity == 'odd':
-        parity = Parity.odd
-    elif parity == 'even':
-        parity = Parity.even
-    elif parity == 'none':
-        parity = Parity.none
+    if interface != 'rs485':
+        if parity == 'odd':
+            parity = Parity.odd
+        elif parity == 'even':
+            parity = Parity.even
+        elif parity == 'none':
+            parity = Parity.none
+    else:
+        import minimalmodbus
+
+        if parity == 'odd':
+            parity = minimalmodbus.serial.PARITY_EVEN
+        elif parity == 'even':
+            parity = minimalmodbus.serial.PARITY_ODD
+        elif parity == 'none':
+            parity = minimalmodbus.serial.PARITY_NONE   
 
     stopbits = config['SERIAL']['stopbits']
-    if stopbits == 'one':
-        stopbits = StopBits.one
-    elif stopbits == 'onehalf':
-        stopbits = StopBits.one_and_a_half
-    elif stopbits == 'two':
-        stopbits = StopBits.two
+    if interface != 'rs485':
+        if stopbits == 'one':
+            stopbits = StopBits.one
+        elif stopbits == 'onehalf':
+            stopbits = StopBits.one_and_a_half
+        elif stopbits == 'two':
+            stopbits = StopBits.two
+    else:
+        import minimalmodbus
+        if stopbits == 'one':
+            stopbits = 1
+        elif stopbits == 'two':
+            stopbits = 2       
 
     if config['SERIAL']['write_termination'] == 'r':
         write_termination = '\r'
@@ -75,6 +92,25 @@ def read_specific_parameters(path_config_file):
     # loading configuration parameters
     specific_parameters = dict(config.items('SPECIFIC'))
     return specific_parameters
+
+def read_modbus_parameters(path_config_file):
+    import minimalmodbus
+
+    config = configparser.ConfigParser()
+    config.read(path_config_file)
+
+    # loading configuration parameters
+    mode = config['MODBUS']['mode']
+    if mode == 'ascii':
+        mode = minimalmodbus.MODE_ASCII
+    elif mode == 'rtu':
+        mode = minimalmodbus.MODE_RTU
+    else:
+        mode = minimalmodbus.MODE_RTU
+
+    slave_address = int(config['MODBUS']['slave_address'])
+    list_parameters = [mode, slave_address]
+    return list_parameters
 
 # search a key for a given value in dictionary
 def search_keys_dictionary(dictionary, search_value):

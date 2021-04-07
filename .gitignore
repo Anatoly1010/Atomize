@@ -1,5 +1,7 @@
 .idea
 __pycache__/
+atomize/device_modules/config/__pycache__/
+atomize/device_modules/config/__pycache__
 *.pyc
 *.swo
 *~
