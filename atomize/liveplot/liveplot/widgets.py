@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import QFileDialog
 pg.setConfigOption('background', (63,63,97))
 pg.setConfigOption('leftButtonPan', False)
 pg.setConfigOption('foreground', (192, 202, 227))
-#pg.setConfigOption('useOpenGL', True)
+pg.setConfigOption('useOpenGL', True)
 LastExportDirectory = None
 
 def get_widget(rank, name):

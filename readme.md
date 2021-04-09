@@ -47,6 +47,7 @@ At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and W
 - [PyVisa](https://pyvisa.readthedocs.io/en/latest/)
 - [PyVisa-py](https://github.com/pyvisa/pyvisa-py)
 - [PySerial;](https://pypi.org/project/pyserial/) for serial instruments
+- [Minimalmidbus;](https://minimalmodbus.readthedocs.io/en/stable/index.html) for Modbus instruments
 - [OpenGL;](https://pypi.org/project/PyOpenGL/) highly recommended for efficient plotting 
 - [Scipy;](https://www.scipy.org/) optional, for math modules
 - [GPIB driver;](https://linux-gpib.sourceforge.io/) optional
@@ -131,6 +132,8 @@ On Windows 10 one should use:
 	325; 331; 332; 335; 336; 340; Tested 01/21
 	- Oxford Instruments (RS-232)
 	ITC 503; Tested 01/21
+    - Termodat (RS-485)
+    11M6; Tested 04/21
 
 #### [Lock-in Amplifiers](#lock-in-amplifiers-1)
 	- Stanford Research Lock-In Amplifier (GPIB, RS-232)
@@ -217,6 +220,9 @@ tc_state(*mode)
 tc_sensor(*sensor)
 tc_gas_flow(*flow)
 tc_lock_keyboard(*lock)
+tc_proportional(*prop)]
+tc_derivative(*der)
+tc_integral(*integ)
 tc_command(command)
 tc_query(command)
 ```
