@@ -6,7 +6,7 @@ Available devices:
 - Oxford Instruments (RS-232)
 ITC 503; Tested 01/21
 - Termodat (RS-485)
-11M6; Tested 04/21
+11M6; 13KX3; Tested 04/21
 
 Functions:
 - [tc_name()](#tc_name)<br/>
@@ -45,7 +45,7 @@ Example: tc_temperature('A') returns the temperature of channel A in Kelvin.
 This function is for reading temperature from specified channel.<br/>
 Note that arguments can be devices specific. A set of ['A','B'] is used for Lakeshore 325, 331, 332, and 335, while for Lakeshore 336, 340 a set of four channel ['A','B','C','D'] is used.<br/>
 For Oxford Instruments ITC 503 channel should be one from the following: ['1', '2', '3']. Only tc_temperature('1') is valid, tc_temperature(1) are not valid. Note that there are models with different numbers of channels. Please, refer to manual and specify this setting in the configuration file.<br/>
-For Termodat-11M6 channel should be one from the following: ['1', '2', '3', '4']. Note that there are models with different numbers of channels. Please, refer to manual and specify this setting in the configuration file.<br/>
+For Termodat-11M6 channel should be one from the following: ['1', '2', '3', '4']. For Termodat-13KX3 channel should be one from the following: ['1', '2'].  Note that there are models with different numbers of channels. Please, refer to manual and specify this setting in the configuration file.<br/>
 ### tc_setpoint(*temp)
 ```python3
 tc_setpoint(*temp)
@@ -53,7 +53,7 @@ Arguments: temp = float; Output: float or none.
 Example: tc_setpoint('100') changes the set point of the specified loop to 100 Kelvin.
 ```
 This function queries or changes the set point, i.e. the target temperature the device will try to achieve and maintain. If an argument is specified the function sets a new temperature point. If there is no argument the function returns the current set point. A loop can be specified in configuration file.<br/>
-For Termodat-11M6, the channel for which the set point is to be set should be specified as an agrument of the function:
+For Termodat-11M6, 13KX3 the channel for which the set point is to be set should be specified as an agrument of the function:
 ### tc_setpoint(channel, *temp)
 ```python3
 tc_setpoint(channel, *temp)
@@ -73,7 +73,7 @@ Note that arguments are devices specific. Currently a set of ['50 W','5 W','0.5 
 For Lakeshore 336 a loop 1 or 2 can be used with a set of ['50 W','5 W','0.5 W','Off']. The loop 3 and 4 can be used only with ['On','Off'] set.<br/>
 For Lakeshore 325 a loop 1 can be used with a set of ['25 W','2.5 W','Off']. The loop 2 can be used only with ['On','Off'] set.<br/>
 The values '50 W', '5 W', and '0.5 W' are shown as High, Medium, and Low on the device display. The exact values depends on the resistance used.<br/>
-This function is not available for Termodat-11M6.<br/>
+This function is not available for Termodat-11M6, 13KX3.<br/>
 ### tc_heater_power()
 ```python3
 tc_heater_power()
@@ -83,7 +83,7 @@ Example: tc_heater() returns the array of the heater range and heater percent.
 This function is for reading the current heater value in percent for the specified loop. The loop config (should be indicated in the configuration file) can be: 1, 2 for Lakeshore 325, 331, 332, 335; 1, 2, 3, 4 for Lakeshore 336, 340.<br/>
 For Lakeshore 325, 331, 332, 335  loop 1 is a control loop, while loop 2 is an analog output.<br/>
 For Lakeshore 336, 340 loop 1, 2 are control loops, while loop 3, 4 are analog outputs (1 and 2 (or 3 and 4 for some models), respectively).<br/>
-For Termodat-11M6 the loop should be specified as an argument:
+For Termodat-11M6, 13KX3 the loop should be specified as an argument:
 ### tc_heater_power(channel)
 ```python3
 tc_heater_power(channel)
@@ -124,12 +124,13 @@ Generally not all sensor channels may be usable, there are models with different
 For Lakeshore temperature controllers integers 1-4 corresponds respectively to tha channels 'A'-'B' (or 'A'-'D' for Lakeshore 336). Also, for Lakeshore temperature controllers the control loop setting should be specified in the configuration file, since all the command use it as an internal argument. One can find more detail in the description of [tc_heater_power()](#tc_heater_power) function.<br/>
 In case of Lakeshore 325, 331, 332, 340 querying of this function also sets setpoint unit to Kelvin, specifies that the control loop is off after power-up, and sets the heater output to display in power.<br/>
 In case of Lakeshore 335 and 336 querying of this function also sets the control mode to closed loop PID and specifies that the control loop is off after power-up.<br/>
-For Termodat-11M6, this function sets or queries the state of specified sensor:
+For Termodat-11M6, 13KX3 this function sets or queries the state of specified sensor:
 ### tc_sensor(channel, *state)
 ```python3
 tc_sensor(channel, *state)
 Arguments: channel = ['1','2', etc], state = ['On','Off']; Output: string.
-Example: tc_sensor('1', 'On') changes the state of the second channel to 'On'. The second channel will be used for active control of the temperature when comparing to the setpoint.
+Example: tc_sensor('1', 'On') changes the state of the second channel to 'On'.
+The second channel will be used for active control of the temperature when comparing to the setpoint.
 ```
 If there is no state argument the function returns the current state for specified channel.<br/>
 ### tc_gas_flow(*flow)
@@ -155,21 +156,21 @@ tc_proportional(*prop)
 Arguments: channel = ['1','2', etc.], value = float; Output: float.
 Example: tc_proportional('1', 71) sets the proportional PID parameter for the first channel to 71.
 ```
-This function is only available for Termodat-11M6 and can be used to set or query the proportional parameter of the PID. The function can be used with one or two arguments. The first argument specifies the channel. If there is a second argument, it will be used as a new proportional parameter. If there is no second argument, the function returns the current proportional parameter for the specified channel. The accuracy is 0.1. The available range is 0.1 - 2000.
+This function is only available for Termodat-11M6, 13KX3 and can be used to set or query the proportional parameter of the PID. The function can be used with one or two arguments. The first argument specifies the channel. If there is a second argument, it will be used as a new proportional parameter. If there is no second argument, the function returns the current proportional parameter for the specified channel. The accuracy is 0.1. The available range is 0.1 - 2000.
 ### tc_derivative(*der)
 ```python3
 tc_derivative(*der)
 Arguments: channel = ['1','2', etc.], value = float; Output: float.
 Example: tc_derivative('2', 100) sets the derivative PID parameter for the second channel to 100.
 ```
-This function is only available for Termodat-11M6 and can be used to set or query the derivative parameter of the PID. The function can be used with one or two arguments. The first argument specifies the channel. If there is a second argument, it will be used as a new derivative parameter. If there is no second argument, the function returns the current derivative parameter for the specified channel. The accuracy is 0.1. The available range is 0.1 - 2000. A zero value means that no derivative control is used.
+This function is only available for Termodat-11M6, 13KX3 and can be used to set or query the derivative parameter of the PID. The function can be used with one or two arguments. The first argument specifies the channel. If there is a second argument, it will be used as a new derivative parameter. If there is no second argument, the function returns the current derivative parameter for the specified channel. The accuracy is 0.1. The available range is 0.1 - 2000. A zero value means that no derivative control is used.
 ### tc_integral(*integ)
 ```python3
 tc_integral(*integ)
 Arguments: channel = ['1','2', etc.], value = float; Output: float.
 Example: tc_integral('1', 600) sets the integral PID parameter for the first channel to 600.
 ```
-This function is only available for Termodat-11M6 and can be used to set or query the integral parameter of the PID. The function can be used with one or two arguments. The first argument specifies the channel. If there is a second argument, it will be used as a new integral parameter. If there is no second argument, the function returns the current integral parameter for the specified channel. The accuracy is 1. The available range is 1 - 9999. A zero value means that no integral control is used.
+This function is only available for Termodat-11M6, 13KX3 and can be used to set or query the integral parameter of the PID. The function can be used with one or two arguments. The first argument specifies the channel. If there is a second argument, it will be used as a new integral parameter. If there is no second argument, the function returns the current integral parameter for the specified channel. The accuracy is 1. The available range is 1 - 9999. A zero value means that no integral control is used.
 ### tc_command(command)
 ```python3
 tc_command(command)
@@ -177,7 +178,7 @@ Arguments: command = string; Output: none.
 Example: tc_command('PID 1,10,50,0'). Note that for some controller models
 the loop should not be specified. Check the programming guide.
 ```
-The function for sending an arbitrary command from a programming guide to the device in a string format. No output is expected. The function is not available for Termodat-11M6.<br/>
+The function for sending an arbitrary command from a programming guide to the device in a string format. No output is expected. The function is not available for Termodat-11M6, 13KX3.<br/>
 ### tc_query(command)
 ```python3
 tc_query(command)
@@ -185,5 +186,5 @@ Arguments: command = string; Output: string.
 Example: tc_query('PID? 1'). Note that for some controller models the loop
 should not be specified. Check the programming guide.
 ```
-The function for sending an arbitrary command from a programming guide to the device in a string format. An output in a string format is expected. The function is not available for Termodat-11M6.<br/>
+The function for sending an arbitrary command from a programming guide to the device in a string format. An output in a string format is expected. The function is not available for Termodat-11M6, 13KX3.<br/>
 
