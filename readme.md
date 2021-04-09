@@ -46,9 +46,9 @@ At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and W
 - [pyqtgraph](http://www.pyqtgraph.org)
 - [PyVisa](https://pyvisa.readthedocs.io/en/latest/)
 - [PyVisa-py](https://github.com/pyvisa/pyvisa-py)
-- [PySerial;](https://pypi.org/project/pyserial/) for serial instruments
-- [Minimalmidbus;](https://minimalmodbus.readthedocs.io/en/stable/index.html) for Modbus instruments
-- [OpenGL;](https://pypi.org/project/PyOpenGL/) highly recommended for efficient plotting 
+- [PySerial;](https://pypi.org/project/pyserial/) optional, for serial instruments
+- [Minimalmodbus;](https://minimalmodbus.readthedocs.io/en/stable/index.html) optional, for Modbus instruments
+- [OpenGL;](https://pypi.org/project/PyOpenGL/) optional, highly recommended for efficient plotting 
 - [Scipy;](https://www.scipy.org/) optional, for math modules
 - [GPIB driver;](https://linux-gpib.sourceforge.io/) optional
 
