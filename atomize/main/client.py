@@ -16,10 +16,13 @@ logging.root.setLevel(logging.WARNING)
 class LivePlotClient(object):
     def __init__(self, timeout=2000, size=2**28):
         self.app = QCoreApplication.instance()
+
         if self.app is None:
             self.app = QCoreApplication([])
+
         self.sock = QLocalSocket()
         self.sock.connectToServer("LivePlot")
+
         if not self.sock.waitForConnected():
             raise EnvironmentError("Couldn't find LivePlotter instance")
         self.sock.disconnected.connect(self.disconnect_received)
@@ -44,7 +47,7 @@ class LivePlotClient(object):
         if not self.is_connected:
             return
         if meta["name"] is None:
-            meta["name"] = "*";
+            meta["name"] = "*"
         if arr is not None:
             
             arrbytes = bytearray(arr)
@@ -90,8 +93,8 @@ class LivePlotClient(object):
         self.send_to_plotter(meta, arr.astype('float64'))
         self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
 
-    def plot_z(self, name, arr, extent=None, start_step=None, xname='X axis',
-    xscale='arb. u.', yname='Y axis', yscale='arb. u.', zname='Y axis', zscale='arb. u.'):
+    def plot_z(self, name, arr, extent=None, start_step=None, xname='X axis',\
+     xscale='arb. u.', yname='Y axis', yscale='arb. u.', zname='Y axis', zscale='arb. u.'):
         '''
         extent is ((initial x, final x), (initial y, final y))
         start_step is ((initial x, delta x), (initial_y, final_y))
@@ -119,7 +122,7 @@ class LivePlotClient(object):
         self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
 
     def plot_xy(self, name, xs, ys, label='', xname='X axis', xscale='arb. u.',\
-     yname='Y axis', yscale='arb. u.',scatter='False'):
+     yname='Y axis', yscale='arb. u.', scatter='False', timeaxis='False'):
         arr = np.array([xs, ys])
         meta = {
             'name': name,
@@ -130,14 +133,14 @@ class LivePlotClient(object):
             'Y': yscale,
             'Xname': xname,
             'Yname': yname,
-            'Scatter':scatter
+            'Scatter': scatter,
+            'TimeAxis': timeaxis
         }
-        self.send_to_plotter(meta, np.array([xs, ys]).astype('float64'))
+        self.send_to_plotter(meta, np.array([xs, ys]).astype('float64')) 
         self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
         
-
     def append_y(self, name, point, start_step=(0, 1), label='', xname='X axis',\
-     xscale='arb. u.', yname='Y axis', yscale='arb. u.',scatter='False'):
+     xscale='arb. u.', yname='Y axis', yscale='arb. u.',scatter='False', timeaxis='False'):
         self.send_to_plotter({
             'name': name,
             'operation': 'append_y',
@@ -149,7 +152,8 @@ class LivePlotClient(object):
             'Y': yscale,
             'Xname': xname,
             'Yname': yname,
-            'Scatter':scatter
+            'Scatter': scatter,
+            'TimeAxis': timeaxis
         })
         self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
 
@@ -163,8 +167,8 @@ class LivePlotClient(object):
         })
         self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
 
-    def append_z(self, name, arr, start_step=None, xname='X axis',
-    xscale='arb. u.', yname='Y axis', yscale='arb. u.', zname='Y axis', zscale='arb. u.'):
+    def append_z(self, name, arr, start_step=None, xname='X axis',\
+     xscale='arb. u.', yname='Y axis', yscale='arb. u.', zname='Y axis', zscale='arb. u.'):
         arr = np.array(arr)
         meta = {
             'name': name,
@@ -209,5 +213,5 @@ class LivePlotClient(object):
         self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
 
     def disconnect_received(self):
-            self.is_connected = False
-            warnings.warn('Disconnected from LivePlotter server, plotting has been disabled')
+        self.is_connected = False
+        warnings.warn('Disconnected from LivePlotter server, plotting has been disabled')

@@ -4,7 +4,7 @@ A modular open source software for working with scientific devices and combining
 The general idea is close to [FSC2 software](http://users.physik.fu-berlin.de/~jtt/fsc2.phtml) developed by Jens Thomas Törring.<br/>
 Remote control of spectrometers is usually carried out using home-written programs, which are often restricted to doing a certain experiment with a specific set of devices. In contrast, the programs like [FSC2](http://users.physik.fu-berlin.de/~jtt/fsc2.phtml) and [Atomize](https://github.com/Anatoly1010/Atomize) are much more flexible, since they are based on a modular approach for communication with device and scripting language (EDL in FSC2; Python in Atomize) for data measuring.
 
-Atomize uses [liveplot library](https://github.com/PhilReinhold/liveplot) based on pyqtgraph as a main graphics library. [Liveplot](https://github.com/PhilReinhold/liveplot) was originally developed by Phil Reinhold. Since several minor improvements have been made to use it in Atomize, the latest version of liveplot is included to Atomize.
+Atomize uses [liveplot library](https://github.com/PhilReinhold/liveplot) based on pyqtgraph as a main graphics library. [Liveplot](https://github.com/PhilReinhold/liveplot) was originally developed by Phil Reinhold. Since several minor improvements have been made to use it in Atomize.
 
 [Python Programming Language](https://www.python.org/) is used inside experimental scripts, which opens up almost unlimited possibilities for raw experimental data treatment. In addition, with PyQt, one can create experimental scripts with a simple graphical interface, allowing users not familiar with Python to use it. Several examples of scripts (with dummy data) are provided in /atomize/tests/ directory, including a GUI script with extended comments inside.<br/>
 
@@ -69,26 +69,14 @@ or using bash option to open specified script:
 
 	python3 atomize /path/to/experimental/script
 
-The text editor used for editing can be specified in atomize/config.ini. The Telegram bot token and message chat ID can be specified in the same file.
-
-2. [Liveplot](https://github.com/PhilReinhold/liveplot) Author: Phil Reinhold
-
-Install from the source directory (from atomize/liveplot):
-
-	python3 setup.py install
-
-Start the window (optional; atomize opens it)
-
-	python3 -m liveplot
-
-To communicate with Liveplot inside a script the general function module should be
-imported and the Liveplot window should be open.
+To communicate with Liveplot inside a script the general function module should be imported.
 ```python
 import atomize.general_modules.general_functions as general
 general.plot_1d(arguments)
 ```
+The text editor used for editing can be specified in atomize/config.ini. The Telegram bot token and message chat ID can be specified in the same file.
 
-3. Using device modules
+2. Using device modules
 
 To communicate with a device one should:
 1) modify the config file (/atomize/device_modules/config/) of the desired device accordingly. Choose the desired protocol (rs-232, gpib, ethernet) and correct the settings of the specified protocol in accordance with device settings. A little bit more detailed information about protocol settings can be found [here.](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md)
@@ -111,12 +99,12 @@ file_handler = openfile.Saver_Opener()
 head, data = file_handler.open_1D_dialog(header = 0)
 general.plot_1d('1D Plot', data[0], data[1], label = 'test_data', yname = 'Y axis', yscale = 'V')
 ```
-4. Experimental scripts
+3. Experimental scripts
 
 Python is used to write an experimental script. Examples (with dummy data) can be found in
 /atomize/tests/ directory.
 
-5. Speeding up plotting functions
+4. Speeding up plotting functions
 
 It is highly recommended to use OpenGL, if you want to plot data with more than 2000 points.
 On Ubuntu 18.04 LTS, 20.04 LTS python openGL bindings can be installed as:

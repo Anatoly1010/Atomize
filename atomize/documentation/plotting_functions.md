@@ -34,7 +34,7 @@ In addition to the many features of native pyqtgraph widgets Liveplot has:<br/>
 - Enable/disable auto-rescaling of levels when image is updated<br/>
 
 ## Usage
-To call these functions one should import general function module inside a script and open the Liveplot window.
+To call these functions one should import general function module inside a script.
 ```python
 import atomize.general_modules.general_functions as general
 ```

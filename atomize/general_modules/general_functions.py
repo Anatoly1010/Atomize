@@ -7,7 +7,8 @@ import time
 import socket
 import threading
 import configparser
-from liveplot import LivePlotClient
+from atomize.main.client import LivePlotClient
+#from liveplot import LivePlotClient
 
 time_dict = {'ks': 0.001, 's': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000, 'ps': 1000000000000, };
 
@@ -45,21 +46,21 @@ def wait(interval):
         pass
 
 def plot_1d(strname, xd, yd, label='label', xname='X',\
- xscale='arb. u.', yname='Y', yscale='arb. u.', scatter='False'):
+ xscale='arb. u.', yname='Y', yscale='arb. u.', scatter='False', timeaxis='False'):
 
     if test_flag != 'test':
         plotter.plot_xy(strname, xd, yd, label=label, xname=xname,\
-            xscale=xscale, yname=yname, yscale=yscale, scatter=scatter)
+            xscale=xscale, yname=yname, yscale=yscale, scatter=scatter, timeaxis=timeaxis)
 
     elif test_flag == 'test':
         pass
 
 def append_1d(strname, value, start_step=(0, 1), label='label', xname='X',\
- xscale='arb. u.', yname='Y', yscale='arb. u.'):
+ xscale='arb. u.', yname='Y', yscale='arb. u.', scatter='False', timeaxis='False'):
 
     if test_flag != 'test':
         plotter.append_y(strname, value, start_step=start_step, label=label, xname=xname,\
-            xscale=xscale, yname=yname, yscale=yscale)
+            xscale=xscale, yname=yname, yscale=yscale, timeaxis=timeaxis)
 
     elif test_flag == 'test':
         pass

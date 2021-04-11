@@ -2,6 +2,8 @@ import warnings
 import os
 import pyqtgraph as pg
 import numpy as np
+from tkinter import filedialog
+import tkinter
 from datetime import datetime
 from pyqtgraph.dockarea import Dock
 from PyQt5 import QtWidgets, QtCore, QtGui
@@ -10,7 +12,7 @@ from PyQt5.QtWidgets import QFileDialog
 pg.setConfigOption('background', (63,63,97))
 pg.setConfigOption('leftButtonPan', False)
 pg.setConfigOption('foreground', (192, 202, 227))
-#pg.setConfigOption('useOpenGL', True)
+pg.setConfigOption('useOpenGL', True)
 LastExportDirectory = None
 
 def get_widget(rank, name):
@@ -126,6 +128,17 @@ class CrosshairDock(CloseableDock):
         #self.plot_widget.setBackground(None)
         kwargs['widget'] = self.plot_widget
         super(CrosshairDock, self).__init__(**kwargs)
+
+        self.menu = self.plot_widget.getMenu()
+        self.menu.addSeparator()
+        self.del_menu = QtGui.QMenu()
+        self.del_menu.setTitle('Delete Plot')
+        self.menu.addMenu(self.del_menu)
+
+        open_action = QtWidgets.QAction('Open 1D Data', self)
+        open_action.triggered.connect(self.open_file_dialog)
+        self.menu.addAction(open_action)
+
         self.avail_colors = [pg.mkPen(color=(255,0,255),width=1.5),pg.mkPen(color=(255,0,0),width=1.5),
         pg.mkPen(color=(0,0,255),width=1.5), pg.mkPen(color=(0,255,0),width=1.5), pg.mkPen(color=(255,255,255),width=1.5)]
         self.avail_symbols= ['x','p','star','s','o']
@@ -138,35 +151,89 @@ class CrosshairDock(CloseableDock):
         self.used_symbols = {}
         self.used_brush = {}
         self.curves = {}
+        self.del_dict = {}
+        self.name_dict = {}
 
     def plot(self, *args, **kwargs):
         self.plot_widget.parametric = kwargs.pop('parametric', False)
-        self.plot_widget.setLabel("bottom", text=kwargs.get('xname', ''), units=kwargs.get('xscale', ''))
+        if kwargs.get('timeaxis', '') == 'True':
+            # strange scaling when zoom
+            axis = pg.DateAxisItem()
+            self.plot_widget.setAxisItems({'bottom': axis})
+            self.plot_widget.setLabel("bottom", text=kwargs.get('xname', ''))
+        else:
+            self.plot_widget.setLabel("bottom", text=kwargs.get('xname', ''), units=kwargs.get('xscale', ''))
         self.plot_widget.setLabel("left", text=kwargs.get('yname', ''), units=kwargs.get('yscale', ''))
         name = kwargs.get('name', '')
 
         if name in self.curves: 
-            if kwargs.get('scatter', '')=='True':
+            if kwargs.get('scatter', '') == 'True':
                 kwargs['pen'] = None;
                 kwargs['symbol'] = self.used_symbols[name]
                 kwargs['symbolPen'] = self.used_pens[name]
                 kwargs['symbolBrush'] = self.used_brush[name]
                 kwargs['symbolSize'] = 7
                 self.curves[name].setData(*args, **kwargs)
-            elif kwargs.get('scatter', '')=='False':
+            elif kwargs.get('scatter', '') == 'False':
                 kwargs['pen'] = self.used_colors[name]
                 self.curves[name].setData(*args, **kwargs)
         else:
-            if kwargs.get('scatter', '')=='True':
+            if kwargs.get('scatter', '') == 'True':
                 kwargs['pen'] = None;
                 kwargs['symbol'] = self.used_symbols[name] = self.avail_symbols.pop()
                 kwargs['symbolPen'] = self.used_pens[name] = self.avail_sym_pens.pop()
                 kwargs['symbolBrush'] = self.used_brush[name] = self.avail_sym_brush.pop()
                 kwargs['symbolSize'] = 7
                 self.curves[name] = self.plot_widget.plot(*args, **kwargs)
-            elif kwargs.get('scatter', '')=='False':
+            elif kwargs.get('scatter', '') == 'False':
                 kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
                 self.curves[name] = self.plot_widget.plot(*args, **kwargs)
+
+            del_action = QtWidgets.QAction(str(name), self)
+            self.del_dict[del_action] = self.plot_widget.listDataItems()[-1]
+            self.name_dict[del_action] = name
+            del_action.triggered.connect(lambda: self.del_item(self.del_dict[del_action]))
+            self.del_menu.addAction(del_action)
+
+
+    def del_item(self, item):
+        self.plot_widget.removeItem(item)
+        key_action = list(self.del_dict.keys())[list(self.del_dict.values()).index(item)]
+        key_name = list(self.curves.keys())[list(self.curves.values()).index(item)]
+        self.del_dict.pop(key_action, None)
+        self.del_menu.removeAction(key_action)
+        self.curves.pop(key_name, None)
+        self.avail_colors.append(self.used_colors[self.name_dict[key_action]])
+        #TO DO the same for scatter plot
+
+    def open_file_dialog(self, directory = '', header = 0):
+            file_path = self.file_dialog(directory = directory)
+
+            header_array = [];
+            file_to_read = open(file_path,'r')
+            for i, line in enumerate(file_to_read):
+                if i is header: break
+                temp = line.split(":")
+                header_array.append(temp)
+            file_to_read.close()
+
+            temp = np.genfromtxt(file_path, dtype=float, delimiter=',') 
+            data = np.transpose(temp)
+            
+            self.plot(data[0], data[1], parametric=True, name=file_path, xname='X', xscale ='Arb. U.',\
+             yname='Y', yscale ='Arb. U.', scatter='False')
+
+    def file_dialog(self, directory = ''):
+        root = tkinter.Tk()
+        root.withdraw()
+
+        file_path = filedialog.askopenfilename(**dict(
+            initialdir = directory,
+            filetypes = [("CSV", "*.csv"), ("TXT", "*.txt"),\
+            ("DAT", "*.dat"), ("all", "*.*")],
+            title = 'Select file to open')
+            )
+        return file_path
 
     def clear(self):
         self.plot_widget.clear()

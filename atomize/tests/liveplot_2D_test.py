@@ -37,7 +37,7 @@ while i <= 10:
     # Label Test
     general.text_label('Plot Z Test', 'step:', i)
 
-general.plot_remove('Plot Z Test')
+#general.plot_remove('Plot Z Test')
 
 #open(path_to_file, "w").close()
 #f = open(path_to_file,'a')
