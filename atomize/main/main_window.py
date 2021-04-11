@@ -39,6 +39,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.script = '' # for not opened script
         self.flag = 1 # for not open two liveplot windows
         self.test_flag = 0 # flag for not running script if test is failed
+        self.flag_opened_script_changed = 0 # flag for saving changes in the opened script
         self.path = os.path.join(path_to_main,'atomize/tests')
         # Connection of different action to different Menus and Buttons
         self.button_open.clicked.connect(self.open_file_dialog)
@@ -71,6 +72,7 @@ class MainWindow(QtWidgets.QMainWindow):
           QPushButton:pressed {background-color: rgb(211, 194, 78); ; border-style: inset}");
         self.textEdit.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); }\
          QScrollBar:vertical {background-color: rgb(0, 0, 0);}");
+        self.textEdit.textChanged.connect(self.save_edited_text)
         self.text_errors.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); }")
         
         # configuration data
@@ -169,7 +171,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.text_errors.appendPlainText('No experimental script is opened')
             return
 
-        if stamp != self.cached_stamp:
+        if stamp != self.cached_stamp and self.flag_opened_script_changed == 0:
             self.cached_stamp = stamp
             message = QMessageBox(self);  # Message Box for warning of updated file
             message.setWindowTitle("Your script has been changed!")
@@ -270,8 +272,19 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         self.cached_stamp = os.stat(filename).st_mtime
         text = open(filename).read()
-        self.textEdit.setPlainText(text)
         self.path = os.path.dirname(filename) # for memorizing the path to the last used folder
+        self.script = filename
+        self.textEdit.setPlainText(text)
+
+    def save_file(self, filename):
+        """
+        A function to save a new experimental script.
+        :param filename: string
+        """
+        with open(filename, 'w') as file:
+            file.write(self.textEdit.toPlainText())
+
+        self.cached_stamp = os.stat(filename).st_mtime
         self.script = filename
 
     def open_file_dialog(self):
@@ -286,6 +299,29 @@ class MainWindow(QtWidgets.QMainWindow):
         filedialog.fileSelected.connect(self.open_file)
         filedialog.show()
 
+    def save_file_dialog(self):
+        """
+        A function to open a new window for choosing a name for a new experimental script.
+        """
+        filedialog = QFileDialog(self, 'Save File', directory = self.path, filter ="python (*.py)",\
+            options=QtWidgets.QFileDialog.DontUseNativeDialog)
+        filedialog.setAcceptMode(QFileDialog.AcceptSave)
+        # use QFileDialog.DontUseNativeDialog to change directory
+        filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
+        filedialog.setFileMode(QtWidgets.QFileDialog.AnyFile)
+        filedialog.fileSelected.connect(self.save_file)
+        filedialog.show()
+
+    def save_edited_text(self):
+        if self.script:
+            self.flag_opened_script_changed = 1
+            with open(self.script, 'w') as file:
+                file.write(self.textEdit.toPlainText())
+        else:
+            self.flag_opened_script_changed = 1
+            if self.textEdit.toPlainText() != '': # save file dialog will be opened after at least one character is added
+                self.save_file_dialog()
+        
     @QtCore.pyqtSlot(str) 
     def add_error_message(self, data):
         """

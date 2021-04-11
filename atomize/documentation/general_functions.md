@@ -10,8 +10,9 @@
 - [Example 3](#save-file-during-the-script)<br/>
 
 ## Available functions
-- [general.message('string')](#print-a-line-in-the-main-window)<br/>
-- [general.wait('10 ms')](#wait-for-the-specified-amount-of-time)<br/>
+- [message('string')](#print-a-line-in-the-main-window)<br/>
+- [bot_message('message')](#send-a-message-via-telegram-bot)<br/>
+- [wait('10 ms')](#wait-for-the-specified-amount-of-time)<br/>
 - [open_1D(path, header = 0)](#open_1D)<br/>
 - [open_1D_dialog(self, directory = '', header = 0)](#open_1D_dialog)<br/>
 - [save_1D_dialog(data, directory = '', header = '')](#save_1D_dialog)<br/>
@@ -28,6 +29,12 @@ To call this function a corresponding general function module should be imported
 ```python
 import atomize.general_modules.general_functions as general
 general.message('A message to print','One more message', ...)
+```
+## Send a message via Telegram bot
+To call this function Telegram bot token and message chat ID should be specified in the configuration file (/atomize/config.ini). General function module should be imported. After that the function should be used as follows:
+```python
+import atomize.general_modules.general_functions as general
+general.bot_message('A message to send','One more message', ...)
 ```
 ## Wait for the specified amount of time
 To call this function a corresponding general function module should be imported. Function has

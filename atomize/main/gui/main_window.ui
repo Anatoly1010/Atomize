@@ -331,7 +331,7 @@
        <enum>QAbstractScrollArea::AdjustToContents</enum>
       </property>
       <property name="readOnly">
-       <bool>true</bool>
+       <bool>false</bool>
       </property>
      </widget>
     </item>
@@ -414,7 +414,7 @@
      <x>0</x>
      <y>0</y>
      <width>1089</width>
-     <height>21</height>
+     <height>22</height>
     </rect>
    </property>
   </widget>

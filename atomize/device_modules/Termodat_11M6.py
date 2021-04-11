@@ -57,7 +57,8 @@ class Termodat_11M6:
                 try:
                     self.status_flag = 1
                     self.device = minimalmodbus.Instrument(config['serial_address'], modbus_parameters[1])
-                    self.device.mode = minimalmodbus.MODE_ASCII
+                    #self.device.mode = minimalmodbus.MODE_ASCII
+                    self.device.mode = modbus_parameters[0]
                     #check there
                     self.device.serial.baurate = config['baudrate']
                     self.device.serial.bytesize = config['databits']

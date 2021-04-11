@@ -2,9 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import os
 import time
 import socket
 import threading
+import configparser
 from liveplot import LivePlotClient
 
 time_dict = {'ks': 0.001, 's': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000, 'ps': 1000000000000, };
@@ -93,6 +95,24 @@ def plot_remove(strname):
     if test_flag != 'test':
         plotter.remove(strname)
 
+    elif test_flag == 'test':
+        pass
+
+def bot_message(*text):
+    import telebot
+    # configuration data
+    path_to_main = os.path.abspath(os.getcwd())
+    path_config_file = os.path.join(path_to_main,'atomize/config.ini')
+    config = configparser.ConfigParser()
+    config.read(path_config_file)
+
+    bot = telebot.TeleBot(str(config['DEFAULT']['telegram_bot_token']))
+    chat_id = config['DEFAULT']['message_id']
+    if test_flag != 'test':
+        if len(text) == 1:
+            bot.send_message(chat_id, str(text[0]))
+        else:
+            bot.send_message(chat_id, str(text))
     elif test_flag == 'test':
         pass
 

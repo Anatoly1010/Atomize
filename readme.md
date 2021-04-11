@@ -50,7 +50,8 @@ At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and W
 - [Minimalmodbus;](https://minimalmodbus.readthedocs.io/en/stable/index.html) optional, for Modbus instruments
 - [OpenGL;](https://pypi.org/project/PyOpenGL/) optional, highly recommended for efficient plotting 
 - [Scipy;](https://www.scipy.org/) optional, for math modules
-- [GPIB driver;](https://linux-gpib.sourceforge.io/) optional
+- [GPIB driver;](https://linux-gpib.sourceforge.io/) optional, for GPIB devices
+- [Telegram bot API;](https://github.com/eternnoir/pyTelegramBotAPI) optional, for Telegram bot messages
 
 ## Basic usage
 
@@ -68,7 +69,7 @@ or using bash option to open specified script:
 
 	python3 atomize /path/to/experimental/script
 
-The text editor used for editing  can be specified in atomize/config.ini
+The text editor used for editing can be specified in atomize/config.ini. The Telegram bot token and message chat ID can be specified in the same file.
 
 2. [Liveplot](https://github.com/PhilReinhold/liveplot) Author: Phil Reinhold
 

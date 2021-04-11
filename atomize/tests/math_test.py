@@ -21,4 +21,9 @@ general.plot_1d('1D Plot', data[0], residuals[1], label='scatter', yname='Y axis
 
 general.wait('500 ms')
 
+x = 0 
+
+if x < 5:
+	general.message('hi')
+	general.wait('100 ms')
 
