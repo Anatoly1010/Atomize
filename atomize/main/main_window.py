@@ -78,15 +78,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.button_start.clicked.connect(self.start_experiment)
         self.button_start.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
          border-style: outset; color: rgb(193, 202, 227);}\
-          QPushButton:pressed {background-color: rgb(211, 194, 78); ; border-style: inset}")
+          QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset}")
         self.button_help.clicked.connect(self.help)
         self.button_help.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
          border-style: outset; color: rgb(193, 202, 227);}\
-          QPushButton:pressed {background-color: rgb(211, 194, 78); ; border-style: inset}")
+          QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset}")
         self.button_quit.clicked.connect(lambda: self.quit())
         self.button_quit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
          border-style: outset; color: rgb(193, 202, 227);}\
-          QPushButton:pressed {background-color: rgb(211, 194, 78); ; border-style: inset}")
+          QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset}")
         self.textEdit.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); }\
          QScrollBar:vertical {background-color: rgb(42, 42, 64);}")
         self.textEdit.textChanged.connect(self.save_edited_text)
@@ -102,10 +102,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.gridLayout_tab_liveplot.setAlignment(self.namelist, QtConst.AlignLeft)
         self.gridLayout_tab_liveplot.addWidget(self.dockarea, 0, 1)
         #self.gridLayout_tab_liveplot.setAlignment(self.dockarea, QtConst.AlignRight)
-        self.namelist.setStyleSheet("background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); ")
+        self.namelist.setStyleSheet("background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); border: 2px solid rgb(40, 30, 45)")
         self.namelist.namelist_view.setStyleSheet("QListView::item:selected:active {background-color: rgb(63, 63, 97);\
             color: rgb(211, 194, 78); } QListView::item:hover {background-color: rgb(48, 48, 75); }")
-        self.namelist.namelist_view.setStyleSheet("QMenu::item:selected {background-color: rgb(48, 48, 75); }")
+        self.namelist.namelist_view.setStyleSheet("QMenu::item:selected {background-color: rgb(48, 48, 75);  }")
 
         # Liveplot server settings
         self.server = QLocalServer()
