@@ -57,6 +57,9 @@
 }
 QTabBar::tab {
 	background: rgb(63, 63, 97 );
+}
+QTabBar::tab:selected {
+    background: rgb(48, 48, 75);
 }</string>
       </property>
       <property name="tabShape">

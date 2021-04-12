@@ -60,7 +60,7 @@ class Termodat_13KX3:
                     #self.device.mode = minimalmodbus.MODE_ASCII
                     self.device.mode = modbus_parameters[0]
                     #check there
-                    self.device.serial.baurate = config['baudrate']
+                    self.device.serial.baudrate = config['baudrate']
                     self.device.serial.bytesize = config['databits']
                     self.device.serial.parity = config['parity']
                     #check there

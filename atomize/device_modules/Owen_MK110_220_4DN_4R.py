@@ -9,6 +9,7 @@ import minimalmodbus
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
+
 #### Inizialization
 # setting path to *.ini file
 path_current_directory = os.path.dirname(__file__)
@@ -45,7 +46,7 @@ class Owen_MK110_220_4DN_4R:
                     #self.device.mode = minimalmodbus.MODE_ASCII
                     self.device.mode = modbus_parameters[0]
                     #check there
-                    self.device.serial.baurate = config['baudrate']
+                    self.device.serial.baudrate = 9600
                     self.device.serial.bytesize = config['databits']
                     self.device.serial.parity = config['parity']
                     #check there
@@ -83,7 +84,7 @@ class Owen_MK110_220_4DN_4R:
     def device_write_unsigned(self, register, value, decimals):
         if self.status_flag == 1:
             # may be functioncode = 16
-            self.device.write_register(register, value, decimals, functioncode = 6, signed = False)
+            self.device.write_register(register, value, decimals, functioncode = 16, signed = False)
         else:
             general.message("No Connection")
             self.status_flag = 0
@@ -110,7 +111,7 @@ class Owen_MK110_220_4DN_4R:
     def discrete_io_input_counter(self, channel):
         if test_flag != 'test':
             if channel == '1':
-                answer = int(self.device_read_unsigned(64, 0))
+                answer = int(self.device_read_unsigned(50, 0))
                 return answer
             elif channel == '2':
                 answer = int(self.device_read_unsigned(65, 0))
@@ -146,6 +147,42 @@ class Owen_MK110_220_4DN_4R:
         
         elif test_flag == 'test':
             assert(channel == '1' or channel == '2' or channel == '3' or channel == '4'), "Incorrect channel"
+
+    def discrete_io_output_state(self, *channel):
+        if test_flag != 'test':
+            if len(channel) == 1:
+                ch = channel[0]
+                if channel == '1':
+                    self.device_write_unsigned(64, 0, 0)
+                elif channel == '2':
+                    self.device_write_unsigned(65, 0, 0)
+                elif channel == '3':
+                    self.device_write_unsigned(66, 0, 0)
+                elif channel == '4':
+                    self.device_write_unsigned(67, 0, 0)
+                else:
+                    general.message("Invalid argument")
+                    sys.exit()
+            elif len(channel) == 2:
+                ch = channel[0]
+                st = int(channel[1])
+                if ch == '1':
+                    if st == 0:
+                        self.device_write_unsigned(50, 0, 0)
+                    elif st == 1:
+                        self.device_write_unsigned(50, 1, 0)
+
+
+        elif test_flag == 'test':
+            if len(channel) == 2:
+                ch = channel[0]
+                st = int(channel[1])
+                assert(ch in channel_dict), "Incorrect channel"
+            elif len(channel) == 1:
+                ch = channel[0]
+                assert(ch in channel_dict), "Incorrect channel"
+            else:
+                assert(1 == 2), "Incorrect argument"
 
 def main():
     pass
