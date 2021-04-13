@@ -71,6 +71,7 @@ PS310, PS325 (GPIB); PS350, PS355, PS365, PS370, PS375 (RS-232, GPIB)
 - CPWplus 150 (RS-232); Tested 01/2021
 
 ## Other
-- Solid-state Relay RODOS-10N (Ethernet); Tested 01/2021
+- Solid-State Relay RODOS-10N (Ethernet); Tested 01/2021
+- Discrete IO Module Owen-MK110-220.4DN.4R (RS-485); Tested 04/2021
 
 

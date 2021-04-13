@@ -170,7 +170,8 @@ On Windows 10 one should use:
 	- CPWplus 150 (RS-232); Tested 01/2021
 
 #### [Other](#other-1)
-	- Solid-state Relay RODOS-10N (Ethernet); Tested 01/2021
+	- Solid-State Relay RODOS-10N (Ethernet); Tested 01/2021
+    - Discrete IO Module Owen-MK110-220.4DN.4R (RS-485); Tested 04/2021
 
 ## [Available general functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
 ```python3
@@ -346,6 +347,13 @@ balance_weight()
 ```python3
 relay_turn_on(number)
 relay_turn_off(number)
+```
+#### Discrete IO Module Owen-MK110-220.4DN.4R (RS-485)
+```python3
+discrete_io_input_counter(channel)
+discrete_io_input_counter_reset(channel)
+discrete_io_input_state()
+discrete_io_output_state(*state)
 ```
 
 ## Screenshots
