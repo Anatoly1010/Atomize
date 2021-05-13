@@ -76,7 +76,7 @@ t4032 = t4032.Tektronix_4000_Series()
 #    t4032.oscilloscope_start_acquisition()
 #    y = t4032.oscilloscope_get_curve('CH1')
 #    data.append(y)
-#    general.plot_z('Plot Z Test2', data, start_step=((0,1),(0.3,0.001)), xname='Time',\
+#    general.plot_2d('Plot Z Test2', data, start_step=((0,1),(0.3,0.001)), xname='Time',\
 #        xscale='s', yname='Magnetic Field', yscale='T', zname='Intensity', zscale='V')
 
 #    general.message(str(time.time() - start_time))

@@ -4,6 +4,7 @@
 import os
 import gc
 import sys
+import time
 import serial
 import minimalmodbus
 import atomize.device_modules.config.config_utils as cutil
@@ -114,6 +115,7 @@ class Termodat_11M6:
     def device_read_signed(self, register, decimals):
         if self.status_flag == 1:
             answer = self.device.read_register(register, decimals, signed = True)
+            time.sleep(0.01)
             return answer
         else:
             general.message("No Connection")

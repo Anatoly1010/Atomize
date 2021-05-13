@@ -143,7 +143,7 @@ class Owen_MK110_220_4DN_4R:
     # No argument; Output in the form '1234' that means input 1-4 are on
     def discrete_io_input_state(self):
         if test_flag != 'test':
-            raw_answer = bin(int(self.device_read_unsigned(50, 0))).replace("0b","")
+            raw_answer = bin(int(self.device_read_unsigned(51, 0))).replace("0b","")
             answer = cutil.search_keys_dictionary(input_state_dict, raw_answer)
             return answer
 

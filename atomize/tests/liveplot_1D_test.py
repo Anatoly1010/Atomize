@@ -15,21 +15,22 @@ ys4 = np.array([])
 #ys = np.random.rand(1,5000)
 
 # Plot_xy Test
-for i in range(7):
+for i in range(30):
     ys = np.append(ys, np.random.rand(1,1))
-#    ys2 = np.append(ys2, 1)
-#    ys3 = np.append(ys3, np.random.rand(1,1))
-#    ys4 = np.append(ys4, 0)
-    now = time.time()
+    ys2 = np.append(ys2, 1)
+    ys3 = np.append(ys3, np.random.rand(1,1))
+    ys4 = np.append(ys4, 0)
+    #now = time.time()
     #timestamp = datetime.timestamp(now)
-    xs = np.append(xs, now)
+    #xs = np.append(xs, now)
+    xs = np.append(xs, i)
     #general.message(xs)
     #ys = np.append(ys, np.random.randint(0, 10 + 1));
     #ys[i] = np.random.randint(0, 10 + 1);
-    general.plot_1d('Plot XY Test', xs, ys, label='test data1', timeaxis = 'True')
-    #general.plot_1d('Plot XY Test', xs, ys2, label='test data2')
-    #general.plot_1d('Plot XY Test', xs, ys3, label='test data3')
-    #general.plot_1d('Plot XY Test', xs, ys4, label='test data4')
+    general.plot_1d('Plot XY Test', xs, ys, label='test data1', timeaxis = 'False')
+    general.plot_1d('Plot XY Test', xs, ys2, label='test data2')
+    general.plot_1d('Plot XY Test', xs, ys3, label='test data3')
+    general.plot_1d('Plot XY Test', xs, ys4, label='test data4')
     general.wait('1000 ms')
     
 

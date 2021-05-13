@@ -29,6 +29,7 @@ scale_dict = {'V': 1, 'mV': 1000,};
 ac_type_dic = {'Normal': "SAMple", 'Average': "AVErage", 'Hres': "HIRes",'Peak': "PEAKdetect"}
 
 # Ranges and limits
+analog_channels = int(specific_parameters['analog_channels'])
 sensitivity_min = float(specific_parameters['sensitivity_min'])
 sensitivity_max = float(specific_parameters['sensitivity_max'])
 

@@ -567,6 +567,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.text_errors.appendPlainText(str(data))
         if data == 'Script stopped':
             self.process_python.close()
+            #self.text_errors.verticalScrollBar().setValue(self.text_errors.verticalScrollBar().maximum())
 
 class NameList(QDockWidget):
     def __init__(self, window):
