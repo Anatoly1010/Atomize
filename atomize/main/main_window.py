@@ -355,7 +355,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def add_plot(self, pw):
         self.insert_dock_right = not self.insert_dock_right
-        self.dockarea.addDock(pw, position=['bottom', 'right'][self.insert_dock_right])
+        #self.dockarea.addDock(pw, position=['bottom', 'right'][self.insert_dock_right])
+        self.dockarea.addDock(pw, position=['bottom', 'bottom'][self.insert_dock_right])
 
     #####################################################
 

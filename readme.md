@@ -59,7 +59,7 @@ At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and W
 
 Install from the source directory:
 
-	pip3 install .
+	pip3 install -e .
 
 run from the source directory:
 

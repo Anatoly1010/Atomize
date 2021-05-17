@@ -1,0 +1,16 @@
+import time
+import numpy as np
+import atomize.general_modules.general_functions as general
+import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+
+open1d = openfile.Saver_Opener()
+
+data = []
+
+data = open1d.open_2D_appended_dialog(directory='', header = 1, chunk_size = 763)
+
+#general.message(data[1])
+
+general.plot_2d('Plot Z Test', data[1], start_step=((0,1),(99.2, 2.0)), xname='Time',\
+        xscale='s', yname='Magnetic Field', yscale='mT', zname='Intensity', zscale='V')
+
