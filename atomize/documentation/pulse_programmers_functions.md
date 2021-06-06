@@ -32,7 +32,8 @@ length = '100 ns' specifies a length of the pulse (['ns', 'us', 's'])
 delta_start = '0 ns' specifies a start time increment of the pulse (['ns', 'us', 's'])
 length_increment = '0 ns' specifies a pulse length increment (['ns', 'us', 's']);
 Output: none.
-Example: pulser_pulse('channel = 'CH0', start = '100 ns', length = '100 ns', delta_start = '0 ns', length_increment = '0 ns') sets the 100 ns length pulse with 100 ns start time at channel 0.
+Example: pulser_pulse('channel = 'CH0', start = '100 ns', length = '100 ns', delta_start = '0 ns',
+length_increment = '0 ns') sets the 100 ns length pulse with 100 ns start time at channel 0.
 ```
 The function sets a pulse with specified parameters. The default argument is channel = 'CH0', start = '0 ns', length = '100 ns', delta_start = '0 ns', length_increment = '0 ns'. A channel should be one of the following ['CH0','CH1', ... ,'CH20']. The scaling factor for start, length, delta_start, and length_increment key arguments should be one of the following ['ns', 'us', 's']. The maximum available length of the pulse is 2000 ns. The maximum available length of the pulse sequence is 8.9 s. The pulse sequence will be checked for overlap.
 ### pulser_update()
