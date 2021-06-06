@@ -24,6 +24,7 @@ At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and W
     - [Lock-in Amplifiers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/lock_in_amplifier_functions.md)<br/>
     - [Oscilloscopes](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/oscilloscope_functions.md)<br/>
     - [Arbitrary Wave Generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/wave_generator_functions.md)<br/>
+    - [Pulse Programmers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/pulse_programmers_functions.md)<br/>
     - [Frequency Counters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/frequency_counter_functions.md)<br/>
     - [Magnetic Field Controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/magnet_functions.md)<br/>
     - [Gaussmeters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/gaussmeter_functions.md)<br/>
@@ -144,6 +145,10 @@ On Windows 10 one should use:
 	- Wave Generator of Keysight InfiniiVision 4000 X-Series (Ethernet)
 	Available via corresponding oscilloscope module.
 
+#### [Pulse Programmers](#pulse-programmers-1)
+    - Pulse Blaster ESR 500 Pro
+    The device is available via c_types. [The original C library](http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml) was written by SpinCore Technologies.
+
 #### [Frequency Counters](#frequency-counters-1)
 	- Agilent Frequency Counter (GPIB, RS-232)
 	53181A; 53131A/132A; Tested 02/2021
@@ -241,7 +246,7 @@ oscilloscope_trigger_low_level(*level)
 oscilloscope_command(command)
 oscilloscope_query(command)
 ```
-### [Wave generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/wave_generator_functions.md)
+### [Arbitrary wave generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/wave_generator_functions.md)
 ```python3
 wave_gen_name()
 wave_gen_frequency(*frequency)
@@ -258,6 +263,18 @@ wave_gen_arbitrary_interpolation(*mode)
 wave_gen_arbitrary_points()
 wave_gen_command(command)
 wave_gen_query(command)
+```
+### [Pulse programmers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/pulse_programmers_functions.md)
+```python3
+pulser_name()
+pulser_pulse(*kargs)
+pulser_update()
+pulser_repetitoin_rate(*r_rate)
+pulser_shift()
+pulser_increment()
+pulser_reset()
+pulser_pulse_reset()
+pulser_stop()
 ```
 ### [Lock-in amplifiers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/lock_in_amplifier_functions.md)
 ```python3

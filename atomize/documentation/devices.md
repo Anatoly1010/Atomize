@@ -5,6 +5,7 @@
 - [Lock-in Amplifiers](#lock-in-amplifiers)<br/>
 - [Oscilloscopes](#oscilloscopes)<br/>
 - [Arbitrary Wave Generators](#arbitrary-wave-generators)<br/>
+- [Pulse Programmers](#pulse-programmers)<br/>
 - [Frequency Counters](#frequency-counters)<br/>
 - [Magnetic Field Controllers](#magnetic-field-controllers)<br/>
 - [Gaussmeters](#gaussmeters)<br/>
@@ -43,6 +44,10 @@ Available via corresponding oscilloscope module.
 Available via corresponding oscilloscope module.
 - Wave Generator of Keysight InfiniiVision 4000 X-Series (Ethernet)<br/>
 Available via corresponding oscilloscope module.
+
+## Pulse Programmers
+- Pulse Blaster ESR 500 Pro<br/>
+Available via [the original library.](http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml)
 
 ## Frequency Counters
 - Agilent Frequency Counter (GPIB, RS-232)
