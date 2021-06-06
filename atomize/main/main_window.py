@@ -19,6 +19,7 @@ import time
 from . import widgets
 import pyqtgraph as pg
 from datetime import datetime
+import OpenGL
 from PyQt5.QtCore import QSharedMemory, QSize
 from PyQt5.QtGui import QColor, QIcon, QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QListView, QDockWidget, QVBoxLayout, QAction
@@ -355,8 +356,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def add_plot(self, pw):
         self.insert_dock_right = not self.insert_dock_right
-        #self.dockarea.addDock(pw, position=['bottom', 'right'][self.insert_dock_right])
         self.dockarea.addDock(pw, position=['bottom', 'bottom'][self.insert_dock_right])
+        #print(['bottom', 'right'][self.insert_dock_right])
+        #self.dockarea.moveDock(pw, 'above', self.dock_list[-1])   ## move d6 to stack on top of d4
 
     #####################################################
 
@@ -568,7 +570,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.text_errors.appendPlainText(str(data))
         if data == 'Script stopped':
             self.process_python.close()
-            #self.text_errors.verticalScrollBar().setValue(self.text_errors.verticalScrollBar().maximum())
 
 class NameList(QDockWidget):
     def __init__(self, window):

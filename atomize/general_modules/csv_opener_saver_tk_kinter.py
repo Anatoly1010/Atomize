@@ -136,7 +136,7 @@ class Saver_Opener:
                 header_array.append(temp)
             file_to_read.close()
 
-            temp = np.genfromtxt(file_path, dtype = float, delimiter = ',') 
+            temp = np.genfromtxt(file_path, dtype = float, delimiter = ',')
             data = np.array_split(temp, chunk_size)
             return header_array, data
 

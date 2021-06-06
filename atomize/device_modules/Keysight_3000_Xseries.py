@@ -297,7 +297,7 @@ class Keysight_3000_Xseries:
                 answer = test_timebase
                 return answer
             else:
-                assert (1 == 2), 'Invalid timebase argument'               
+                assert (1 == 2), 'Invalid timebase argument'
 
     def oscilloscope_time_resolution(self):
         if test_flag != 'test':

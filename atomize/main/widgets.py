@@ -8,11 +8,13 @@ from datetime import datetime
 from pyqtgraph.dockarea import Dock
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtWidgets import QFileDialog
+import OpenGL
 
 pg.setConfigOption('background', (63,63,97))
 pg.setConfigOption('leftButtonPan', False)
 pg.setConfigOption('foreground', (192, 202, 227))
 pg.setConfigOption('useOpenGL', True)
+pg.setConfigOption('enableExperimental', True)
 LastExportDirectory = None
 
 def get_widget(rank, name):
@@ -139,8 +141,8 @@ class CrosshairDock(CloseableDock):
         open_action.triggered.connect(self.open_file_dialog)
         self.menu.addAction(open_action)
 
-        self.avail_colors = [pg.mkPen(color=(255,0,255),width=1.5),pg.mkPen(color=(255,0,0),width=1.5),
-        pg.mkPen(color=(0,0,255),width=1.5), pg.mkPen(color=(0,255,0),width=1.5), pg.mkPen(color=(255,255,255),width=1.5)]
+        self.avail_colors = [pg.mkPen(color=(255,0,255),width=1),pg.mkPen(color=(255,0,0),width=1),
+        pg.mkPen(color=(0,0,255),width=1), pg.mkPen(color=(0,255,0),width=1), pg.mkPen(color=(255,255,255),width=1)]
         self.avail_symbols= ['x','p','star','s','o']
         self.avail_sym_pens = [pg.mkPen(color=(255, 255, 255), width=0),pg.mkPen(color=(0, 255, 0), width=0),
         pg.mkPen(color=(0, 0, 255), width=0),pg.mkPen(color=(255, 0, 0), width=0),pg.mkPen(color=(255, 0, 255), width=0)]
