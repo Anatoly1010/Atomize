@@ -47,12 +47,14 @@ At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and W
 - [pyqtgraph](http://www.pyqtgraph.org)
 - [PyVisa](https://pyvisa.readthedocs.io/en/latest/)
 - [PyVisa-py](https://github.com/pyvisa/pyvisa-py)
-- [PySerial;](https://pypi.org/project/pyserial/) optional, for serial instruments
-- [Minimalmodbus;](https://minimalmodbus.readthedocs.io/en/stable/index.html) optional, for Modbus instruments
-- [OpenGL;](https://pypi.org/project/PyOpenGL/) optional, highly recommended for efficient plotting 
-- [Scipy;](https://www.scipy.org/) optional, for math modules
-- [GPIB driver;](https://linux-gpib.sourceforge.io/) optional, for GPIB devices
-- [Telegram bot API;](https://github.com/eternnoir/pyTelegramBotAPI) optional, for Telegram bot messages
+Optional:
+- [PySerial;](https://pypi.org/project/pyserial/) for serial instruments
+- [Minimalmodbus;](https://minimalmodbus.readthedocs.io/en/stable/index.html) for Modbus instruments
+- [OpenGL;](https://pypi.org/project/PyOpenGL/) highly recommended for efficient plotting 
+- [Scipy;](https://www.scipy.org/) for math modules
+- [GPIB driver;](https://linux-gpib.sourceforge.io/) for GPIB devices
+- [Telegram bot API;](https://github.com/eternnoir/pyTelegramBotAPI) for Telegram bot messages
+- [SpinAPI;](http://www.spincore.com/support/spinapi/) for Pulse Blaster ESR 500 Pro
 
 ## Basic usage
 
@@ -147,7 +149,7 @@ On Windows 10 one should use:
 
 #### [Pulse Programmers](#pulse-programmers-1)
     - Pulse Blaster ESR 500 Pro
-    The device is available via c_types. [The original C library](http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml) was written by SpinCore Technologies.
+    The device is available via ctypes. [The original C library](http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml) was written by SpinCore Technologies.
 
 #### [Frequency Counters](#frequency-counters-1)
 	- Agilent Frequency Counter (GPIB, RS-232)
@@ -270,11 +272,12 @@ pulser_name()
 pulser_pulse(*kargs)
 pulser_update()
 pulser_repetitoin_rate(*r_rate)
-pulser_shift()
-pulser_increment()
+pulser_shift(*pulses)
+pulser_increment(*pulses)
 pulser_reset()
-pulser_pulse_reset()
+pulser_pulse_reset(*pulses)
 pulser_stop()
+pulser_state()
 ```
 ### [Lock-in amplifiers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/lock_in_amplifier_functions.md)
 ```python3

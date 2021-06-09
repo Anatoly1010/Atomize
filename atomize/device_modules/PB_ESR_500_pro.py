@@ -7,6 +7,10 @@ from copy import deepcopy
 import numpy as np
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
+import atomize.general_modules.spinapi as spinapi
+
+# Initialization of the SpinAPI PB library
+sp = spinapi.SpinAPI()
 
 #### Inizialization
 # setting path to *.ini file
@@ -18,7 +22,9 @@ path_config_file = os.path.join(path_current_directory, 'config','PB_ESR_500_pro
 specific_parameters = cutil.read_specific_parameters(path_config_file)
 
 # TO DO
-# pulse_shift and pulse_increment only one pulse
+# visualization
+# phase cycling
+# defense pulses
 
 timebase_dict = {'s': 1000000000, 'ms': 1000000, 'us': 1000, 'ns': 1,}
 channel_dict = {'CH0': 0, 'CH1': 1, 'CH2': 2, 'CH3': 3, 'CH4': 4, 'CH5': 5, \
@@ -45,6 +51,7 @@ class PB_ESR_500_Pro:
         if test_flag != 'test':
             #pb_core_clock(clock)
             self.pulse_array = []
+            self.pulse_name_array = []
             self.pulse_array_init = []
             self.rep_rate = (repetition_rate, )
             self.shift_count = 0
@@ -53,6 +60,7 @@ class PB_ESR_500_Pro:
         
         elif test_flag == 'test':
             self.pulse_array = []
+            self.pulse_name_array = []
             self.pulse_array_init = []
             self.rep_rate = (repetition_rate, )
             self.shift_count = 0
@@ -68,28 +76,39 @@ class PB_ESR_500_Pro:
             answer = 'PB ESR 500 Pro'
             return answer
 
-    def pulser_pulse(self, channel = 'CH0', start = '0 ns', length = '100 ns', delta_start = '0 ns', length_increment = '0 ns'):
+    def pulser_pulse(self, name = 'P0', channel = 'CH0', start = '0 ns', length = '100 ns', delta_start = '0 ns', length_increment = '0 ns'):
         """
         A function that added a new pulse at specified channel. The possible arguments:
         START, LENGTH, DELTA_START, LENGTH_INCREMENT
         """
         if test_flag != 'test':
-            pulse = {'channel': channel, 'start': start, 'length': length, 'delta_start' : delta_start, 'length_increment': length_increment}
+            pulse = {'name': name, 'channel': channel, 'start': start, 'length': length, 'delta_start' : delta_start, 'length_increment': length_increment}
 
             self.pulse_array.append( pulse )
             # for saving the initial pulse_array without increments
             # deepcopy helps to create a TRULY NEW array and not a link to the object
-            self.pulse_array_init = deepcopy(self.pulse_array)
+            self.pulse_array_init = deepcopy( self.pulse_array )
+            # pulse_name array
+            self.pulse_name_array.append( pulse['name'] )
 
         elif test_flag == 'test':
-
-            pulse = {'channel': channel, 'start': start, 'length': length, 'delta_start' : delta_start, 'length_increment': length_increment}
+            pulse = {'name': name, 'channel': channel, 'start': start, 'length': length, 'delta_start' : delta_start, 'length_increment': length_increment}
+            
             # Checks
+            # two equal names
+            temp_name = str(name)
+            set_from_list = set(self.pulse_name_array)          
+            if temp_name in set_from_list:
+                assert (1 == 2), 'Two pulses have the same name. Please, rename'
+
+            self.pulse_name_array.append( pulse['name'] )
+
             temp_length = length.split(" ")
             if temp_length[1] in timebase_dict:
                 coef = timebase_dict[temp_length[1]]
                 p_length = coef*float(temp_length[0])
-                assert(p_length >= 0 and p_length < 2000), 'Pulse is longer than maximum available length or negative'
+                assert(p_length >= 12), 'Pulse is shorter than minimum available length (12 ns)'
+                assert(p_length < 2000), 'Pulse is longer than maximum available length (2000 ns)'
 
             temp_start = start.split(" ")
             if temp_start[1] in timebase_dict:
@@ -129,24 +148,38 @@ class PB_ESR_500_Pro:
             # get repetition rate
             rep_rate = self.rep_rate[0]
             if rep_rate[-3:] == ' Hz':
-                rep_time = int(1000000000/float(rep_rate[:-3])/2)
+                rep_time = int(1000000000/float(rep_rate[:-3]))
             elif rep_rate[-3:] == 'kHz':
-                rep_time = int(1000000/float(rep_rate[:-4])/2)
+                rep_time = int(1000000/float(rep_rate[:-4]))
             elif rep_rate[-3:] == 'MHz':
-                rep_time = int(1000/float(rep_rate[:-4])/2)
+                rep_time = int(1000/float(rep_rate[:-4]))
 
             if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1:
                 # using a special functions for convertion to instructions
                 to_spinapi = self.instruction_pulse( self.bit_pulse( self.convertion_to_numpy( self.pulse_array ) ), rep_time )
                 general.message( to_spinapi )
+
+                # initialization
+                #pb_init()
+                #pb.core_clock(clock)
+                ###sp.pb_init()
+                ###sp.pb_core_clock(clock)
+
                 #pb_start_programming(PULSE_PROGRAM)
+                ###sp.pb_start_programming(0)
                 i = 0
                 while i < len( to_spinapi) - 1:
                     #if i == 0: 
                         # to create a link for BRANCH
-                        #start = pb_inst(ON | "0x%X" % to_spinapi[i, 0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
+                        # start = pb_inst(ON | "0x%X" % to_spinapi[i, 0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
+                        
+                        # CONTINUE is 0
+                        # ON is 111 in the first three bits of the Output/Control Word (24 bits)
+                        # it is 14680064 or 0xE00000
+                        ###start = sp.pb_inst(14680064 + to_spinapi[i, 0], 0, 0, to_spinapi[i][2])
                     #else:
                         #pb_inst(ON | "0x%X" % to_spinapi[i, 0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
+                        ###sp.pb_inst(14680064 + to_spinapi[i, 0], 0, 0, to_spinapi[i][2])
                     if i == 0:
                         pass
                         #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', CONTINUE, 0, ' + "0x%X" % to_spinapi[i][2] )
@@ -159,13 +192,20 @@ class PB_ESR_500_Pro:
                 # last instruction for delay
                 #pb_inst(ON | "0x%X" % to_spinapi[i, 0], BRANCH, 0, "0x%X" % to_spinapi[i][2])
                 #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', BRANCH, start, ' + "0x%X" % to_spinapi[i][2] )
+                # BRANCH is 6
+                ###sp.pb_inst(14680064 + to_spinapi[i, 0], 6, 0, to_spinapi[i][2])
 
                 #pb_stop_programming()
                 #pb_reset()
                 #pb_start()
                 
-                # should be checked
+                ###sp.pb_stop_programming()
+                ###sp.pb_reset()
+                ###sp.pb_start()
+
                 #pb_close()
+                ###sp.pb_close()
+
                 self.reset_count = 1
                 self.shift_count = 0
                 self.increment_count == 0
@@ -176,11 +216,11 @@ class PB_ESR_500_Pro:
             # get repetition rate
             rep_rate = self.rep_rate[0]
             if rep_rate[-3:] == ' Hz':
-                rep_time = int(1000000000/float(rep_rate[:-3])/2)
+                rep_time = int(1000000000/float(rep_rate[:-3]))
             elif rep_rate[-3:] == 'kHz':
-                rep_time = int(1000000/float(rep_rate[:-4])/2)
+                rep_time = int(1000000/float(rep_rate[:-4]))
             elif rep_rate[-3:] == 'MHz':
-                rep_time = int(1000/float(rep_rate[:-4])/2)
+                rep_time = int(1000/float(rep_rate[:-4]))
 
             if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1:
                 # using a special functions for convertion to instructions
@@ -209,71 +249,141 @@ class PB_ESR_500_Pro:
             elif len(r_rate) == 0:
                 pass
 
-    def pulser_shift(self):
+    def pulser_shift(self, *pulses):
         """
         A function to shift the start of the pulses.
         The function directly affects the pulse_array.
         """
         if test_flag != 'test':
-            i = 0
-            while i < len( self.pulse_array ):
-                if int( self.pulse_array[i]['delta_start'][:-3] ) == 0:
-                    pass
-                else:
-                    self.pulse_array[i]['start'] = str( int(self.pulse_array[i]['start'][:-3]) + \
-                        int(self.pulse_array[i]['delta_start'][:-3])) + ' ' + \
-                        self.pulse_array[i]['delta_start'][-2:]
+            if len(pulses) == 0:
+                i = 0
+                while i < len( self.pulse_array ):
+                    if int( self.pulse_array[i]['delta_start'][:-3] ) == 0:
+                        pass
+                    else:
+                        self.pulse_array[i]['start'] = str( int(self.pulse_array[i]['start'][:-3]) + \
+                            int(self.pulse_array[i]['delta_start'][:-3])) + ' ' + \
+                            self.pulse_array[i]['delta_start'][-2:]
 
-                i += 1
+                    i += 1
 
-            self.shift_count = 1
+                self.shift_count = 1
+
+            else:
+                set_from_list = set(pulses)
+                for element in set_from_list:
+                    if element in self.pulse_name_array:
+                        pulse_index = self.pulse_name_array.index(element)
+
+                        if int( self.pulse_array[pulse_index]['delta_start'][:-3] ) == 0:
+                            pass
+                        else:
+                            self.pulse_array[pulse_index]['start'] = str( int(self.pulse_array[pulse_index]['start'][:-3]) + \
+                                int(self.pulse_array[pulse_index]['delta_start'][:-3])) + ' ' + \
+                                self.pulse_array[pulse_index]['delta_start'][-2:]
+
+                        self.shift_count = 1
 
         elif test_flag == 'test':
-            i = 0
-            while i < len( self.pulse_array ):
-                if int( self.pulse_array[i]['delta_start'][:-3] ) == 0:
-                    pass
-                else:
-                    self.pulse_array[i]['start'] = str( int(self.pulse_array[i]['start'][:-3]) + \
-                        int(self.pulse_array[i]['delta_start'][:-3])) + ' ' + \
-                        self.pulse_array[i]['delta_start'][-2:]
+            if len(pulses) == 0:
+                i = 0
+                while i < len( self.pulse_array ):
+                    if int( self.pulse_array[i]['delta_start'][:-3] ) == 0:
+                        pass
+                    else:
+                        self.pulse_array[i]['start'] = str( int(self.pulse_array[i]['start'][:-3]) + \
+                            int(self.pulse_array[i]['delta_start'][:-3])) + ' ' + \
+                            self.pulse_array[i]['delta_start'][-2:]
 
-                i += 1
+                    i += 1
 
-            self.shift_count = 1
+                self.shift_count = 1
 
-    def pulser_increment(self):
+            else:
+                set_from_list = set(pulses)
+                for element in set_from_list:
+                    if element in self.pulse_name_array:
+
+                        pulse_index = self.pulse_name_array.index(element)
+                        if int( self.pulse_array[pulse_index]['delta_start'][:-3] ) == 0:
+                            pass
+                        else:
+                            self.pulse_array[pulse_index]['start'] = str( int(self.pulse_array[pulse_index]['start'][:-3]) + \
+                                int(self.pulse_array[pulse_index]['delta_start'][:-3])) + ' ' + \
+                                self.pulse_array[pulse_index]['delta_start'][-2:]
+
+                        self.shift_count = 1
+
+                    else:
+                        assert(1 == 2) "There is no pulse with the specified name"
+
+    def pulser_increment(self, *pulses):
         """
         A function to increment the length of the pulses.
         The function directly affects the pulse_array.
         """
         if test_flag != 'test':
-            i = 0
-            while i < len( self.pulse_array ):
-                if int(self.pulse_array[i]['length_increment'][:-3]) == 0:
-                    pass
-                else:
-                    self.pulse_array[i]['length'] = str( int(self.pulse_array[i]['length'][:-3]) + \
-                        int(self.pulse_array[i]['length_increment'][:-3])) + ' ' + \
-                        self.pulse_array[i]['length_increment'][-2:]
+            if len(pulses) == 0:
+                i = 0
+                while i < len( self.pulse_array ):
+                    if int( self.pulse_array[i]['length_increment'][:-3] ) == 0:
+                        pass
+                    else:
+                        self.pulse_array[i]['length'] = str( int(self.pulse_array[i]['length'][:-3]) + \
+                            int(self.pulse_array[i]['length_increment'][:-3])) + ' ' + \
+                            self.pulse_array[i]['length_increment'][-2:]
 
-                i += 1
+                    i += 1
 
-            self.increment_count = 1
+                self.shift_count = 1
+
+            else:
+                set_from_list = set(pulses)
+                for element in set_from_list:
+                    if element in self.pulse_name_array:
+                        pulse_index = self.pulse_name_array.index(element)
+
+                        if int( self.pulse_array[pulse_index]['length_increment'][:-3] ) == 0:
+                            pass
+                        else:
+                            self.pulse_array[pulse_index]['length'] = str( int(self.pulse_array[pulse_index]['length'][:-3]) + \
+                                int(self.pulse_array[pulse_index]['length_increment'][:-3])) + ' ' + \
+                                self.pulse_array[pulse_index]['length_increment'][-2:]
+
+                        self.shift_count = 1
 
         elif test_flag == 'test':
-            i = 0
-            while i < len( self.pulse_array ):
-                if int(self.pulse_array[i]['length_increment'][:-3]) == 0:
-                    pass
-                else:
-                    self.pulse_array[i]['length'] = str( int(self.pulse_array[i]['length'][:-3]) + \
-                        int(self.pulse_array[i]['length_increment'][:-3])) + ' ' + \
-                        self.pulse_array[i]['length_increment'][-2:]
+            if len(pulses) == 0:
+                i = 0
+                while i < len( self.pulse_array ):
+                    if int( self.pulse_array[i]['length_increment'][:-3] ) == 0:
+                        pass
+                    else:
+                        self.pulse_array[i]['length'] = str( int(self.pulse_array[i]['length'][:-3]) + \
+                            int(self.pulse_array[i]['length_increment'][:-3])) + ' ' + \
+                            self.pulse_array[i]['length_increment'][-2:]
 
-                i += 1
+                    i += 1
 
-            self.increment_count = 1
+                self.shift_count = 1
+
+            else:
+                set_from_list = set(pulses)
+                for element in set_from_list:
+                    if element in self.pulse_name_array:
+
+                        pulse_index = self.pulse_name_array.index(element)
+                        if int( self.pulse_array[pulse_index]['length_increment'][:-3] ) == 0:
+                            pass
+                        else:
+                            self.pulse_array[pulse_index]['length'] = str( int(self.pulse_array[pulse_index]['length'][:-3]) + \
+                                int(self.pulse_array[pulse_index]['length_increment'][:-3])) + ' ' + \
+                                self.pulse_array[pulse_index]['length_increment'][-2:]
+
+                        self.shift_count = 1
+
+                    else:
+                        assert(1 == 2) "There is no pulse with the specified name"
 
     def pulser_reset(self, rep_rate = repetition_rate):
         """
@@ -285,25 +395,35 @@ class PB_ESR_500_Pro:
             # get repetition rate
             rep_rate = self.rep_rate[0]
             if rep_rate[-3:] == ' Hz':
-                rep_time = int(1000000000/float(rep_rate[:-3])/2)
+                rep_time = int(1000000000/float(rep_rate[:-3]))
             elif rep_rate[-3:] == 'kHz':
-                rep_time = int(1000000/float(rep_rate[:-4])/2)
+                rep_time = int(1000000/float(rep_rate[:-4]))
             elif rep_rate[-3:] == 'MHz':
-                rep_time = int(1000/float(rep_rate[:-4])/2)
+                rep_time = int(1000/float(rep_rate[:-4]))
 
             # reset the pulses; deepcopy helps to create a TRULY NEW array
             self.pulse_array = deepcopy( self.pulse_array_init )
             # using a special functions for convertion to instructions
             to_spinapi = self.instruction_pulse( self.bit_pulse( self.convertion_to_numpy( self.pulse_array ) ), rep_time )
             general.message(to_spinapi)
-            #pb_start_programming(PULSE_PROGRAM)
+
+            # initialization
+            #pb_init()
+            #pb.core_clock(clock)
+            ###sp.pb_init()
+            ###sp.pb_core_clock(clock)
+
+            #pb_start_programming(0)
+            ###sp.pb_start_programming(0)
             i = 0
             while i < len( to_spinapi) - 1:
                 #if i == 0: 
                     # to create a link for BRANCH
                     #start = pb_inst(ON | "0x%X" % to_spinapi[i, 0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
+                    ###start = sp.pb_inst(14680064 + to_spinapi[i, 0], 0, 0, to_spinapi[i][2])
                 #else:
                     #pb_inst(ON | "0x%X" % to_spinapi[i, 0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
+                    ###sp.pb_inst(14680064 + to_spinapi[i, 0], 0, 0, to_spinapi[i][2])
                 if i == 0:
                     pass
                     #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', CONTINUE, 0, ' + "0x%X" % to_spinapi[i][2] )
@@ -315,15 +435,19 @@ class PB_ESR_500_Pro:
 
             # last instruction for delay
             #pb_inst(ON | "0x%X" % to_spinapi[i, 0], BRANCH, 0, "0x%X" % to_spinapi[i][2])
+            ###sp.pb_inst(14680064 + to_spinapi[i, 0], 6, 0, to_spinapi[i][2])
             #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', BRANCH, start, ' + "0x%X" % to_spinapi[i][2] )
 
             #pb_stop_programming()
             #pb_reset()
             #pb_start()
-            
-            # should be checked
+
+            ###sp.pb_stop_programming()
+            ###sp.pb_reset()
+            ###sp.pb_start()
+
             #pb_close()
-            #return to_spinapi
+            ###sp.pb_close()
 
             self.reset_count = 1
             self.increment_count = 0
@@ -333,11 +457,11 @@ class PB_ESR_500_Pro:
             # get repetition rate
             rep_rate = self.rep_rate[0]
             if rep_rate[-3:] == ' Hz':
-                rep_time = int(1000000000/float(rep_rate[:-3])/2)
+                rep_time = int(1000000000/float(rep_rate[:-3]))
             elif rep_rate[-3:] == 'kHz':
-                rep_time = int(1000000/float(rep_rate[:-4])/2)
+                rep_time = int(1000000/float(rep_rate[:-4]))
             elif rep_rate[-3:] == 'MHz':
-                rep_time = int(1000/float(rep_rate[:-4])/2)
+                rep_time = int(1000/float(rep_rate[:-4]))
 
             # reset the pulses; deepcopy helps to create a TRULY NEW array
             self.pulse_array = deepcopy( self.pulse_array_init )
@@ -348,46 +472,95 @@ class PB_ESR_500_Pro:
             self.increment_count = 0
             self.shift_count = 0
 
-    def pulser_pulse_reset(self):
+    def pulser_pulse_reset(self, *pulses):
         """
         Reset all pulses to the initial state it was in at the start of the experiment.
         It does not update the pulser, if you want to reset all pulses and and also update 
         the pulser use the function pulser_reset() instead.
         """
         if test_flag != 'test':
-            self.pulse_array = deepcopy(self.pulse_array_init)
-            self.reset_count = 0
-            self.increment_count = 0
-            self.shift_count = 0
+            if len(pulses) == 0:
+                self.pulse_array = deepcopy(self.pulse_array_init)
+                self.reset_count = 0
+                self.increment_count = 0
+                self.shift_count = 0
+            else:
+                set_from_list = set(pulses)
+                for element in set_from_list:
+                    if element in self.pulse_name_array:
+                        pulse_index = self.pulse_name_array.index(element)
+
+                        self.pulse_array[pulse_index]['start'] = self.pulse_array_init[pulse_index]['start']
+                        self.pulse_array[pulse_index]['length'] = self.pulse_array_init[pulse_index]['length']
+
+                        self.reset_count = 0
+                        self.increment_count = 0
+                        self.shift_count = 0
 
         elif test_flag == 'test':
-            self.pulse_array = deepcopy(self.pulse_array_init)
-            self.reset_count = 0
-            self.increment_count = 0
-            self.shift_count = 0
+            if len(pulses) == 0:
+                self.pulse_array = deepcopy(self.pulse_array_init)
+                self.reset_count = 0
+                self.increment_count = 0
+                self.shift_count = 0
+            else:
+                set_from_list = set(pulses)
+                for element in set_from_list:
+                    if element in self.pulse_name_array:
+                        pulse_index = self.pulse_name_array.index(element)
+
+                        self.pulse_array[pulse_index]['start'] = self.pulse_array_init[pulse_index]['start']
+                        self.pulse_array[pulse_index]['length'] = self.pulse_array_init[pulse_index]['length']
+
+                        self.reset_count = 0
+                        self.increment_count = 0
+                        self.shift_count = 0
 
     def pulser_stop(self):
         """
         A function to stop pulse sequence
         """
         if test_flag != 'test':
+
+            # initialization
+            #pb_init()
+            #pb.core_clock(clock)
+            ###sp.pb_init()
+            ###sp.pb_core_clock(clock)
+
             #pb_start_programming(PULSE_PROGRAM)
-            #pb_inst(ON | "0x%X" % 0, CONTINUE, 0, "0x%X" % 12)
+            #pb_inst(ON | "0x%X" % 0, CONTINUE, 0, "0x%X" % 16)
+            ###sp.pb_start_programming(0)
+            ###sp.pb_inst(14680064, 0, 0, 16)
+
             #general.message('ON | ', "0x%X" % 0, ', CONTINUE, 0, ', "0x%X" % 12)
-            #pb_inst(ON | "0x%X" % 0, STOP, 0, "0x%X" % 12)
-            general.message('ON | ', "0x%X" % 0, ', STOP, 0, ', "0x%X" % 12)
-            #pass
+            #pb_inst(ON | "0x%X" % 0, STOP, 0, "0x%X" % 16)
+            # STOP is 1
+            ###sp.pb_inst(14680064, 1, 0, 16)
+            general.message('ON | ', "0x%X" % 0, ', STOP, 0, ', "0x%X" % 16)
+
             #pb_stop_programming()
             #pb_reset()
             #pb_start()
             
-            # should be checked
             #pb_close()
+
+            #sp.pb_stop_programming()
+            #sp.pb_reset()
+            #sp.pb_start()
+            
+            #sp.pb_close()
+
             #return to_spinapi
 
         elif test_flag == 'test':
             pass
 
+    def pulser_state(self):
+        # should be tested
+        #sp.pb_init()
+        #answer = sp.pb_read_status()
+        return answer
 
     # Auxilary functions
     def convertion_to_numpy(self, p_array):
@@ -412,34 +585,34 @@ class PB_ESR_500_Pro:
                 # get start
                 st = p_array[i]['start']
                 if st[-2:] == 'ns':
-                    st_time = int(float(st[:-3])/timebase)
+                    st_time = int(float(st[:-3]))
                 elif st[-2:] == 'us':
-                    st_time = int(float(st[:-3])*1000/timebase)
+                    st_time = int(float(st[:-3])*1000)
                 elif st[-2:] == 'ms':
-                    st_time = int(float(st[:-3])*1000000/timebase)
+                    st_time = int(float(st[:-3])*1000000)
                 elif st[-2:] == 's':
-                    st_time = int(float(st[:-3])*1000000000/timebase)
+                    st_time = int(float(st[:-3])*1000000000)
                 # get length
                 leng = p_array[i]['length']
                 if leng[-2:] == 'ns':
-                    leng_time = int(float(leng[:-3])/timebase)
+                    leng_time = int(float(leng[:-3]))
                 elif leng[-2:] == 'us':
-                    leng_time = int(float(leng[:-3])*1000/timebase)
+                    leng_time = int(float(leng[:-3])*1000)
                 elif leng[-2:] == 'ms':
-                    leng_time = int(float(leng[:-3])*1000000/timebase)
+                    leng_time = int(float(leng[:-3])*1000000)
                 elif leng[-2:] == 's':
-                    leng_time = int(float(leng[:-3])*1000000000/timebase)
+                    leng_time = int(float(leng[:-3])*1000000000)
 
                 # get delta start
                 del_st = p_array[i]['delta_start']
                 if del_st[-2:] == 'ns':
-                    delta_start = int(float(del_st[:-3])/timebase)
+                    delta_start = int(float(del_st[:-3]))
                 elif del_st[-2:] == 'us':
-                    delta_start = int(float(del_st[:-3])*1000/timebase)
+                    delta_start = int(float(del_st[:-3])*1000)
                 elif del_st[-2:] == 'ms':
-                    delta_start = int(float(del_st[:-3])*1000000/timebase)
+                    delta_start = int(float(del_st[:-3])*1000000)
                 elif del_st[-2:] == 's':
-                    delta_start = int(float(del_st[:-3])*1000000000/timebase)
+                    delta_start = int(float(del_st[:-3])*1000000000)
 
                 # creating converted array
                 # in terms of bits the number of channel is 2**(ch_num - 1)
@@ -461,34 +634,34 @@ class PB_ESR_500_Pro:
                 # get start
                 st = p_array[i]['start']
                 if st[-2:] == 'ns':
-                    st_time = int(float(st[:-3])/timebase)
+                    st_time = int(float(st[:-3]))
                 elif st[-2:] == 'us':
-                    st_time = int(float(st[:-3])*1000/timebase)
+                    st_time = int(float(st[:-3])*1000)
                 elif st[-2:] == 'ms':
-                    st_time = int(float(st[:-3])*1000000/timebase)
+                    st_time = int(float(st[:-3])*1000000)
                 elif st[-2:] == 's':
-                    st_time = int(float(st[:-3])*1000000000/timebase)
+                    st_time = int(float(st[:-3])*1000000000)
                 # get length
                 leng = p_array[i]['length']
                 if leng[-2:] == 'ns':
-                    leng_time = int(float(leng[:-3])/timebase)
+                    leng_time = int(float(leng[:-3]))
                 elif leng[-2:] == 'us':
-                    leng_time = int(float(leng[:-3])*1000/timebase)
+                    leng_time = int(float(leng[:-3])*1000)
                 elif leng[-2:] == 'ms':
-                    leng_time = int(float(leng[:-3])*1000000/timebase)
+                    leng_time = int(float(leng[:-3])*1000000)
                 elif leng[-2:] == 's':
-                    leng_time = int(float(leng[:-3])*1000000000/timebase)
+                    leng_time = int(float(leng[:-3])*1000000000)
 
                 # get delta start
                 del_st = p_array[i]['delta_start']
                 if del_st[-2:] == 'ns':
-                    delta_start = int(float(del_st[:-3])/timebase)
+                    delta_start = int(float(del_st[:-3]))
                 elif del_st[-2:] == 'us':
-                    delta_start = int(float(del_st[:-3])*1000/timebase)
+                    delta_start = int(float(del_st[:-3])*1000)
                 elif del_st[-2:] == 'ms':
-                    delta_start = int(float(del_st[:-3])*1000000/timebase)
+                    delta_start = int(float(del_st[:-3])*1000000)
                 elif del_st[-2:] == 's':
-                    delta_start = int(float(del_st[:-3])*1000000000/timebase)
+                    delta_start = int(float(del_st[:-3])*1000000000)
 
                 # creating converted array
                 # in terms of bits the number of channel is 2**(ch_num - 1)
@@ -690,3 +863,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

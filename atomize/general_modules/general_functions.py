@@ -45,6 +45,18 @@ def wait(interval):
     elif test_flag == 'test':
         pass
 
+def to_infinity():
+    if test_flag != 'test':
+        index = 0
+        while True:
+            yield index
+            index += 1
+    elif test_flag == 'test':
+        index = 0
+        while index < 1:
+            yield index
+            index += 1
+
 def plot_1d(strname, xd, yd, label='label', xname='X',\
  xscale='arb. u.', yname='Y', yscale='arb. u.', scatter='False', timeaxis='False'):
 

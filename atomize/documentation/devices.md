@@ -47,7 +47,7 @@ Available via corresponding oscilloscope module.
 
 ## Pulse Programmers
 - Pulse Blaster ESR 500 Pro<br/>
-Available via [the original library.](http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml)
+The device is available via ctypes. [The original C library](http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml) was written by SpinCore Technologies.
 
 ## Frequency Counters
 - Agilent Frequency Counter (GPIB, RS-232)

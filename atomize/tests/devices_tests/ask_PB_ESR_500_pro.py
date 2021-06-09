@@ -5,9 +5,9 @@ import atomize.device_modules.PB_ESR_500_pro as pb_pro
 
 # A possible use in an experimental script
 pb = pb_pro.PB_ESR_500_Pro()
-pb.pulser_pulse(channel = 'CH0', start = '100 ns', length = '50 ns', delta_start = '10 ns')
-pb.pulser_pulse(channel = 'CH1', start = '100 ns', length = '100 ns', length_increment = '50 ns')
-pb.pulser_pulse(channel = 'CH2', start = '200 ns', length = '200 ns')
+pb.pulser_pulse(name ='P0',  channel = 'CH0', start = '100 ns', length = '50 ns', delta_start = '10 ns')
+pb.pulser_pulse(name ='P1',  channel = 'CH1', start = '100 ns', length = '100 ns', delta_start = '50 ns')
+pb.pulser_pulse(name ='P2', channel = 'CH2', start = '200 ns', length = '200 ns')
 
 pb.pulser_repetitoin_rate('1 kHz')
 pb.pulser_repetitoin_rate()
@@ -19,7 +19,7 @@ while j < 3:
     while i < 3:
         #general.message('I: ')
         pb.pulser_update()
-        pb.pulser_shift()
+        pb.pulser_shift('P0')
         #pb.pulser_increment()
         
         i += 1
