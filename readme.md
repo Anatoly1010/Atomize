@@ -43,8 +43,8 @@ At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and W
 ## Requirements
 - [Python (tested with 3.6+)](https://www.python.org/)
 - [Numpy](https://numpy.org/)
-- [PyQt5](http://www.riverbankcomputing.com/software/pyqt/download)
-- [pyqtgraph](http://www.pyqtgraph.org)
+- [PyQt5; 5.15+](http://www.riverbankcomputing.com/software/pyqt/download)
+- [pyqtgraph 0.11](http://www.pyqtgraph.org)
 - [PyVisa](https://pyvisa.readthedocs.io/en/latest/)
 - [PyVisa-py](https://github.com/pyvisa/pyvisa-py)<br/>
 Optional:
@@ -113,6 +113,7 @@ It is highly recommended to use OpenGL, if you want to plot data with more than 
 On Ubuntu 18.04 LTS, 20.04 LTS python openGL bindings can be installed as:
 
 	apt-get install python3-pyqt5.qtopengl
+	pip3 install pyopengl
 
 On Windows 10 one should use:
 	
@@ -148,7 +149,7 @@ On Windows 10 one should use:
 	Available via corresponding oscilloscope module.
 
 #### [Pulse Programmers](#pulse-programmers-1)
-    - Pulse Blaster ESR 500 Pro; Untested
+    - Pulse Blaster ESR 500 Pro; Tested 06/2021
     The device is available via ctypes. 
 The original [C library](http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml) was written by SpinCore Technologies.
 

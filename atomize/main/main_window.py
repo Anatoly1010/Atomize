@@ -569,7 +569,21 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         self.text_errors.appendPlainText(str(data))
         if data == 'Script stopped':
-            self.process_python.close()
+
+            path_to_main = os.path.abspath(os.getcwd())
+            lib_path = os.path.join(path_to_main, 'general_modules', 'libspinapi.so')
+            lib_path2 = os.path.join(path_to_main, 'general_modules', 'spinapi64.dll')
+
+            if os.path.exists(lib_path) == False and os.path.exists(lib_path2) == False:
+                self.process_python.close()
+            else:
+                # check on windows?!
+                import atomize.device_modules.PB_ESR_500_pro as pb_pro
+
+                pb = pb_pro.PB_ESR_500_pro()
+                pb.pulser_stop()
+
+                self.process_python.close()
 
 class NameList(QDockWidget):
     def __init__(self, window):

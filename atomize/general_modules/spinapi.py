@@ -45,29 +45,33 @@ s  = 1000000000.0
 # Defines for start_programming
 PULSE_PROGRAM  = 0
 
-# Errors?
+# errors?
+
 class SpinAPI():
 
     def __init__(self):
-        path_to_file = os.path.abspath(os.path.realpath(os.path.dirname(__file__)))
+        self.path_to_file = os.path.abspath(os.path.realpath(os.path.dirname(__file__)))
         # Whether or not to tell the spincore library to write debug logfiles.
         self.debug = False
 
     def _checkloaded(self):
         try:    
             self.spinapi
-        except NameError:
+        except AttributeError:
             arch = platform.architecture()
             if arch == ('64bit', 'WindowsPE'):
                 libname = 'spinapi64.dll'
             elif arch == ('32bit', 'ELF'):
-                libname = os.path.join(path_to_file, 'libspinapi.so')
+                libname = os.path.join(self.path_to_file, 'libspinapi.so')
             elif arch == ('64bit', 'ELF'):
-                libname = os.path.join(path_to_file, 'libspinapi.so')
+                libname = os.path.join(self.path_to_file, 'libspinapi.so')
 
-            self.spinapi = ctypes.cdll.LoadLibrary(libname)
-            # enable debugging if it's switched on by the module global:
-            self.spinapi.pb_set_debug(debug)
+            try:
+                self.spinapi = ctypes.cdll.LoadLibrary(libname)
+                # enable debugging if it's switched on by the module global:
+                self.spinapi.pb_set_debug(self.debug)
+            except OSError:
+                assert(1 == 2), "No libspinapi is found"
 
     def pb_get_firmware_id(self):
         self._checkloaded()
@@ -97,7 +101,7 @@ class SpinAPI():
       
     def pb_read_status(self):
         self._checkloaded()
-        self.pb_read_status.restype = ctypes.c_uint32
+        self.spinapi.pb_read_status.restype = ctypes.c_uint32
         status = self.spinapi.pb_read_status()
         
         # convert to reversed binary string

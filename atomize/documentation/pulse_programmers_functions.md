@@ -1,7 +1,7 @@
 # List of available functions for pulse programmers
 
 Available devices:
-- Pulse Blaster ESR 500 Pro; Untested
+- Pulse Blaster ESR 500 Pro; Tested 06/2021
 
 The device is available via ctypes. [The original C library](http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml) was written by SpinCore Technologies.
 
