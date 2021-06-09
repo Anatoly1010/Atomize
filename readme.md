@@ -46,7 +46,7 @@ At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and W
 - [PyQt5](http://www.riverbankcomputing.com/software/pyqt/download)
 - [pyqtgraph](http://www.pyqtgraph.org)
 - [PyVisa](https://pyvisa.readthedocs.io/en/latest/)
-- [PyVisa-py](https://github.com/pyvisa/pyvisa-py)
+- [PyVisa-py](https://github.com/pyvisa/pyvisa-py)<br/>
 Optional:
 - [PySerial;](https://pypi.org/project/pyserial/) for serial instruments
 - [Minimalmodbus;](https://minimalmodbus.readthedocs.io/en/stable/index.html) for Modbus instruments
@@ -148,8 +148,9 @@ On Windows 10 one should use:
 	Available via corresponding oscilloscope module.
 
 #### [Pulse Programmers](#pulse-programmers-1)
-    - Pulse Blaster ESR 500 Pro
-    The device is available via ctypes. [The original C library](http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml) was written by SpinCore Technologies.
+    - Pulse Blaster ESR 500 Pro; Untested
+    The device is available via ctypes. 
+The original [C library](http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml) was written by SpinCore Technologies.
 
 #### [Frequency Counters](#frequency-counters-1)
 	- Agilent Frequency Counter (GPIB, RS-232)
