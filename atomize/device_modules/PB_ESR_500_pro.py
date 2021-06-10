@@ -26,16 +26,23 @@ specific_parameters = cutil.read_specific_parameters(path_config_file)
 # phase cycling
 # defense pulses
 
+constant_shift = 250 # in ns
+switch_delay = 200 # in ns
+amp_delay = 0 # in ns
+protect_delay = 100 # in ns
+
 timebase_dict = {'s': 1000000000, 'ms': 1000000, 'us': 1000, 'ns': 1,}
-channel_dict = {'CH0': 0, 'CH1': 1, 'CH2': 2, 'CH3': 3, 'CH4': 4, 'CH5': 5, \
+channel_dict = {'TRIGGER': 0, 'AMP_ON': 1, 'LNA_PROTECT': 2, 'MW': 3, 'CH4': 4, 'CH5': 5, \
                 'CH6': 6, 'CH7': 7, 'CH8': 8, 'CH9': 9, 'CH10': 10, 'CH11': 11,\
                 'CH12': 12, 'CH13': 13, 'CH14': 14, 'CH15': 15, 'CH16': 16, 'CH17': 17,\
                 'CH18': 18, 'CH19': 19, 'CH20': 20, 'CH21': 21, }
+function_list = ('AMP_ON', 'LNA_PROTECT', 'MW', 'TRIGGER', 'AWG', 'RECT_AWG', 'OTHER')
 
 # Limits and Ranges (depends on the exact model):
 clock = float(specific_parameters['clock'])
 timebase = int(float(specific_parameters['timebase'])) # in ns
 repetition_rate = specific_parameters['default_rep_rate']
+auto_defense = specific_parameters['auto_defense']
 
 # Test run parameters
 # These values are returned by the modules in the test run 
@@ -76,10 +83,10 @@ class PB_ESR_500_Pro:
             answer = 'PB ESR 500 Pro'
             return answer
 
-    def pulser_pulse(self, name = 'P0', channel = 'CH0', start = '0 ns', length = '100 ns', delta_start = '0 ns', length_increment = '0 ns'):
+    def pulser_pulse(self, name = 'P0', channel = 'TRIGGER', start = '0 ns', length = '100 ns', delta_start = '0 ns', length_increment = '0 ns'):
         """
         A function that added a new pulse at specified channel. The possible arguments:
-        START, LENGTH, DELTA_START, LENGTH_INCREMENT
+        NAME, CHANNEL, START, LENGTH, DELTA_START, LENGTH_INCREMENT
         """
         if test_flag != 'test':
             pulse = {'name': name, 'channel': channel, 'start': start, 'length': length, 'delta_start' : delta_start, 'length_increment': length_increment}
@@ -92,7 +99,8 @@ class PB_ESR_500_Pro:
             self.pulse_name_array.append( pulse['name'] )
 
         elif test_flag == 'test':
-            pulse = {'name': name, 'channel': channel, 'start': start, 'length': length, 'delta_start' : delta_start, 'length_increment': length_increment}
+            pulse = {'name': name, 'channel': channel, 'start': start, \
+                'length': length, 'delta_start' : delta_start, 'length_increment': length_increment}
             
             # Checks
             # two equal names
@@ -108,7 +116,7 @@ class PB_ESR_500_Pro:
                 coef = timebase_dict[temp_length[1]]
                 p_length = coef*float(temp_length[0])
                 assert(p_length >= 12), 'Pulse is shorter than minimum available length (12 ns)'
-                assert(p_length < 2000), 'Pulse is longer than maximum available length (2000 ns)'
+                assert(p_length < 1800), 'Pulse is longer than maximum available length (2000 ns)'
 
             temp_start = start.split(" ")
             if temp_start[1] in timebase_dict:
@@ -126,7 +134,7 @@ class PB_ESR_500_Pro:
             if temp_length_increment[1] in timebase_dict:
                 coef = timebase_dict[temp_length_increment[1]]
                 p_length_increment = coef*float(temp_length_increment[0])
-                assert (p_length_increment >= 0 and p_length_increment < 2000), \
+                assert (p_length_increment >= 0 and p_length_increment < 1800), \
                 'Pulse length increment is longer than maximum available length or negative'
 
             if channel in channel_dict:
@@ -162,29 +170,29 @@ class PB_ESR_500_Pro:
                 # initialization
                 #pb_init()
                 #pb.core_clock(clock)
-                sp.pb_init()
-                sp.pb_core_clock(clock)
+                ###sp.pb_init()
+                ###sp.pb_core_clock(clock)
 
                 #pb_start_programming(PULSE_PROGRAM)
-                sp.pb_start_programming(0)
+                ###sp.pb_start_programming(0)
                 i = 0
                 while i < len( to_spinapi) - 1:
-                    if i == 0: 
+                    ###if i == 0: 
                         # to create a link for BRANCH
                         # start = pb_inst(ON | "0x%X" % to_spinapi[i][0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
                         
                         # CONTINUE is 0
                         # ON is 111 in the first three bits of the Output/Control Word (24 bits)
                         # it is 14680064 or 0xE00000
-                        start = sp.pb_inst(14680064 + to_spinapi[i][0], 0, 0, to_spinapi[i][2])
-                    else:
+                        ###start = sp.pb_inst(14680064 + to_spinapi[i][0], 0, 0, to_spinapi[i][2])
+                    ###else:
                         #pb_inst(ON | "0x%X" % to_spinapi[i, 0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
-                        sp.pb_inst(14680064 + to_spinapi[i][0], 0, 0, to_spinapi[i][2])
-                    #if i == 0:
-                    #    pass
+                        ###sp.pb_inst(14680064 + to_spinapi[i][0], 0, 0, to_spinapi[i][2])
+                    if i == 0:
+                        pass
                         #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', CONTINUE, 0, ' + "0x%X" % to_spinapi[i][2] )
-                    #else:
-                    #    pass
+                    else:
+                        pass
                         #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', CONTINUE, 0, ' + "0x%X" % to_spinapi[i][2] )
 
                     i += 1
@@ -193,18 +201,18 @@ class PB_ESR_500_Pro:
                 #pb_inst(ON | "0x%X" % to_spinapi[i][0], BRANCH, 0, "0x%X" % to_spinapi[i][2])
                 #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', BRANCH, start, ' + "0x%X" % to_spinapi[i][2] )
                 # BRANCH is 6
-                sp.pb_inst(14680064 + to_spinapi[i][0], 6, 0, to_spinapi[i][2])
+                ###sp.pb_inst(14680064 + to_spinapi[i][0], 6, 0, to_spinapi[i][2])
 
                 #pb_stop_programming()
                 #pb_reset()
                 #pb_start()
                 
-                sp.pb_stop_programming()
-                sp.pb_reset()
-                sp.pb_start()
+                ###sp.pb_stop_programming()
+                ###sp.pb_reset()
+                ###sp.pb_start()
 
                 #pb_close()
-                sp.pb_close()
+                ###sp.pb_close()
 
                 self.reset_count = 1
                 self.shift_count = 0
@@ -410,44 +418,44 @@ class PB_ESR_500_Pro:
             # initialization
             #pb_init()
             #pb.core_clock(clock)
-            sp.pb_init()
-            sp.pb_core_clock(clock)
+            ###sp.pb_init()
+            ###sp.pb_core_clock(clock)
 
             #pb_start_programming(0)
-            sp.pb_start_programming(0)
+            ###sp.pb_start_programming(0)
             i = 0
             while i < len( to_spinapi) - 1:
-                if i == 0: 
+                ###if i == 0: 
                     # to create a link for BRANCH
                     #start = pb_inst(ON | "0x%X" % to_spinapi[i][0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
-                    start = sp.pb_inst(14680064 + to_spinapi[i][0], 0, 0, to_spinapi[i][2])
-                else:
+                    ###start = sp.pb_inst(14680064 + to_spinapi[i][0], 0, 0, to_spinapi[i][2])
+                ###else:
                     #pb_inst(ON | "0x%X" % to_spinapi[i][0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
-                    sp.pb_inst(14680064 + to_spinapi[i][0], 0, 0, to_spinapi[i][2])
-                #if i == 0:
-                #    pass
+                    ###sp.pb_inst(14680064 + to_spinapi[i][0], 0, 0, to_spinapi[i][2])
+                if i == 0:
+                    pass
                     #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', CONTINUE, 0, ' + "0x%X" % to_spinapi[i][2] )
-                #else:
-                #    pass
+                else:
+                    pass
                     #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', CONTINUE, 0, ' + "0x%X" % to_spinapi[i][2] )
 
                 i += 1
 
             # last instruction for delay
             #pb_inst(ON | "0x%X" % to_spinapi[i][0], BRANCH, 0, "0x%X" % to_spinapi[i][2])
-            sp.pb_inst(14680064 + to_spinapi[i][0], 6, 0, to_spinapi[i][2])
+            ###sp.pb_inst(14680064 + to_spinapi[i][0], 6, 0, to_spinapi[i][2])
             #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', BRANCH, start, ' + "0x%X" % to_spinapi[i][2] )
 
             #pb_stop_programming()
             #pb_reset()
             #pb_start()
 
-            sp.pb_stop_programming()
-            sp.pb_reset()
-            sp.pb_start()
+            ###sp.pb_stop_programming()
+            ###sp.pb_reset()
+            ###sp.pb_start()
 
             #pb_close()
-            sp.pb_close()
+            ###sp.pb_close()
 
             self.reset_count = 1
             self.increment_count = 0
@@ -525,18 +533,18 @@ class PB_ESR_500_Pro:
             # initialization
             #pb_init()
             #pb.core_clock(clock)
-            sp.pb_init()
-            sp.pb_core_clock(clock)
+            ###sp.pb_init()
+            ###sp.pb_core_clock(clock)
 
             #pb_start_programming(PULSE_PROGRAM)
             #pb_inst(ON | "0x%X" % 0, CONTINUE, 0, "0x%X" % 16)
-            sp.pb_start_programming(0)
-            sp.pb_inst(14680064, 0, 0, 16)
+            ###sp.pb_start_programming(0)
+            ###sp.pb_inst(14680064, 0, 0, 16)
 
             #general.message('ON | ', "0x%X" % 0, ', CONTINUE, 0, ', "0x%X" % 12)
             #pb_inst(ON | "0x%X" % 0, STOP, 0, "0x%X" % 16)
             # STOP is 1
-            sp.pb_inst(14680064, 1, 0, 16)
+            ###sp.pb_inst(14680064, 1, 0, 16)
             #general.message('ON | ', "0x%X" % 0, ', STOP, 0, ', "0x%X" % 16)
 
             #pb_stop_programming()
@@ -545,11 +553,11 @@ class PB_ESR_500_Pro:
             
             #pb_close()
 
-            sp.pb_stop_programming()
-            sp.pb_reset()
-            sp.pb_start()
-            
-            sp.pb_close()
+            ###sp.pb_stop_programming()
+            ###sp.pb_reset()
+            ###sp.pb_start()
+            pass
+            ###sp.pb_close()
 
             #return to_spinapi
 
@@ -557,9 +565,14 @@ class PB_ESR_500_Pro:
             pass
 
     def pulser_state(self):
-        sp.pb_init()
-        answer = sp.pb_read_status()
-        return answer
+        ###sp.pb_init()
+        ###answer = sp.pb_read_status()
+        pass
+        ###return answer
+
+    def pulser_set_defense(self):
+        if test_flag != 'test':
+            self.set_defences()
 
     # Auxilary functions
     def convertion_to_numpy(self, p_array):
@@ -613,13 +626,25 @@ class PB_ESR_500_Pro:
                 elif del_st[-2:] == 's':
                     delta_start = int(float(del_st[:-3])*1000000000)
 
+                # get length_incremetn
+                len_in = p_array[i]['length_increment']
+                if len_in[-2:] == 'ns':
+                    length_increment = int(float(len_in[:-3]))
+                elif len_in[-2:] == 'us':
+                    length_increment = int(float(len_in[:-3])*1000)
+                elif len_in[-2:] == 'ms':
+                    length_increment = int(float(len_in[:-3])*1000000)
+                elif len_in[-2:] == 's':
+                    length_increment = int(float(len_in[:-3])*1000000000)
+
                 # creating converted array
                 # in terms of bits the number of channel is 2**(ch_num - 1)
-                pulse_temp_array.append( (2**(ch_num), st_time, st_time + leng_time, delta_start) )
+                pulse_temp_array.append( (2**(ch_num), st_time, st_time + leng_time, delta_start, length_increment) )
 
                 i += 1
 
             return np.asarray(pulse_temp_array, dtype = np.int32)
+            #return pulse_temp_array
 
         elif test_flag == 'test':
             i = 0
@@ -662,13 +687,38 @@ class PB_ESR_500_Pro:
                 elif del_st[-2:] == 's':
                     delta_start = int(float(del_st[:-3])*1000000000)
 
+                # get length_increment
+                len_in = p_array[i]['length_increment']
+                if len_in[-2:] == 'ns':
+                    length_increment = int(float(len_in[:-3]))
+                elif len_in[-2:] == 'us':
+                    length_increment = int(float(len_in[:-3])*1000)
+                elif len_in[-2:] == 'ms':
+                    length_increment = int(float(len_in[:-3])*1000000)
+                elif len_in[-2:] == 's':
+                    length_increment = int(float(len_in[:-3])*1000000000)
+
                 # creating converted array
                 # in terms of bits the number of channel is 2**(ch_num - 1)
-                pulse_temp_array.append( (2**(ch_num), st_time, st_time + leng_time, delta_start) )
+                pulse_temp_array.append( (2**(ch_num), st_time, st_time + leng_time, delta_start, length_increment ) )
 
                 i += 1
 
-            return np.asarray(pulse_temp_array, dtype = np.int32)           
+            return np.asarray(pulse_temp_array, dtype = np.int32)
+            #return pulse_temp_array
+
+    def set_defences(self):
+        if test_flag != 'test':
+            #mw_pulses = []
+            temp_pulse_array = self.convertion_to_numpy(self.pulse_array)
+            for element in temp_pulse_array:
+                if element[0] == 8:
+                    # append AMP_ON pulse
+                    temp_pulse_array.append( (2, element[1] - switch_delay, element[2], element[3], element[4]) )
+                    # append LNA_PROTECT pulse
+                    temp_pulse_array.append( (4, element[1] - switch_delay, element[2] + protect_delay, element[3], element[4]) )
+
+                    general.message( temp_pulse_array )
 
     def bit_pulse(self, p_array):
         """
@@ -682,29 +732,105 @@ class PB_ESR_500_Pro:
         calculate CH instructions for SpinAPI. 
         """
         if test_flag != 'test':
-            max_pulse = np.amax(p_array[:,2])
-            bit_array = np.zeros(max_pulse, dtype = int)
-            i = 0
+            if auto_defense == 'False':
 
-            while i < len(p_array):
-                ch = p_array[i, 0]
-                # convert each pulse in an array of 0 and 1,
-                # 1 corresponds to the time interval, where the channel is on
-                translation_array_temp = np.concatenate( (np.zeros(p_array[i, 1], dtype = int), \
-                        np.ones(p_array[i, 2] - p_array[i, 1], dtype = int)), axis = None)
-                translation_array = ch*np.concatenate( (translation_array_temp,  np.zeros(max_pulse\
-                     - p_array[i, 2], dtype = int)), axis = None)
+                max_pulse = np.amax(p_array[:,2])
+                bit_array = np.zeros(max_pulse, dtype = int)
+                i = 0
 
-                # summing arrays for each pulse into the finalbit_array
-                bit_array = bit_array + translation_array
+                while i < len(p_array):
+                    ch = p_array[i, 0]
+                    # convert each pulse in an array of 0 and 1,
+                    # 1 corresponds to the time interval, where the channel is on
+                    translation_array_temp = np.concatenate( (np.zeros(p_array[i, 1], dtype = int), \
+                            np.ones(p_array[i, 2] - p_array[i, 1], dtype = int)), axis = None)
+                    translation_array = ch*np.concatenate( (translation_array_temp,  np.zeros(max_pulse\
+                         - p_array[i, 2], dtype = int)), axis = None)
 
-                i += 1
+                    # summing arrays for each pulse into the finalbit_array
+                    bit_array = bit_array + translation_array
 
-            return bit_array
+                    i += 1
+
+                return bit_array
+
+            elif auto_defense == 'True':
+                max_pulse = np.amax(p_array[:,2]) + protect_delay
+                # 250 shifting. For not having negative start time of the AMP_ON pulse
+                bit_array = np.zeros(constant_shift + max_pulse, dtype = int)
+                # for checking of overlapping pulses
+                bit_array_pulses = []
+                ch_array = []
+                amp_on_array_pulses = np.zeros( constant_shift + max_pulse, dtype = int)
+                lna_protect_array_pulses = np.zeros( constant_shift + max_pulse, dtype = int)
+                i = 0
+
+                while i < len(p_array):
+                    ch = p_array[i, 0]
+                    ch_array.append(ch)
+                    # convert each pulse in an array of 0 and 1,
+                    # 1 corresponds to the time interval, where the channel is on
+                    translation_array_temp = np.concatenate( (np.zeros(constant_shift + p_array[i, 1], dtype = int), \
+                            np.ones(p_array[i, 2] - p_array[i, 1], dtype = int)), axis = None)
+                    translation_array = ch*np.concatenate( (translation_array_temp,  np.zeros(max_pulse\
+                         - p_array[i, 2], dtype = int)), axis = None)
+
+                    # adding AMP_ON and LNA_PROTECT pulses with corresponding delays
+                    if ch == 8:
+                        translation_array_temp_def = np.concatenate( (np.zeros(p_array[i, 1] + constant_shift - switch_delay, dtype = int), \
+                            np.ones(p_array[i, 2] - p_array[i, 1] + switch_delay + protect_delay, dtype = int)), axis = None)
+                        translation_array_temp_amp = np.concatenate( (np.zeros(p_array[i, 1] + constant_shift - switch_delay, dtype = int), \
+                            np.ones(p_array[i, 2] - p_array[i, 1] + switch_delay + amp_delay, dtype = int)), axis = None)
+
+                        translation_array_def = np.concatenate( (translation_array_temp_def,  np.zeros(max_pulse\
+                         - p_array[i, 2] - protect_delay, dtype = int)), axis = None)
+                        translation_array_amp = np.concatenate( (translation_array_temp_amp,  np.zeros(max_pulse\
+                         - p_array[i, 2] - amp_delay, dtype = int)), axis = None)
+
+                        # joining all LNA_PROTECT and AMP_ON toghether; two pulses with the distance <= 12 ns are not combined
+                        amp_on_array_pulses = amp_on_array_pulses | translation_array_amp
+                        lna_protect_array_pulses = lna_protect_array_pulses | translation_array_def
+
+                        # combined AMP_ON and LNA_PROTECT pulses
+                        amp_on_array_pulses = self.check_short_pulses(amp_on_array_pulses, channel_dict['AMP_ON'])
+                        lna_protect_array_pulses = self.check_short_pulses(lna_protect_array_pulses, channel_dict['LNA_PROTECT'])
+
+                    # summing arrays for each pulse into the final bit_array
+                    bit_array = bit_array + translation_array
+                    # 
+                    bit_array_pulses.append(translation_array)
+
+                    # checking of overlapping pulses
+                    # works also for shift and increment
+                    j = 0
+                    while j < len(bit_array_pulses) - 1: # -1 for not checking the current pulse
+                        if ch_array[j] == ch:
+                            # the idea is to compare the sum of two pulses with the same channel value
+                            # and check if there is an element in the sumthat is higher
+                            # than channel value.
+                            assert(np.any(( (translation_array + bit_array_pulses[j]) > (ch) )) == False), \
+                                'Overlapping pulses on channel: ' + 'CH' + str(int(np.log2(ch)))
+                            
+                            # check pulses with the distance shorter than 12 ns; // floor division
+                            
+                            a = self.check_short_pulses( (translation_array // ch | bit_array_pulses[j] // ch_array[j]), '100')
+                            general.message(a)
+                        else:
+                            pass
+
+                        j += 1
+
+                    i += 1
+                
+                # finally adding automatic AMP_ON and LNA_PROTECT pulses
+                bit_array = bit_array + 2**(channel_dict['AMP_ON'])*amp_on_array_pulses + 2**(channel_dict['LNA_PROTECT'])*lna_protect_array_pulses
+                        
+                return bit_array
 
         elif test_flag == 'test':
             max_pulse = np.amax(p_array[:,2])
-            bit_array = np.zeros(max_pulse, dtype = int)
+            # 250 shifting. For not having negative start time of the AMP_ON pulse
+            bit_array = np.zeros(constant_shift + max_pulse, dtype = int)
             # for checking of overlapping pulses
             bit_array_pulses = []
             ch_array = []
@@ -715,12 +841,11 @@ class PB_ESR_500_Pro:
                 ch_array.append(ch)
                 # convert each pulse in an array of 0 and 1,
                 # 1 corresponds to the time interval, where the channel is on
-                translation_array_temp = np.concatenate( (np.zeros(p_array[i, 1], dtype = int), \
+                translation_array_temp = np.concatenate( (np.zeros(constant_shift + p_array[i, 1], dtype = int), \
                         np.ones(p_array[i, 2] - p_array[i, 1], dtype = int)), axis = None)
                 translation_array = ch*np.concatenate( (translation_array_temp,  np.zeros(max_pulse\
                      - p_array[i, 2], dtype = int)), axis = None)
-
-                # summing arrays for each pulse into the finalbit_array
+                # summing arrays for each pulse into the final bit_array
                 bit_array = bit_array + translation_array
                 # 
                 bit_array_pulses.append(translation_array)
@@ -734,7 +859,7 @@ class PB_ESR_500_Pro:
                         # and check if there is an element in the sumthat is higher
                         # than channel value.
                         assert(np.any(( (translation_array + bit_array_pulses[j]) > (ch) )) == False), \
-                            'Overlapping pulses on channel: ' + 'CH' + str(ch - 1)
+                            'Overlapping pulses on channel: ' + 'CH' + str(int(np.log2(ch)))
                     else:
                         pass
 
@@ -856,6 +981,64 @@ class PB_ESR_500_Pro:
                 return final_array
             else:
                 assert(1 == 2), 'Pulse sequence is longer than one period of the repetition rate'
+
+    def check_short_pulses(self, np_array, channel):
+        """
+        A function for checking whether there is two pulses with
+        the distance between them shorther than 12 ns
+        """
+        # it was generalized for nonzero elements
+        one_indexes = np.argwhere(np_array == 1).flatten()
+        difference = np.diff(one_indexes)
+        for element in difference:
+            # twelve consequent zeros
+            if element >= 13 or element == 1:
+                return np_array
+            else:
+                if channel != channel_dict['LNA_PROTECT'] and channel != channel_dict['AMP_ON']:
+                    return 12
+                    # assert(1 == 2), 'There are two pulses with shorter than 12 ns distance between them'
+                else:
+                    final_array = self.joining_pulses(np_array)
+                    return final_array
+    
+    def joining_pulses(self, np_array):
+        """
+        A function that joing two short pulses in one
+        It is used for LNA_PROTECT and AMP_ON pulses
+        """
+        i = 0
+        j = 0
+        counter = 0
+
+        array_len = len(np_array)
+        # drop several first and last zeros
+        index_first_one = np.argwhere(np_array == 1)[0]
+        index_last_one = np.argwhere(np_array == 1)[-1]
+        short_array = np_array[index_first_one[0]:index_last_one[0]]
+
+        while i < len(short_array):
+            if short_array[i] == 0:
+                # looking for several 0 in a row
+                if short_array[i + 1] == 0:
+                    counter += 1
+                elif short_array[i + 1] == 1:
+                    if counter < 11:
+                        # replace 0 with 1
+                        while j <= counter:
+                            short_array[i + j - counter] = 1
+                            j += 1
+                        counter = 0
+                        j = 0
+                    else:
+                        counter = 0
+
+            i += 1
+
+        final_array_temp = np.concatenate( (np.zeros(index_first_one[0], dtype = int), short_array), axis = None)
+        final_array = np.concatenate(( final_array_temp, np.zeros( array_len - index_last_one[0] - 1, dtype = int)), axis = None)
+
+        return final_array
 
 def main():
     pass

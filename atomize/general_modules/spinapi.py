@@ -119,21 +119,21 @@ class SpinAPI():
         self._checkloaded()
         self.spinapi.pb_count_boards.restype = ctypes.c_int
         result = self.spinapi.pb_count_boards()
-        if result == -1: raise RuntimeError(pb_get_error())  
+        if result == -1: raise RuntimeError(self.pb_get_error())  
         return result
 
     def pb_select_board(self, board_num):
         self._checkloaded()
         self.spinapi.pb_select_board.restype = ctypes.c_int
         result = self.spinapi.pb_select_board(ctypes.c_int(board_num))
-        if result < 0: raise RuntimeError(pb_get_error())
+        if result < 0: raise RuntimeError(self.pb_get_error())
         return result
                                    
     def pb_init(self):
         self._checkloaded()
         self.spinapi.pb_init.restype = ctypes.c_int
         result = self.spinapi.pb_init()
-        if result != 0: raise RuntimeError(pb_get_error())
+        if result != 0: raise RuntimeError(self.pb_get_error())
         return result
 
     def pb_core_clock(self, clock_freq):
@@ -145,7 +145,7 @@ class SpinAPI():
         self._checkloaded()
         self.spinapi.pb_start_programming.restype = ctypes.c_int
         result = self.spinapi.pb_start_programming(ctypes.c_int(device))
-        if result != 0: raise RuntimeError(pb_get_error())
+        if result != 0: raise RuntimeError(self.pb_get_error())
         return result
 
     def pb_inst(self, flags, inst, inst_data, length):
@@ -155,42 +155,42 @@ class SpinAPI():
             flags = int(flags[::-1], 2)
         result = self.spinapi.pb_inst_pbonly(ctypes.c_uint32(flags), ctypes.c_int(inst),
                                          ctypes.c_int(inst_data), ctypes.c_double(length))
-        if result < 0: raise RuntimeError(pb_get_error())
+        if result < 0: raise RuntimeError(self.pb_get_error())
         return result
 
     def pb_stop_programming(self):
         self._checkloaded()
         self.spinapi.pb_stop_programming.restype = ctypes.c_int
         result = self.spinapi.pb_stop_programming()
-        if result != 0: raise RuntimeError(pb_get_error())
+        if result != 0: raise RuntimeError(self.pb_get_error())
         return result
         
     def pb_start(self):
         self._checkloaded()
         self.spinapi.pb_start.restype = ctypes.c_int
         result = self.spinapi.pb_start()
-        if result != 0: raise RuntimeError(pb_get_error())
+        if result != 0: raise RuntimeError(self.pb_get_error())
         return result
         
     def pb_stop(self):
         self._checkloaded()
         self.spinapi.pb_stop.restype = ctypes.c_int
         result = self.spinapi.pb_stop()
-        if result != 0: raise RuntimeError(pb_get_error())
+        if result != 0: raise RuntimeError(self.pb_get_error())
         return result
                 
     def pb_close(self):
         self._checkloaded()
         self.spinapi.pb_close.restype = ctypes.c_int
         result = self.spinapi.pb_close()
-        if result != 0: raise RuntimeError(pb_get_error())
+        if result != 0: raise RuntimeError(self.pb_get_error())
         return result
         
     def pb_reset(self):
         self._checkloaded()
         self.spinapi.pb_reset.restype = ctypes.c_int
         result = self.spinapi.pb_reset()
-        if result != 0: raise RuntimeError(pb_get_error())
+        if result != 0: raise RuntimeError(self.pb_get_error())
         return result
 
 
