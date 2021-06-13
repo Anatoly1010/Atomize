@@ -479,6 +479,7 @@ class MainWindow(QtWidgets.QMainWindow):
         #if text == '' and text_errors_script == '':
             self.text_errors.appendPlainText("Script done!")
         elif text_errors_script != '':
+            self.text_errors.appendPlainText("Script done!")
             self.text_errors.appendPlainText(text_errors_script)
             self.text_errors.verticalScrollBar().setValue(self.text_errors.verticalScrollBar().maximum())
 
