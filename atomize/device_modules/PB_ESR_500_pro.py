@@ -3,7 +3,8 @@
 
 import os
 import sys
-from copy import deepcopy 
+from copy import deepcopy
+from itertools import groupby
 import numpy as np
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
@@ -22,17 +23,20 @@ path_config_file = os.path.join(path_current_directory, 'config','PB_ESR_500_pro
 specific_parameters = cutil.read_specific_parameters(path_config_file)
 
 # TO DO
-# phase cycling
-# no auto def mode
+# awg pulses
 
 # Channel assignments
 ch0 = specific_parameters['ch0'] # TRIGGER
 ch1 = specific_parameters['ch1'] # AMP_ON
 ch2 = specific_parameters['ch2'] # LNA_PROTCT
 ch3 = specific_parameters['ch3'] # MW
+ch4 = specific_parameters['ch4'] # -X
+ch5 = specific_parameters['ch5'] # +Y
 
 timebase_dict = {'s': 1000000000, 'ms': 1000000, 'us': 1000, 'ns': 1,}
-channel_dict = {ch0: 0, ch1: 1, ch2: 2, ch3: 3, 'CH4': 4, 'CH5': 5, \
+# -Y for Mikran bridge is simutaneously turned on -X; +Y
+# that is why there is no -Y channel instead we add both -X and +Y pulses
+channel_dict = {ch0: 0, ch1: 1, ch2: 2, ch3: 3, ch4: 4, ch5: 5, \
                 'CH6': 6, 'CH7': 7, 'CH8': 8, 'CH9': 9, 'CH10': 10, 'CH11': 11,\
                 'CH12': 12, 'CH13': 13, 'CH14': 14, 'CH15': 15, 'CH16': 16, 'CH17': 17,\
                 'CH18': 18, 'CH19': 19, 'CH20': 20, 'CH21': 21, }
@@ -46,13 +50,15 @@ max_pulse_length = int(float(specific_parameters['max_pulse_length'])) # in ns
 min_pulse_length = int(float(specific_parameters['min_pulse_length'])) # in ns
 # minimal distance between two pulses of AMP_ON and LNA_PROTECT
 # pulse blaster restriction
-minimal_distance = int(float(specific_parameters['minimal_distance'])) # in ns
+minimal_distance = int(float(specific_parameters['minimal_distance'])/timebase) # in ns
 
 # Delays and restrictions
 constant_shift = int(250/timebase) # in ns; shift of all sequence for not getting negative start times
 switch_delay = int(float(specific_parameters['switch_delay'])/timebase) # in ns; delay for AMP_ON turning on
 amp_delay = int(float(specific_parameters['amp_delay'])/timebase) # in ns; delay for AMP_ON turning off
 protect_delay = int(float(specific_parameters['protect_delay'])/timebase) # in ns;delay for LNA_PROTECT turning off
+switch_phase_delay = int(float(specific_parameters['switch_phase_delay'])/timebase) # in ns; delay for FAST_PHASE turning on
+phase_delay = int(float(specific_parameters['phase_delay'])/timebase) # in ns; delay for FAST_PHASE turning off
 
 # interval that shift the first pulse in the sequence
 # start times of other pulses can be calculated from this time.
@@ -78,38 +84,42 @@ class PB_ESR_500_Pro:
         if test_flag != 'test':
             #pb_core_clock(clock)
             self.pulse_array = []
+            self.phase_array_length = []
             self.pulse_name_array = []
             self.pulse_array_init = []
             self.rep_rate = (repetition_rate, )
             self.shift_count = 0
+            self.rep_rate_count = 0
             self.increment_count = 0
             self.reset_count = 0
+            self.current_phase_index = 0
         
         elif test_flag == 'test':
             self.pulse_array = []
+            self.phase_array_length = []
             self.pulse_name_array = []
             self.pulse_array_init = []
             self.rep_rate = (repetition_rate, )
             self.shift_count = 0
+            self.rep_rate_count = 0
             self.increment_count = 0
             self.reset_count = 0
+            self.current_phase_index = 0
 
     # Module functions
     def pulser_name(self):
-        if test_flag != 'test':
-            answer = 'PB ESR 500 Pro'
-            return answer
-        elif test_flag == 'test':
-            answer = 'PB ESR 500 Pro'
-            return answer
+        answer = 'PB ESR 500 Pro'
+        return answer
 
-    def pulser_pulse(self, name = 'P0', channel = 'TRIGGER', start = '0 ns', length = '100 ns', delta_start = '0 ns', length_increment = '0 ns'):
+    def pulser_pulse(self, name = 'P0', channel = 'TRIGGER', start = '0 ns', length = '100 ns', \
+        delta_start = '0 ns', length_increment = '0 ns', phase_list = []):
         """
         A function that added a new pulse at specified channel. The possible arguments:
-        NAME, CHANNEL, START, LENGTH, DELTA_START, LENGTH_INCREMENT
+        NAME, CHANNEL, START, LENGTH, DELTA_START, LENGTH_INCREMENT, PHASE_SEQUENCE
         """
         if test_flag != 'test':
-            pulse = {'name': name, 'channel': channel, 'start': start, 'length': length, 'delta_start' : delta_start, 'length_increment': length_increment}
+            pulse = {'name': name, 'channel': channel, 'start': start, 'length': length, 'delta_start' : delta_start,\
+             'length_increment': length_increment, 'phase_list': phase_list}
 
             self.pulse_array.append( pulse )
             # for saving the initial pulse_array without increments
@@ -119,9 +129,14 @@ class PB_ESR_500_Pro:
             self.pulse_name_array.append( pulse['name'] )
 
         elif test_flag == 'test':
+
             pulse = {'name': name, 'channel': channel, 'start': start, \
-                'length': length, 'delta_start' : delta_start, 'length_increment': length_increment}
+                'length': length, 'delta_start' : delta_start, 'length_increment': length_increment, 'phase_list': phase_list}
             
+            # phase_list's length
+            if channel == 'MW':
+                self.phase_array_length.append(len(list(phase_list)))
+
             # Checks
             # two equal names
             temp_name = str(name)
@@ -136,8 +151,8 @@ class PB_ESR_500_Pro:
                 coef = timebase_dict[temp_length[1]]
                 p_length = coef*float(temp_length[0])
                 assert(p_length % 2 == 0), 'Pulse length should be divisible by 2'
-                assert(p_length >= min_pulse_length), 'Pulse is shorter than minimum available length (10 ns)'
-                assert(p_length < max_pulse_length), 'Pulse is longer than maximum available length (1900 ns)'
+                assert(p_length >= min_pulse_length), 'Pulse is shorter than minimum available length (' + str(min_pulse_length) +' ns)'
+                assert(p_length < max_pulse_length), 'Pulse is longer than maximum available length (' + str(max_pulse_length) +' ns)'
             else:
                 assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
 
@@ -188,6 +203,168 @@ class PB_ESR_500_Pro:
             else:
                 assert (1 == 2), 'Incorrect channel name'
 
+    def pulser_next_phase(self):
+        """
+        A function for phase cycling. It works using phase_list decleared in pulser_pulse():
+        phase_list = ['-y', '+x', '-x', '+x']
+        self.current_phase_index is an iterator of the current phase
+        functions pulser_shift() and pulser_increment() reset the iterator
+
+        after calling pulser_next_phase() the next phase is taken from phase_list and a 
+        corresponding trigger pulse is added to self.pulse_array
+
+        the length of all phase lists specified for different MW pulses has to be the same
+        
+        the function also immediately sends intructions to pulse blaster as
+        a function pulser_update() does. 
+        """
+        if test_flag != 'test':
+            # deleting old phase switch pulses from self.pulse_array
+            # before adding new ones
+            for index, element in enumerate(self.pulse_array):
+                if element['channel'] == '-X' or element['channel'] == '+Y' or element['channel'] == '-Y':
+                    del self.pulse_array[index]
+
+            # we should check the list twice since -Y phase adds two pulses
+            for index, element in enumerate(self.pulse_array):
+                if element['channel'] == '-X' or element['channel'] == '+Y' or element['channel'] == '-Y':
+                    del self.pulse_array[index]
+
+            # adding phase switch pulses
+            for index, element in enumerate(self.pulse_array):
+                if len(list(element['phase_list'])) != 0:
+                    if element['phase_list'][self.current_phase_index] == '+x':
+                        pass
+                    elif element['phase_list'][self.current_phase_index] == '-x':
+                        name = element['name'] + '_ph_seq-x'
+                        # taking into account delays of phase switching
+                        start = self.change_pulse_settings(element['start'], -switch_phase_delay)
+                        length = self.change_pulse_settings(element['length'], phase_delay + switch_phase_delay)
+
+                        self.pulse_array.append({'name': name, 'channel': '-X', 'start': start, \
+                            'length': length, 'delta_start' : '0 ns', 'length_increment': '0 ns', 'phase_list': []})
+
+                        self.reset_count = 0
+
+                    elif element['phase_list'][self.current_phase_index] == '+y':
+                        name = element['name'] + '_ph_seq+y'
+                        # taking into account delays of phase switching
+                        start = self.change_pulse_settings(element['start'], -switch_phase_delay)
+                        length = self.change_pulse_settings(element['length'], phase_delay + switch_phase_delay)
+
+                        self.pulse_array.append({'name': name, 'channel': '+Y', 'start': start, \
+                            'length': length, 'delta_start' : '0 ns', 'length_increment': '0 ns', 'phase_list': []})
+
+                        self.reset_count = 0
+
+                    elif element['phase_list'][self.current_phase_index] == '-y':
+                        name = element['name'] + '_ph_seq-y'
+                        # taking into account delays of phase switching
+                        start = self.change_pulse_settings(element['start'], -switch_phase_delay)
+                        length = self.change_pulse_settings(element['length'], phase_delay + switch_phase_delay)
+
+                        # -Y for Mikran bridge is simutaneously turned on -X; +Y
+                        # that is why there is no -Y channel
+                        self.pulse_array.append({'name': name, 'channel': '-X', 'start': start, \
+                            'length': length, 'delta_start' : '0 ns', 'length_increment': '0 ns', 'phase_list': []})
+                        self.pulse_array.append({'name': name, 'channel': '+Y', 'start': start, \
+                            'length': length, 'delta_start' : '0 ns', 'length_increment': '0 ns', 'phase_list': []})
+
+                        self.reset_count = 0
+
+            self.current_phase_index += 1
+
+            # update pulses
+            # get repetition rate
+            rep_rate = self.rep_rate[0]
+            if rep_rate[-3:] == ' Hz':
+                rep_time = int(1000000000/float(rep_rate[:-3]))
+            elif rep_rate[-3:] == 'kHz':
+                rep_time = int(1000000/float(rep_rate[:-4]))
+            elif rep_rate[-3:] == 'MHz':
+                rep_time = int(1000/float(rep_rate[:-4]))
+
+            self.pulser_update(rep_rate)
+
+        elif test_flag == 'test':
+
+            # check that the length is equal (compare all elements in self.phase_array_length)
+            gr = groupby(self.phase_array_length)
+            if (next(gr, True) and not next(gr, False)) == False:
+                assert(1 == 2), 'Phase sequence does not have equal length'
+
+            for index, element in enumerate(self.pulse_array):
+                if element['channel'] == '-X' or element['channel'] == '+Y' or element['channel'] == '-Y':
+                    del self.pulse_array[index]
+
+            # we should check the list twice since -Y phase adds two pulses
+            for index, element in enumerate(self.pulse_array):
+                if element['channel'] == '-X' or element['channel'] == '+Y' or element['channel'] == '-Y':
+                    del self.pulse_array[index]
+
+            for index, element in enumerate(self.pulse_array):
+                if len(list(element['phase_list'])) != 0:
+                    if element['phase_list'][self.current_phase_index] == '+x':
+                        pass
+                    elif element['phase_list'][self.current_phase_index] == '-x':
+                        name = element['name'] + '_ph_seq-x'
+                        # taking into account delays
+                        start = self.change_pulse_settings(element['start'], -switch_phase_delay)
+                        length = self.change_pulse_settings(element['length'], phase_delay + switch_phase_delay)
+
+                        self.pulse_array.append({'name': name, 'channel': '-X', 'start': start, \
+                            'length': length, 'delta_start' : '0 ns', 'length_increment': '0 ns', 'phase_list': []})
+
+                        # check that we still have a next phase to switch
+                        self.reset_count = 0
+
+                    elif element['phase_list'][self.current_phase_index] == '+y':
+                        name = element['name'] + '_ph_seq+y'
+                        # taking into account delays
+                        start = self.change_pulse_settings(element['start'], -switch_phase_delay)
+                        length = self.change_pulse_settings(element['length'], phase_delay + switch_phase_delay)
+
+                        self.pulse_array.append({'name': name, 'channel': '+Y', 'start': start, \
+                            'length': length, 'delta_start' : '0 ns', 'length_increment': '0 ns', 'phase_list': []})
+
+                        # check that we still have a next phase to switch
+                        self.reset_count = 0
+
+                    elif element['phase_list'][self.current_phase_index] == '-y':
+                        name = element['name'] + '_ph_seq-y'
+                        # taking into account delays
+                        start = self.change_pulse_settings(element['start'], -switch_phase_delay)
+                        length = self.change_pulse_settings(element['length'], phase_delay + switch_phase_delay)
+
+                        # -Y for Mikran bridge is simutaneously turned on -X; +Y
+                        # that is why there is no -Y channel
+                        self.pulse_array.append({'name': name, 'channel': '-X', 'start': start, \
+                            'length': length, 'delta_start' : '0 ns', 'length_increment': '0 ns', 'phase_list': []})
+                        self.pulse_array.append({'name': name, 'channel': '+Y', 'start': start, \
+                            'length': length, 'delta_start' : '0 ns', 'length_increment': '0 ns', 'phase_list': []})
+
+                        # check that we still have a next phase to switch
+                        self.reset_count = 0
+
+                    else:
+                        assert( 1 == 2 ), 'Incorrect phase name (+x, -x, +y, -y)'
+                else:
+                    pass
+
+            self.current_phase_index += 1
+
+            # update pulses
+            # get repetition rate
+            rep_rate = self.rep_rate[0]
+            if rep_rate[-3:] == ' Hz':
+                rep_time = int(1000000000/float(rep_rate[:-3]))
+            elif rep_rate[-3:] == 'kHz':
+                rep_time = int(1000000/float(rep_rate[:-4]))
+            elif rep_rate[-3:] == 'MHz':
+                rep_time = int(1000/float(rep_rate[:-4]))
+
+            self.pulser_update(rep_rate)
+
     def pulser_update(self, rep_rate = repetition_rate):
         """
         A function that write instructions to SpinAPI. 
@@ -205,7 +382,7 @@ class PB_ESR_500_Pro:
             elif rep_rate[-3:] == 'MHz':
                 rep_time = int(1000/float(rep_rate[:-4]))
 
-            if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1:
+            if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.rep_rate_count == 1:
                 # using a special functions for convertion to instructions
                 # we get two return arrays because of pulser_visualizer. It is not the case for test flag.
                 #temp, visualizer = self.convert_to_bit_pulse( self.pulse_array )
@@ -263,7 +440,8 @@ class PB_ESR_500_Pro:
 
                 self.reset_count = 1
                 self.shift_count = 0
-                self.increment_count == 0
+                self.increment_count = 0
+                self.rep_rate_count = 0
             else:
                 pass
 
@@ -286,7 +464,8 @@ class PB_ESR_500_Pro:
 
                 self.reset_count = 1
                 self.shift_count = 0
-                self.increment_count == 0
+                self.increment_count = 0
+                self.rep_rate_count = 0
             else:
                 pass
 
@@ -299,12 +478,14 @@ class PB_ESR_500_Pro:
         if test_flag != 'test':
             if  len(r_rate) == 1:
                 self.rep_rate = r_rate
+                self.rep_rate_count = 1
             elif len(r_rate) == 0:
                 general.message(self.rep_rate[0])
 
         elif test_flag == 'test':
             if  len(r_rate) == 1:
                 self.rep_rate = r_rate
+                self.rep_rate_count = 1
             elif len(r_rate) == 0:
                 pass
 
@@ -340,6 +521,7 @@ class PB_ESR_500_Pro:
                     i += 1
 
                 self.shift_count = 1
+                self.current_phase_index = 0
 
             else:
                 set_from_list = set(pulses)
@@ -368,6 +550,7 @@ class PB_ESR_500_Pro:
                             self.pulse_array[pulse_index]['start'] = str( st + d_start ) + ' ns'
 
                         self.shift_count = 1
+                        self.current_phase_index = 0
 
         elif test_flag == 'test':
             if len(pulses) == 0:
@@ -396,6 +579,7 @@ class PB_ESR_500_Pro:
                     i += 1
 
                 self.shift_count = 1
+                self.current_phase_index = 0
 
             else:
                 set_from_list = set(pulses)
@@ -424,6 +608,7 @@ class PB_ESR_500_Pro:
                             self.pulse_array[pulse_index]['start'] = str( st + d_start ) + ' ns'
 
                         self.shift_count = 1
+                        self.current_phase_index = 0
 
                     else:
                         assert(1 == 2), "There is no pulse with the specified name"
@@ -460,6 +645,7 @@ class PB_ESR_500_Pro:
                     i += 1
 
                 self.shift_count = 1
+                self.current_phase_index = 0
 
             else:
                 set_from_list = set(pulses)
@@ -488,6 +674,7 @@ class PB_ESR_500_Pro:
                             self.pulse_array[pulse_index]['length'] = str( leng + d_length ) + ' ns'
 
                         self.shift_count = 1
+                        self.current_phase_index = 0
 
         elif test_flag == 'test':
             if len(pulses) == 0:
@@ -519,6 +706,7 @@ class PB_ESR_500_Pro:
                     i += 1
 
                 self.shift_count = 1
+                self.current_phase_index = 0
 
             else:
                 set_from_list = set(pulses)
@@ -550,6 +738,7 @@ class PB_ESR_500_Pro:
                                 assert(1 == 2), 'Exceeded maximum pulse length (1900 ns) when increment the pulse'
 
                         self.shift_count = 1
+                        self.current_phase_index = 0
 
                     else:
                         assert(1 == 2), "There is no pulse with the specified name"
@@ -623,6 +812,7 @@ class PB_ESR_500_Pro:
             self.reset_count = 1
             self.increment_count = 0
             self.shift_count = 0
+            self.current_phase_index = 0
 
         elif test_flag == 'test':
             # get repetition rate
@@ -645,6 +835,7 @@ class PB_ESR_500_Pro:
             self.reset_count = 1
             self.increment_count = 0
             self.shift_count = 0
+            self.current_phase_index = 0
 
     def pulser_pulse_reset(self, *pulses):
         """
@@ -658,6 +849,7 @@ class PB_ESR_500_Pro:
                 self.reset_count = 0
                 self.increment_count = 0
                 self.shift_count = 0
+                self.current_phase_index = 0
             else:
                 set_from_list = set(pulses)
                 for element in set_from_list:
@@ -677,6 +869,7 @@ class PB_ESR_500_Pro:
                 self.reset_count = 0
                 self.increment_count = 0
                 self.shift_count = 0
+                self.current_phase_index = 0
             else:
                 set_from_list = set(pulses)
                 for element in set_from_list:
@@ -940,7 +1133,7 @@ class PB_ESR_500_Pro:
             for index, element in enumerate(sorted_np_array[:-1]):
                 # minimal_distance is 12 ns now
                 if sorted_np_array[index + 1][1] - element[2] < minimal_distance:
-                    assert(1 == 2), 'Overlapping pulses or two pulses with less than 12 ns distance'
+                    assert(1 == 2), 'Overlapping pulses or two pulses with less than ' + str(minimal_distance*2) + ' ns distance'
                 else:
                     pass
 
@@ -954,7 +1147,7 @@ class PB_ESR_500_Pro:
             for index, element in enumerate(sorted_np_array[:-1]):
                 # minimal_distance is 12 ns now
                 if sorted_np_array[index + 1][1] - element[2] < minimal_distance:
-                    assert(1 == 2), 'Overlapping pulses or two pulses with less than 12 ns distance'
+                    assert(1 == 2), 'Overlapping pulses or two pulses with less than ' + str(minimal_distance*2) + ' ns distance'
                 else:
                     pass
 
@@ -1141,10 +1334,16 @@ class PB_ESR_500_Pro:
             one_array = sum(answer, [])
             
             # append delay for repetition rate
-            one_array.append( [0, one_array[-1][1] + one_array[-1][2], \
-                rep_time - one_array[-1][2] - one_array[-1][1]] )
+            #one_array.append( [0, one_array[-1][1] + one_array[-1][2], \
+            #    rep_time - one_array[-1][2] - one_array[-1][1]] )
 
-            return one_array
+            if rep_time - one_array[-1][2] - one_array[-1][1] > (minimal_distance + 4):
+                one_array.append( [0, one_array[-1][1] + one_array[-1][2], \
+                    rep_time - one_array[-1][2] - one_array[-1][1]] )
+                return one_array
+            else:
+                general.message('Pulse sequence is longer than one period of the repetition rate')
+                sys.exit()
 
         elif test_flag == 'test':
             answer = []
@@ -1716,9 +1915,8 @@ class PB_ESR_500_Pro:
                 if any(1 < element < (minimal_distance + 1) for element in difference) == False:
                     pass
                 else:
-                    general.message('There are two pulses with shorter than 12 ns distance between them')
+                    general.message('There are two pulses with shorter than ' + str(minimal_distance*2) + ' ns distance between them')
                     sys.exit()
-                    assert(1 == 2), 'There are two pulses with shorter than 12 ns distance between them'
             else:
                 if any(1 < element < (minimal_distance + 1) for element in difference) == False:
                     return np_array
@@ -1735,7 +1933,7 @@ class PB_ESR_500_Pro:
                 if any(1 < element < (minimal_distance + 1) for element in difference) == False:
                     pass
                 else:
-                    assert(1 == 2), 'There are two pulses with shorter than 12 ns distance between them'
+                    assert(1 == 2), 'There are two pulses with shorter than ' + str(minimal_distance*2) + ' ns distance between them'
             else:
                 if any(1 < element < (minimal_distance + 1) for element in difference) == False:
                     return np_array
@@ -1781,6 +1979,31 @@ class PB_ESR_500_Pro:
             np.zeros( array_len - index_last_one[0] - 1, dtype = np.int64)), axis = None)
 
         return final_array
+
+    def change_pulse_settings(self, parameter, delay):
+        """
+        A special function for parsing some parameter (i.e. start, length) value from the pulse
+        and changing them according to specified delay
+        """
+        if test_flag != 'test':
+            temp = parameter.split(' ')
+            if temp[1] in timebase_dict:
+                flag = timebase_dict[temp[1]]
+                par_st = int(int((temp[0]))*flag + delay)
+                new_parameter = str( par_st ) + ' ns'
+
+            return new_parameter
+
+        elif test_flag == 'test':
+            temp = parameter.split(' ')
+            if temp[1] in timebase_dict:
+                flag = timebase_dict[temp[1]]
+                par_st = int(int((temp[0]))*flag + delay)
+                new_parameter = str( par_st ) + ' ns'
+            else:
+                assert(1 == 2), 'Incorrect time dimension (ns, us, ms, s)'
+
+            return new_parameter
 
 def main():
     pass

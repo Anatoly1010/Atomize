@@ -45,7 +45,6 @@ s  = 1000000000.0
 # Defines for start_programming
 PULSE_PROGRAM  = 0
 
-# errors?
 
 class SpinAPI():
 

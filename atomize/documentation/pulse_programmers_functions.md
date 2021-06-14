@@ -9,6 +9,7 @@ Functions:
 - [pulser_name()](#pulser_name)<br/>
 - [pulser_pulse(*kagrs)](#pulser_pulsekargs)<br/>
 - [pulser_update()](#pulser_update)<br/>
+- [pulser_next_phase()](#pulser_next_phase)<br/>
 - [pulser_repetitoin_rate(*r_rate)](#pulser_repetitoin_rater_rate)<br/>
 - [pulser_shift(*pulses)](#pulser_shiftpulses)<br/>
 - [pulser_increment(*pulses)](#pulser_incrementpulses)<br/>
@@ -16,6 +17,7 @@ Functions:
 - [pulser_pulse_reset(*pulses)](#pulser_pulse_resetpulses)<br/>
 - [pulser_stop()](#pulser_stop)<br/>
 - [pulser_state()](#pulser_state)<br/>
+- [pulser_visualize()](#pulser_visualize)<br/>
 
 ### pulser_name()
 ```python3
@@ -33,11 +35,12 @@ start = '0 ns' specifies a start time of the pulse (['ns', 'us', 's'])
 length = '100 ns' specifies a length of the pulse (['ns', 'us', 's'])
 delta_start = '0 ns' specifies a start time increment of the pulse (['ns', 'us', 's'])
 length_increment = '0 ns' specifies a pulse length increment (['ns', 'us', 's']);
+phase_list = [] specifies a phase cycling sequence (['+x', '-x', '+y', '-y'])
 Output: none.
-Example: pulser_pulse('channel = 'CH0', start = '100 ns', length = '100 ns', delta_start = '0 ns',
-length_increment = '0 ns') sets the 100 ns length pulse with 100 ns start time at channel 0.
+Example: pulser_pulse('name' = 'P0', channel = 'MW', start = '100 ns', length = '100 ns', delta_start = '0 ns',
+length_increment = '0 ns') sets the 100 ns length microwave pulse with 100 ns start time with no phase cycling.
 ```
-The function sets a pulse with specified parameters. The default argument is name = 'P0', channel = 'CH0', start = '0 ns', length = '100 ns', delta_start = '0 ns', length_increment = '0 ns'. A channel should be one of the following ['CH0','CH1', ... ,'CH20']. The scaling factor for start, length, delta_start, and length_increment key arguments should be one of the following ['ns', 'us', 's']. The minimum available length of the pulse is 12 ns. The maximum available length of the pulse is 2000 ns. The maximum available length of the pulse sequence is 8.9 s. The pulse sequence will be checked for overlap.
+The function sets a pulse with specified parameters. The default argument is name = 'P0', channel = 'TRIGGER', start = '0 ns', length = '100 ns', delta_start = '0 ns', length_increment = '0 ns', phase_list = []. A channel should be one of the following ['TRIGGER','AMP_ON','LNA_PROTECT','MW','-X','+Y','CH6', ... ,'CH20']. The scaling factor for start, length, delta_start, and length_increment key arguments should be one of the following ['ns', 'us', 'ms', 's']. The minimum available length of the pulse is 10 ns. The maximum available length of the pulse is 1900 ns. The maximum available length of the pulse sequence is 8.9 s. The pulse sequence will be checked for overlap. In the auto defence mode (default option; can be changed in the config file) channels 'AMP_ON' and 'LNA_PROTECT' will be added automatically according to the delays indicated in the config file. In this mode 'AMP_ON' and 'LNA_PROTECT' pulses will be joined in one pulse if the distance between them is less than 12 ns (can be changed in the config file).
 ### pulser_update()
 ```python3
 pulser_update()
@@ -45,6 +48,13 @@ Arguments: none; Output: none.
 Example: pulser_update() updates a pulse sequence and sends instructions to the pulse programmer.
 ```
 This function updates a pulse sequence and sends instructions to the pulse programmer. It has to be called after changes have been applied to pulses either via any of the pulser functions or by changing a pulse property directly. Only by calling the function the changes are committed and the real pulses will change.
+### pulser_next_phase()
+```python3
+pulser_next_phase()
+Arguments: none; Output: none.
+Example: pulser_next_phase() switches all pulses in the sequence to the next phase.
+```
+This function switches all pulses to the next phase. The phase sequence is declared in the [pulser_pulse()](#pulser_pulse) in the form of phase_list = ['-y', '+x', '-x', '+x', ...]. By repeatedly calling the function one can run through the complete list of phases for the pulses. The length of all phase lists specified for different MW pulses has to be the same. This function also immediately updates the pulse sequence, as it is done by calling [pulser_update()](#pulser_update).<br/>
 ### pulser_repetitoin_rate(*r_rate)
 ```python3
 pulser_repetitoin_rate(*r_rate)
@@ -72,25 +82,32 @@ pulser_reset()
 Arguments: none; Output: none.
 Example: pulser_reset() resets all the pulses to their initial state and updates the pulse programmer.
 ```
-The function switches the pulse programmer back to the initial state in which it was in at the start of the experiment. This function can be called only without arguments. It includes the complete functionality of [pulser_pulse_reset()](#pulser_pulse_reset), but also immediately updates the pulse programmer as it is done by calling [pulser_update()](#pulser_update).
+The function switches the pulse programmer back to the initial state (including phase) in which it was in at the start of the experiment. This function can be called only without arguments. It includes the complete functionality of [pulser_pulse_reset()](#pulser_pulse_reset), but also immediately updates the pulse programmer as it is done by calling [pulser_update()](#pulser_update).
 ### pulser_pulse_reset(*pulses)
 ```python3
 pulser_pulse_reset(*pulses)
 Arguments: none or string of pulse names; Output: none.
 Example: pulser_pulse_reset('P1') resets the pulse named 'P1' to its initial state.
 ```
-The function switches the pulse programmer back to the initial state in which it was in at the start of the experiment. This function can be called with either no argument or with a list of comma separated pulse names. If no argument is given all pulses are reset to their initial states. It does not update the pulser, if you want to reset all pulses and and also update the pulser use the function [pulser_reset()](#pulser_reset) instead.
+The function switches the pulse programmer back to the initial state in which it was in at the start of the experiment. This function can be called with either no argument or with a list of comma separated pulse names. If no argument is given all pulses are reset to their initial states (including phases). For a list of comma separated pulse names a current position in the phase sequence will be saved. The function does not update the pulser, if you want to reset all pulses and and also update the pulser use the function [pulser_reset()](#pulser_reset) instead.
 ### pulser_stop()
 ```python3
 pulser_stop()
 Arguments: none; Output: none.
 Example: pulser_stop() stops the pulse programmer.
 ```
-This functions stops the pulse programmer. This function should always be called at the end of an experimental script.
+This function stops the pulse programmer. The function should always be called at the end of an experimental script.
 ### pulser_state()
 ```python3
 pulser_state()
 Arguments: none; Output: string.
 Example: pulser_state() queries the pulse programmer state.
 ```
-This functions queries the pulse programmer state and can be called only without arguments.
+This function queries the pulse programmer state and can be called only without arguments.
+### pulser_visualize()
+```python3
+pulser_visualize()
+Arguments: none; Output: string.
+Example: pulser_visualize() visualizes the pulse sequence in a form of 2D plot.
+```
+This function visualizes the pulse sequence as 2D plot and can be called only without arguments.
