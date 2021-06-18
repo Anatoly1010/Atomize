@@ -171,9 +171,9 @@ class Worker(QWidget):
         # A possible use in an experimental script
         pb = pb_pro.PB_ESR_500_Pro()
 
-        pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '20 ns', delta_start = '10 ns')
-        pb.pulser_pulse(name ='P1', channel = 'MW', start = '430 ns', length = '400 ns', length_increment = '400 ns')
-        pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = '0 ns', length = '20 ns')
+        pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '20 ns')
+        pb.pulser_pulse(name ='P1', channel = 'MW', start = '220 ns', length = '40 ns')
+        pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = '340 ns', length = '100 ns')
 
         pb.pulser_visualize()
         i = 0
@@ -205,7 +205,7 @@ class Worker(QWidget):
         general.message('Finished Cycles')
         if self.command == 'exit':
             general.message('Stop')
-            #pb.pulser_stop()
+            pb.pulser_stop()
 
 
 # Running GUI mainloop

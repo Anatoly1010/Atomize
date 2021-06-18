@@ -3,6 +3,7 @@
 
 import os
 import sys
+import math
 from copy import deepcopy
 from itertools import groupby
 import numpy as np
@@ -51,6 +52,7 @@ min_pulse_length = int(float(specific_parameters['min_pulse_length'])) # in ns
 # minimal distance between two pulses of AMP_ON and LNA_PROTECT
 # pulse blaster restriction
 minimal_distance = int(float(specific_parameters['minimal_distance'])/timebase) # in ns
+minimal_distance_2 = 100 
 
 # Delays and restrictions
 constant_shift = int(250/timebase) # in ns; shift of all sequence for not getting negative start times
@@ -390,7 +392,7 @@ class PB_ESR_500_Pro:
                 #to_spinapi = self.instruction_pulse( temp, rep_time )
                 to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
                 general.message( to_spinapi )
-
+                #self.pulser_stop()
                 # initialization
                 #pb_init()
                 #pb.core_clock(clock)
@@ -425,7 +427,7 @@ class PB_ESR_500_Pro:
                 #pb_inst(ON | "0x%X" % to_spinapi[i][0], BRANCH, 0, "0x%X" % to_spinapi[i][2])
                 #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', BRANCH, start, ' + "0x%X" % to_spinapi[i][2] )
                 # BRANCH is 6
-                ###sp.pb_inst(14680064 + to_spinapi[i][0], 6, 0, to_spinapi[i][2])
+                ###sp.pb_inst(14680064 + to_spinapi[i][0], 6, start, to_spinapi[i][2])
 
                 #pb_stop_programming()
                 #pb_reset()
@@ -770,44 +772,44 @@ class PB_ESR_500_Pro:
             # initialization
             #pb_init()
             #pb.core_clock(clock)
-            ###sp.pb_init()
-            ###sp.pb_core_clock(clock)
+            sp.pb_init()
+            sp.pb_core_clock(clock)
 
             #pb_start_programming(0)
-            ###sp.pb_start_programming(0)
+            sp.pb_start_programming(0)
             i = 0
             while i < len( to_spinapi) - 1:
-                ###if i == 0: 
+                if i == 0: 
                     # to create a link for BRANCH
                     #start = pb_inst(ON | "0x%X" % to_spinapi[i][0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
-                    ###start = sp.pb_inst(14680064 + to_spinapi[i][0], 0, 0, to_spinapi[i][2])
-                ###else:
-                    #pb_inst(ON | "0x%X" % to_spinapi[i][0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
-                    ###sp.pb_inst(14680064 + to_spinapi[i][0], 0, 0, to_spinapi[i][2])
-                if i == 0:
-                    pass
-                    #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', CONTINUE, 0, ' + "0x%X" % to_spinapi[i][2] )
+                    start = sp.pb_inst(14680064 + to_spinapi[i][0], 0, 0, to_spinapi[i][2])
                 else:
-                    pass
+                    #pb_inst(ON | "0x%X" % to_spinapi[i][0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
+                    sp.pb_inst(14680064 + to_spinapi[i][0], 0, 0, to_spinapi[i][2])
+                ###if i == 0:
+                    ###pass
+                    #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', CONTINUE, 0, ' + "0x%X" % to_spinapi[i][2] )
+                ###else:
+                    ###pass
                     #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', CONTINUE, 0, ' + "0x%X" % to_spinapi[i][2] )
 
                 i += 1
 
             # last instruction for delay
             #pb_inst(ON | "0x%X" % to_spinapi[i][0], BRANCH, 0, "0x%X" % to_spinapi[i][2])
-            ###sp.pb_inst(14680064 + to_spinapi[i][0], 6, 0, to_spinapi[i][2])
+            sp.pb_inst(14680064 + to_spinapi[i][0], 6, 0, to_spinapi[i][2])
             #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', BRANCH, start, ' + "0x%X" % to_spinapi[i][2] )
 
             #pb_stop_programming()
             #pb_reset()
             #pb_start()
 
-            ###sp.pb_stop_programming()
-            ###sp.pb_reset()
-            ###sp.pb_start()
+            sp.pb_stop_programming()
+            sp.pb_reset()
+            sp.pb_start()
 
             #pb_close()
-            ###sp.pb_close()
+            sp.pb_close()
 
             self.reset_count = 1
             self.increment_count = 0
@@ -925,10 +927,10 @@ class PB_ESR_500_Pro:
 
     def pulser_state(self):
         if test_flag != 'test':
-            ###sp.pb_init()
-            ###answer = sp.pb_read_status()
-            pass
-            ###return answer
+            sp.pb_init()
+            answer = sp.pb_read_status()
+            #pass
+            return answer
         elif test_flag == 'test':
             pass
 
@@ -1124,7 +1126,6 @@ class PB_ESR_500_Pro:
         AMN_ON and LNA_PROTECT
         """
         if test_flag != 'test':
-            no_problem_list = deepcopy(np_array)
             # sorted pulse list in order to be able to have an arbitrary pulse order inside
             # the definition in the experimental script
             sorted_np_array = np.asarray(sorted(np_array, key = lambda x: int(x[1])), dtype = np.int64)
@@ -1140,7 +1141,6 @@ class PB_ESR_500_Pro:
             return sorted_np_array
 
         elif test_flag == 'test':
-            no_problem_list = deepcopy(np_array)
             sorted_np_array = np.asarray(sorted(np_array, key = lambda x: int(x[1])), dtype = np.int64)
 
             # compare the end time with the start time for each couple of pulses
@@ -1237,8 +1237,9 @@ class PB_ESR_500_Pro:
                                 channel_dict['LNA_PROTECT']))), axis = 0)
 
                 # combine all pulses
-                #np.concatenate( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final), axis = None) 
-                return np.row_stack( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final)) 
+                combined = np.row_stack( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final))
+                #np.concatenate( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final), axis = None)
+                return np.row_stack( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final))
 
         elif test_flag == 'test':
             if auto_defense == 'False':
@@ -1307,6 +1308,7 @@ class PB_ESR_500_Pro:
         """
         if test_flag != 'test':
             answer = []
+            min_list = []
             pulses = self.preparing_to_bit_pulse(np_array)
 
             sorted_pulses_start = np.asarray(sorted(pulses, key = lambda x: int(x[1])), dtype = np.int64)
@@ -1317,15 +1319,33 @@ class PB_ESR_500_Pro:
             for index, element in enumerate(sorted_arrays_parts):
                 temp, min_value = self.convert_to_bit_pulse(element)
                 answer.append(self.instruction_pulse(temp))
+                # keep them all for further shifting
+                min_list.append(min_value)
             # at this point we have different array for different interval:
             # I. E. [[[0, 0, 70], [6, 70, 200], [14, 270, 20], [4, 290, 100],\
             # [0, 390, 560], [1, 950, 20]], [[0, 0, 20000050], [6, 20000050, 200], [14, 20000250, 30], [4, 20000280, 100]]]
 
             # We should adjust the beginning of all sub array with index >= 1
             for index, element in enumerate(answer):
-                if index > 0:
-                    for index, element in enumerate(element):
-                        element[1] = element[1] + min_value*timebase
+                # the first sub array is ok
+                if index == 0:
+                    pass
+                elif index > 0:
+                    # the second and further should be shifted using data from the previous sub array
+                    shift_region = answer[index - 1][-1][1] + answer[index - 1][-1][2]
+                    # sweep through sub array
+                    for index2, element2 in enumerate(element):
+                        # to take into account the jump region between two sub arrays
+                        # - min_list[0]*timebase common shifting of the first pulse
+                        if index2 == 0:
+                            element2[1] = shift_region
+                            element2[2] = min_list[index]*timebase + element2[2] - shift_region - min_list[0]*timebase
+                        elif index2 > 0:
+                            element2[1] = element2[1] + min_list[index]*timebase - min_list[0]*timebase
+                        
+                    #shift_region = element[-1][1] + element[-1][2]
+                    #general.message(shift_region)
+
                         #general.message(element)
                         #element[0][1] = answer[index - 1][-1][1] + answer[index - 1][-1][2]
                         #element[0][2] = element[0][2] - element[0][1]
@@ -1347,22 +1367,41 @@ class PB_ESR_500_Pro:
 
         elif test_flag == 'test':
             answer = []
+            min_list = []
             pulses = self.preparing_to_bit_pulse(np_array)
 
             sorted_pulses_start = np.asarray(sorted(pulses, key = lambda x: int(x[1])), dtype = np.int64)
             # max_pulse_length is 2000 ns now
-            index_jump = np.where(np.diff(sorted_pulses_start[:,1], axis = 0) > max_pulse_length )[0]
+            index_jump = np.where(np.diff(sorted_pulses_start[:,1], axis = 0) > max_pulse_length/timebase )[0]
             sorted_arrays_parts = np.split(sorted_pulses_start, index_jump + 1)
 
 
             for index, element in enumerate(sorted_arrays_parts):
                 temp, min_value = self.convert_to_bit_pulse(element)
                 answer.append(self.instruction_pulse(temp))
+                # keep them all for further shifting
+                min_list.append(min_value)
 
+            # We should adjust the beginning of all sub array with index >= 1
             for index, element in enumerate(answer):
-                if index > 0:
-                    for index, element in enumerate(element):
-                        element[1] = element[1] + min_value*timebase
+                # the first sub array is ok
+                if index == 0:
+                    pass
+                elif index > 0:
+                    # the second and further should be shifted using data from the previous sub array
+                    shift_region = answer[index - 1][-1][1] + answer[index - 1][-1][2]
+                    # sweep through sub array
+                    for index2, element2 in enumerate(element):
+                        # to take into account the jump region between two sub arrays
+                        if index2 == 0:
+                            element2[1] = shift_region
+                            element2[2] = min_list[index]*timebase + element2[2] - shift_region - min_list[0]*timebase
+                        elif index2 > 0:
+                            element2[1] = element2[1] + min_list[index]*timebase - min_list[0]*timebase
+                        
+                    #shift_region = element[-1][1] + element[-1][2]
+                    #general.message(shift_region)
+
                         #general.message(element)
                         #element[0][1] = answer[index - 1][-1][1] + answer[index - 1][-1][2]
                         #element[0][2] = element[0][2] - element[0][1]
@@ -1604,6 +1643,7 @@ class PB_ESR_500_Pro:
             # using a mask
             pulse_array = np.split(np_array, ranges)
             pulse_info = np.concatenate(([0], ranges))
+
             # return back timebase; convert to instructions
             for index, element in enumerate(pulse_info[:-1]):
                 final_pulse_array.append( [pulse_array[index][0], timebase*pulse_info[index], timebase*(pulse_info[index + 1] - pulse_info[index])] )
@@ -1626,6 +1666,9 @@ class PB_ESR_500_Pro:
 
             return final_pulse_array
 
+    def roundup(self, x):
+        return int(math.ceil(x / 10.0)) * 10
+
     def add_amp_on_pulses(self, p_list):
         """
         A function that automatically add AMP_ON pulses with corresponding delays
@@ -1636,11 +1679,32 @@ class PB_ESR_500_Pro:
                 pass
             elif auto_defense == 'True':
                 amp_on_list = []
+                #general.message( p_list )
                 for index, element in enumerate(p_list):
                     if element[0] == 2**(channel_dict['MW']):
-                        amp_on_list.append( [2**(channel_dict['AMP_ON']), element[1] - switch_delay,  element[2] + amp_delay] )
+                        amp_on_list.append( [2**(channel_dict['AMP_ON']), element[1] - switch_delay, element[2] + amp_delay] )
                     else:
                         pass
+                # additional checking and correcting amp_on pulse in the case
+                # when amp_on pulses are diagonally shifted to mw pulses
+                # in this case there can be nasty short overpal of amp_on pulse 2
+                # and mw pulse 1 and so on
+                for element in amp_on_list:
+                    for element_mw in p_list:
+                        if (element_mw[1] - element[1] <= 5) and (element_mw[1] - element[1] > 0):
+                            element[1] = element[1] - 5
+                        elif (element_mw[1] - element[1] >= -5) and (element_mw[1] - element[1] < 0):
+                            element[1] = element_mw[1]
+                        elif abs(element[2] - element_mw[1]) <= 5:
+                            element[2] = element_mw[2]
+                        elif (element_mw[2] - element[2] <= 5) and (element_mw[2] - element[2] > 0):
+                            element[2] = element_mw[2]
+                        elif (element_mw[2] - element[2] >= -5) and (element_mw[2] - element[2] < 0):
+                            element[2] = element[2] + 5
+                        elif abs(element_mw[2] - element[1]) <= 5:
+                            element[1] = element_mw[1]
+                
+                #general.message( amp_on_list )
 
                 return np.asarray(amp_on_list)
 
@@ -1657,6 +1721,21 @@ class PB_ESR_500_Pro:
                             assert(1 == 2), 'Maximum available length (1900 ns) for AMP_ON pulse is reached'
                     else:
                         pass
+
+                for element in amp_on_list:
+                    for element_mw in p_list:
+                        if (element_mw[1] - element[1] <= 5) and (element_mw[1] - element[1] > 0):
+                            element[1] = element[1] - 5
+                        elif (element_mw[1] - element[1] >= -5) and (element_mw[1] - element[1] < 0):
+                            element[1] = element_mw[1]
+                        elif abs(element[2] - element_mw[1]) <= 5:
+                            element[2] = element_mw[2]
+                        elif (element_mw[2] - element[2] <= 5) and (element_mw[2] - element[2] > 0):
+                            element[2] = element_mw[2]
+                        elif (element_mw[2] - element[2] >= -5) and (element_mw[2] - element[2] < 0):
+                            element[2] = element[2] + 5
+                        elif abs(element_mw[2] - element[1]) <= 5:
+                            element[1] = element_mw[1]
 
                 return np.asarray(amp_on_list)
 
@@ -1675,6 +1754,24 @@ class PB_ESR_500_Pro:
                         lna_protect_list.append( [2**(channel_dict['LNA_PROTECT']), element[1] - switch_delay, element[2] + protect_delay] )
                     else:
                         pass
+                # additional checking and correcting lna_protect pulse in the case
+                # when lna_protect pulses are diagonally shifted to mw pulses
+                # in this case there can be nasty short overpal of lna_protect pulse 2
+                # and mw pulse 1 and so on
+                for element in lna_protect_list:
+                    for element_mw in p_list:
+                        if (element_mw[1] - element[1] <= 5) and (element_mw[1] - element[1] > 0):
+                            element[1] = element[1] - 5
+                        elif (element_mw[1] - element[1] >= -5) and (element_mw[1] - element[1] < 0):
+                            element[1] = element_mw[1]
+                        elif abs(element[2] - element_mw[1]) <= 5:
+                            element[2] = element_mw[2]
+                        elif (element_mw[2] - element[2] <= 5) and (element_mw[2] - element[2] > 0):
+                            element[2] = element_mw[2]
+                        elif (element_mw[2] - element[2] >= -5) and (element_mw[2] - element[2] < 0):
+                            element[2] = element[2] + 5
+                        elif abs(element_mw[2] - element[1]) <= 5:
+                            element[1] = element_mw[1]
 
             return np.asarray(lna_protect_list)
 
@@ -1688,6 +1785,21 @@ class PB_ESR_500_Pro:
                         lna_protect_list.append( [2**(channel_dict['LNA_PROTECT']), element[1] - switch_delay, element[2] + protect_delay] )
                     else:
                         pass
+
+                for element in lna_protect_list:
+                    for element_mw in p_list:
+                        if (element_mw[1] - element[1] <= 5) and (element_mw[1] - element[1] > 0):
+                            element[1] = element[1] - 5
+                        elif (element_mw[1] - element[1] >= -5) and (element_mw[1] - element[1] < 0):
+                            element[1] = element_mw[1]
+                        elif abs(element[2] - element_mw[1]) <= 5:
+                            element[2] = element_mw[2]
+                        elif (element_mw[2] - element[2] <= 5) and (element_mw[2] - element[2] > 0):
+                            element[2] = element_mw[2]
+                        elif (element_mw[2] - element[2] >= -5) and (element_mw[2] - element[2] < 0):
+                            element[2] = element[2] + 5
+                        elif abs(element_mw[2] - element[1]) <= 5:
+                            element[1] = element_mw[1]
 
                 return np.asarray(lna_protect_list)
 

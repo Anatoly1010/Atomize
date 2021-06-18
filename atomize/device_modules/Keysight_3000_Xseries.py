@@ -33,7 +33,7 @@ wavefunction_dic = {'Sin': 'SINusoid', 'Sq': 'SQUare', 'Ramp': 'RAMP', 'Pulse': 
                     'DC': 'DC', 'Noise': 'NOISe', 'Sinc': 'SINC', 'ERise': 'EXPRise',
                     'EFall': 'EXPFall', 'Card': 'CARDiac', 'Gauss': 'GAUSsian',
                     'Arb': 'ARBitrary'};
-ac_type_dic = {'Normal': "NORMal", 'Average': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
+ac_type_dic = {'Normal': "NORM", 'Average': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
 wave_gen_interpolation_dictionary = {'On': 1, 'Off': 0, }
 
 # Limits and Ranges (depends on the exact model):
@@ -315,7 +315,7 @@ class Keysight_3000_Xseries:
             self.device_query('*ESR?;:DIGitize;*OPC?') # return 1, if everything is ok;
             # the whole sequence is the following 1-binary format; 2-clearing; 3-digitizing; 4-checking of the completness
             #end_time=datetime.now()
-            general.message('Acquisition completed')
+            #general.message('Acquisition completed')
             #print("Duration of Acquisition: {}".format(end_time - start_time))
         elif test_flag == 'test':
             pass
