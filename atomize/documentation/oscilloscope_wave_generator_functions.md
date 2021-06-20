@@ -1,4 +1,4 @@
-# List of available functions for wave generators
+# List of available functions for oscilloscope wave generators
 
 Available devices:
 - Wave Generator of Keysight InfiniiVision 2000 X-Series (Ethernet)

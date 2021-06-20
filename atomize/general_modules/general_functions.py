@@ -53,7 +53,7 @@ def to_infinity():
             index += 1
     elif test_flag == 'test':
         index = 0
-        while index < 1:
+        while index < 50:
             yield index
             index += 1
 

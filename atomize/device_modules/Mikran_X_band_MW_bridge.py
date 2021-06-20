@@ -326,7 +326,7 @@ class Mikran_X_band_MW_bridge:
                     MESSAGE = b'\x1b' + b'\x01' + b'\x00'
                 elif temp == '105':
                     MESSAGE = b'\x1b' + b'\x01' + b'\x01'
-                elif temp == '105':
+                elif temp == '300':
                     MESSAGE = b'\x1b' + b'\x01' + b'\x02'
                 else:
                     general.message('Incorrect cut-off frequency')

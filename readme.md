@@ -23,7 +23,7 @@ At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and W
     - [Temperature Controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/temperature_controller_functions.md)<br/>
     - [Lock-in Amplifiers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/lock_in_amplifier_functions.md)<br/>
     - [Oscilloscopes](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/oscilloscope_functions.md)<br/>
-    - [Arbitrary Wave Generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/wave_generator_functions.md)<br/>
+    - [Oscilloscope Wave Generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/oscilloscope_wave_generator_functions.md)<br/>
     - [Pulse Programmers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/pulse_programmers_functions.md)<br/>
     - [Frequency Counters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/frequency_counter_functions.md)<br/>
     - [Magnetic Field Controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/magnet_functions.md)<br/>
@@ -136,11 +136,11 @@ On Windows 10 one should use:
 
 #### [Oscilloscopes](#oscilloscopes-1)
 	- Keysight InfiniiVision 2000 X-Series (Ethernet); Untested
-	- Keysight InfiniiVision 3000 X-Series (Ethernet); Tested
+	- Keysight InfiniiVision 3000 X-Series (Ethernet); Tested 06/2021
 	- Keysight InfiniiVision 4000 X-Series (Ethernet); Untested
 	- Tektronix 4000 Series (Ethernet); Tested 01/2021
 
-#### [Arbitrary Wave Generators](#arbitrary-wave-generators-1)
+#### [Oscilloscope Wave Generators](#oscilloscope-wave-generators-1)
 	- Wave Generator of Keysight InfiniiVision 2000 X-Series (Ethernet)
 	Available via corresponding oscilloscope module.
 	- Wave Generator of Keysight InfiniiVision 3000 X-Series (Ethernet)
@@ -164,6 +164,9 @@ The original [C library](http://www.spincore.com/support/spinapi/using_spin_api_
 	- Bruker ER032M (GPIB); Available via BH15 module
 	- Bruker ER031M (RS-232 using arduino emulated keyboard); Tested 01/2021
 
+#### [Microwave Bridge Controllers](#microwave-bridge-controllers-1)
+	- Mikran X-band MW Bridge (TCP/IP Socket); Tested 06/2021
+
 #### [Gaussmeters](#gaussmeters-1)
 	- Lakeshore 455 DSP (RS-232); Tested 01/2021
 
@@ -186,6 +189,7 @@ The original [C library](http://www.spincore.com/support/spinapi/using_spin_api_
 ```python3
 message('A message to print')
 wait('number + scaling')
+to_infinity()
 open_1D(path, header = 0)
 open_1D_dialog(self, directory = '', header = 0)
 save_1D_dialog(data, directory = '', header = '')
@@ -236,6 +240,7 @@ oscilloscope_define_window(**kargs)
 oscilloscope_time_resolution()
 oscilloscope_start_acquisition()
 oscilloscope_preamble(channel)
+oscilloscope_area(channel)
 oscilloscope_stop()
 oscilloscope_run()
 oscilloscope_get_curve(channel)
@@ -250,7 +255,7 @@ oscilloscope_trigger_low_level(*level)
 oscilloscope_command(command)
 oscilloscope_query(command)
 ```
-### [Arbitrary wave generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/wave_generator_functions.md)
+### [Oscilloscope wave generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/oscilloscope_wave_generator_functions.md)
 ```python3
 wave_gen_name()
 wave_gen_frequency(*frequency)
@@ -326,6 +331,20 @@ magnet_sweep_down()
 magnet_reset_field()
 magnet_field_step_size(*step)
 magnet_command(command)
+```
+### [Microwave bridge controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/microwave_bridge_functions.md)
+```python3
+mw_bridge_name()
+mw_bridge_synthesizer(*freq)
+mw_bridge_att1_prd(*atten)
+mw_bridge_att2_prd(*atten)
+mw_bridge_fv_ctrl(*phase)
+mw_bridge_fv_prm(*phase)
+mw_bridge_att_prm(*atten)
+mw_bridge_k_prm(*amplif)
+mw_bridge_cut_off(*cutoff)
+mw_bridge_telemetry()
+mw_bridge_initialize()
 ```
 ### [Gaussmeters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/gaussmeter_functions.md)
 ```python3

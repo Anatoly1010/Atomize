@@ -26,16 +26,11 @@ t3034.oscilloscope_stop()
 t3034.oscilloscope_number_of_averages('100')
 
 pb.pulser_pulse(name = 'P0', channel = 'MW', start = '100 ns', length = '16 ns')
-pb.pulser_pulse(name = 'P1', channel = 'MW', start = '450 ns', length = '32 ns', delta_start = '100 ns')
-pb.pulser_pulse(name = 'P3', channel = 'TRIGGER', start = '800 ns', length = '100 ns', delta_start = '200 ns')
+pb.pulser_pulse(name = 'P1', channel = 'MW', start = '220 ns', length = '16 ns')
+pb.pulser_pulse(name = 'P2', channel = 'MW', start = '420 ns', length = '16 ns', delta_start = '100 ns')
+pb.pulser_pulse(name = 'P3', channel = 'TRIGGER', start = '540 ns', length = '100 ns', delta_start = '100 ns')
 
 pb.pulser_repetitoin_rate('200 Hz')
-
-#general.message(tb)
-#pb.pulser_update()
-#pb.pulser_visualize()
-#general.wait('10 s')
-#pb.pulser_stop()
 
 for i in range(400):
     start_time = time.time()
@@ -43,17 +38,12 @@ for i in range(400):
     
     t3034.oscilloscope_start_acquisition()
     data.append(t3034.oscilloscope_get_curve('CH4'))
-    #data[i] = t3034.oscilloscope_get_curve('CH3')
 
-    general.plot_2d('T2', data, start_step = ( (0, tb/1000000), (0, 200/1000000000) ), xname = 'Time',\
+    general.plot_2d('ESEEM', data, start_step = ( (0, tb/1000000), (0, 100/1000000000) ), xname = 'Time',\
         xscale = 's', yname = 'Delay Time', yscale = 's', zname = 'Intensity', zscale = 'V')
-
-    #general.plot_2d('Plot Z', data[:(i + 1)], start_step = ( (0, tb/1000000), (1, 1) ), xname = 'Time',\
-    #    xscale = 's', yname = 'Magnetic Field', yscale = 'T', zname = 'Intensity', zscale = 'V')
 
     pb.pulser_shift()
     general.message(str(time.time() - start_time))
 
-#pb.pulser_reset()
 pb.pulser_stop()
 

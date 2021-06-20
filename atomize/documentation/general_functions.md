@@ -3,7 +3,8 @@
 ## Contents
 - [Available functions](#available-functions)<br/>
 - [Print function](#print-a-line-in-the-main-window)<br/>
-- [Waitfunction](#wait-for-the-specified-amount-of-time)<br/>
+- [Wait function](#wait-for-the-specified-amount-of-time)<br/>
+- [Infinite loop](#infinite-loop)<br/>
 - [File handling functions](#file-handling)<br/>
 - [Example 1](#open-file)<br/>
 - [Example 2](#save-file-in-the-end-of-the-script)<br/>
@@ -13,6 +14,7 @@
 - [message('string')](#print-a-line-in-the-main-window)<br/>
 - [bot_message('message')](#send-a-message-via-telegram-bot)<br/>
 - [wait('10 ms')](#wait-for-the-specified-amount-of-time)<br/>
+- [to_infinity()](#infinite-loop)<br/>
 - [open_1D(path, header = 0)](#open_1D)<br/>
 - [open_1D_dialog(self, directory = '', header = 0)](#open_1D_dialog)<br/>
 - [save_1D_dialog(data, directory = '', header = '')](#save_1D_dialog)<br/>
@@ -43,9 +45,25 @@ one argument, which is a string of number and scaling factor (ks, s, ms, us):
 import atomize.general_modules.general_functions as general
 general.wait('10 ms')
 ```
+## Infinite loop
+Since all experimental scripts are tested before tactually interacting with devices, a standard Python infinite loop like while True will stuck in test mode. Instead, use the special function general.to_infinity(). This function imitates a standard infinite loop for which the first 50 loops will be checked in a test run.
+```python
+import atomize.general_modules.general_functions as general
+
+for i in general.to_infinity():
+	# DO SOMETHING
+    general.message(i)
+```
+It is also possible to interrupt an infinite loop under certain conditions:
+```python
+for i in general.to_infinity():
+    general.message(i)
+    if i > 10:
+        break
+```
 ## File handling
 To open or save raw experimental data one can use a special module based on Tkinter.
-Alternatively, it ispossible to use the CSV Exporter embedded into Pyqtgraph for saving 1D data
+Alternatively, it is possible to use the CSV Exporter embedded into Pyqtgraph for saving 1D data
 and a special option in Liveplot (right click -> Save Data Action) for saving 2D data as
 comma separated two dimensional numpy array.
 To call functions from Tkinter module one should create a corresponding class instance:

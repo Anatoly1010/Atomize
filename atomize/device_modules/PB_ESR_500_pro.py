@@ -44,23 +44,38 @@ channel_dict = {ch0: 0, ch1: 1, ch2: 2, ch3: 3, ch4: 4, ch5: 5, \
 
 # Limits and Ranges (depends on the exact model):
 clock = float(specific_parameters['clock'])
-timebase = int(float(specific_parameters['timebase'])) # in ns
+timebase = int(float(specific_parameters['timebase'])) # in ns/clock; convertion of clock to ns
 repetition_rate = specific_parameters['default_rep_rate']
 auto_defense = specific_parameters['auto_defense']
 max_pulse_length = int(float(specific_parameters['max_pulse_length'])) # in ns
 min_pulse_length = int(float(specific_parameters['min_pulse_length'])) # in ns
-# minimal distance between two pulses of AMP_ON and LNA_PROTECT
+
+# minimal distance between two pulses of MW
 # pulse blaster restriction
-minimal_distance = int(float(specific_parameters['minimal_distance'])/timebase) # in ns
-minimal_distance_2 = 100 
+minimal_distance = int(float(specific_parameters['minimal_distance'])/timebase) # in clock
+
+# a constant that use to overcome short instruction for our diagonal amp_on and mw pulses
+# see also add_amp_on_pulses() function; looking for pulses with +-overlap_amp_lna_mw overlap
+overlap_amp_lna_mw = 5 # in clock
+
+# after all manupulations with diagonal amp_on pulses there is a variant
+# when we use several mw pulses with app. 40 ns distance and with the phase different from
+# +x. In this case two phase pulses start to be at the distance less than current minimal distance
+# in 40 ns. That is why a different minimal distance (10 ns) is added for phase pulses
+# see also preparing_to_bit_pulse() function
+minimal_distance_phase = 5 # in clock
+
+# minimal distance for joining AMP_ON and LNA_PROTECT pulses
+# decided to keep it as 12 ns, while for MW pulses the limit is 40 ns
+minimal_distance_amp_lna = 6 # in clock
 
 # Delays and restrictions
-constant_shift = int(250/timebase) # in ns; shift of all sequence for not getting negative start times
-switch_delay = int(float(specific_parameters['switch_delay'])/timebase) # in ns; delay for AMP_ON turning on
-amp_delay = int(float(specific_parameters['amp_delay'])/timebase) # in ns; delay for AMP_ON turning off
-protect_delay = int(float(specific_parameters['protect_delay'])/timebase) # in ns;delay for LNA_PROTECT turning off
-switch_phase_delay = int(float(specific_parameters['switch_phase_delay'])/timebase) # in ns; delay for FAST_PHASE turning on
-phase_delay = int(float(specific_parameters['phase_delay'])/timebase) # in ns; delay for FAST_PHASE turning off
+constant_shift = int(250/timebase) # in clock; shift of all sequence for not getting negative start times
+switch_delay = int(float(specific_parameters['switch_delay'])/timebase) # in clock; delay for AMP_ON turning on; switch_delay BEFORE MW pulse
+amp_delay = int(float(specific_parameters['amp_delay'])/timebase) # in clock; delay for AMP_ON turning off; amp_delay AFTER MW pulse
+protect_delay = int(float(specific_parameters['protect_delay'])/timebase) # in clock; delay for LNA_PROTECT turning off; protect_delay AFTER MW pulse
+switch_phase_delay = int(float(specific_parameters['switch_phase_delay'])) # in ns; delay for FAST_PHASE turning on; switch_phase_delay BEFORE MW pulse
+phase_delay = int(float(specific_parameters['phase_delay'])) # in ns; delay for FAST_PHASE turning off; phase_delay AFTER MW pulse
 
 # interval that shift the first pulse in the sequence
 # start times of other pulses can be calculated from this time.
@@ -129,6 +144,9 @@ class PB_ESR_500_Pro:
             self.pulse_array_init = deepcopy( self.pulse_array )
             # pulse_name array
             self.pulse_name_array.append( pulse['name'] )
+            # for correcting AMP_ON (PB restriction in 10 ns minimal instruction) according to phase pulses
+            if channel == 'MW':
+                self.phase_array_length.append(len(list(phase_list)))
 
         elif test_flag == 'test':
 
@@ -391,7 +409,14 @@ class PB_ESR_500_Pro:
                 
                 #to_spinapi = self.instruction_pulse( temp, rep_time )
                 to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
-                general.message( to_spinapi )
+                general.message(to_spinapi)
+                for element in to_spinapi:
+                    if element[2] < 10:
+                        ###general.message('Incorrect instruction are found')
+                        general.message('ALARM')
+                        ###self.pulser_stop()
+
+                #general.message( to_spinapi )
                 #self.pulser_stop()
                 # initialization
                 #pb_init()
@@ -463,6 +488,9 @@ class PB_ESR_500_Pro:
                 # using a special functions for convertion to instructions
                 #to_spinapi = self.instruction_pulse( self.convert_to_bit_pulse( self.pulse_array ) )
                 to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
+                for element in to_spinapi:
+                    if element[2] < 10:
+                        assert( 1 == 2), 'Incorrect instruction are found'
 
                 self.reset_count = 1
                 self.shift_count = 0
@@ -1121,7 +1149,7 @@ class PB_ESR_500_Pro:
     def check_problem_pulses(self, np_array):
         """
         A function for checking whether there is a two
-        close to each other pulses (less than 12 ns)
+        close to each other pulses (less than 40 ns)
         In Auto_defense = True we checked everything except
         AMN_ON and LNA_PROTECT
         """
@@ -1132,7 +1160,7 @@ class PB_ESR_500_Pro:
 
             # compare the end time with the start time for each couple of pulses
             for index, element in enumerate(sorted_np_array[:-1]):
-                # minimal_distance is 12 ns now
+                # minimal_distance is 40 ns now
                 if sorted_np_array[index + 1][1] - element[2] < minimal_distance:
                     assert(1 == 2), 'Overlapping pulses or two pulses with less than ' + str(minimal_distance*2) + ' ns distance'
                 else:
@@ -1145,9 +1173,44 @@ class PB_ESR_500_Pro:
 
             # compare the end time with the start time for each couple of pulses
             for index, element in enumerate(sorted_np_array[:-1]):
-                # minimal_distance is 12 ns now
+                # minimal_distance is 40 ns now
                 if sorted_np_array[index + 1][1] - element[2] < minimal_distance:
                     assert(1 == 2), 'Overlapping pulses or two pulses with less than ' + str(minimal_distance*2) + ' ns distance'
+                else:
+                    pass
+
+            return np_array
+
+    def check_problem_pulses_phase(self, np_array):
+        """
+        A function for checking whether there is a two
+        close to each other pulses (less than 10 ns)
+        In Auto_defense = True by this function we checked only 
+        -X +Y -Y pulses since they have different minimal distance
+        """
+        if test_flag != 'test':
+            # sorted pulse list in order to be able to have an arbitrary pulse order inside
+            # the definition in the experimental script
+            sorted_np_array = np.asarray(sorted(np_array, key = lambda x: int(x[1])), dtype = np.int64)
+
+            # compare the end time with the start time for each couple of pulses
+            for index, element in enumerate(sorted_np_array[:-1]):
+                # minimal_distance is 10 ns now
+                if sorted_np_array[index + 1][1] - element[2] < minimal_distance_phase:
+                    assert(1 == 2), 'Overlapping pulses or two pulses with less than ' + str(minimal_distance_phase*2) + ' ns distance'
+                else:
+                    pass
+
+            return sorted_np_array
+
+        elif test_flag == 'test':
+            sorted_np_array = np.asarray(sorted(np_array, key = lambda x: int(x[1])), dtype = np.int64)
+
+            # compare the end time with the start time for each couple of pulses
+            for index, element in enumerate(sorted_np_array[:-1]):
+                # minimal_distance is 10 ns now
+                if sorted_np_array[index + 1][1] - element[2] < minimal_distance_phase:
+                    assert(1 == 2), 'Overlapping pulses or two pulses with less than ' + str(minimal_distance_phase*2) + ' ns distance'
                 else:
                     pass
 
@@ -1176,6 +1239,9 @@ class PB_ESR_500_Pro:
         using add_amp_on_pulses() / add_lna_protect_pulses() and check
         them on the distance < 12 ns, if so they are combined in one pulse inside 
         instruction_pulse_short_lna_amp() function
+
+        for phase pulses the minimal distance for checking is 10 ns
+        for mw - 40 ns
         """
         if test_flag != 'test':
             if auto_defense == 'False':
@@ -1183,12 +1249,10 @@ class PB_ESR_500_Pro:
 
                 # iterate over all pulses at different channels
                 for index, element in enumerate(split_pulse_array):
-                    # for all pulses just check 12 ns distance
+                    # for all pulses just check 40 ns distance
                     self.check_problem_pulses(element)
-                    # get assertion error if the distance < 12 ns
+                    # get assertion error if the distance < 40 ns
                     
-                # combine all pulses
-                #np.concatenate( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final), axis = None) 
                 return self.convertion_to_numpy( np_array )
 
             elif auto_defense == 'True':
@@ -1196,13 +1260,9 @@ class PB_ESR_500_Pro:
 
                 # iterate over all pulses at different channels
                 for index, element in enumerate(split_pulse_array):
-                    if element[0, 0] != 2**channel_dict['MW']:
-                        pass
-                        # for non-MW pulses just check 12 ns distance
-                        self.check_problem_pulses(element)
-                        # get assertion error if the distance < 12 ns
-                    else:
-                        # for MW pulses check 12 ns distance and add AMP_ON, LNA_PROTECT pulses
+                    if element[0, 0] == 2**channel_dict['MW']:
+
+                        # for MW pulses check 40 ns distance and add AMP_ON, LNA_PROTECT pulses
                         self.check_problem_pulses(element)
                         # add AMP_ON and LNA_PROTECT
                         amp_on_pulses = self.add_amp_on_pulses(element)
@@ -1220,8 +1280,9 @@ class PB_ESR_500_Pro:
                         if prob_pulses_amp[0][0] == 0:
                             cor_pulses_amp_final = cor_pulses_amp
                         elif cor_pulses_amp[0][0] == 0:
-                            cor_pulses_amp_final = np.concatenate((self.instruction_pulse_short_lna_amp(self.convert_to_bit_pulse_amp_lna(prob_pulses_amp, \
-                                channel_dict['AMP_ON']))), axis = 0)                    
+                            # nothing to concatenate
+                            cor_pulses_amp_final = self.instruction_pulse_short_lna_amp(self.convert_to_bit_pulse_amp_lna(prob_pulses_amp, \
+                                channel_dict['AMP_ON']))                   
                         else:
                             cor_pulses_amp_final = np.concatenate((cor_pulses_amp, self.instruction_pulse_short_lna_amp(self.convert_to_bit_pulse_amp_lna(prob_pulses_amp, \
                                 channel_dict['AMP_ON']))), axis = 0)
@@ -1230,14 +1291,25 @@ class PB_ESR_500_Pro:
                         if prob_pulses_lna[0][0] == 0:
                             cor_pulses_lna_final = cor_pulses_lna
                         elif cor_pulses_lna[0][0] == 0:
-                            cor_pulses_lna_final =  np.concatenate((self.instruction_pulse_short_lna_amp(self.convert_to_bit_pulse_amp_lna(prob_pulses_lna, \
-                                channel_dict['LNA_PROTECT']))), axis = 0)                    
+                            # nothing to concatenate
+                            cor_pulses_lna_final =  self.instruction_pulse_short_lna_amp(self.convert_to_bit_pulse_amp_lna(prob_pulses_lna, \
+                                channel_dict['LNA_PROTECT']))
                         else:
                             cor_pulses_lna_final =  np.concatenate((cor_pulses_lna, self.instruction_pulse_short_lna_amp(self.convert_to_bit_pulse_amp_lna(prob_pulses_lna, \
                                 channel_dict['LNA_PROTECT']))), axis = 0)
 
+                    elif element[0, 0] == 2**channel_dict['-X'] or element[0, 0] == 2**channel_dict['+Y']:
+                        pass
+                        # for phase pulses just check 10 ns distance
+                        # self.check_problem_pulses(element)
+                        # get assertion error if the distance < 10 ns
+                    else:
+                        pass
+                        # for non-MW pulses just check 40 ns distance
+                        #self.check_problem_pulses(element)
+                        # get assertion error if the distance < 40 ns
+
                 # combine all pulses
-                combined = np.row_stack( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final))
                 #np.concatenate( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final), axis = None)
                 return np.row_stack( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final))
 
@@ -1247,22 +1319,18 @@ class PB_ESR_500_Pro:
 
                 # iterate over all pulses at different channels
                 for index, element in enumerate(split_pulse_array):
-                    # for all pulses just check 12 ns distance
+                    # for all pulses just check 40 ns distance
                     self.check_problem_pulses(element)
-                    # get assertion error if the distance < 12 ns
+                    # get assertion error if the distance < 40 ns
                     
-                # combine all pulses
-                #np.concatenate( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final), axis = None) 
                 return self.convertion_to_numpy( np_array )
 
             elif auto_defense == 'True':
                 split_pulse_array = self.splitting_acc_to_channel( self.convertion_to_numpy( np_array ) )
 
                 for index, element in enumerate(split_pulse_array):
-                    if element[0, 0] != 2**channel_dict['MW']:
-                        # for non-MW pulses just check 12 ns distance
-                        self.check_problem_pulses(element)
-                    else:
+                    if element[0, 0] == 2**channel_dict['MW']:
+
                         self.check_problem_pulses(element)
                         amp_on_pulses = self.add_amp_on_pulses(element)
                         lna_pulses = self.add_lna_protect_pulses(element)
@@ -1275,8 +1343,8 @@ class PB_ESR_500_Pro:
                         if prob_pulses_amp[0][0] == 0:
                             cor_pulses_amp_final = cor_pulses_amp
                         elif cor_pulses_amp[0][0] == 0:
-                            cor_pulses_amp_final = np.concatenate((self.instruction_pulse_short_lna_amp(self.convert_to_bit_pulse_amp_lna(prob_pulses_amp, \
-                                channel_dict['AMP_ON']))), axis = 0)                    
+                            cor_pulses_amp_final = self.instruction_pulse_short_lna_amp(self.convert_to_bit_pulse_amp_lna(prob_pulses_amp, \
+                                channel_dict['AMP_ON']))
                         else:
                             cor_pulses_amp_final = np.concatenate((cor_pulses_amp, self.instruction_pulse_short_lna_amp(self.convert_to_bit_pulse_amp_lna(prob_pulses_amp, \
                                 channel_dict['AMP_ON']))), axis = 0)
@@ -1285,11 +1353,18 @@ class PB_ESR_500_Pro:
                         if prob_pulses_lna[0][0] == 0:
                             cor_pulses_lna_final = cor_pulses_lna
                         elif cor_pulses_lna[0][0] == 0:
-                            cor_pulses_lna_final =  np.concatenate((self.instruction_pulse_short_lna_amp(self.convert_to_bit_pulse_amp_lna(prob_pulses_lna, \
-                                channel_dict['LNA_PROTECT']))), axis = 0)                    
+                            cor_pulses_lna_final = self.instruction_pulse_short_lna_amp(self.convert_to_bit_pulse_amp_lna(prob_pulses_lna, \
+                                channel_dict['LNA_PROTECT']))
                         else:
                             cor_pulses_lna_final =  np.concatenate((cor_pulses_lna, self.instruction_pulse_short_lna_amp(self.convert_to_bit_pulse_amp_lna(prob_pulses_lna, \
                                 channel_dict['LNA_PROTECT']))), axis = 0)
+                    
+                    elif element[0, 0] == 2**channel_dict['-X'] or element[0, 0] == 2**channel_dict['+Y']:
+                        # for phases pulses just check 10 ns distance
+                        self.check_problem_pulses_phase(element)
+                    else:
+                        # for non-MW pulses just check 40 ns distance
+                        self.check_problem_pulses(element)
 
                 # combine all pulses
                 #np.concatenate( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final), axis = None) 
@@ -1666,9 +1741,6 @@ class PB_ESR_500_Pro:
 
             return final_pulse_array
 
-    def roundup(self, x):
-        return int(math.ceil(x / 10.0)) * 10
-
     def add_amp_on_pulses(self, p_list):
         """
         A function that automatically add AMP_ON pulses with corresponding delays
@@ -1685,26 +1757,62 @@ class PB_ESR_500_Pro:
                         amp_on_list.append( [2**(channel_dict['AMP_ON']), element[1] - switch_delay, element[2] + amp_delay] )
                     else:
                         pass
+
                 # additional checking and correcting amp_on pulse in the case
                 # when amp_on pulses are diagonally shifted to mw pulses
                 # in this case there can be nasty short overpal of amp_on pulse 2
                 # and mw pulse 1 and so on
                 for element in amp_on_list:
                     for element_mw in p_list:
-                        if (element_mw[1] - element[1] <= 5) and (element_mw[1] - element[1] > 0):
-                            element[1] = element[1] - 5
-                        elif (element_mw[1] - element[1] >= -5) and (element_mw[1] - element[1] < 0):
+                        if (element_mw[1] - element[1] <= overlap_amp_lna_mw) and (element_mw[1] - element[1] > 0):
+                            element[1] = element[1] - overlap_amp_lna_mw
+                        elif (element_mw[1] - element[1] >= -overlap_amp_lna_mw) and (element_mw[1] - element[1] < 0):
                             element[1] = element_mw[1]
-                        elif abs(element[2] - element_mw[1]) <= 5:
+                        elif (element_mw[1] - element[2]) <= overlap_amp_lna_mw and (element_mw[1] - element[2] > 0):
+                            element[2] = element_mw[1]
+                        elif (element_mw[1] - element[2]) >= -overlap_amp_lna_mw and (element_mw[1] - element[2] < 0):
+                            # restriction on the pulse length in order to not jump into another restriction....
+                            if element_mw[2] - element_mw[1] <= 30:
+                                element[2] = element_mw[2]
+                            else:
+                                element[2] = element[2] + overlap_amp_lna_mw
+
+                        # checking of start and end should be splitted into two checks
+                        # in case of double start/end restriction
+                        if (element_mw[2] - element[2] <= overlap_amp_lna_mw) and (element_mw[2] - element[2] > 0):
                             element[2] = element_mw[2]
-                        elif (element_mw[2] - element[2] <= 5) and (element_mw[2] - element[2] > 0):
-                            element[2] = element_mw[2]
-                        elif (element_mw[2] - element[2] >= -5) and (element_mw[2] - element[2] < 0):
-                            element[2] = element[2] + 5
-                        elif abs(element_mw[2] - element[1]) <= 5:
-                            element[1] = element_mw[1]
-                
-                #general.message( amp_on_list )
+                        elif (element_mw[2] - element[2] >= -overlap_amp_lna_mw) and (element_mw[2] - element[2] < 0):
+                            element[2] = element[2] + overlap_amp_lna_mw
+                        elif (element_mw[2] - element[1]) <= overlap_amp_lna_mw and (element_mw[2] - element[1] > 0):
+                            # restriction on the pulse length in order to not jump into another restriction....
+                            if element_mw[2] - element_mw[1] <= 30:
+                                element[1] = element_mw[1]
+                            else:
+                                element[1] = element[1] - overlap_amp_lna_mw
+                        elif (element_mw[2] - element[1]) >= -overlap_amp_lna_mw and (element_mw[2] - element[1] < 0):
+                            element[1] = element_mw[2]
+
+                # additional checking for phase and amp_on pulses after
+                # overlap correction
+                if len(self.phase_array_length) > 0:
+                    split_pulse_array = self.splitting_acc_to_channel( self.convertion_to_numpy( self.pulse_array ) )
+                    # iterate over all pulses at different channels and taking phase pulses
+                    for index, element in enumerate(split_pulse_array):
+                        if ( element[0, 0] == 2**channel_dict['-X'] ) or ( element[0, 0] == 2**channel_dict['+Y'] ):
+                            for element_phase in element:
+                                for element_amp in amp_on_list:
+                                    if (element_phase[1] - element_amp[2] <= overlap_amp_lna_mw) and (element_phase[1] - element_amp[2] > 0):
+                                        element_amp[2] = element_phase[1] + overlap_amp_lna_mw
+                                    elif (element_phase[1] - element_amp[2] >= -overlap_amp_lna_mw) and (element_phase[1] - element_amp[2] < 0):
+                                        element_amp[2] = element_amp[2] + overlap_amp_lna_mw
+                                    # checking of start and end should be splitted into two checks
+                                    # in case of double start/end restriction
+                                    if (element_phase[1] - element_amp[1] <= overlap_amp_lna_mw) and (element_phase[1] - element_amp[1] > 0):
+                                        element_amp[1] = element_amp[1] - overlap_amp_lna_mw
+                                    elif (element_phase[1] - element_amp[1] >= -overlap_amp_lna_mw) and (element_phase[1] - element_amp[1] < 0):
+                                        element_amp[1] = element_phase[1]                                
+                        else:
+                            pass
 
                 return np.asarray(amp_on_list)
 
@@ -1724,18 +1832,49 @@ class PB_ESR_500_Pro:
 
                 for element in amp_on_list:
                     for element_mw in p_list:
-                        if (element_mw[1] - element[1] <= 5) and (element_mw[1] - element[1] > 0):
-                            element[1] = element[1] - 5
-                        elif (element_mw[1] - element[1] >= -5) and (element_mw[1] - element[1] < 0):
+                        if (element_mw[1] - element[1] <= overlap_amp_lna_mw) and (element_mw[1] - element[1] > 0):
+                            element[1] = element[1] - overlap_amp_lna_mw
+                        elif (element_mw[1] - element[1] >= -overlap_amp_lna_mw) and (element_mw[1] - element[1] < 0):
                             element[1] = element_mw[1]
-                        elif abs(element[2] - element_mw[1]) <= 5:
+                        elif (element_mw[1] - element[2]) <= overlap_amp_lna_mw and (element_mw[1] - element[2] > 0):
+                            element[2] = element_mw[1]
+                        elif (element_mw[1] - element[2]) >= -overlap_amp_lna_mw and (element_mw[1] - element[2] < 0):
+                            if element_mw[2] - element_mw[1] <= 30:
+                                element[2] = element_mw[2]
+                            else:
+                                element[2] = element[2] + overlap_amp_lna_mw
+                        # checking of start and end should be splitted into two checks
+                        # in case of double start/end restriction
+                        if (element_mw[2] - element[2] <= overlap_amp_lna_mw) and (element_mw[2] - element[2] > 0):
                             element[2] = element_mw[2]
-                        elif (element_mw[2] - element[2] <= 5) and (element_mw[2] - element[2] > 0):
-                            element[2] = element_mw[2]
-                        elif (element_mw[2] - element[2] >= -5) and (element_mw[2] - element[2] < 0):
-                            element[2] = element[2] + 5
-                        elif abs(element_mw[2] - element[1]) <= 5:
-                            element[1] = element_mw[1]
+                        elif (element_mw[2] - element[2] >= -overlap_amp_lna_mw) and (element_mw[2] - element[2] < 0):
+                            element[2] = element[2] + overlap_amp_lna_mw
+                        elif (element_mw[2] - element[1]) <= overlap_amp_lna_mw and (element_mw[2] - element[1] > 0):
+                            if element_mw[2] - element_mw[1] <= 30:
+                                element[1] = element_mw[1]
+                            else:
+                                element[1] = element[1] - overlap_amp_lna_mw
+                        elif (element_mw[2] - element[1]) >= -overlap_amp_lna_mw and (element_mw[2] - element[1] < 0):
+                            element[1] = element_mw[2]
+
+                if len(self.phase_array_length) > 0:
+                    split_pulse_array = self.splitting_acc_to_channel( self.convertion_to_numpy( self.pulse_array ) )
+                    # iterate over all pulses at different channels and taking phase pulses
+                    for index, element in enumerate(split_pulse_array):
+                        if ( element[0, 0] == 2**channel_dict['-X'] ) or ( element[0, 0] == 2**channel_dict['+Y'] ):
+                            for element_phase in element:
+                                for element_amp in amp_on_list:
+                                    if (element_phase[1] - element_amp[2] <= overlap_amp_lna_mw) and (element_phase[1] - element_amp[2] > 0):
+                                        element_amp[2] = element_phase[1] + overlap_amp_lna_mw
+                                    elif (element_phase[1] - element_amp[2] >= -overlap_amp_lna_mw) and (element_phase[1] - element_amp[2] < 0):
+                                        element_amp[2] = element_amp[2] + overlap_amp_lna_mw
+
+                                    if (element_phase[1] - element_amp[1] <= overlap_amp_lna_mw) and (element_phase[1] - element_amp[1] > 0):
+                                        element_amp[1] = element_amp[1] - overlap_amp_lna_mw
+                                    elif (element_phase[1] - element_amp[1] >= -overlap_amp_lna_mw) and (element_phase[1] - element_amp[1] < 0):
+                                        element_amp[1] = element_phase[1]                                
+                        else:
+                            pass
 
                 return np.asarray(amp_on_list)
 
@@ -1760,18 +1899,54 @@ class PB_ESR_500_Pro:
                 # and mw pulse 1 and so on
                 for element in lna_protect_list:
                     for element_mw in p_list:
-                        if (element_mw[1] - element[1] <= 5) and (element_mw[1] - element[1] > 0):
-                            element[1] = element[1] - 5
-                        elif (element_mw[1] - element[1] >= -5) and (element_mw[1] - element[1] < 0):
+                        if (element_mw[1] - element[1] <= overlap_amp_lna_mw) and (element_mw[1] - element[1] > 0):
+                            element[1] = element[1] - overlap_amp_lna_mw
+                        elif (element_mw[1] - element[1] >= -overlap_amp_lna_mw) and (element_mw[1] - element[1] < 0):
                             element[1] = element_mw[1]
-                        elif abs(element[2] - element_mw[1]) <= 5:
+                        elif (element_mw[1] - element[2]) <= overlap_amp_lna_mw and (element_mw[1] - element[2] > 0):
+                            element[2] = element_mw[1]
+                        elif (element_mw[1] - element[2]) >= -overlap_amp_lna_mw and (element_mw[1] - element[2] < 0):
+                            # restriction on the pulse length in order to not jump into another restriction....
+                            if element_mw[2] - element_mw[1] <= 30:
+                                element[2] = element_mw[2]
+                            else:
+                                element[2] = element[2] + overlap_amp_lna_mw
+                        # checking of start and end should be splitted into two checks
+                        # in case of double start/end restriction
+                        if (element_mw[2] - element[2] <= overlap_amp_lna_mw) and (element_mw[2] - element[2] > 0):
                             element[2] = element_mw[2]
-                        elif (element_mw[2] - element[2] <= 5) and (element_mw[2] - element[2] > 0):
-                            element[2] = element_mw[2]
-                        elif (element_mw[2] - element[2] >= -5) and (element_mw[2] - element[2] < 0):
-                            element[2] = element[2] + 5
-                        elif abs(element_mw[2] - element[1]) <= 5:
-                            element[1] = element_mw[1]
+                        elif (element_mw[2] - element[2] >= -overlap_amp_lna_mw) and (element_mw[2] - element[2] < 0):
+                            element[2] = element[2] + overlap_amp_lna_mw
+                        elif (element_mw[2] - element[1]) <= overlap_amp_lna_mw and (element_mw[2] - element[1] > 0):
+                            # restriction on the pulse length in order to not jump into another restriction....
+                            if element_mw[2] - element_mw[1] <= 30:
+                                element[1] = element_mw[1]
+                            else:
+                                element[1] = element[1] - overlap_amp_lna_mw
+                        elif (element_mw[2] - element[1]) >= -overlap_amp_lna_mw and (element_mw[2] - element[1] < 0):
+                            element[1] = element_mw[2]
+
+                # additional checking for phase and lna_protect pulses after
+                # overlap correction
+                if len(self.phase_array_length) > 0:
+                    split_pulse_array = self.splitting_acc_to_channel( self.convertion_to_numpy( self.pulse_array ) )
+                    # iterate over all pulses at different channels and taking phase pulses
+                    for index, element in enumerate(split_pulse_array):
+                        if ( element[0, 0] == 2**channel_dict['-X'] ) or ( element[0, 0] == 2**channel_dict['+Y'] ):
+                            for element_phase in element:
+                                for element_lna in lna_protect_list:
+                                    if (element_phase[1] - element_lna[2] <= overlap_amp_lna_mw) and (element_phase[1] - element_lna[2] > 0):
+                                        element_lna[2] = element_phase[1] + overlap_amp_lna_mw
+                                    elif (element_phase[1] - element_lna[2] >= -overlap_amp_lna_mw) and (element_phase[1] - element_lna[2] < 0):
+                                        element_lna[2] = element_lna[2] + overlap_amp_lna_mw
+                                    # checking of start and end should be splitted into two checks
+                                    # in case of double start/end restriction
+                                    if (element_phase[1] - element_lna[1] <= overlap_amp_lna_mw) and (element_phase[1] - element_lna[1] > 0):
+                                        element_lna[1] = element_lna[1] - overlap_amp_lna_mw
+                                    elif (element_phase[1] - element_lna[1] >= -overlap_amp_lna_mw) and (element_phase[1] - element_lna[1] < 0):
+                                        element_lna[1] = element_phase[1]                                
+                        else:
+                            pass
 
             return np.asarray(lna_protect_list)
 
@@ -1788,18 +1963,49 @@ class PB_ESR_500_Pro:
 
                 for element in lna_protect_list:
                     for element_mw in p_list:
-                        if (element_mw[1] - element[1] <= 5) and (element_mw[1] - element[1] > 0):
-                            element[1] = element[1] - 5
-                        elif (element_mw[1] - element[1] >= -5) and (element_mw[1] - element[1] < 0):
+                        if (element_mw[1] - element[1] <= overlap_amp_lna_mw) and (element_mw[1] - element[1] > 0):
+                            element[1] = element[1] - overlap_amp_lna_mw
+                        elif (element_mw[1] - element[1] >= -overlap_amp_lna_mw) and (element_mw[1] - element[1] < 0):
                             element[1] = element_mw[1]
-                        elif abs(element[2] - element_mw[1]) <= 5:
+                        elif (element_mw[1] - element[2]) <= overlap_amp_lna_mw and (element_mw[1] - element[2] > 0):
+                            element[2] = element_mw[1]
+                        elif (element_mw[1] - element[2]) >= -overlap_amp_lna_mw and (element_mw[1] - element[2] < 0):
+                            if element_mw[2] - element_mw[1] <= 30:
+                                element[2] = element_mw[2]
+                            else:
+                                element[2] = element[2] + overlap_amp_lna_mw
+                        # checking of start and end should be splitted into two checks
+                        # in case of double start/end restriction
+                        if (element_mw[2] - element[2] <= overlap_amp_lna_mw) and (element_mw[2] - element[2] > 0):
                             element[2] = element_mw[2]
-                        elif (element_mw[2] - element[2] <= 5) and (element_mw[2] - element[2] > 0):
-                            element[2] = element_mw[2]
-                        elif (element_mw[2] - element[2] >= -5) and (element_mw[2] - element[2] < 0):
-                            element[2] = element[2] + 5
-                        elif abs(element_mw[2] - element[1]) <= 5:
-                            element[1] = element_mw[1]
+                        elif (element_mw[2] - element[2] >= -overlap_amp_lna_mw) and (element_mw[2] - element[2] < 0):
+                            element[2] = element[2] + overlap_amp_lna_mw
+                        elif (element_mw[2] - element[1]) <= overlap_amp_lna_mw and (element_mw[2] - element[1] > 0):
+                            if element_mw[2] - element_mw[1] <= 30:
+                                element[1] = element_mw[1]
+                            else:
+                                element[1] = element[1] - overlap_amp_lna_mw
+                        elif (element_mw[2] - element[1]) >= -overlap_amp_lna_mw and (element_mw[2] - element[1] < 0):
+                            element[1] = element_mw[2]
+
+                if len(self.phase_array_length) > 0:
+                    split_pulse_array = self.splitting_acc_to_channel( self.convertion_to_numpy( self.pulse_array ) )
+                    # iterate over all pulses at different channels and taking phase pulses
+                    for index, element in enumerate(split_pulse_array):
+                        if ( element[0, 0] == 2**channel_dict['-X'] ) or ( element[0, 0] == 2**channel_dict['+Y'] ):
+                            for element_phase in element:
+                                for element_lna in lna_protect_list:
+                                    if (element_phase[1] - element_lna[2] <= overlap_amp_lna_mw) and (element_phase[1] - element_lna[2] > 0):
+                                        element_lna[2] = element_phase[1] + overlap_amp_lna_mw
+                                    elif (element_phase[1] - element_lna[2] >= -overlap_amp_lna_mw) and (element_phase[1] - element_lna[2] < 0):
+                                        element_lna[2] = element_lna[2] + overlap_amp_lna_mw
+
+                                    if (element_phase[1] - element_lna[1] <= overlap_amp_lna_mw) and (element_phase[1] - element_lna[1] > 0):
+                                        element_lna[1] = element_lna[1] - overlap_amp_lna_mw
+                                    elif (element_phase[1] - element_lna[1] >= -overlap_amp_lna_mw) and (element_phase[1] - element_lna[1] < 0):
+                                        element_lna[1] = element_phase[1]                                
+                        else:
+                            pass
 
                 return np.asarray(lna_protect_list)
 
@@ -1817,32 +2023,27 @@ class PB_ESR_500_Pro:
                 pass
             elif auto_defense == 'True':
                 problem_list = []
+                # memorize index of problem elements
+                problem_index = []
                 # numpy arrays don't support element deletion
                 no_problem_list = deepcopy(p_list.tolist())
-                # there can be errors
+
+                # there STILL can be errors
                 # now compare two consequnce pulses (end and start + 1)
                 for index, element in enumerate(p_list[:-1]):
-                    # minimal_distance is 12 ns now
-                    if p_list[index + 1][1] - element[2] < minimal_distance:
+
+                    # minimal_distance_amp_lna is 12 ns now
+                    if p_list[index + 1][1] - element[2] < minimal_distance_amp_lna:
                         problem_list.append(element)
                         problem_list.append(p_list[index + 1])
+                        # memorize indexes of the problem pulses
+                        problem_index.append(index)
+                        problem_index.append(index + 1)
 
-                        # several restriction for correct splitting into the problematic part and correct part
-                        # should be checked if an incorrect behaviour appears
-                        if len(no_problem_list) > index:
-                            del no_problem_list[index]
-                        elif len(no_problem_list) == 0:
-                            pass
-                        else:
-                            del no_problem_list[index - 1]
-                       
-                        # several restriction for correct splitting into the problematic part and correct part
-                        if len(no_problem_list) > index:
-                            del no_problem_list[index]
-                        elif len(no_problem_list) == 0:
-                            pass
-                        else:
-                            del no_problem_list[index - 1]
+                # delete duplicates in the index list: list(dict.fromkeys(problem_index)) )
+                # delete problem pulses from no_problem_list
+                # np.delete( no_problem_list, list(dict.fromkeys(problem_index)), axis = 0 ).tolist() )
+                no_problem_list = np.delete( no_problem_list, list(dict.fromkeys(problem_index)), axis = 0 ).tolist()
 
                 # for not returning an empty list
                 # the same conditions are used in preparing_to_bit_pulse()
@@ -1858,29 +2059,20 @@ class PB_ESR_500_Pro:
                 pass
             elif auto_defense == 'True':            
                 problem_list = []
+                problem_index = []
                 # numpy arrays don't support element deletion
                 no_problem_list = deepcopy(p_list.tolist())
 
                 for index, element in enumerate(p_list[:-1]):
-                    # minimal_distance is 12 ns now
-                    if p_list[index + 1][1] - element[2] < (minimal_distance):
+                    # minimal_distance_amp_lna is 12 ns now
+                    if p_list[index + 1][1] - element[2] < (minimal_distance_amp_lna):
                         problem_list.append(element)
                         problem_list.append(p_list[index + 1])
-                        # several restriction for correct splitting into the problematic part and correct part
-                        if len(no_problem_list) > index:
-                            del no_problem_list[index]
-                        elif len(no_problem_list) == 0:
-                            pass
-                        else:
-                            del no_problem_list[index - 1]
-                       
-                        # several restriction for correct splitting into the problematic part and correct part
-                        if len(no_problem_list) > index:
-                            del no_problem_list[index]
-                        elif len(no_problem_list) == 0:
-                            pass
-                        else:
-                            del no_problem_list[index - 1]
+                        # memorize indexes of the problem pulses
+                        problem_index.append(index)
+                        problem_index.append(index + 1)
+
+                no_problem_list = np.delete( no_problem_list, list(dict.fromkeys(problem_index)), axis = 0 ).tolist()
 
                 if len(problem_list) == 0:
                     return self.delete_duplicates(np.asarray(no_problem_list)), np.array([[0]])
@@ -1900,7 +2092,7 @@ class PB_ESR_500_Pro:
         Finally, a bit_array is multiplied by a 2**ch in order to
         calculate CH instructions for SpinAPI.
         
-        It is used to check (check_short_pulses()) whether there <re two AMP_ON or LNA_PROTECT pulses
+        It is used to check (check_short_pulses()) whether there are two AMP_ON or LNA_PROTECT pulses
         with the distanse less than 12 ns between them
         If so they are combined in one pulse by joining_pulses()
 
@@ -2011,7 +2203,7 @@ class PB_ESR_500_Pro:
     def check_short_pulses(self, np_array, channel):
         """
         A function for checking whether there is two pulses with
-        the distance between them shorther than 12 ns
+        the distance between them shorther than 40 ns
 
         If there are such pulses on MW channel an error will be raised
         LNA_PROTECT and AMP_ON pulsess will be combined in one pulse
@@ -2096,6 +2288,8 @@ class PB_ESR_500_Pro:
         """
         A special function for parsing some parameter (i.e. start, length) value from the pulse
         and changing them according to specified delay
+
+        It is used in phase cycling
         """
         if test_flag != 'test':
             temp = parameter.split(' ')

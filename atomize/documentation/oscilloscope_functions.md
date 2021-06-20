@@ -2,7 +2,7 @@
 
 Available devices:
 - Keysight InfiniiVision 2000 X-Series (Ethernet); Untested
-- Keysight InfiniiVision 3000 X-Series (Ethernet); Tested
+- Keysight InfiniiVision 3000 X-Series (Ethernet); Tested 06/2021
 - Keysight InfiniiVision 4000 X-Series (Ethernet); Untested
 - Tektronix 4000 Series (Ethernet); Tested 01/2021
 
@@ -19,6 +19,7 @@ Functions:
 - [oscilloscope_stop()](#oscilloscope_stop)<br/>
 - [oscilloscope_run()](#oscilloscope_run)<br/>
 - [oscilloscope_get_curve(channel)](#oscilloscope_get_curvechannel)<br/>
+- [oscilloscope_area(channel)](#oscilloscope_areachannel)<br/>
 - [oscilloscope_sensitivity(*channel)](#oscilloscope_sensitivitychannel)<br/>
 - [oscilloscope_offset(*channel)](#oscilloscope_offsetchannel)<br/>
 - [oscilloscope_horizontal_offset(*h_offset)](#oscilloscope_horizontal_offseth_offset)<br/>
@@ -123,7 +124,14 @@ oscilloscope_get_curve(channel)
 Arguments: channel = string (['CH1, CH2, CH3, CH4']); Output: two arrays of floats (in s and V).
 Example: oscilloscope_get_curve('CH2') returs the data from channel 2.
 ```
-The function returns a curve (x and y axis independently) from the specified channel of the oscilloscope. At the moment, it expects one argument, namely the channel from which the data should be transferred. The data from two channels can be transferred sequentially.<br/>
+The function returns a curve (x and y axis independently) from specified channel of the oscilloscope. At the moment, it expects one argument, namely the channel from which the data should be transferred. The data from two channels can be transferred sequentially.<br/>
+### oscilloscope_area(channel)
+```python3
+oscilloscope_area(channel)
+Arguments: channel = string (['CH1, CH2, CH3, CH4']); Output: area value (in V*s).
+Example: oscilloscope_area('CH2') returs the result of an area measurement for channel 2.
+```
+The function returns a value of area (in V*s) between the waveform and the ground level for specified channel of the oscilloscope. It expects one argument, namely the channel for which the area should be measured. This function is available only for Keysight oscilloscopes.<br/>
 ### oscilloscope_sensitivity(*channel)
 ```python3
 oscilloscope_sensitivity(*channel)

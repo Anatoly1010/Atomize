@@ -74,6 +74,7 @@ test_wave_gen_offset = 0.
 test_wave_gen_impedance = '1 M'
 test_wave_gen_interpolation = 'Off'
 test_wave_gen_points = 10
+test_area = 0.001
 
 class Keysight_3000_Xseries:
     #### Basic interaction functions
@@ -402,6 +403,31 @@ class Keysight_3000_Xseries:
             else:
                 array_y = np.arange(test_record_length)
                 return array_y
+
+    def oscilloscope_area(self, channel):
+        if test_flag != 'test':
+            ch = str(channel)
+            if ch in channel_dict:
+                flag = channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) <= analog_channels:
+                    #float(self.device_query(':MEASure:AREa? + str(flag)))
+                    area = float(self.device_query(':MEASure:AREa? DISPlay , ' + str(flag)))
+                    return area
+                else:
+                    general.message("Invalid channel is given")
+                    sys.exit()
+            else:
+                general.message("Invalid channel is given")
+                sys.exit()
+
+        elif test_flag == 'test':
+            ch = str(channel)
+            assert(ch in channel_dict), 'Invalid channel is given'
+            flag = channel_dict[ch]
+            if flag[0] == 'C' and int(flag[-1]) > analog_channels:
+                assert(1 == 2), 'Invalid channel is given'
+            else:
+                return test_area
 
     def oscilloscope_sensitivity(self, *channel):
         if test_flag != 'test':
