@@ -1311,7 +1311,11 @@ class PB_ESR_500_Pro:
 
                 # combine all pulses
                 #np.concatenate( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final), axis = None)
-                return np.row_stack( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final))
+                try:
+                    return np.row_stack( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final))
+                # when we do not MW pulses at all
+                except UnboundLocalError:
+                    return self.convertion_to_numpy( self.pulse_array )
 
         elif test_flag == 'test':
             if auto_defense == 'False':
@@ -1368,7 +1372,10 @@ class PB_ESR_500_Pro:
 
                 # combine all pulses
                 #np.concatenate( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final), axis = None) 
-                return np.row_stack( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final)) 
+                try:
+                    return np.row_stack( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final))
+                except UnboundLocalError:
+                    return self.convertion_to_numpy( self.pulse_array )
 
     def split_into_parts(self, np_array, rep_time):
         """
