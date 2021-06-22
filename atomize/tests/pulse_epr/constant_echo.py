@@ -6,9 +6,9 @@ import atomize.device_modules.PB_ESR_500_pro as pb_pro
 pb = pb_pro.PB_ESR_500_Pro()
 
 
-pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '16 ns')
-pb.pulser_pulse(name ='P1', channel = 'MW', start = '300 ns', length = '32 ns')
-pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = '500 ns', length = '100 ns')
+pb.pulser_pulse(name ='P0', channel = 'AWG', start = '346 ns', length = '16 ns')
+pb.pulser_pulse(name ='P1', channel = 'MW', start = '100 ns', length = '32 ns')
+pb.pulser_pulse(name ='P2', channel = 'TRIGGER_AWG', start = '700 ns', length = '100 ns')
 
 pb.pulser_repetitoin_rate('10 Hz')
 
@@ -26,4 +26,4 @@ pb.pulser_visualize()
 #		break
 #		pb.pulser_stop()
 
-#pb.pulser_stop()
+pb.pulser_stop()

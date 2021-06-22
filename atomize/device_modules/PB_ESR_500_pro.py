@@ -5,7 +5,7 @@ import os
 import sys
 import math
 from copy import deepcopy
-from itertools import groupby
+from itertools import groupby, chain
 import numpy as np
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
@@ -24,7 +24,7 @@ path_config_file = os.path.join(path_current_directory, 'config','PB_ESR_500_pro
 specific_parameters = cutil.read_specific_parameters(path_config_file)
 
 # TO DO
-# awg pulses
+# only awg regime with automatic awg_trigger?
 
 # Channel assignments
 ch0 = specific_parameters['ch0'] # TRIGGER
@@ -33,12 +33,17 @@ ch2 = specific_parameters['ch2'] # LNA_PROTCT
 ch3 = specific_parameters['ch3'] # MW
 ch4 = specific_parameters['ch4'] # -X
 ch5 = specific_parameters['ch5'] # +Y
+ch6 = specific_parameters['ch6'] # TRIGGER_AWG
+ch7 = specific_parameters['ch7'] # AWG
+
+# AWG pulse will be substitued by a shifted RECT_AWG pulse and AMP_ON pulse
+# TRIGGER_AWG is used to trigger AWG card
 
 timebase_dict = {'s': 1000000000, 'ms': 1000000, 'us': 1000, 'ns': 1,}
 # -Y for Mikran bridge is simutaneously turned on -X; +Y
 # that is why there is no -Y channel instead we add both -X and +Y pulses
 channel_dict = {ch0: 0, ch1: 1, ch2: 2, ch3: 3, ch4: 4, ch5: 5, \
-                'CH6': 6, 'CH7': 7, 'CH8': 8, 'CH9': 9, 'CH10': 10, 'CH11': 11,\
+                ch6: 6, ch7: 7, 'CH8': 8, 'CH9': 9, 'CH10': 10, 'CH11': 11,\
                 'CH12': 12, 'CH13': 13, 'CH14': 14, 'CH15': 15, 'CH16': 16, 'CH17': 17,\
                 'CH18': 18, 'CH19': 19, 'CH20': 20, 'CH21': 21, }
 
@@ -76,6 +81,12 @@ amp_delay = int(float(specific_parameters['amp_delay'])/timebase) # in clock; de
 protect_delay = int(float(specific_parameters['protect_delay'])/timebase) # in clock; delay for LNA_PROTECT turning off; protect_delay AFTER MW pulse
 switch_phase_delay = int(float(specific_parameters['switch_phase_delay'])) # in ns; delay for FAST_PHASE turning on; switch_phase_delay BEFORE MW pulse
 phase_delay = int(float(specific_parameters['phase_delay'])) # in ns; delay for FAST_PHASE turning off; phase_delay AFTER MW pulse
+# currently RECT_AWG is coincide with AMP_ON pulse;
+rect_awg_switch_delay = int(float(specific_parameters['rect_awg_switch_delay'])) # in ns; delay for RECT_AWG turning on; rect_awg_switch_delay BEFORE MW pulse
+rect_awg_delay = int(float(specific_parameters['rect_awg_delay'])) # in ns; delay for RECT_AWG turning off; rect_awg_delay AFTER MW pulse
+protect_awg_delay = int(float(specific_parameters['protect_awg_delay'])/timebase) # in clock; delay for LNA_PROTECT turning off; because of shift a 
+# combination of rect_awg_delay and protect_awg_delay is used
+
 
 # interval that shift the first pulse in the sequence
 # start times of other pulses can be calculated from this time.
@@ -110,6 +121,7 @@ class PB_ESR_500_Pro:
             self.increment_count = 0
             self.reset_count = 0
             self.current_phase_index = 0
+            self.awg_pulses = 0
         
         elif test_flag == 'test':
             self.pulse_array = []
@@ -122,6 +134,7 @@ class PB_ESR_500_Pro:
             self.increment_count = 0
             self.reset_count = 0
             self.current_phase_index = 0
+            self.awg_pulses = 0
 
     # Module functions
     def pulser_name(self):
@@ -488,9 +501,9 @@ class PB_ESR_500_Pro:
                 # using a special functions for convertion to instructions
                 #to_spinapi = self.instruction_pulse( self.convert_to_bit_pulse( self.pulse_array ) )
                 to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
-                for element in to_spinapi:
-                    if element[2] < 10:
-                        assert( 1 == 2), 'Incorrect instruction are found'
+                #for element in to_spinapi:
+                #    if element[2] < 10:
+                #        assert( 1 == 2), 'Incorrect instruction are found. Probably Trigger pulses are overlap with other'
 
                 self.reset_count = 1
                 self.shift_count = 0
@@ -1014,8 +1027,15 @@ class PB_ESR_500_Pro:
                 ch = p_array[i]['channel']
                 if ch in channel_dict:
                     ch_num = channel_dict[ch]
+
                 # get start
-                st = p_array[i]['start']
+                if ch != 'AWG':
+                    st = p_array[i]['start']
+                else:
+                    # shift AWG pulse to get RECT_AWG
+                    st = self.change_pulse_settings(p_array[i]['start'], -rect_awg_switch_delay)
+                    self.awg_pulses = 1
+
                 if st[-2:] == 'ns':
                     st_time = int(float(st[:-3])/timebase)
                 elif st[-2:] == 'us':
@@ -1024,8 +1044,15 @@ class PB_ESR_500_Pro:
                     st_time = int(float(st[:-3])*1000000/timebase)
                 elif st[-2:] == 's':
                     st_time = int(float(st[:-3])*1000000000/timebase)
+                
                 # get length
-                leng = p_array[i]['length']
+                if ch != 'AWG':
+                    leng = p_array[i]['length']
+                else:
+                    # shift AWG pulse to get RECT_AWG
+                    leng = self.change_pulse_settings(p_array[i]['length'], rect_awg_switch_delay + rect_awg_delay)
+                    self.awg_pulses = 1
+
                 if leng[-2:] == 'ns':
                     leng_time = int(float(leng[:-3])/timebase)
                 elif leng[-2:] == 'us':
@@ -1046,7 +1073,7 @@ class PB_ESR_500_Pro:
                 elif del_st[-2:] == 's':
                     delta_start = int(float(del_st[:-3])*1000000000/timebase)
 
-                # get length_incremetn
+                # get length_increment
                 len_in = p_array[i]['length_increment']
                 if len_in[-2:] == 'ns':
                     length_increment = int(float(len_in[:-3])/timebase)
@@ -1076,8 +1103,14 @@ class PB_ESR_500_Pro:
                 ch = p_array[i]['channel']
                 if ch in channel_dict:
                     ch_num = channel_dict[ch]
+
                 # get start
-                st = p_array[i]['start']
+                if ch != 'AWG':
+                    st = p_array[i]['start']
+                else:
+                    st = self.change_pulse_settings(p_array[i]['start'], -rect_awg_switch_delay)
+                    self.awg_pulses = 1
+
                 if st[-2:] == 'ns':
                     st_time = int(float(st[:-3])/timebase)
                 elif st[-2:] == 'us':
@@ -1086,8 +1119,15 @@ class PB_ESR_500_Pro:
                     st_time = int(float(st[:-3])*1000000/timebase)
                 elif st[-2:] == 's':
                     st_time = int(float(st[:-3])*1000000000/timebase)
+
                 # get length
-                leng = p_array[i]['length']
+                if ch != 'AWG':
+                    leng = p_array[i]['length']
+                else:
+                    # shift AWG pulse to get RECT_AWG
+                    leng = self.change_pulse_settings(p_array[i]['length'], rect_awg_switch_delay + rect_awg_delay)
+                    self.awg_pulses = 1
+                
                 if leng[-2:] == 'ns':
                     leng_time = int(float(leng[:-3])/timebase)
                 elif leng[-2:] == 'us':
@@ -1135,16 +1175,196 @@ class PB_ESR_500_Pro:
         I.E. [[1, 10, 100], [8, 100, 40], [8, 200, 20], [8, 300, 20] 
         -> [array([[1, 10, 100]]) , array([[8, 100, 40], [8, 200, 20], [8, 300, 20]])]
         Input array should be sorted
+
+        RECT_AWG pulses are combined with MW pulses in the same array, since for
+        both of them AMP_ON and LNA_PROTECT pulses are needed
         """
         if test_flag != 'test':
             # according to 0 element (channel number)
             answer = np.split(np_array, np.where(np.diff(np_array[:,0]))[0] + 1)
+
+            # to save time if there is no AWG pulses
+            if self.awg_pulses == 0:
+                pass
+            elif self.awg_pulses == 1:
+                # join AWG and MW pulses in order to add AMP_ON and LNA_PROTECT for them together
+                for index, element in enumerate(answer):
+                    # memorize indexes
+                    if element[0, 0] == 2**channel_dict['MW']:
+                        mw_index = index
+                    elif element[0, 0] == 2**channel_dict['AWG']:
+                        awg_index = index
+
+                # combines arrays of MW and AWG pulses if there is MW and AWG pulses
+                try:
+                    # Expending RECT_AWG if it is cross some MW pulses in a wrong way;
+                    # the procedure is the same as for AMP_ON or LNA_PROTECT in add_amp_on_pulses() and add_lna_protect_pulses()
+                    for element in answer[awg_index]:
+
+                        for element_mw in answer[mw_index]:
+
+                            if (element_mw[1] - element[1] <= overlap_amp_lna_mw) and (element_mw[1] - element[1] > 0):
+                                element[1] = element[1] - overlap_amp_lna_mw
+                            elif (element_mw[1] - element[1] >= -overlap_amp_lna_mw) and (element_mw[1] - element[1] < 0):
+                                element[1] = element_mw[1]
+                            elif (element_mw[1] - element[2]) <= overlap_amp_lna_mw and (element_mw[1] - element[2] > 0):
+                                element[2] = element_mw[1]
+                            elif (element_mw[1] - element[2]) >= -overlap_amp_lna_mw and (element_mw[1] - element[2] < 0):
+                                # restriction on the pulse length in order to not jump into another restriction....
+                                if element_mw[2] - element_mw[1] <= 30:
+                                    element[2] = element_mw[2]
+                                else:
+                                    element[2] = element[2] + overlap_amp_lna_mw
+
+                            # checking of start and end should be splitted into two checks
+                            # in case of double start/end restriction
+                            if (element_mw[2] - element[2] <= overlap_amp_lna_mw) and (element_mw[2] - element[2] > 0):
+                                element[2] = element_mw[2]
+                            elif (element_mw[2] - element[2] >= -overlap_amp_lna_mw) and (element_mw[2] - element[2] < 0):
+                                element[2] = element[2] + overlap_amp_lna_mw
+                            elif (element_mw[2] - element[1]) <= overlap_amp_lna_mw and (element_mw[2] - element[1] > 0):
+                                # restriction on the pulse length in order to not jump into another restriction....
+                                if element_mw[2] - element_mw[1] <= 30:
+                                    element[1] = element_mw[1]
+                                else:
+                                    element[1] = element[1] - overlap_amp_lna_mw
+                            elif (element_mw[2] - element[1]) >= -overlap_amp_lna_mw and (element_mw[2] - element[1] < 0):
+                                element[1] = element_mw[2]
+
+
+                    # additional checking for phase and RECT_AWG pulses after
+                    # overlap correction
+                    if len(self.phase_array_length) > 0:
+
+                        # iterate over all pulses at different channels and taking phase pulses
+                        for index, element in enumerate(answer):
+                            if ( element[0, 0] == 2**channel_dict['-X'] ) or ( element[0, 0] == 2**channel_dict['+Y'] ):
+                                for element_phase in element:
+                                    for element_awg in answer[awg_index]:
+                                        if (element_phase[1] - element_awg[2] <= overlap_amp_lna_mw) and (element_phase[1] - element_awg[2] > 0):
+                                            element_awg[2] = element_phase[1] + overlap_amp_lna_mw
+                                        elif (element_phase[1] - element_awg[2] >= -overlap_amp_lna_mw) and (element_phase[1] - element_awg[2] < 0):
+                                            element_awg[2] = element_awg[2] + overlap_amp_lna_mw
+                                        # checking of start and end should be splitted into two checks
+                                        # in case of double start/end restriction
+                                        if (element_phase[1] - element_awg[1] <= overlap_amp_lna_mw) and (element_phase[1] - element_awg[1] > 0):
+                                            element_awg[1] = element_awg[1] - overlap_amp_lna_mw
+                                        elif (element_phase[1] - element_awg[1] >= -overlap_amp_lna_mw) and (element_phase[1] - element_awg[1] < 0):
+                                            element_awg[1] = element_phase[1]                                
+                            else:
+                                pass
+
+
+                    # continuation of combining
+                    answer[mw_index] = np.concatenate((answer[mw_index], answer[awg_index]), axis = 0)
+                    # delete duplicated AWG pulses; answer is python list -> pop
+                    answer.pop(awg_index)
+
+                except UnboundLocalError:
+                    pass
+
             return answer
 
         elif test_flag == 'test':
             # according to 0 element (channel number)
             answer = np.split(np_array, np.where(np.diff(np_array[:,0]))[0] + 1)
+
+            if self.awg_pulses == 0:
+                pass
+            elif self.awg_pulses == 1:
+                # attempt to join AWG and MW pulses in order to add AMP_ON and LNA_PROTECT for them together
+                for index, element in enumerate(answer):
+                    # memorize indexes
+                    if element[0, 0] == 2**channel_dict['MW']:
+                        mw_index = index
+                    elif element[0, 0] == 2**channel_dict['AWG']:
+                        awg_index = index
+
+                # combines arrays if there is MW and AWG pulses
+                try:
+                    for element in answer[awg_index]:
+                        
+                        for element_mw in answer[mw_index]:
+
+                            if (element_mw[1] - element[1] <= overlap_amp_lna_mw) and (element_mw[1] - element[1] > 0):
+                                element[1] = element[1] - overlap_amp_lna_mw
+                            elif (element_mw[1] - element[1] >= -overlap_amp_lna_mw) and (element_mw[1] - element[1] < 0):
+                                element[1] = element_mw[1]
+                            elif (element_mw[1] - element[2]) <= overlap_amp_lna_mw and (element_mw[1] - element[2] > 0):
+                                element[2] = element_mw[1]
+                            elif (element_mw[1] - element[2]) >= -overlap_amp_lna_mw and (element_mw[1] - element[2] < 0):
+                                # restriction on the pulse length in order to not jump into another restriction....
+                                if element_mw[2] - element_mw[1] <= 30:
+                                    element[2] = element_mw[2]
+                                else:
+                                    element[2] = element[2] + overlap_amp_lna_mw
+
+                            # checking of start and end should be splitted into two checks
+                            # in case of double start/end restriction
+                            if (element_mw[2] - element[2] <= overlap_amp_lna_mw) and (element_mw[2] - element[2] > 0):
+                                element[2] = element_mw[2]
+                            elif (element_mw[2] - element[2] >= -overlap_amp_lna_mw) and (element_mw[2] - element[2] < 0):
+                                element[2] = element[2] + overlap_amp_lna_mw
+                            elif (element_mw[2] - element[1]) <= overlap_amp_lna_mw and (element_mw[2] - element[1] > 0):
+                                # restriction on the pulse length in order to not jump into another restriction....
+                                if element_mw[2] - element_mw[1] <= 30:
+                                    element[1] = element_mw[1]
+                                else:
+                                    element[1] = element[1] - overlap_amp_lna_mw
+                            elif (element_mw[2] - element[1]) >= -overlap_amp_lna_mw and (element_mw[2] - element[1] < 0):
+                                element[1] = element_mw[2]
+
+
+                    # additional checking for phase and RECT_AWG pulses after
+                    # overlap correction
+                    if len(self.phase_array_length) > 0:
+
+                        # iterate over all pulses at different channels and taking phase pulses
+                        for index, element in enumerate(answer):
+                            if ( element[0, 0] == 2**channel_dict['-X'] ) or ( element[0, 0] == 2**channel_dict['+Y'] ):
+                                for element_phase in element:
+                                    for element_awg in answer[awg_index]:
+                                        if (element_phase[1] - element_awg[2] <= overlap_amp_lna_mw) and (element_phase[1] - element_awg[2] > 0):
+                                            element_awg[2] = element_phase[1] + overlap_amp_lna_mw
+                                        elif (element_phase[1] - element_awg[2] >= -overlap_amp_lna_mw) and (element_phase[1] - element_awg[2] < 0):
+                                            element_awg[2] = element_awg[2] + overlap_amp_lna_mw
+                                        # checking of start and end should be splitted into two checks
+                                        # in case of double start/end restriction
+                                        if (element_phase[1] - element_awg[1] <= overlap_amp_lna_mw) and (element_phase[1] - element_awg[1] > 0):
+                                            element_awg[1] = element_awg[1] - overlap_amp_lna_mw
+                                        elif (element_phase[1] - element_awg[1] >= -overlap_amp_lna_mw) and (element_phase[1] - element_awg[1] < 0):
+                                            element_awg[1] = element_phase[1]                                
+                            else:
+                                pass
+
+                    answer[mw_index] = np.concatenate((answer[mw_index], answer[awg_index]), axis = 0)
+                    # delete duplicated AWG pulses; answer is python list -> pop
+                    answer.pop(awg_index)
+
+                except UnboundLocalError:
+                    pass
+
             return answer
+
+    def extending_rect_awg(self, np_array):
+        """
+        Replace RECT_AWG pulse with the extending one (in the same way as AMP_ON and LNA_PROTECT)
+        
+        Instead of directly changing self.pulse_array we change the output of 
+        self.splitting_acc_to_channel() and use this function in the output of preparing_to_bit_pulse()
+
+
+        """
+        if test_flag != 'test':
+            answer = self.splitting_acc_to_channel( self.convertion_to_numpy( np_array ) )
+            # return flatten np.array of pulses that has the same format as self.convertion_to_numpy( np_array )
+            # but with extended RECT_AWG pulse
+            return np.asarray(list(chain(*answer)))
+
+        elif test_flag == 'test':
+            answer = self.splitting_acc_to_channel( self.convertion_to_numpy( np_array ) )
+            
+            return np.asarray(list(chain(*answer)))
 
     def check_problem_pulses(self, np_array):
         """
@@ -1241,7 +1461,10 @@ class PB_ESR_500_Pro:
         instruction_pulse_short_lna_amp() function
 
         for phase pulses the minimal distance for checking is 10 ns
-        for mw - 40 ns
+        for mw, awg or cross mw-awg - 40 ns
+
+        RECT_AWG pulses are shifted back in order to compare their distance with MW pulses
+
         """
         if test_flag != 'test':
             if auto_defense == 'False':
@@ -1256,14 +1479,47 @@ class PB_ESR_500_Pro:
                 return self.convertion_to_numpy( np_array )
 
             elif auto_defense == 'True':
+                # for delete AWG pulses before overlap check; and for checking only AWG pulses
+                awg_index = []
+                mw_index = []
+                # for checking of overlap MW and non-shifted AWG; in the real pulse sequence AWG is converted to shifter RECT_AWG
+                shifted_back_awg_pulses = []
+
                 split_pulse_array = self.splitting_acc_to_channel( self.convertion_to_numpy( np_array ) )
 
                 # iterate over all pulses at different channels
                 for index, element in enumerate(split_pulse_array):
-                    if element[0, 0] == 2**channel_dict['MW']:
+                    if element[0, 0] == 2**channel_dict['MW'] or element[0, 0] == 2**channel_dict['AWG']:
 
-                        # for MW pulses check 40 ns distance and add AMP_ON, LNA_PROTECT pulses
-                        self.check_problem_pulses(element)
+                        if self.awg_pulses != 1:
+                            # for MW pulses check 40 ns distance and add AMP_ON, LNA_PROTECT pulses
+                            self.check_problem_pulses(element)
+                        else:
+                            # for AWG we do not check 40 ns distance, since RECT_AWG will be extended in the same way as AMP_ON
+                            for index_awg_mw, element_awg_mw in enumerate(element):
+                                if element_awg_mw[0] == 2**channel_dict['AWG']:
+                                    # shift back RECT_AWG to AWG
+                                    shifted_back_awg_pulses.append([element_awg_mw[0], element_awg_mw[1] + int(rect_awg_switch_delay/timebase), \
+                                        element_awg_mw[2] + int(rect_awg_switch_delay/timebase) - int(rect_awg_switch_delay/timebase) - int(rect_awg_delay/timebase)])
+
+                                    awg_index.append(index_awg_mw)
+
+                                elif element_awg_mw[0] == 2**channel_dict['MW']:
+                                    mw_index.append(index_awg_mw)
+
+
+                            no_mw_element = np.delete( element, list(dict.fromkeys(mw_index)), axis = 0 ).tolist()
+                            no_awg_element = np.delete( element, list(dict.fromkeys(awg_index)), axis = 0 ).tolist()
+                            # if there is no MW
+                            try:
+                                shifted_back_awg_mw = np.concatenate((no_awg_element, shifted_back_awg_pulses), axis = 0)
+                            except ValueError:
+                                shifted_back_awg_mw = shifted_back_awg_pulses
+                            
+                            self.check_problem_pulses(no_awg_element)
+                            self.check_problem_pulses(no_mw_element)
+                            self.check_problem_pulses(shifted_back_awg_mw)
+
                         # add AMP_ON and LNA_PROTECT
                         amp_on_pulses = self.add_amp_on_pulses(element)
                         lna_pulses = self.add_lna_protect_pulses(element)
@@ -1312,10 +1568,15 @@ class PB_ESR_500_Pro:
                 # combine all pulses
                 #np.concatenate( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final), axis = None)
                 try:
-                    return np.row_stack( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final))
+                    #return np.row_stack( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final))
+                    # self.extending_rect_awg( self.pulse_array ) is for extendind RECT_AWG pulses
+                    # see self.extending_rect_awg()
+                    return np.row_stack( (self.extending_rect_awg( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final))
+
                 # when we do not MW pulses at all
                 except UnboundLocalError:
-                    return self.convertion_to_numpy( self.pulse_array )
+                    #return self.convertion_to_numpy( self.pulse_array )
+                    return self.extending_rect_awg( self.pulse_array )
 
         elif test_flag == 'test':
             if auto_defense == 'False':
@@ -1330,12 +1591,44 @@ class PB_ESR_500_Pro:
                 return self.convertion_to_numpy( np_array )
 
             elif auto_defense == 'True':
+                awg_index = []
+                mw_index = []
+                shifted_back_awg_pulses = []
+
                 split_pulse_array = self.splitting_acc_to_channel( self.convertion_to_numpy( np_array ) )
 
                 for index, element in enumerate(split_pulse_array):
-                    if element[0, 0] == 2**channel_dict['MW']:
+                    if element[0, 0] == 2**channel_dict['MW'] or element[0, 0] == 2**channel_dict['AWG']:
 
-                        self.check_problem_pulses(element)
+                        if self.awg_pulses != 1:
+                            # for MW pulses check 40 ns distance and add AMP_ON, LNA_PROTECT pulses
+                            self.check_problem_pulses(element)
+                        else:
+                            # for AWG we do not check 40 ns distance, since RECT_AWG will be extended in the same way as AMP_ON
+                            for index_awg_mw, element_awg_mw in enumerate(element):
+                                if element_awg_mw[0] == 2**channel_dict['AWG']:
+                                    # shift back RECT_AWG to AWG
+                                    shifted_back_awg_pulses.append([element_awg_mw[0], element_awg_mw[1] + int(rect_awg_switch_delay/timebase), \
+                                        element_awg_mw[2] + int(rect_awg_switch_delay/timebase) - int(rect_awg_switch_delay/timebase) - int(rect_awg_delay/timebase)])
+
+                                    awg_index.append(index_awg_mw)
+
+                                elif element_awg_mw[0] == 2**channel_dict['MW']:
+                                    mw_index.append(index_awg_mw)
+
+
+                            no_mw_element = np.delete( element, list(dict.fromkeys(mw_index)), axis = 0 ).tolist()
+                            no_awg_element = np.delete( element, list(dict.fromkeys(awg_index)), axis = 0 ).tolist()
+                            # if there is no MW
+                            try:
+                                shifted_back_awg_mw = np.concatenate((no_awg_element, shifted_back_awg_pulses), axis = 0)
+                            except ValueError:
+                                shifted_back_awg_mw = shifted_back_awg_pulses
+                            
+                            self.check_problem_pulses(no_awg_element)
+                            self.check_problem_pulses(no_mw_element)
+                            self.check_problem_pulses(shifted_back_awg_mw)
+
                         amp_on_pulses = self.add_amp_on_pulses(element)
                         lna_pulses = self.add_lna_protect_pulses(element)
 
@@ -1373,9 +1666,9 @@ class PB_ESR_500_Pro:
                 # combine all pulses
                 #np.concatenate( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final), axis = None) 
                 try:
-                    return np.row_stack( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final))
+                    return np.row_stack( (self.extending_rect_awg( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final))
                 except UnboundLocalError:
-                    return self.convertion_to_numpy( self.pulse_array )
+                    return self.extending_rect_awg( self.pulse_array )
 
     def split_into_parts(self, np_array, rep_time):
         """
@@ -1758,10 +2051,16 @@ class PB_ESR_500_Pro:
                 pass
             elif auto_defense == 'True':
                 amp_on_list = []
-                #general.message( p_list )
+                # for dealing with overlap of RECT_AWG pulse with MW; RECT_AWG should behaves the same as AMP_ON
+                awg_list = []
+
                 for index, element in enumerate(p_list):
                     if element[0] == 2**(channel_dict['MW']):
                         amp_on_list.append( [2**(channel_dict['AMP_ON']), element[1] - switch_delay, element[2] + amp_delay] )
+                    # AMP_ON and RECT_AWG coincide now
+                    elif element[0] == 2**(channel_dict['AWG']):
+                        amp_on_list.append( [2**(channel_dict['AMP_ON']), element[1] - 0*switch_delay, element[2] + 0*amp_delay] )
+                        awg_list.append(element)
                     else:
                         pass
 
@@ -1828,12 +2127,23 @@ class PB_ESR_500_Pro:
                 pass
             elif auto_defense == 'True':
                 amp_on_list = []
+                awg_list = []
+
                 for index, element in enumerate(p_list):
                     if element[0] == 2**(channel_dict['MW']):
                         if (element[2] + amp_delay) - (element[1] - switch_delay) <= max_pulse_length/2:
                             amp_on_list.append( [2**(channel_dict['AMP_ON']), element[1] - switch_delay, element[2] + amp_delay] )
+                            
                         else:
                             assert(1 == 2), 'Maximum available length (1900 ns) for AMP_ON pulse is reached'
+                    # AMP_ON and RECT_AWG coincide now
+                    elif element[0] == 2**(channel_dict['AWG']):
+                        if element[2] - element[1]  <= max_pulse_length/2:
+                            amp_on_list.append( [2**(channel_dict['AMP_ON']), element[1], element[2]] )
+                            awg_list.append(element)
+                        else:
+                            assert(1 == 2), 'Maximum available length (1900 ns) for AMP_ON pulse is reached'
+
                     else:
                         pass
 
@@ -1883,6 +2193,42 @@ class PB_ESR_500_Pro:
                         else:
                             pass
 
+
+
+                if self.awg_pulses == 1:
+                    for element in awg_list:
+
+                        for element_mw in p_list:
+                            if (element_mw[1] - element[1] <= overlap_amp_lna_mw) and (element_mw[1] - element[1] > 0):
+                                element[1] = element[1] - overlap_amp_lna_mw
+                            elif (element_mw[1] - element[1] >= -overlap_amp_lna_mw) and (element_mw[1] - element[1] < 0):
+                                element[1] = element_mw[1]
+                            elif (element_mw[1] - element[2]) <= overlap_amp_lna_mw and (element_mw[1] - element[2] > 0):
+                                element[2] = element_mw[1]
+                            elif (element_mw[1] - element[2]) >= -overlap_amp_lna_mw and (element_mw[1] - element[2] < 0):
+                                # restriction on the pulse length in order to not jump into another restriction....
+                                if element_mw[2] - element_mw[1] <= 30:
+                                    element[2] = element_mw[2]
+                                else:
+                                    element[2] = element[2] + overlap_amp_lna_mw
+
+                        # checking of start and end should be splitted into two checks
+                        # in case of double start/end restriction
+                        if (element_mw[2] - element[2] <= overlap_amp_lna_mw) and (element_mw[2] - element[2] > 0):
+                            element[2] = element_mw[2]
+                        elif (element_mw[2] - element[2] >= -overlap_amp_lna_mw) and (element_mw[2] - element[2] < 0):
+                            element[2] = element[2] + overlap_amp_lna_mw
+                        elif (element_mw[2] - element[1]) <= overlap_amp_lna_mw and (element_mw[2] - element[1] > 0):
+                            # restriction on the pulse length in order to not jump into another restriction....
+                            if element_mw[2] - element_mw[1] <= 30:
+                                element[1] = element_mw[1]
+                            else:
+                                element[1] = element[1] - overlap_amp_lna_mw
+                        elif (element_mw[2] - element[1]) >= -overlap_amp_lna_mw and (element_mw[2] - element[1] < 0):
+                            element[1] = element_mw[2]
+
+
+
                 return np.asarray(amp_on_list)
 
     def add_lna_protect_pulses(self, p_list):
@@ -1898,8 +2244,12 @@ class PB_ESR_500_Pro:
                 for index, element in enumerate(p_list):
                     if element[0] == 2**(channel_dict['MW']):
                         lna_protect_list.append( [2**(channel_dict['LNA_PROTECT']), element[1] - switch_delay, element[2] + protect_delay] )
+                    # LNA_PROTECT and RECT_AWG coincide in the start position but LNA is longer at protect_delay
+                    elif element[0] == 2**(channel_dict['AWG']):
+                        lna_protect_list.append( [2**(channel_dict['LNA_PROTECT']), element[1] - 0*switch_delay, element[2] - int(rect_awg_delay/timebase) + protect_awg_delay] )
                     else:
                         pass
+
                 # additional checking and correcting lna_protect pulse in the case
                 # when lna_protect pulses are diagonally shifted to mw pulses
                 # in this case there can be nasty short overpal of lna_protect pulse 2
@@ -1965,6 +2315,9 @@ class PB_ESR_500_Pro:
                 for index, element in enumerate(p_list):
                     if element[0] == 2**(channel_dict['MW']):
                         lna_protect_list.append( [2**(channel_dict['LNA_PROTECT']), element[1] - switch_delay, element[2] + protect_delay] )
+                    # LNA_PROTECT and RECT_AWG coincide in the start position but LNA is longer at protect_delay
+                    elif element[0] == 2**(channel_dict['AWG']):
+                        lna_protect_list.append( [2**(channel_dict['LNA_PROTECT']), element[1] - 0*switch_delay, element[2] - int(rect_awg_delay/timebase) + protect_awg_delay] )
                     else:
                         pass
 

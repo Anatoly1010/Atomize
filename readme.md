@@ -27,6 +27,7 @@ At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and W
     - [Pulse Programmers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/pulse_programmers_functions.md)<br/>
     - [Frequency Counters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/frequency_counter_functions.md)<br/>
     - [Magnetic Field Controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/magnet_functions.md)<br/>
+    - [Microwave Bridge Controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/microwave_bridge_functions.md)<br/>
     - [Gaussmeters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/gaussmeter_functions.md)<br/>
     - [Power Supplies](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/power_supply_functions.md)<br/>
     - [Delay Generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/delay_generator_functions.md)<br/>
