@@ -2,7 +2,7 @@ import sys
 import time
 import numpy as np
 from multiprocessing import Process, Pipe
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QSpinBox, QHBoxLayout, QLabel, QPushButton
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QSpinBox, QDoubleSpinBox, QHBoxLayout, QLabel, QPushButton
 # import of required devices and general modules
 
 # it should be included for possibility of a test run
@@ -29,12 +29,12 @@ class MainWindow(QWidget):
             # Create 4 spinboxes (for handling integers; QDoubleSpinBox can be used for floats)
             self.spinbox_1, self.spinbox_2,\
             self.spinbox_3, self.spinbox_4 = (QSpinBox(), QSpinBox(),
-                QSpinBox(), QSpinBox())
+                QDoubleSpinBox(), QSpinBox())
 
             # Create 4 labels for our spin boxes
             self.label_1, self.label_2,\
             self.label_3, self.label_4 = (QLabel('Rep. rate (Hz):'), QLabel('Cycles:'),
-                QLabel('Blank:'),QLabel('Blank:'))
+                QLabel('Field (G):'), QLabel('Blank:'))
 
             # Create 3 buttons to interacte with the experimental script
             self.button_1, self.button_2, self.button_3 = (QPushButton('Start Script'),
@@ -43,7 +43,7 @@ class MainWindow(QWidget):
             # Create several lists for comfortable assignment for our GUI elements
             sb_list = (self.spinbox_1, self.spinbox_2,
                 self.spinbox_3, self.spinbox_4) # spinboxes
-            value_list = (10, 6000, 10, 10) # initial values for QSpinBoxes
+            value_list = (100, 6000, 3500, 10) # initial values for QSpinBoxes
             label_list = (self.label_1, self.label_2,
                 self.label_3, self.label_4) # labels
             button_list = (self.button_1, self.button_2, self.button_3) # buttons
@@ -65,6 +65,9 @@ class MainWindow(QWidget):
                 spinbox_layout.addWidget(sb_list[i])
                 # add SpinBoxes to the layout
                 i = i + 1;
+
+            # small field step
+            sb_list[2].setSingleStep(0.5) # step of QSpinBox
 
             i = 0;
             while i < len(button_list):
@@ -108,11 +111,14 @@ class MainWindow(QWidget):
     def funcSB1(self):
         # rewritten the experimental script parameter 1
         self.param_1 = self.spinbox_1.value()
-        self.parent_conn.send(self.param_1)
+        string_to_send = 'FR' + str(self.param_1)
+        self.parent_conn.send( string_to_send )
     def funcSB2(self):
         self.param_2 = self.spinbox_2.value()
     def funcSB3(self):
         self.param_3 = self.spinbox_3.value()
+        string_to_send = 'FI' + str(self.param_3)
+        self.parent_conn.send( string_to_send )
     def funcSB4(self):
         self.param_4 = self.spinbox_4.value()
     # Functions that are connected to the QPushButton
@@ -167,12 +173,16 @@ class Worker(QWidget):
         import numpy as np
         import atomize.general_modules.general_functions as general
         import atomize.device_modules.PB_ESR_500_pro as pb_pro
+        import atomize.device_modules.BH_15 as bh
 
         # A possible use in an experimental script
         pb = pb_pro.PB_ESR_500_Pro()
+        bh15 = bh.BH_15()
 
-        pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '20 ns')
-        pb.pulser_pulse(name ='P1', channel = 'MW', start = '220 ns', length = '40 ns')
+        bh15.magnet_setup(3500, 1)
+
+        pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '16 ns')
+        pb.pulser_pulse(name ='P1', channel = 'MW', start = '220 ns', length = '32 ns')
         pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = '340 ns', length = '100 ns')
 
         pb.pulser_visualize()
@@ -188,10 +198,18 @@ class Worker(QWidget):
             # always test our self.command attribute for stopping the script when neccessary
             if i == 1 or (self.command != 'exit' and self.command != 'start'):
                 if i != 1:
-                    param_1 = self.command
+                    if self.command[0:2] == 'FR':
+                        param_1 = self.command[2:]
+                    elif self.command[0:2] == 'FI':
+                        param_3 = self.command[2:]
+                
                 rep_rate = str(param_1) + ' Hz'
                 pb.pulser_repetitoin_rate( rep_rate )
                 pb.pulser_update()
+
+                field = float(param_3)
+                bh15.magnet_field(field)
+
                 self.command = 'start'
             # poll() checks whether there is data in the Pipe to read
             # we use it to stop the script if the exit command was sent from the main window

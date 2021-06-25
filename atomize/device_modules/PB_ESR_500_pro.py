@@ -425,38 +425,38 @@ class PB_ESR_500_Pro:
                 general.message(to_spinapi)
                 for element in to_spinapi:
                     if element[2] < 10:
-                        ###general.message('Incorrect instruction are found')
-                        general.message('ALARM')
-                        ###self.pulser_stop()
+                        general.message('Incorrect instruction are found')
+                        ###general.message('ALARM')
+                        self.pulser_stop()
 
                 #general.message( to_spinapi )
                 #self.pulser_stop()
                 # initialization
                 #pb_init()
                 #pb.core_clock(clock)
-                ###sp.pb_init()
-                ###sp.pb_core_clock(clock)
+                sp.pb_init()
+                sp.pb_core_clock(clock)
 
                 #pb_start_programming(PULSE_PROGRAM)
-                ###sp.pb_start_programming(0)
+                sp.pb_start_programming(0)
                 i = 0
                 while i < len( to_spinapi) - 1:
-                    ###if i == 0: 
+                    if i == 0: 
                         # to create a link for BRANCH
                         # start = pb_inst(ON | "0x%X" % to_spinapi[i][0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
                         
                         # CONTINUE is 0
                         # ON is 111 in the first three bits of the Output/Control Word (24 bits)
                         # it is 14680064 or 0xE00000
-                        ###start = sp.pb_inst(14680064 + to_spinapi[i][0], 0, 0, to_spinapi[i][2])
-                    ###else:
-                        #pb_inst(ON | "0x%X" % to_spinapi[i, 0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
-                        ###sp.pb_inst(14680064 + to_spinapi[i][0], 0, 0, to_spinapi[i][2])
-                    if i == 0:
-                        pass
-                        #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', CONTINUE, 0, ' + "0x%X" % to_spinapi[i][2] )
+                        start = sp.pb_inst(14680064 + to_spinapi[i][0], 0, 0, to_spinapi[i][2])
                     else:
-                        pass
+                        #pb_inst(ON | "0x%X" % to_spinapi[i, 0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
+                        sp.pb_inst(14680064 + to_spinapi[i][0], 0, 0, to_spinapi[i][2])
+                    ###if i == 0:
+                        ###pass
+                        #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', CONTINUE, 0, ' + "0x%X" % to_spinapi[i][2] )
+                    ###else:
+                        ###pass
                         #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', CONTINUE, 0, ' + "0x%X" % to_spinapi[i][2] )
 
                     i += 1
@@ -465,18 +465,18 @@ class PB_ESR_500_Pro:
                 #pb_inst(ON | "0x%X" % to_spinapi[i][0], BRANCH, 0, "0x%X" % to_spinapi[i][2])
                 #print('ON | ' + "0x%X" % to_spinapi[i][0] + ', BRANCH, start, ' + "0x%X" % to_spinapi[i][2] )
                 # BRANCH is 6
-                ###sp.pb_inst(14680064 + to_spinapi[i][0], 6, start, to_spinapi[i][2])
+                sp.pb_inst(14680064 + to_spinapi[i][0], 6, start, to_spinapi[i][2])
 
                 #pb_stop_programming()
                 #pb_reset()
                 #pb_start()
                 
-                ###sp.pb_stop_programming()
-                ###sp.pb_reset()
-                ###sp.pb_start()
+                sp.pb_stop_programming()
+                sp.pb_reset()
+                sp.pb_start()
 
                 #pb_close()
-                ###sp.pb_close()
+                sp.pb_close()
 
                 self.reset_count = 1
                 self.shift_count = 0
@@ -501,9 +501,9 @@ class PB_ESR_500_Pro:
                 # using a special functions for convertion to instructions
                 #to_spinapi = self.instruction_pulse( self.convert_to_bit_pulse( self.pulse_array ) )
                 to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
-                #for element in to_spinapi:
-                #    if element[2] < 10:
-                #        assert( 1 == 2), 'Incorrect instruction are found. Probably Trigger pulses are overlap with other'
+                for element in to_spinapi:
+                    if element[2] < 10:
+                        assert( 1 == 2), 'Incorrect instruction are found. Probably Trigger pulses are overlap with other'
 
                 self.reset_count = 1
                 self.shift_count = 0
@@ -935,18 +935,18 @@ class PB_ESR_500_Pro:
             # initialization
             #pb_init()
             #pb.core_clock(clock)
-            ###sp.pb_init()
-            ###sp.pb_core_clock(clock)
+            sp.pb_init()
+            sp.pb_core_clock(clock)
 
             #pb_start_programming(PULSE_PROGRAM)
             #pb_inst(ON | "0x%X" % 0, CONTINUE, 0, "0x%X" % 16)
-            ###sp.pb_start_programming(0)
-            ###sp.pb_inst(14680064, 0, 0, 16)
+            sp.pb_start_programming(0)
+            sp.pb_inst(14680064, 0, 0, 16)
 
             #general.message('ON | ', "0x%X" % 0, ', CONTINUE, 0, ', "0x%X" % 12)
             #pb_inst(ON | "0x%X" % 0, STOP, 0, "0x%X" % 16)
             # STOP is 1
-            ###sp.pb_inst(14680064, 1, 0, 16)
+            sp.pb_inst(14680064, 1, 0, 16)
             #general.message('ON | ', "0x%X" % 0, ', STOP, 0, ', "0x%X" % 16)
 
             #pb_stop_programming()
@@ -955,11 +955,11 @@ class PB_ESR_500_Pro:
             
             #pb_close()
 
-            ###sp.pb_stop_programming()
-            ###sp.pb_reset()
-            ###sp.pb_start()
-            pass
-            ###sp.pb_close()
+            sp.pb_stop_programming()
+            sp.pb_reset()
+            sp.pb_start()
+            ###pass
+            sp.pb_close()
 
             #return to_spinapi
 

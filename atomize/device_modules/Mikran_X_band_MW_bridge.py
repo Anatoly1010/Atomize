@@ -58,10 +58,10 @@ class Mikran_X_band_MW_bridge:
             self.sock.connect( (TCP_IP, TCP_PORT) )
 
             self.sock.sendto( command, (TCP_IP, TCP_PORT) )
-            data_raw, addr = sock.recvfrom( int(bytes_to_recieve) )
+            data_raw, addr = self.sock.recvfrom( int(bytes_to_recieve) )
 
-            sock.shutdown(socket.SHUT_RDWR)
-            sock.close()
+            self.sock.shutdown(socket.SHUT_RDWR)
+            self.sock.close()
 
             return data_raw
         except socket.error:
