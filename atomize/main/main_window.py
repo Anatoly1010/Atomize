@@ -92,7 +92,9 @@ class MainWindow(QtWidgets.QMainWindow):
          QScrollBar:vertical {background-color: rgb(42, 42, 64);}")
         self.textEdit.textChanged.connect(self.save_edited_text)
         self.text_errors.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); }")
-        
+        self.text_errors.setCenterOnScroll(True)
+        self.text_errors.ensureCursorVisible()
+
         # Liveplot tab setting
         self.dockarea = DockArea()
         self.namelist = NameList(self)
@@ -467,7 +469,7 @@ class MainWindow(QtWidgets.QMainWindow):
         elif text_errors_script != '':
             self.test_flag = 1
             self.text_errors.appendPlainText(text_errors_script)
-            self.text_errors.verticalScrollBar().setValue(self.text_errors.verticalScrollBar().maximum())
+            #self.text_errors.verticalScrollBar().setValue(self.text_errors.verticalScrollBar().maximum())
 
     def on_finished_script(self):
         """
@@ -481,7 +483,7 @@ class MainWindow(QtWidgets.QMainWindow):
         elif text_errors_script != '':
             self.text_errors.appendPlainText("Script done!")
             self.text_errors.appendPlainText(text_errors_script)
-            self.text_errors.verticalScrollBar().setValue(self.text_errors.verticalScrollBar().maximum())
+            #self.text_errors.verticalScrollBar().setValue(self.text_errors.verticalScrollBar().maximum())
 
     def help(self):
         """
@@ -625,7 +627,7 @@ class NameList(QDockWidget):
             header_array.append(temp)
         file_to_read.close()
 
-        temp = np.genfromtxt(file_path, dtype=float, delimiter=',') 
+        temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 1) 
         data = np.transpose(temp)
 
         name_plot = datetime.now().strftime('%Y-%m-%d %H:%M:%S')

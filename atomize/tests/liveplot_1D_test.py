@@ -32,7 +32,7 @@ for i in range(5000):
 #    general.plot_1d('Plot XY Test', xs, ys2, label='test data2')
 #    general.plot_1d('Plot XY Test', xs, ys3, label='test data3')
 #    general.plot_1d('Plot XY Test', xs, ys4, label='test data4')
-#    general.wait('1000 ms')
+    general.wait('100 ms')
     general.message(str(time.time() - start_time))
     
 
