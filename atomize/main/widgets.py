@@ -13,8 +13,8 @@ import OpenGL
 pg.setConfigOption('background', (63,63,97))
 pg.setConfigOption('leftButtonPan', False)
 pg.setConfigOption('foreground', (192, 202, 227))
-pg.setConfigOption('useOpenGL', True)
-pg.setConfigOption('enableExperimental', True)
+#pg.setConfigOption('useOpenGL', True)
+#pg.setConfigOption('enableExperimental', True)
 LastExportDirectory = None
 
 def get_widget(rank, name):
@@ -141,11 +141,11 @@ class CrosshairDock(CloseableDock):
         open_action.triggered.connect(self.open_file_dialog)
         self.menu.addAction(open_action)
 
-        self.avail_colors = [pg.mkPen(color=(255,0,255),width=1),pg.mkPen(color=(255,0,0),width=1),
-        pg.mkPen(color=(0,0,255),width=1), pg.mkPen(color=(0,255,0),width=1), pg.mkPen(color=(255,255,255),width=1)]
+        self.avail_colors = [pg.mkPen(color=(0,0,0),width=1),pg.mkPen(color=(255,153,0),width=1),
+        pg.mkPen(color=(255,0,255),width=1), pg.mkPen(color=(0,255,0),width=1), pg.mkPen(color=(255,255,255),width=1)]
         self.avail_symbols= ['x','p','star','s','o']
         self.avail_sym_pens = [pg.mkPen(color=(255, 255, 255), width=0),pg.mkPen(color=(0, 255, 0), width=0),
-        pg.mkPen(color=(0, 0, 255), width=0),pg.mkPen(color=(255, 0, 0), width=0),pg.mkPen(color=(255, 0, 255), width=0)]
+        pg.mkPen(color=(255, 0, 0), width=0),pg.mkPen(color=(255, 0, 0), width=0),pg.mkPen(color=(255, 0, 255), width=0)]
         self.avail_sym_brush = [pg.mkBrush(255, 255, 255, 255),pg.mkBrush(0, 255, 0, 255),pg.mkBrush(0, 0, 255, 255),
         pg.mkBrush(255, 0, 0, 255),pg.mkBrush(255, 0, 255, 255)]
         self.used_colors = {}
@@ -219,7 +219,7 @@ class CrosshairDock(CloseableDock):
                 header_array.append(temp)
             file_to_read.close()
 
-            temp = np.genfromtxt(file_path, dtype=float, delimiter=',') 
+            temp = np.genfromtxt(file_path, dtype=float, delimiter=',', skip_header = 1) 
             data = np.transpose(temp)
             
             self.plot(data[0], data[1], parametric=True, name=file_path, xname='X', xscale ='Arb. U.',\

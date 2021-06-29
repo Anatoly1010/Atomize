@@ -28,6 +28,11 @@ from PyQt5 import QtWidgets, uic, QtCore, QtGui
 from PyQt5.Qt import Qt as QtConst
 from pyqtgraph.dockarea import DockArea
 import atomize.main.messenger_socket_server as socket_server
+###AWG
+#sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
+
+#from pyspcm import *
+#from spcm_tools import *
 
 class MainWindow(QtWidgets.QMainWindow):
     """
@@ -571,20 +576,33 @@ class MainWindow(QtWidgets.QMainWindow):
         :param data: string
         """
         self.text_errors.appendPlainText(str(data))
+
         if data == 'Script stopped':
 
             path_to_main = os.path.abspath(os.getcwd())
-            lib_path = os.path.join(path_to_main, 'general_modules', 'libspinapi.so')
-            lib_path2 = os.path.join(path_to_main, 'general_modules', 'spinapi64.dll')
+            lib_path = os.path.join(path_to_main, 'atomize/general_modules', 'libspinapi.so')
+            lib_path2 = os.path.join(path_to_main, 'atomize/general_modules', 'spinapi64.dll')
 
             if os.path.exists(lib_path) == False and os.path.exists(lib_path2) == False:
                 self.process_python.close()
             else:
                 # check on windows?!
                 import atomize.device_modules.PB_ESR_500_pro as pb_pro
-
-                pb = pb_pro.PB_ESR_500_pro()
+                
+                pb = pb_pro.PB_ESR_500_Pro()
                 pb.pulser_stop()
+
+                # AWG
+                #hCard = spcm_hOpen (create_string_buffer (b'/dev/spcm0'))
+                #if hCard == None:
+                #    sys.stdout.write("no card found...\n")
+                #    exit ()
+
+                #spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_CARD_STOP)
+
+                # clean up
+                #spcm_vClose (hCard)
+                ###
 
                 self.process_python.close()
 

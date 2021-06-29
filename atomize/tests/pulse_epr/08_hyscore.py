@@ -5,9 +5,12 @@ import atomize.device_modules.PB_ESR_500_pro as pb_pro
 import atomize.device_modules.Keysight_3000_Xseries as key
 import atomize.device_modules.BH_15 as bh
 
+### Experimental parameters
+POINTS = 400
 data = []
 FIELD = 3473
 AVERAGES = 200
+###
 
 pb = pb_pro.PB_ESR_500_Pro()
 t3034 = key.Keysight_3000_Xseries()
@@ -16,16 +19,12 @@ bh15 = bh.BH_15()
 bh15.magnet_setup(FIELD, 1)
 bh15.magnet_field(FIELD)
 
-t3034.oscilloscope_trigger_channel('Line')
-t3034.oscilloscope_run()
-tb = t3034.oscilloscope_time_resolution()
+t3034.oscilloscope_trigger_channel('CH1')
+#tb = t3034.oscilloscope_time_resolution()
 t3034.oscilloscope_record_length(250)
 t3034.oscilloscope_acquisition_type('Average')
-t3034.oscilloscope_number_of_averages(10)
-t3034.oscilloscope_trigger_channel('CH1')
-t3034.oscilloscope_stop()
-
 t3034.oscilloscope_number_of_averages(AVERAGES)
+t3034.oscilloscope_stop()
 
 pb.pulser_pulse(name = 'P0', channel = 'MW', start = '100 ns', length = '16 ns')
 pb.pulser_pulse(name = 'P1', channel = 'MW', start = '220 ns', length = '16 ns')
@@ -36,10 +35,10 @@ pb.pulser_pulse(name = 'P4', channel = 'TRIGGER', start = '740 ns', length = '10
 pb.pulser_repetitoin_rate('200 Hz')
 
 j = 0
-while j < 400:
+while j < POINTS:
 
     i = 0
-    while i < 400:
+    while i < POINTS:
 
         pb.pulser_update()
         

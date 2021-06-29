@@ -7,27 +7,27 @@ import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.PB_ESR_500_pro as pb_pro
 #import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 
+### Experimental parameters
 data = []
 START_FREQ = 9650
 END_FREQ = 9850
 STEP = 2
-CYCLES = 2
+CYCLES = 1
+AVERAGES = 200
+###
 
 #open1d = openfile.Saver_Opener()
 pb = pb_pro.PB_ESR_500_Pro()
 mw = mwBridge.Mikran_X_band_MW_bridge()
 t3034 = t3034.Keysight_3000_Xseries()
 
-t3034.oscilloscope_trigger_channel('Line')
-t3034.oscilloscope_run()
-tb = t3034.oscilloscope_time_resolution()
 t3034.oscilloscope_acquisition_type('Average')
-t3034.oscilloscope_number_of_averages(2)
 t3034.oscilloscope_trigger_channel('CH1')
 t3034.oscilloscope_record_length(1000)
+tb = t3034.oscilloscope_time_resolution()
 t3034.oscilloscope_stop()
 
-t3034.oscilloscope_number_of_averages(200)
+t3034.oscilloscope_number_of_averages(AVERAGES)
 
 # setting pulses:
 pb.pulser_pulse(name ='P0', channel = 'TRIGGER', start = '0 ns', length = '100 ns')

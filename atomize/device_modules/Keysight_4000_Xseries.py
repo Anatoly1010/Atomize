@@ -91,22 +91,15 @@ class Keysight_4000_Xseries:
                     try:
                         self.device_write('*CLS')
                         self.status_flag = 1
-                    except pyvisa.VisaIOError:
+                    except :
                         general.message("No connection")
                         self.status_flag = 0
+                        self.device.clear()
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message("No connection")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
+                except:
                     general.message("No connection")
                     self.status_flag = 0
-                    sys.exit()
-                except BrokenPipeError:
-                    general.message("No connection")
-                    self.status_flag = 0
-                    sys.exit()
+                    os._exit(0)
 
         elif test_flag == 'test':
             pass

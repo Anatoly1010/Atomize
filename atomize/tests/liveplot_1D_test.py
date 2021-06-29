@@ -15,7 +15,7 @@ ys4 = np.array([])
 #ys = np.random.rand(1,5000)
 
 # Plot_xy Test
-for i in range(5000):
+for i in range(50):
     start_time = time.time()
     #ys = np.append(ys, np.random.rand(1,1))
     #ys2 = np.append(ys2, 1)
@@ -28,11 +28,11 @@ for i in range(5000):
     #general.message(xs)
     ys = np.append(ys, np.random.randint(0, 10 + 1));
     #ys[i] = np.random.randint(0, 10 + 1);
-    general.plot_1d('Plot XY Test', xs, ys, label='test data1', timeaxis = 'False')
-#    general.plot_1d('Plot XY Test', xs, ys2, label='test data2')
-#    general.plot_1d('Plot XY Test', xs, ys3, label='test data3')
-#    general.plot_1d('Plot XY Test', xs, ys4, label='test data4')
-    general.wait('100 ms')
+    general.plot_1d('Plot XY Test', xs, ys, label='test data4', timeaxis = 'False')
+    #general.plot_1d('Plot XY Test', xs, ys2, label='test data2')
+    #general.plot_1d('Plot XY Test', xs, ys3, label='test data3')
+    #general.plot_1d('Plot XY Test', xs, ys4, label='test data4')
+    general.wait('10 ms')
     general.message(str(time.time() - start_time))
     
 
