@@ -12,10 +12,9 @@ import socket
 import threading
 import configparser
 import platform
-from tkinter import filedialog
+from tkinter import filedialog#, ttk
 import tkinter
 import numpy as np
-import time
 from . import widgets
 import pyqtgraph as pg
 from datetime import datetime
@@ -132,6 +131,10 @@ class MainWindow(QtWidgets.QMainWindow):
         path_config_file = os.path.join(path_to_main,'atomize/config.ini')
         config = configparser.ConfigParser()
         config.read(path_config_file)
+        # directories
+        self.open_dir = str(config['DEFAULT']['open_dir'])
+        self.script_dir = str(config['DEFAULT']['script_dir'])
+        self.path = self.script_dir
 
         # for running different processes using QProcess
         self.process = QtCore.QProcess(self)
@@ -418,7 +421,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def test(self):
         """
-        A function to run a syntax check using pylint.
+        A function to run script check.
         """
 
         if self.script != '':
@@ -427,7 +430,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.text_errors.appendPlainText('No experimental script is opened')
             return
 
-        if stamp != self.cached_stamp and self.flag_opened_script_changed == 0:
+        if stamp != self.cached_stamp and self.flag_opened_script_changed == 1:
             self.cached_stamp = stamp
             message = QMessageBox(self);  # Message Box for warning of updated file
             message.setWindowTitle("Your script has been changed!")
@@ -537,8 +540,8 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         A function to open a new window for choosing an experimental script.
         """
-        filedialog = QFileDialog(self, 'Open File', directory = self.path, filter ="python (*.py)",\
-            options=QtWidgets.QFileDialog.DontUseNativeDialog)
+        filedialog = QFileDialog(self, 'Open File', directory = self.path, filter = "python (*.py)",\
+            options = QtWidgets.QFileDialog.DontUseNativeDialog)
         # use QFileDialog.DontUseNativeDialog to change directory
         filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
         filedialog.setFileMode(QtWidgets.QFileDialog.AnyFile)
@@ -549,8 +552,8 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         A function to open a new window for choosing a name for a new experimental script.
         """
-        filedialog = QFileDialog(self, 'Save File', directory = self.path, filter ="python (*.py)",\
-            options=QtWidgets.QFileDialog.DontUseNativeDialog)
+        filedialog = QFileDialog(self, 'Save File', directory = self.path, filter = "python (*.py)",\
+            options = QtWidgets.QFileDialog.DontUseNativeDialog)
         filedialog.setAcceptMode(QFileDialog.AcceptSave)
         # use QFileDialog.DontUseNativeDialog to change directory
         filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
@@ -563,6 +566,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.flag_opened_script_changed = 1
             with open(self.script, 'w') as file:
                 file.write(self.textEdit.toPlainText())
+            
+            self.cached_stamp = os.stat(self.script).st_mtime
+
         else:
             self.flag_opened_script_changed = 1
             if self.textEdit.toPlainText() != '': # save file dialog will be opened after at least one character is added
@@ -609,6 +615,16 @@ class MainWindow(QtWidgets.QMainWindow):
 class NameList(QDockWidget):
     def __init__(self, window):
         super(NameList, self).__init__('Current Plots')
+
+        #directories
+        path_to_main = os.path.abspath(os.getcwd())
+        # configuration data
+        path_config_file = os.path.join(path_to_main,'atomize/config.ini')
+        config = configparser.ConfigParser()
+        config.read(path_config_file)
+        # directories
+        self.open_dir = str(config['DEFAULT']['open_dir'])
+
         self.namelist_model = QStandardItemModel()
         self.namelist_view = QListView()
         self.namelist_view.setModel(self.namelist_model)
@@ -638,47 +654,54 @@ class NameList(QDockWidget):
         file_path = self.file_dialog(directory = directory)
 
         header_array = [];
-        file_to_read = open(file_path,'r')
+        file_to_read = open(file_path, 'r')
         for i, line in enumerate(file_to_read):
             if i is header: break
-            temp = line.split(":")
+            temp = line.split("#")
             header_array.append(temp)
         file_to_read.close()
 
-        temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 1) 
+        temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 0) 
         data = np.transpose(temp)
 
-        name_plot = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        name_plot = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
         pw = self.window.add_new_plot(1, name_plot)
-        pw.plot(data[0], data[1], parametric=True, name=file_path, xname='X', xscale ='Arb. U.',\
-         yname='Y', yscale ='Arb. u.', scatter='False')
+        if len(data) == 2:
+            pw.plot(data[0], data[1], parametric = True, name = file_path, xname = 'X', xscale = 'Arb. U.',\
+                yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+        elif len(data) == 3:
+            pw.plot(data[0], data[1], parametric = True, name = file_path + '_1', xname = 'X', xscale = 'Arb. U.',\
+                yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+            pw.plot(data[0], data[2], parametric = True, name = file_path + '_2', xname = 'X', xscale = 'Arb. U.',\
+                yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
 
     def open_file_dialog_2(self, directory = '', header = 0):
         file_path = self.file_dialog(directory = directory)
 
         header_array = [];
-        file_to_read = open(file_path,'r')
+        file_to_read = open(file_path, 'r')
         for i, line in enumerate(file_to_read):
             if i is header: break
-            temp = line.split(":")
+            temp = line.split("#")
             header_array.append(temp)
         file_to_read.close()
 
-        temp = np.genfromtxt(file_path, dtype = float, delimiter = ',') 
+        temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 0) 
         data = temp
 
-        name_plot = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        name_plot = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
         pw = self.window.add_new_plot(2, name_plot)
-        pw.setAxisLabels(xname='X', xscale ='Arb. U.',yname='X', yscale ='Arb. U.',\
-            zname='X', zscale ='Arb. U.')
-        pw.setImage(data, axes={'y':0, 'x':1})
+        pw.setAxisLabels(xname = 'X', xscale = 'Arb. U.',yname = 'X', yscale = 'Arb. U.',\
+            zname = 'X', zscale = 'Arb. U.')
+        pw.setImage(data, axes = {'y': 0, 'x': 1})
 
     def file_dialog(self, directory = ''):
         root = tkinter.Tk()
+        #s = ttk.Style().theme_use('alt')
         root.withdraw()
 
         file_path = filedialog.askopenfilename(**dict(
-            initialdir = directory,
+            initialdir = self.open_dir,
             filetypes = [("CSV", "*.csv"), ("TXT", "*.txt"),\
             ("DAT", "*.dat"), ("all", "*.*")],
             title = 'Select file to open')

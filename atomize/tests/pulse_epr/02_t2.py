@@ -3,13 +3,15 @@ import numpy as np
 import atomize.general_modules.general_functions as general
 import atomize.device_modules.PB_ESR_500_pro as pb_pro
 import atomize.device_modules.Keysight_3000_Xseries as key
+import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.BH_15 as bh
+import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 
 ### Experimental parameters
-POINTS = 1000
-STEP = 100                  # delta_start = '100 ns' for TRIGGER pulse
-FIELD = 3473
-AVERAGES = 200
+POINTS = 500
+STEP = 4                  # delta_start = '20 ns' for TRIGGER pulse
+FIELD = 3472
+AVERAGES = 500
 
 data_x = np.zeros(POINTS)
 data_y = np.zeros(POINTS)
@@ -17,6 +19,8 @@ x_axis = np.arange(0, POINTS*STEP, STEP)
 ###
 
 # initialization of the devices
+file_handler = openfile.Saver_Opener()
+mw = mwBridge.Mikran_X_band_MW_bridge()
 pb = pb_pro.PB_ESR_500_Pro()
 bh15 = bh.BH_15()
 t3034 = key.Keysight_3000_Xseries()
@@ -27,18 +31,17 @@ bh15.magnet_field(FIELD)
 
 # Setting oscilloscope
 t3034.oscilloscope_trigger_channel('CH1')
-#tb = t3034.oscilloscope_time_resolution()
 t3034.oscilloscope_record_length(250)
 t3034.oscilloscope_acquisition_type('Average')
 t3034.oscilloscope_number_of_averages(AVERAGES)
 t3034.oscilloscope_stop()
 
 # Setting pulses
-pb.pulser_pulse(name = 'P0', channel = 'MW', start = '100 ns', length = '40 ns')
-pb.pulser_pulse(name = 'P1', channel = 'MW', start = '300 ns', length = '80 ns', delta_start = '50 ns')
-pb.pulser_pulse(name = 'P2', channel = 'TRIGGER', start = '500 ns', length = '100 ns', delta_start = '100 ns')
+pb.pulser_pulse(name = 'P0', channel = 'MW', start = '100 ns', length = '16 ns')
+pb.pulser_pulse(name = 'P1', channel = 'MW', start = '400 ns', length = '32 ns', delta_start = '2 ns')
+pb.pulser_pulse(name = 'P2', channel = 'TRIGGER', start = '700 ns', length = '100 ns', delta_start = '4 ns')
 
-pb.pulser_repetitoin_rate('500 Hz')
+pb.pulser_repetitoin_rate('2000 Hz')
 
 # Data acquisition
 for i in range(POINTS):
@@ -58,17 +61,18 @@ for i in range(POINTS):
         xscale = 'ns', yname = 'Area', yscale = 'V*s', label = 'Y')
 
     pb.pulser_shift()
-
-    #data.append(area)
-    #x_axis.append(i*100)                # delta_start for TRIGGER pulse
-
-    #data.append(t3034.oscilloscope_get_curve('CH2'))
-    #data2.append(t3034.oscilloscope_get_curve('CH3'))
-    #general.plot_2d('I', data, start_step = ( (0, tb/1000000), (0, 2/1000000000) ), xname = 'Time',\
-    #    xscale = 's', yname = 'Delay Time', yscale = 's', zname = 'Intensity', zscale = 'V')
-    #general.plot_2d('Q', data2, start_step = ( (0, tb/1000000), (0, 2/1000000000) ), xname = 'Time',\
-    #    xscale = 's', yname = 'Delay Time', yscale = 's', zname = 'Intensity', zscale = 'V')
    
+# Data saving
+header = 'Date: ' + str(datetime.now().strftime('%d-%m-%Y %H:%M:%S')) + '\n' + 
+         'T2 Measurement' + 
+         'Field: ' + str(FIELD) + ' G \n' + 
+          mw.mw_bridge_att_prm() + '\n' + 
+          + mw.mw_bridge_synthesizer() + '\n' + 
+         'Repetition Rate: ' + pb.pulser_repetitoin_rate() + '\n' +
+         'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + 'ns \n' +
+         'Pulse List: ' + '\n' + pb.pulser_pulse_list() + 'Time (trig. delta_start), X (V*s), Y (V*s) '
+
+file_handler.save_1D_dialog( (x_axis, data_x, data_y), header = header )
 
 pb.pulser_stop()
 

@@ -3,7 +3,9 @@ import numpy as np
 import atomize.general_modules.general_functions as general
 import atomize.device_modules.PB_ESR_500_pro as pb_pro
 import atomize.device_modules.Keysight_3000_Xseries as key
+import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.BH_15 as bh
+import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 
 ### Experimental parameters
 POINTS = 200
@@ -18,6 +20,9 @@ data_y = np.zeros(POINTS)
 x_axis = np.arange(0, POINTS*STEP, STEP)
 ###
 
+# initialization of the devices
+file_handler = openfile.Saver_Opener()
+mw = mwBridge.Mikran_X_band_MW_bridge()
 pb = pb_pro.PB_ESR_500_Pro()
 t3034 = key.Keysight_3000_Xseries()
 bh15 = bh.BH_15()
@@ -26,7 +31,6 @@ bh15.magnet_setup(FIELD, 1)
 bh15.magnet_field(FIELD)
 
 t3034.oscilloscope_trigger_channel('CH1')
-#tb = t3034.oscilloscope_time_resolution()
 t3034.oscilloscope_record_length(250)
 t3034.oscilloscope_acquisition_type('Average')
 t3034.oscilloscope_number_of_averages(AVERAGES)
@@ -95,5 +99,18 @@ while k < 9:
 
     k += 1
 
+# Data saving
+header = 'Date: ' + str(datetime.now().strftime('%d-%m-%Y %H:%M:%S')) + '\n' + 
+         'DEER Measurement' + 
+         'Field: ' + str(FIELD) + ' G \n' + 
+          mw.mw_bridge_att_prm() + '\n' + 
+          + mw.mw_bridge_synthesizer() + '\n' + 
+         'Repetition Rate: ' + pb.pulser_repetitoin_rate() + '\n' +
+         'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + 'ns \n' +
+         'Pulse List: ' + '\n' + pb.pulser_pulse_list() + 'Time (trig_awg delta_start), X (V*s), Y (V*s) '
+
+file_handler.save_1D_dialog( (x_axis, data_x, data_y), header = header )
+
 pb.pulser_stop()
+
 

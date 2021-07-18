@@ -5,6 +5,8 @@
 A. Modules/Connection/Config
 - Write a detailed instruction how to install gpib library on Linux. Test gpib library on windows
 - check limits of sensitivity and other stuff for oscilliscopes
+- libspinapi.so path into the config file
+- the same for AWG
 
 B. Liveplot
 - Need a special widget to grab a curve from plot and move it up/down, right/left. We can implement multiaxis approach from pyqtgraph.

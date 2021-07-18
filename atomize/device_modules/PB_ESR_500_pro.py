@@ -1006,10 +1006,22 @@ class PB_ESR_500_Pro:
         elif test_flag == 'test':
             pass
 
+    def pulser_pulse_list(self):
+        """
+        Function for saving a pulse list from 
+        the script into the
+        header of the experimental data
+        """
+        pulse_list_mod = ''
+        for element in self.pulse_array_init:
+            pulse_list_mod = pulse_list_mod + str(element) + '\n'
+
+        return pulse_list_mod
+
     # Auxilary functions
     def convertion_to_numpy(self, p_array):
         """
-        Convertion the pulse_array into numpy array in the form of
+        Convertion of the pulse_array into numpy array in the form of
         [channel_number, start, end, delta_start, length_increment]
         channel_number is an integer: 2**(ch), where ch from channel_dict
         start is a pulse start in a pulser clock sample rate

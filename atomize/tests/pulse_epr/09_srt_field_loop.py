@@ -11,7 +11,7 @@ if len(sys.argv) > 1:
 else:
     test_flag = 'None'
 
-# The class of the main window of GUI
+# The class of the file:///home/pulseepr/Sources/Atomize/atomize/tests/pulse_epr/09_srt_field_loop.pymain window of GUI
 class MainWindow(QWidget):
     def __init__(self):
         if test_flag != 'test': # it should be included in order to have correctly working tests
@@ -43,7 +43,7 @@ class MainWindow(QWidget):
             # Create several lists for comfortable assignment for our GUI elements
             sb_list = (self.spinbox_1, self.spinbox_2,
                 self.spinbox_3, self.spinbox_4) # spinboxes
-            value_list = (100, 6000, 3473, 10) # initial values for QSpinBoxes
+            value_list = (100, 6000, 3500, 10) # initial values for QSpinBoxes
             label_list = (self.label_1, self.label_2,
                 self.label_3, self.label_4) # labels
             button_list = (self.button_1, self.button_2, self.button_3) # buttons
@@ -67,6 +67,7 @@ class MainWindow(QWidget):
                 i = i + 1;
 
             # small field step
+            sb_list[2].setRange(1000, 5000) # step of QSpinBox
             sb_list[2].setSingleStep(0.5) # step of QSpinBox
 
             i = 0;
@@ -179,11 +180,15 @@ class Worker(QWidget):
         pb = pb_pro.PB_ESR_500_Pro()
         bh15 = bh.BH_15()
 
-        bh15.magnet_setup(3473, 1)
+        bh15.magnet_setup(3507, 1)
 
-        pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '12 ns')
-        pb.pulser_pulse(name ='P1', channel = 'MW', start = '300 ns', length = '24 ns')
-        pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = '500 ns', length = '100 ns')
+        pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '16 ns')
+        pb.pulser_pulse(name ='P1', channel = 'MW', start = '400 ns', length = '32 ns')
+        pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = '700 ns', length = '100 ns')
+
+        #pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '100 ns')
+        #pb.pulser_pulse(name ='P1', channel = 'TRIGGER', start = '0 ns', length = '100 ns')
+
 
         pb.pulser_update()
         i = 0

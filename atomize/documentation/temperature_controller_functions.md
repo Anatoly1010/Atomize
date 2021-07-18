@@ -7,6 +7,8 @@ Available devices:
 ITC 503; Tested 01/21
 - Termodat (RS-485)
 11M6; 13KX3; Tested 04/21
+- Stanford Research (TCP IP)
+PTC10; Untested
 
 Functions:
 - [tc_name()](#tc_name)<br/>
@@ -121,6 +123,7 @@ Example: tc_sensor(1) sets the sensor to 1 (or 'A').
 ```
 This function sets or queries the sensor that is used for active control of the temperature when comparing to the setpoint (target temperature). It may differ from the sensor used when calling [tc_temperature()](#tc_temperaturechannel). If an argument is specified the function sets a new sensor setting. If there is no argument the function returns the current sensor setting.<br/>
 Generally not all sensor channels may be usable, there are models with different numbers of channels. Please, refer to device manual.<br/>
+The function is not available for Stanford Research PTC10.<br/>
 For Lakeshore temperature controllers integers 1-4 corresponds respectively to tha channels 'A'-'B' (or 'A'-'D' for Lakeshore 336). Also, for Lakeshore temperature controllers the control loop setting should be specified in the configuration file, since all the command use it as an internal argument. One can find more detail in the description of [tc_heater_power()](#tc_heater_power) function.<br/>
 In case of Lakeshore 325, 331, 332, 340 querying of this function also sets setpoint unit to Kelvin, specifies that the control loop is off after power-up, and sets the heater output to display in power.<br/>
 In case of Lakeshore 335 and 336 querying of this function also sets the control mode to closed loop PID and specifies that the control loop is off after power-up.<br/>
@@ -149,7 +152,8 @@ Example: tc_lock_keyboard('Remote-Unlocked') sets the device to remote state wit
 This function can be used to change the state of the device keyboard. If an argument is specified the function sets a new keyboard state setting. If there is no argument the function returns the current keyboard state setting. The state should be one of the following:<br/>
 ['Local-Locked', 'Remote-Locked', 'Local-Unlocked', 'Remote-Unlocked']<br/>
 The first part corresponds to the device state, the second to the keyboard state. The default option is 'Remote-Unlocked'.<br/>
-Lakeshore temperature controllers use a 3-digit keypad lock code for locking and unlocking the keypad. The factory default code is 123. To unlock the keypad manually, press and hold the Enter key for 10 seconds. Function [tc_lock_keyboard()](#tc_lock_keyboardlock) uses this code automatically.
+Lakeshore temperature controllers use a 3-digit keypad lock code for locking and unlocking the keypad. The factory default code is 123. To unlock the keypad manually, press and hold the Enter key for 10 seconds. Function [tc_lock_keyboard()](#tc_lock_keyboardlock) uses this code automatically.<br/>
+The function is not available for Termodat-11M6, 13KX3, Stanford Research PTC10.
 ### tc_proportional(*prop)
 ```python3
 tc_proportional(*prop)

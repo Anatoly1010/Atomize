@@ -410,7 +410,7 @@ class SR_830:
                 md = str(mode[0])
                 if md in ref_mode_dict:
                     flag = ref_mode_dict[md]
-                    self.device_write("FMOD "+ str(flag))
+                    self.device_write("FMOD " + str(flag))
                 else:
                     general.message("Invalid mode")
                     sys.exit()

@@ -1,5 +1,6 @@
 import warnings
 import os
+import configparser
 import pyqtgraph as pg
 import numpy as np
 from tkinter import filedialog
@@ -104,7 +105,7 @@ class CrosshairPlotWidget(pg.PlotWidget):
             (pt_x, pt_y), _ = min(best_guesses, key=lambda x: x[1])
             self.v_line.setPos(pt_x)
             self.h_line.setPos(pt_y)
-            self.label.setText("x=%.2f, y=%.2f" % (pt_x, pt_y))
+            self.label.setText("x=%.3e, y=%.3e" % (pt_x, pt_y))
 
     def add_cross_hair(self):
         self.h_line = pg.InfiniteLine(angle=0, movable=False)
@@ -125,6 +126,15 @@ class CrosshairPlotWidget(pg.PlotWidget):
 
 class CrosshairDock(CloseableDock):
     def __init__(self, **kwargs):
+        # open directory
+        path_to_main = os.path.abspath(os.getcwd())
+        # configuration data
+        path_config_file = os.path.join(path_to_main,'atomize/config.ini')
+        config = configparser.ConfigParser()
+        config.read(path_config_file)
+        # directories
+        self.open_dir = str(config['DEFAULT']['open_dir'])
+
         self.plot_widget = CrosshairPlotWidget()
         self.legend = self.plot_widget.addLegend(offset=(50,10),horSpacing=35)
         #self.plot_widget.setBackground(None)
@@ -197,7 +207,6 @@ class CrosshairDock(CloseableDock):
             del_action.triggered.connect(lambda: self.del_item(self.del_dict[del_action]))
             self.del_menu.addAction(del_action)
 
-
     def del_item(self, item):
         self.plot_widget.removeItem(item)
         key_action = list(self.del_dict.keys())[list(self.del_dict.values()).index(item)]
@@ -215,22 +224,27 @@ class CrosshairDock(CloseableDock):
             file_to_read = open(file_path,'r')
             for i, line in enumerate(file_to_read):
                 if i is header: break
-                temp = line.split(":")
+                temp = line.split("#")
                 header_array.append(temp)
             file_to_read.close()
 
-            temp = np.genfromtxt(file_path, dtype=float, delimiter=',', skip_header = 1) 
+            temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 0) 
             data = np.transpose(temp)
-            
-            self.plot(data[0], data[1], parametric=True, name=file_path, xname='X', xscale ='Arb. U.',\
-             yname='Y', yscale ='Arb. U.', scatter='False')
+            if len(data) == 2:
+                self.plot(data[0], data[1], parametric = True, name = file_path, xname = 'X', xscale = 'Arb. U.',\
+                yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+            elif len(data) == 3:
+                self.plot(data[0], data[1], parametric = True, name = file_path + '_1', xname = 'X', xscale = 'Arb. U.',\
+                yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+                self.plot(data[0], data[2], parametric = True, name = file_path + '_2', xname = 'X', xscale = 'Arb. U.',\
+                yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
 
     def file_dialog(self, directory = ''):
         root = tkinter.Tk()
         root.withdraw()
 
         file_path = filedialog.askopenfilename(**dict(
-            initialdir = directory,
+            initialdir = self.open_dir,
             filetypes = [("CSV", "*.csv"), ("TXT", "*.txt"),\
             ("DAT", "*.dat"), ("all", "*.*")],
             title = 'Select file to open')
@@ -380,9 +394,9 @@ class CrossSectionDock(CloseableDock):
 
         data = self.img_view.getProcessedImage()
         np.savetxt(fileName,\
-         data, fmt='%.4e', delimiter=',', newline='\n',\
-         header=str(datetime.now().strftime("%d-%m-%Y_%H-%M-%S")),\
-          footer='', comments='#', encoding=None)
+         data, fmt = '%.4e', delimiter = ',', newline = '\n',\
+         header = str(datetime.now().strftime("%d-%m-%Y_%H-%M-%S")),\
+          footer = '', comments = '#', encoding = None)
 
     def fileSaveDialog(self):
         self.fileDialog = QFileDialog()
@@ -467,7 +481,7 @@ class CrossSectionDock(CloseableDock):
             self.y_cross_index = max(min(int(item_y), max_y-1), 0)
             z_val = self.imageItem.image[self.x_cross_index, self.y_cross_index]
             self.update_cross_section()
-            self.text_item.setText("x=%.2f, y=%.2f, z=%.2f" % (view_x, view_y, z_val))
+            self.text_item.setText("x=%.3e, y=%.3e, z=%.3e" % (view_x, view_y, z_val))
 
     def update_cross_section(self):
         nx, ny = self.imageItem.image.shape

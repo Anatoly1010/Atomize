@@ -5,6 +5,7 @@
 - [Lock-in Amplifiers](#lock-in-amplifiers)<br/>
 - [Oscilloscopes](#oscilloscopes)<br/>
 - [Oscilloscope Wave Generators](#oscilloscope-wave-generators)<br/>
+- [Arbitrary Wave Generators](#arbitrary-wave-generators)<br/>
 - [Pulse Programmers](#pulse-programmers)<br/>
 - [Frequency Counters](#frequency-counters)<br/>
 - [Magnetic Field Controllers](#magnetic-field-controllers)<br/>
@@ -45,6 +46,11 @@ Available via corresponding oscilloscope module.
 Available via corresponding oscilloscope module.
 - Wave Generator of Keysight InfiniiVision 4000 X-Series (Ethernet)<br/>
 Available via corresponding oscilloscope module.
+
+## Arbitrary Wave Generators
+- Spectrum M4I 6631 X8; Untested
+The original [library] (https://spectrum-instrumentation.com/en/m4i6631-x8) was written by Spectrum.
+
 
 ## Pulse Programmers
 - Pulse Blaster ESR 500 Pro<br/>

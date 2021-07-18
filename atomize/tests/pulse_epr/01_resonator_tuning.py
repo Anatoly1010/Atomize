@@ -9,9 +9,9 @@ import atomize.device_modules.PB_ESR_500_pro as pb_pro
 
 ### Experimental parameters
 data = []
-START_FREQ = 9650
-END_FREQ = 9850
-STEP = 2
+START_FREQ = 9450
+END_FREQ = 9800
+STEP = 1
 CYCLES = 1
 AVERAGES = 200
 ###
@@ -24,20 +24,20 @@ t3034 = t3034.Keysight_3000_Xseries()
 t3034.oscilloscope_acquisition_type('Average')
 t3034.oscilloscope_trigger_channel('CH1')
 t3034.oscilloscope_record_length(1000)
-tb = t3034.oscilloscope_time_resolution()
+#tb = t3034.oscilloscope_time_resolution()
 t3034.oscilloscope_stop()
 
 t3034.oscilloscope_number_of_averages(AVERAGES)
 
 # setting pulses:
 pb.pulser_pulse(name ='P0', channel = 'TRIGGER', start = '0 ns', length = '100 ns')
-pb.pulser_pulse(name ='P1', channel = 'MW', start = '100 ns', length = '150 ns')
+pb.pulser_pulse(name ='P1', channel = 'MW', start = '100 ns', length = '100 ns')
 
-pb.pulser_repetitoin_rate('1000 Hz')
+pb.pulser_repetitoin_rate('600 Hz')
 pb.pulser_update()
 
 # initialize the power
-mw.mw_bridge_synthesizer( str(START_FREQ) )
+mw.mw_bridge_synthesizer( START_FREQ )
 #path_to_file = open1d.create_file_dialog(directory = '')
 
 start = START_FREQ
@@ -48,15 +48,15 @@ while i < CYCLES:
         
         start += STEP
         
-        mw.mw_bridge_synthesizer( str(start) )
-        general.message(str(start))
+        mw.mw_bridge_synthesizer( start )
+        general.message(start)
 
         t3034.oscilloscope_start_acquisition()
         y = t3034.oscilloscope_get_curve('CH2')
 
         data.append(y)
-        general.plot_2d('Tune Scan', data, start_step = ( (0, tb/1000000), (START_FREQ*1000000, 1000000) ), xname = 'Time',\
-            xscale = 'ns', yname = 'Frequency', yscale = 'Hz', zname = 'Intensity', zscale = 'V')
+        general.plot_2d('Tune Scan', data, start_step = ( (0, 1), (START_FREQ*1000000, STEP*1000000) ), xname = 'Time',\
+            xscale = 's', yname = 'Frequency', yscale = 'Hz', zname = 'Intensity', zscale = 'V')
 
         #f = open(path_to_file,'a')
         #np.savetxt(f, y, fmt='%.10f', delimiter=' ', newline='\n', header='frequency: %d' % i, footer='', comments='#', encoding=None)
@@ -64,6 +64,6 @@ while i < CYCLES:
 
     i += 1
 
-mw.mw_bridge_synthesizer( str(START_FREQ) )
+mw.mw_bridge_synthesizer( START_FREQ )
 
 pb.pulser_stop()

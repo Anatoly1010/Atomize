@@ -110,7 +110,7 @@ class Mikran_X_band_MW_bridge:
                     freq = chr(data_raw[5]) + chr(data_raw[6]) + chr(data_raw[7])\
                         + chr(data_raw[8]) + chr(data_raw[9])
 
-                answer = 'Power: ' + state + '; ' + 'Frequency: ' + freq 
+                answer = 'Frequency: ' + freq + ' MHz'
 
                 return answer
 
@@ -271,7 +271,7 @@ class Mikran_X_band_MW_bridge:
                 # 3 bytes to recieve
                 data_raw = self.device_query( MESSAGE, 3)
 
-                answer = 'Attenuator PRM: ' + str(data_raw[2]*2) + ' dB'
+                answer = 'Video Gain: ' + str(data_raw[2]*2) + ' dB'
 
                 return answer
 

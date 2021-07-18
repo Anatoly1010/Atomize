@@ -46,26 +46,26 @@ class Saver_Opener:
             file_path = self.file_dialog(directory = directory, mode = 'Open')
 
             header_array = [];
-            file_to_read = open(file_path,'r')
+            file_to_read = open(file_path, 'r')
             for i, line in enumerate(file_to_read):
                 if i is header: break
                 temp = line.split(":")
                 header_array.append(temp)
             file_to_read.close()
 
-            temp = np.genfromtxt(file_path, dtype=float, delimiter=',') 
+            temp = np.genfromtxt(file_path, dtype = float, delimiter = ',') 
             data = np.transpose(temp)
             return header_array, data
 
         elif test_flag == 'test':
             return test_header_array, test_data
 
-    def save_1D_dialog(self, data, directory = '',header = ''):
+    def save_1D_dialog(self, data, directory = '', header = ''):
         if test_flag != 'test':
             file_path = self.file_dialog(directory = directory, mode = 'Save')
 
-            np.savetxt(file_path, np.transpose(data), fmt='%.10f', delimiter=',',\
-             newline='\n', header=header, footer='', comments='#', encoding=None)
+            np.savetxt(file_path, np.transpose(data), fmt = '%.4e', delimiter = ',',\
+                newline = '\n', header = header, footer = '', comments = '# ', encoding = None)
 
         elif test_flag == 'test':
             pass

@@ -2,8 +2,11 @@ import time
 import numpy as np
 import atomize.general_modules.general_functions as general
 import atomize.device_modules.PB_ESR_500_pro as pb_pro
+import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+
 
 # A possible use in an experimental script
+file_handler = openfile.Saver_Opener()
 pb = pb_pro.PB_ESR_500_Pro()
 
 #pb.pulser_pulse(name = 'P0', channel = 'MW', start = '100 ns', length = '12 ns', delta_start = '100 ns', phase_list =  ['-y', '+x', '-x', '+x'])
@@ -44,24 +47,28 @@ start_time = time.time()
 
 #general.message(str(time.time() - start_time))
 
-j = 0 
-while j < 3:
+general.message( pb.pulser_pulse_list() )
+header = 'Pulse List: ' + '\n' + pb.pulser_pulse_list()  + ' Field, X, Y '
+file_handler.save_1D_dialog( ([1, 2, 3, 4], [2, 2, 2, 2], [4, 4, 4, 4]), header = header )
+
+#j = 0 
+#while j < 3:
     #general.message('J CYCLE: ' + str(j)) 
-    i = 0
-    while i < 25:
+#    i = 0
+#    while i < 25:
         #general.message('I: ')
-        pb.pulser_update()
-        pb.pulser_shift()
+#        pb.pulser_update()
+#        pb.pulser_shift()
         ###pb.pulser_increment()
-        pb.pulser_visualize()
-        general.wait('1 s')
-        i += 1
+#        pb.pulser_visualize()
+#        general.wait('1 s')
+#        i += 1
     # '2 kHz'
     
-    pb.pulser_reset()
+#    pb.pulser_reset()
     #print(pb.pulse_array_init)
-    general.wait('1 s')
-    j += 1
+#    general.wait('1 s')
+#    j += 1
 
 ###pb.pulser_stop()
 

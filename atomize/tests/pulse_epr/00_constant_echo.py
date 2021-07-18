@@ -8,30 +8,29 @@ import atomize.device_modules.BH_15 as bh
 pb = pb_pro.PB_ESR_500_Pro()
 #t3034 = key.Keysight_3000_Xseries()
 bh15 = bh.BH_15()
-
 # FIELD SETTING
-bh15.magnet_setup(3466, 1)
-bh15.magnet_field(3466)
+bh15.magnet_setup(3536, 1)
+bh15.magnet_field(3503)
 
 # RESONATOR TUNING CHECK
-#pb.pulser_pulse(name ='P0', channel = 'MW', start = '200 ns', length = '100 ns')
-#pb.pulser_pulse(name ='P1', channel = 'TRIGGER', start = '100 ns', length = '100 ns')
+#pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '100 ns')
+#pb.pulser_pulse(name ='P1', channel = 'TRIGGER', start = '0 ns', length = '100 ns')
 
 # ECHO CHECK
-#pb.pulser_pulse(name ='P0', channel = 'MW', start = '600 ns', length = '12 ns')
-#pb.pulser_pulse(name ='P1', channel = 'MW', start = '800 ns', length = '24 ns')
-#pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = '1000 ns', length = '100 ns')
+pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '16 ns')
+pb.pulser_pulse(name ='P1', channel = 'MW', start = '400 ns', length = '32 ns')
+pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = '700 ns', length = '100 ns')
 
 # AWG CHECK
-pb.pulser_pulse(name ='P0', channel = 'AWG', start = '2680 ns', length = '90 ns')
-pb.pulser_pulse(name ='P1', channel = 'TRIGGER_AWG', start = '526 ns', length = '90 ns')
-pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = '100 ns', length = '100 ns')
+#pb.pulser_pulse(name ='P0', channel = 'AWG', start = '2680 ns', length = '90 ns')
+#pb.pulser_pulse(name ='P1', channel = 'TRIGGER_AWG', start = '526 ns', length = '90 ns')
+#pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = '100 ns', length = '100 ns')
 
 # ESEEM CHECK
 #pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '16 ns')
-#pb.pulser_pulse(name ='P1', channel = 'MW', start = '308 ns', length = '16 ns')
-#pb.pulser_pulse(name ='P2', channel = 'MW', start = '364 ns', length = '16 ns')
-#pb.pulser_pulse(name ='P3', channel = 'TRIGGER', start = '572 ns', length = '100 ns')
+#pb.pulser_pulse(name ='P1', channel = 'MW', start = '420 ns', length = '16 ns')
+#pb.pulser_pulse(name ='P2', channel = 'MW', start = '476 ns', length = '16 ns')
+#pb.pulser_pulse(name ='P3', channel = 'TRIGGER', start = '796 ns', length = '100 ns')
 
 # DEER CHECK
 #pb.pulser_pulse(name = 'P0', channel = 'MW', start = '2100 ns', length = '12 ns')
@@ -44,10 +43,10 @@ pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = '100 ns', length = '100
 #pb.pulser_pulse(name = 'P5', channel = 'TRIGGER', start = '4780 ns', length = '100 ns')
 
 
-pb.pulser_repetitoin_rate('1000 Hz')
+pb.pulser_repetitoin_rate('600 Hz')
 
 pb.pulser_update()
-pb.pulser_visualize()
+#pb.pulser_visualize()
 
 i = 0
 for i in general.to_infinity():

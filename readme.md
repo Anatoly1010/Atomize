@@ -24,6 +24,7 @@ At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and W
     - [Lock-in Amplifiers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/lock_in_amplifier_functions.md)<br/>
     - [Oscilloscopes](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/oscilloscope_functions.md)<br/>
     - [Oscilloscope Wave Generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/oscilloscope_wave_generator_functions.md)<br/>
+    - [Arbitrary Wave Generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/awg_functions.md)<br/>
     - [Pulse Programmers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/pulse_programmers_functions.md)<br/>
     - [Frequency Counters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/frequency_counter_functions.md)<br/>
     - [Magnetic Field Controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/magnet_functions.md)<br/>
@@ -148,6 +149,10 @@ On Windows 10 one should use:
 	Available via corresponding oscilloscope module.
 	- Wave Generator of Keysight InfiniiVision 4000 X-Series (Ethernet)
 	Available via corresponding oscilloscope module.
+
+#### [Arbitrary Wave Generators](#arbitrary-wave-generators-1)
+	- Spectrum M4I 6631 X8; Untested
+The original [library] (https://spectrum-instrumentation.com/en/m4i6631-x8) was written by Spectrum.
 
 #### [Pulse Programmers](#pulse-programmers-1)
     - Pulse Blaster ESR 500 Pro; Tested 06/2021
@@ -274,6 +279,25 @@ wave_gen_arbitrary_points()
 wave_gen_command(command)
 wave_gen_query(command)
 ```
+### [Arbitrary wave generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/awg_functions.md)
+```python3
+awg_name()
+awg_start()
+awg_stop()
+awg_pulse(*kargs)
+awg_number_of_segments(*segments)
+awg_channel(*channel)
+awg_sample_rate(*s_rate)
+awg_clock_mode(*mode)
+awg_reference_clock(*ref_clock)
+awg_card_mode(*mode)
+awg_trigger_channel(*channel)
+awg_trigger_mode(*mode)
+awg_loop(*loop)
+awg_trigger_delay(*delay)
+awg_amplitude(*amplitude)
+awg_pulse_list()
+```
 ### [Pulse programmers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/pulse_programmers_functions.md)
 ```python3
 pulser_name()
@@ -288,6 +312,7 @@ pulser_pulse_reset(*pulses)
 pulser_stop()
 pulser_state()
 pulser_visualize()
+pulser_pulse_list()
 ```
 ### [Lock-in amplifiers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/lock_in_amplifier_functions.md)
 ```python3

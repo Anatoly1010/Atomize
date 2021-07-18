@@ -18,6 +18,7 @@ Functions:
 - [pulser_stop()](#pulser_stop)<br/>
 - [pulser_state()](#pulser_state)<br/>
 - [pulser_visualize()](#pulser_visualize)<br/>
+- [pulser_pulse_list()](#pulser_pulse_list)<br/>
 
 ### pulser_name()
 ```python3
@@ -31,10 +32,10 @@ pulser_pulse(*kagrs)
 Arguments:
 name = 'P0' specifies a name of the pulse
 channel = 'CH0' specifies a channel string (['CH0','CH1', ... ,'CH20'])
-start = '0 ns' specifies a start time of the pulse (['ns', 'us', 's'])
-length = '100 ns' specifies a length of the pulse (['ns', 'us', 's'])
-delta_start = '0 ns' specifies a start time increment of the pulse (['ns', 'us', 's'])
-length_increment = '0 ns' specifies a pulse length increment (['ns', 'us', 's']);
+start = '0 ns' specifies a start time of the pulse (['ns','us','ms','s'])
+length = '100 ns' specifies a length of the pulse (['ns','us','ms','s'])
+delta_start = '0 ns' specifies a start time increment of the pulse (['ns','us','ms',s'])
+length_increment = '0 ns' specifies a pulse length increment (['ns','us','ms','s']);
 phase_list = [] specifies a phase cycling sequence (['+x', '-x', '+y', '-y'])
 Output: none.
 Example: pulser_pulse('name' = 'P0', channel = 'MW', start = '100 ns', length = '100 ns', delta_start = '0 ns',
@@ -111,3 +112,12 @@ Arguments: none; Output: string.
 Example: pulser_visualize() visualizes the pulse sequence in a form of 2D plot.
 ```
 This function visualizes the pulse sequence as 2D plot and can be called only without arguments.
+### pulser_pulse_list()
+```python3
+pulser_pulse_list()
+Arguments: none; Output: string.
+Example: pulser_pulse_list() returns the pulse sequence in a form of array.
+```
+This function can be called only without arguments and it returns the declared pulse sequence as an array.
+
+
