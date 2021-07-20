@@ -3,6 +3,7 @@
 
 import os
 import sys
+import configparser
 import numpy as np
 from tkinter import filedialog
 import tkinter
@@ -20,13 +21,22 @@ test_file_path = os.path.abspath(os.getcwd())
 
 class Saver_Opener:
     def __init__(self):
-        pass
+        # for open directory specified in the config file
+        path_to_main = os.path.abspath(os.getcwd())
+        #os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'templates'))
+        # configuration data
+        path_config_file = os.path.join(path_to_main,'atomize/config.ini')
+        config = configparser.ConfigParser()
+        config.read(path_config_file)
+        # directories
+        self.open_dir = str(config['DEFAULT']['open_dir'])
+        self.script_dir = str(config['DEFAULT']['script_dir'])
 
     def open_1D(self, path, header = 0):
         if test_flag != 'test':
             header_array = []
 
-            file_to_read = open(str(path),'r')
+            file_to_read = open(str(path), 'r')
             for i, line in enumerate(file_to_read):
                 if i is header: break
                 temp = line.split(":")
@@ -92,8 +102,8 @@ class Saver_Opener:
         if test_flag != 'test':
             file_path = self.file_dialog(directory = directory, mode = 'Open')
 
-            header_array = [];
-            file_to_read = open(file_path,'r')
+            header_array = []
+            file_to_read = open(file_path, 'r')
             for i, line in enumerate(file_to_read):
                 if i is header: break
                 temp = line.split(":")
@@ -110,7 +120,7 @@ class Saver_Opener:
     def open_2D_appended(self, path, header = 0, chunk_size = 1):
         if test_flag != 'test':
             header_array = []
-            file_to_read = open(str(path),'r')
+            file_to_read = open(str(path), 'r')
             for i, line in enumerate(file_to_read):
                 if i is header: break
                 temp = line.split(":")
@@ -129,7 +139,7 @@ class Saver_Opener:
             file_path = self.file_dialog(directory = directory, mode = 'Open')
 
             header_array = []
-            file_to_read = open(file_path,'r')
+            file_to_read = open(file_path, 'r')
             for i, line in enumerate(file_to_read):
                 if i is header: break
                 temp = line.split(":")
@@ -146,7 +156,7 @@ class Saver_Opener:
     def save_2D_dialog(self, data, directory = '', header = ''):
         if test_flag != 'test':
             file_path = self.file_dialog(directory = directory, mode = 'Save')
-            np.savetxt(file_path, data, fmt = '%.10f', delimiter = ',', newline = '\n', \
+            np.savetxt(file_path, data, fmt = '%.4e', delimiter = ',', newline = '\n', \
                 header = header, footer = '', comments = '#', encoding = None)
 
         elif test_flag == 'test':
@@ -157,6 +167,7 @@ class Saver_Opener:
             file_path = self.file_dialog(directory = directory, mode = 'Save')
             open(file_path, "w").close()
             return file_path
+            
         elif test_flag == 'test':
             return test_file_path
 
@@ -166,14 +177,14 @@ class Saver_Opener:
 
         if mode == 'Open':
             file_path = filedialog.askopenfilename(**dict(
-                initialdir = directory,
+                initialdir = self.open_dir,
                 filetypes = [("CSV", "*.csv"), ("TXT", "*.txt"),\
                 ("DAT", "*.dat"), ("all", "*.*")],
                 title = 'Select file to open')
                 )
         elif mode == 'Save':
             file_path = filedialog.asksaveasfilename(**dict(
-                initialdir = directory,
+                initialdir = self.open_dir,
                 filetypes = [("CSV", "*.csv"), ("TXT", "*.txt"),\
                 ("DAT", "*.dat"), ("all", "*.*")],
                 title = 'Select file to save')

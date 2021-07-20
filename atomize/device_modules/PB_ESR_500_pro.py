@@ -523,14 +523,14 @@ class PB_ESR_500_Pro:
                 self.rep_rate = r_rate
                 self.rep_rate_count = 1
             elif len(r_rate) == 0:
-                general.message(self.rep_rate[0])
+                return self.rep_rate[0]
 
         elif test_flag == 'test':
             if  len(r_rate) == 1:
                 self.rep_rate = r_rate
                 self.rep_rate_count = 1
             elif len(r_rate) == 0:
-                pass
+                return self.rep_rate[0]
 
     def pulser_shift(self, *pulses):
         """

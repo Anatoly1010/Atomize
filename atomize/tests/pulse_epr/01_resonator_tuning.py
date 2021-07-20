@@ -9,11 +9,11 @@ import atomize.device_modules.PB_ESR_500_pro as pb_pro
 
 ### Experimental parameters
 data = []
-START_FREQ = 9450
-END_FREQ = 9800
+START_FREQ = 9550
+END_FREQ = 9900
 STEP = 1
 CYCLES = 1
-AVERAGES = 200
+AVERAGES = 400
 ###
 
 #open1d = openfile.Saver_Opener()
@@ -55,7 +55,7 @@ while i < CYCLES:
         y = t3034.oscilloscope_get_curve('CH2')
 
         data.append(y)
-        general.plot_2d('Tune Scan', data, start_step = ( (0, 1), (START_FREQ*1000000, STEP*1000000) ), xname = 'Time',\
+        general.plot_2d('Tune Scan 2', data, start_step = ( (0, 1), (START_FREQ*1000000, STEP*1000000) ), xname = 'Time',\
             xscale = 's', yname = 'Frequency', yscale = 'Hz', zname = 'Intensity', zscale = 'V')
 
         #f = open(path_to_file,'a')

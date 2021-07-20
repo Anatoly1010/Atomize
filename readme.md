@@ -129,6 +129,8 @@ On Windows 10 one should use:
 	ITC 503; Tested 01/21
     - Termodat (RS-485)
     11M6; 13KX3; Tested 04/21
+    - Stanford Research (TCP-IP)
+	PTC10; Tested 07/21
 
 #### [Lock-in Amplifiers](#lock-in-amplifiers-1)
 	- Stanford Research Lock-In Amplifier (GPIB, RS-232)
@@ -157,7 +159,7 @@ The original [library] (https://spectrum-instrumentation.com/en/m4i6631-x8) was 
 #### [Pulse Programmers](#pulse-programmers-1)
     - Pulse Blaster ESR 500 Pro; Tested 06/2021
     The device is available via ctypes. 
-The original [C library](http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml) was written by SpinCore Technologies.
+The original [C library] (http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml) was written by SpinCore Technologies.
 
 #### [Frequency Counters](#frequency-counters-1)
 	- Agilent Frequency Counter (GPIB, RS-232)

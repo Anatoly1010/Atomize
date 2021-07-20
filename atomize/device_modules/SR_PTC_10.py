@@ -28,6 +28,8 @@ UDP_IP = str(specific_parameters['udp_ip'])
 UDP_PORT = int(specific_parameters['udp_port'])
 TCP_IP = str(specific_parameters['tcp_ip'])
 TCP_PORT = int(specific_parameters['tcp_port'])
+temperature_max = 320
+temperature_min = 0.3
 
 # Test run parameters
 # These values are returned by the modules in the test run 
@@ -48,8 +50,11 @@ class SR_PTC_10:
     def __init__(self):
         if test_flag != 'test':
 
-            self.device_write('*CLS')
-            answer = self.device_query('*TST?', 20)
+            pass
+            #self.device_write('*CLS')
+            #general.wait('30 ms')
+            #answer = self.device_query('*TST?', 1)
+            #general.wait('30 ms')
 
         elif test_flag == 'test':
             pass
@@ -62,13 +67,12 @@ class SR_PTC_10:
             self.sock.settimeout(10) 
             self.sock.connect( (TCP_IP, TCP_PORT) )
 
-            command_term = command + '\r\n'
-            self.sock.sendto( command_term, (TCP_IP, TCP_PORT) )
+            command_term = str(command) + '\r\n'
+            self.sock.sendto( command_term.encode(), (TCP_IP, TCP_PORT) )
 
             self.sock.shutdown(socket.SHUT_RDWR)
             self.sock.close()
 
-            return data_raw
         except socket.error:
             general.message("No Connection")
             sys.exit()
@@ -80,8 +84,8 @@ class SR_PTC_10:
             self.sock.settimeout(10) 
             self.sock.connect( (TCP_IP, TCP_PORT) )
 
-            command_term = command + '\r\n'
-            self.sock.sendto( command_term, (TCP_IP, TCP_PORT) )
+            command_term = str(command) + '\r\n'
+            self.sock.sendto( command_term.encode(), (TCP_IP, TCP_PORT) )
             data_raw, addr = self.sock.recvfrom( int(bytes_to_recieve) )
 
             self.sock.shutdown(socket.SHUT_RDWR)
@@ -96,99 +100,71 @@ class SR_PTC_10:
     def tc_name(self):
         if test_flag != 'test':
             # b'name\r\n'
-            answer = self.device_query('*IDN?', 100)
-                # can be terminator
-                return answer.decode()
+            answer = self.device_query('*IDN?', 91)
+            # can be terminator
+            return answer.decode()
+
         elif test_flag == 'test':
-            answer = config['name']
+            answer = 'Stanford Research PTC 10'
             return answer
 
     def tc_temperature(self, channel):
         if test_flag != 'test':
-            if channel == 'A':
-                # terminator? channel name?
-                answer = float(self.device_query('2A.value?', 10))
+            ch = str(channel) + '.value?'
+            try:
+                answer = float(self.device_query(ch, 6))    
                 return answer
-            elif channel == 'B':
-                answer = float(self.device_query('3A.value?', 10))
-                return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
-        
+            except ValueError:
+                general.message('Incorrect channel name. Please, check')
+
         elif test_flag == 'test':
-            assert(channel == 'A' or channel == 'B'), "Incorrect channel"
+            #assert(channel == 'A' or channel == 'B'), "Incorrect channel"
             answer = test_temperature
             return answer
 
-    def tc_setpoint(self, *temp):
+    def tc_setpoint(self, *temperature):
         if test_flag != 'test':
-            if len(temp) == 1:
-                temp = float(temp[0])
+            if len(temperature) == 2:
+                ch = str(temperature[0])
+                temp = round(float(temperature[1]), 1)
                 if temp <= temperature_max and temp >= temperature_min:
+                    chan1 = str(ch) + '.PID.Mode On'
+                    chan2 = str(ch) + '.PID.Setpoint ' + str(temp)
                     # turn on PID on channel 2A
-                    self.device_write('2A.PID.Mode On')
-                    self.device_write('2A.PID.Setpoint ' + str(temp))
+                    self.device_write(chan1)
+                    self.device_write(chan2)
                 else:
                     general.message("Incorrect set point temperature")
                     sys.exit()
-            elif len(temp) == 0:
+            elif len(temperature) == 1:
+                ch = str(temperature[0])
+                chan1 = str(ch) + '.PID.Setpoint?'
                 # terminator
-                answer = float(self.device_query('2A.PID.Setpoint?'))
+                # bytes?
+                answer = float(self.device_query(chan1, 8))
                 return answer   
             else:
                 general.message("Invalid argument")
                 sys.exit()
            
         elif test_flag == 'test':
-            if len(temp) == 1:
-                temp = float(temp[0])
+            if len(temperature) == 2:
+                ch = str(temperature[0])
+                temp = float(temperature[1])
                 assert(temp <= temperature_max and temp >= temperature_min), 'Incorrect set point temperature is reached'
-            elif len(temp) == 0:
+            elif len(temperature) == 1:
+                ch = str(temperature[0])
                 answer = test_set_point
                 return answer
 
-    def tc_heater_range(self, *heater):
+    def tc_heater_power(self, channel):
         if test_flag != 'test':
-            if  len(heater) == 1:
-                hr = str(heater[0])
-                if hr in heater_dict:
-                    flag = heater_dict[hr]
-                    if int(loop_config) in loop_list:
-                        self.device_write("RANGE " + str(loop_config) + ',' + str(flag))
-                    else:
-                        general.message('Invalid loop')
-                        sys.exit()
-                else:
-                    general.message("Invalid heater range")
-                    sys.exit()
-            elif len(heater) == 0:
-                raw_answer = int(self.device_query("RANGE? " + str(loop_config)))
-                answer = cutil.search_keys_dictionary(heater_dict, raw_answer)
-                return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
-
-        elif test_flag == 'test':                           
-            if  len(heater) == 1:
-                hr = str(heater[0])
-                if hr in heater_dict:
-                    flag = heater_dict[hr]
-                    assert(int(loop_config) in loop_list), 'Invalid loop argument'
-                else:
-                    assert(1 == 2), "Invalid heater range"
-            elif len(heater) == 0:
-                answer = test_heater_range
-                return answer
-            else:
-                assert(1 == 2), "Invalid heater range"
-
-    def tc_heater_power(self):
-        if test_flag != 'test':
-            raw_answer = float(self.device_query('"Out 1.value?"'))
-            answer = str(raw_answer) + ' W'
-            return answer
+            ch = str(channel) + '.value?'
+            try:
+                raw_answer = float(self.device_query(ch, 4))    
+                return str(raw_answer) + ' W'
+            except ValueError:
+                general.message('Incorrect output channel name. Please, check')
           
         elif test_flag == 'test':
             answer = test_heater

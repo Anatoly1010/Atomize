@@ -180,7 +180,7 @@ class Worker(QWidget):
         pb = pb_pro.PB_ESR_500_Pro()
         bh15 = bh.BH_15()
 
-        bh15.magnet_setup(3507, 1)
+        bh15.magnet_setup(3500, 1)
 
         pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '16 ns')
         pb.pulser_pulse(name ='P1', channel = 'MW', start = '400 ns', length = '32 ns')

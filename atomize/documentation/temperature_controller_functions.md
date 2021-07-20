@@ -7,7 +7,7 @@ Available devices:
 ITC 503; Tested 01/21
 - Termodat (RS-485)
 11M6; 13KX3; Tested 04/21
-- Stanford Research (TCP IP)
+- Stanford Research (TCP-IP)
 PTC10; Untested
 
 Functions:
@@ -48,6 +48,7 @@ This function is for reading temperature from specified channel.<br/>
 Note that arguments can be devices specific. A set of ['A','B'] is used for Lakeshore 325, 331, 332, and 335, while for Lakeshore 336, 340 a set of four channel ['A','B','C','D'] is used.<br/>
 For Oxford Instruments ITC 503 channel should be one from the following: ['1', '2', '3']. Only tc_temperature('1') is valid, tc_temperature(1) are not valid. Note that there are models with different numbers of channels. Please, refer to manual and specify this setting in the configuration file.<br/>
 For Termodat-11M6 channel should be one from the following: ['1', '2', '3', '4']. For Termodat-13KX3 channel should be one from the following: ['1', '2'].  Note that there are models with different numbers of channels. Please, refer to manual and specify this setting in the configuration file.<br/>
+For Stanford Research PTC10 an argumnet of the function tc_temperature() should have the name of the channel. For instance, if the channel name is 2A one should use tc_temperature('2A') in order to get the temperature.<br/>
 ### tc_setpoint(*temp)
 ```python3
 tc_setpoint(*temp)
@@ -55,7 +56,7 @@ Arguments: temp = float; Output: float or none.
 Example: tc_setpoint('100') changes the set point of the specified loop to 100 Kelvin.
 ```
 This function queries or changes the set point, i.e. the target temperature the device will try to achieve and maintain. If an argument is specified the function sets a new temperature point. If there is no argument the function returns the current set point. A loop can be specified in configuration file.<br/>
-For Termodat-11M6, 13KX3 the channel for which the set point is to be set should be specified as an agrument of the function:
+For Termodat-11M6, 13KX3 and Stanford Research PTC10 the channel for which the set point is to be set should be specified as an agrument of the function:
 ### tc_setpoint(channel, *temp)
 ```python3
 tc_setpoint(channel, *temp)
@@ -63,6 +64,7 @@ Arguments: channel = ['1','2', etc]; Output: float.
 Example: tc_setpoint('2', '100') changes the set point of the second channel to 100 Kelvin.
 ```
 Accuracy of the set point setting is 0.1 degree. The number of available channels should be specified in the configuration file. If there is no temperature argument the function returns the current set point for specified channel.<br/>
+For Stanford Research PTC10 a channel argument should have the name of the output channel. For instance, if the channel name is 'Heater' one should use tc_setpoint('Heater', '80') in order to set the desired temperature.<br/>
 ### tc_heater_range(*heater)
 ```python3
 tc_heater_range(*heater)
@@ -75,7 +77,7 @@ Note that arguments are devices specific. Currently a set of ['50 W','5 W','0.5 
 For Lakeshore 336 a loop 1 or 2 can be used with a set of ['50 W','5 W','0.5 W','Off']. The loop 3 and 4 can be used only with ['On','Off'] set.<br/>
 For Lakeshore 325 a loop 1 can be used with a set of ['25 W','2.5 W','Off']. The loop 2 can be used only with ['On','Off'] set.<br/>
 The values '50 W', '5 W', and '0.5 W' are shown as High, Medium, and Low on the device display. The exact values depends on the resistance used.<br/>
-This function is not available for Termodat-11M6, 13KX3.<br/>
+This function is not available for Termodat-11M6, 13KX3, Stanford Research PTC10.<br/>
 ### tc_heater_power()
 ```python3
 tc_heater_power()
@@ -85,11 +87,11 @@ Example: tc_heater() returns the array of the heater range and heater percent.
 This function is for reading the current heater value in percent for the specified loop. The loop config (should be indicated in the configuration file) can be: 1, 2 for Lakeshore 325, 331, 332, 335; 1, 2, 3, 4 for Lakeshore 336, 340.<br/>
 For Lakeshore 325, 331, 332, 335  loop 1 is a control loop, while loop 2 is an analog output.<br/>
 For Lakeshore 336, 340 loop 1, 2 are control loops, while loop 3, 4 are analog outputs (1 and 2 (or 3 and 4 for some models), respectively).<br/>
-For Termodat-11M6, 13KX3 the loop should be specified as an argument:
+For Termodat-11M6, 13KX3 the loop should be specified as an argument. For Stanford Research PTC10 the name of the output channel should be specified as an argument. For instance, if the channel name is 'Heater' one should use tc_heater_power('Heater'). In both cases one should use this function as follows:<br/>
 ### tc_heater_power(channel)
 ```python3
 tc_heater_power(channel)
-Arguments: channel = ['1','2','3','4']; Output: decimal.
+Arguments: channel = ['1','2','3','4', etc.]; Output: decimal.
 ```
 For Oxford Instruments ITC 503 the function returns only heater power as a percentage of the maximum power. In addition in manual mode of ITC 503 this function allows to adjust the heater power by calling it with an argument between 0 and 99.9:
 ### tc_heater_power(*power_percent)

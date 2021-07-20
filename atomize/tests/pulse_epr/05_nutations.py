@@ -1,15 +1,17 @@
 import time
+import datetime
 import numpy as np
 import atomize.general_modules.general_functions as general
 import atomize.device_modules.PB_ESR_500_pro as pb_pro
 import atomize.device_modules.Keysight_3000_Xseries as key
 import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.BH_15 as bh
+import atomize.device_modules.SR_PTC_10 as sr
 import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 
 ### Experimental parameters
 POINTS = 194
-STEP = 2                  # length increment
+STEP = 2                  # in NS; length incremen = str(STEP) + ' ns' -> length incremen = '2 ns'
 FIELD = 3473
 AVERAGES = 1000
 
@@ -20,6 +22,7 @@ x_axis = np.arange(10, POINTS*STEP + 10, STEP) # 10 is initial length of the pul
 
 # initialization of the devices
 file_handler = openfile.Saver_Opener()
+ptc10 = sr.SR_PTC_10()
 mw = mwBridge.Mikran_X_band_MW_bridge()
 pb = pb_pro.PB_ESR_500_Pro()
 t3034 = key.Keysight_3000_Xseries()
@@ -34,7 +37,7 @@ t3034.oscilloscope_acquisition_type('Average')
 t3034.oscilloscope_number_of_averages(AVERAGES)
 t3034.oscilloscope_stop()
 
-pb.pulser_pulse(name = 'P0', channel = 'MW', start = '100 ns', length = '10 ns', length_increment = '2 ns')
+pb.pulser_pulse(name = 'P0', channel = 'MW', start = '100 ns', length = '10 ns', length_increment = str(STEP) + ' ns')
 pb.pulser_pulse(name = 'P1', channel = 'MW', start = '600 ns', length = '50 ns')
 pb.pulser_pulse(name = 'P2', channel = 'MW', start = '950 ns', length = '100 ns')
 pb.pulser_pulse(name = 'P3', channel = 'TRIGGER', start = '1300 ns', length = '100 ns')
@@ -61,14 +64,13 @@ for i in range(POINTS):
     pb.pulser_increment()
 
 # Data saving
-header = 'Date: ' + str(datetime.now().strftime('%d-%m-%Y %H:%M:%S')) + '\n' + 
-         'Nutation' + 
-         'Field: ' + str(FIELD) + ' G \n' + 
-          mw.mw_bridge_att_prm() + '\n' + 
-          + mw.mw_bridge_synthesizer() + '\n' + 
-         'Repetition Rate: ' + pb.pulser_repetitoin_rate() + '\n' +
-         'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + 'ns \n' +
-         'Pulse List: ' + '\n' + pb.pulser_pulse_list() + 'Time (pulse length_increment), X (V*s), Y (V*s) '
+header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + 'Nutation\n' + \
+            'Field: ' + str(FIELD) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + \
+            str(mw.mw_bridge_synthesizer()) + '\n' + \
+           'Repetition Rate: ' + str(pb.pulser_repetitoin_rate()) + '\n' +\
+           'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + ' ns\n' + \
+           'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
+           'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Time (pulse length_increment), X (V*s), Y (V*s) '
 
 file_handler.save_1D_dialog( (x_axis, data_x, data_y), header = header )
 

@@ -6,12 +6,13 @@ import atomize.device_modules.PB_ESR_500_pro as pb_pro
 import atomize.device_modules.Keysight_3000_Xseries as key
 import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.BH_15 as bh
+import atomize.device_modules.SR_PTC_10 as sr
 import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 
 ### Experimental parameters
-START_FIELD = 3450
-END_FIELD = 3650
-FIELD_STEP = 1
+START_FIELD = 3470
+END_FIELD = 3610
+FIELD_STEP = 0.25
 AVERAGES = 5
 
 points = int( (END_FIELD - START_FIELD)/FIELD_STEP )
@@ -22,6 +23,7 @@ x_axis = np.arange(START_FIELD, END_FIELD, FIELD_STEP)
 ###
 
 file_handler = openfile.Saver_Opener()
+ptc10 = sr.SR_PTC_10()
 mw = mwBridge.Mikran_X_band_MW_bridge()
 pb = pb_pro.PB_ESR_500_Pro()
 bh15 = bh.BH_15()
@@ -57,9 +59,9 @@ while field < END_FIELD:
     data_x[i] = area_x
     data_y[i] = area_y
 
-    general.plot_1d('Echo Detected Spectrum 3', x_axis, data_x, xname = 'Field',\
+    general.plot_1d('Echo Detected Spectrum', x_axis, data_x, xname = 'Field',\
         xscale = 'T.', yname = 'Area', yscale = 'V*s', label = 'X')
-    general.plot_1d('Echo Detected Spectrum 3', x_axis, data_y, xname = 'Field',\
+    general.plot_1d('Echo Detected Spectrum', x_axis, data_y, xname = 'Field',\
         xscale = 'T.', yname = 'Area', yscale = 'V*s', label = 'Y')
 
     field = round( (FIELD_STEP + field), 3 )
@@ -70,13 +72,13 @@ bh15.magnet_field(START_FIELD)
 pb.pulser_stop()
 
 # Data saving
-header = 'Date: ' + str(datetime.now().strftime('%d-%m-%Y %H:%M:%S')) + '\n' + 
-         'Echo Detected Spectrum' + 
-         'Start Field: ' + str(START_FIELD) + ' G \n' + 'End Field: ' + str(END_FIELD) + ' G \n' + 
-         'Field Step: ' + str(FIELD_STEP) + ' G \n' + mw.mw_bridge_att_prm() + '\n' + 
-          + mw.mw_bridge_synthesizer() + '\n' + 
-         'Repetition Rate: ' + pb.pulser_repetitoin_rate() + '\n' +
-         'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + 'ns \n' +
-         'Pulse List: ' + '\n' + pb.pulser_pulse_list() + 'Field (G), X (V*s), Y (V*s) '
+header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + 'Echo Detected Spectrum\n' + \
+            'Start Field: ' + str(START_FIELD) + ' G \n' + 'End Field: ' + str(END_FIELD) + ' G \n' + \
+            'Field Step: ' + str(FIELD_STEP) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + \
+            str(mw.mw_bridge_synthesizer()) + '\n' + \
+           'Repetition Rate: ' + str(pb.pulser_repetitoin_rate()) + '\n' +\
+           'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + ' ns\n' + \
+           'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
+           'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Field (G), X (V*s), Y (V*s) '
 
 file_handler.save_1D_dialog( (x_axis, data_x, data_y), header = header )

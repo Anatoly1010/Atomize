@@ -33,9 +33,9 @@ def read_conf_util(path_config_file):
     else:
         import minimalmodbus
 
-        if parity == 'odd':
+        if parity == 'even':
             parity = minimalmodbus.serial.PARITY_EVEN
-        elif parity == 'even':
+        elif parity == 'odd':
             parity = minimalmodbus.serial.PARITY_ODD
         elif parity == 'none':
             parity = minimalmodbus.serial.PARITY_NONE   

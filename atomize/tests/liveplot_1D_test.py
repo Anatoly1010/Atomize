@@ -2,7 +2,8 @@ import time
 import numpy as np
 from datetime import datetime
 import atomize.general_modules.general_functions as general
-import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+#import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+import atomize.general_modules.csv_opener_saver as openfile
 
 file_handler = openfile.Saver_Opener()
 
