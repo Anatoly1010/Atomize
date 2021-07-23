@@ -7,7 +7,7 @@
 - [GPIB](#gpib)
 
 ## VXI-11
-Typical ethernet (via vxi-11; turn on it on the device) settings are:
+Typical ethernet (via VXI-11 or TCP/IP Socket) settings are:
 
 ### Computer
 

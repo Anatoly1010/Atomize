@@ -50,8 +50,8 @@ Available via corresponding oscilloscope module.
 Available via corresponding oscilloscope module.
 
 ## Arbitrary Wave Generators
-- Spectrum M4I 6631 X8; Untested
-The original [library] (https://spectrum-instrumentation.com/en/m4i6631-x8) was written by Spectrum.
+- Spectrum M4I 6631 X8; Tested 07/2021
+The original [library](https://spectrum-instrumentation.com/en/m4i6631-x8) was written by Spectrum.
 
 
 ## Pulse Programmers

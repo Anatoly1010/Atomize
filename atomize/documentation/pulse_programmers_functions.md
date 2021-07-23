@@ -13,8 +13,8 @@ Functions:
 - [pulser_repetition_rate(*r_rate)](#pulser_repetition_rater_rate)<br/>
 - [pulser_shift(*pulses)](#pulser_shiftpulses)<br/>
 - [pulser_increment(*pulses)](#pulser_incrementpulses)<br/>
-- [pulser_redefine_delta_start(*, name, delta_start)](#pulser_redefine_delta_startnamedelta_start)<br/>
-- [pulser_redefine_length_increment(*, name, length_increment)](#pulser_redefine_length_incrementnamelength_increment)<br/>
+- [pulser_redefine_delta_start(*, name, delta_start)](#pulser_redefine_delta_start-name-delta_start)<br/>
+- [pulser_redefine_length_increment(*, name, length_increment)](#pulser_redefine_length_increment-name-length_increment)<br/>
 - [pulser_reset()](#pulser_reset)<br/>
 - [pulser_pulse_reset(*pulses)](#pulser_pulse_resetpulses)<br/>
 - [pulser_stop()](#pulser_stop)<br/>
@@ -92,7 +92,8 @@ This function should be called with two keyword arguments, namely name and delta
 pulser_redefine_length_increment(*, name, length_increment)
 Arguments: name = 'Pulse name', length_increment = length increment (as a string);
 Output: none.
-Example: pulser_redefine_length_increment('P2', length_increment = '2 ns') changes length increment setting of the 'P2' pulse to 2 ns.
+Example: pulser_redefine_length_increment('P2', length_increment = '2 ns') changes length
+increment setting of the 'P2' pulse to 2 ns.
 ```
 This function should be called with two keyword arguments, namely name and length_increment. The first argument specifies the name of the pulse as a string. The second argument defines a new value of length increment as a string in the format value + dimension (i.e. '10 ms'). The main purpose of the function is non-uniform sampling. Please note, that the function does not update the pulse programmer. [pulser_update()](#pulser_update) should be called to apply changes.
 ### pulser_reset()

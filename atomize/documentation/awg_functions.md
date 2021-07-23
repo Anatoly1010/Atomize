@@ -2,7 +2,7 @@
 
 Available devices:
 - Spectrum M4I 6631 X8; Tested 07/2021
-The original [library] (https://spectrum-instrumentation.com/en/m4i6631-x8) was written by Spectrum. The library header files (pyspcm.py, spcm_tools.py) should be added to the path directly in the module file: 
+The original [library](https://spectrum-instrumentation.com/en/m4i6631-x8) was written by Spectrum. The library header files (pyspcm.py, spcm_tools.py) should be added to the path directly in the module file: 
 ```python3
 sys.path.append('/path/to/python/header/of/Spectrum/library')
 from pyspcm import *
@@ -16,9 +16,9 @@ Functions:
 - [awg_pulse(*kargs)](#awg_pulsekargs)<br/>
 - [awg_shift(*pulses)](#awg_shiftpulses)<br/>
 - [awg_increment(*pulses)](#awg_incrementpulses)<br/>
-- [awg_redefine_delta_phase(*, name, delta_phase)](#awg_redefine_delta_phasenamedelta_phase)<br/>
-- [awg_redefine_increment(*, name, increment)](#awg_redefine_incrementnameincrement)<br/>
-- [awg_add_phase(*, name, add_phase)](#awg_add_phasenameadd_phase)<br/>
+- [awg_redefine_delta_phase(*, name, delta_phase)](#awg_redefine_delta_phase-name-delta_phase)<br/>
+- [awg_redefine_increment(*, name, increment)](#awg_redefine_increment-name-increment)<br/>
+- [awg_add_phase(*, name, add_phase)](#awg_add_phase-name-add_phase)<br/>
 - [awg_reset()](#awg_reset)<br/>
 - [awg_pulse_reset(*pulses)](#awg_pulse_resetpulses)<br/>
 - [awg_number_of_segments(*segments)](#awg_number_of_segmentssegments)<br/>
@@ -164,7 +164,7 @@ awg_reference_clock(*ref_clock)
 Arguments: ref_clock = integer (10-1000 MHz); Output: integer.
 Example: awg_reference_clock(100) sets the AWG card reference clock to 100 MHz.
 ```
-This function queries or sets the AWG card reference clock (in MHz) for 'External' mode of the [awg_clock_mode(*mode)](#awg_clock_modemode) function. If there is no argument the function will return the current reference clock. If there is an argument the specified reference clock will be set. The minimum available reference clock is 10 MHz. The maximum available reference clock is 1000 MHz. Default value is 100 MHz.<br/>
+This function queries or sets the AWG card reference clock (in MHz) for 'External' mode of the [awg_clock_mode()](#awg_clock_modemode) function. If there is no argument the function will return the current reference clock. If there is an argument the specified reference clock will be set. The minimum available reference clock is 10 MHz. The maximum available reference clock is 1000 MHz. Default value is 100 MHz.<br/>
 ### awg_card_mode(*mode)
 ```python3
 awg_card_mode(*mode)
