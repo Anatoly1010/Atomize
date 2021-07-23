@@ -11,7 +11,7 @@ if len(sys.argv) > 1:
 else:
     test_flag = 'None'
 
-# The class of the file:///home/pulseepr/Sources/Atomize/atomize/tests/pulse_epr/09_srt_field_loop.pymain window of GUI
+# The class of the main window of GUI
 class MainWindow(QWidget):
     def __init__(self):
         if test_flag != 'test': # it should be included in order to have correctly working tests
@@ -206,7 +206,7 @@ class Worker(QWidget):
                     if self.command[0:2] == 'FR':
                         param_1 = self.command[2:]
                         rep_rate = str(param_1) + ' Hz'
-                        pb.pulser_repetitoin_rate( rep_rate )
+                        pb.pulser_repetition_rate( rep_rate )
                         pb.pulser_update()
                     elif self.command[0:2] == 'FI':
                         param_3 = self.command[2:]

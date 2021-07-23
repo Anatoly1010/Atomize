@@ -9,7 +9,7 @@ import atomize.device_modules.PB_ESR_500_pro as pb_pro
 
 ### Experimental parameters
 data = []
-START_FREQ = 9550
+START_FREQ = 9600
 END_FREQ = 9900
 STEP = 1
 CYCLES = 1
@@ -33,7 +33,7 @@ t3034.oscilloscope_number_of_averages(AVERAGES)
 pb.pulser_pulse(name ='P0', channel = 'TRIGGER', start = '0 ns', length = '100 ns')
 pb.pulser_pulse(name ='P1', channel = 'MW', start = '100 ns', length = '100 ns')
 
-pb.pulser_repetitoin_rate('600 Hz')
+pb.pulser_repetition_rate('600 Hz')
 pb.pulser_update()
 
 # initialize the power

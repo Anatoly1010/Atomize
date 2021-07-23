@@ -42,7 +42,7 @@ pb.pulser_pulse(name = 'P1', channel = 'MW', start = '600 ns', length = '50 ns')
 pb.pulser_pulse(name = 'P2', channel = 'MW', start = '950 ns', length = '100 ns')
 pb.pulser_pulse(name = 'P3', channel = 'TRIGGER', start = '1300 ns', length = '100 ns')
 
-pb.pulser_repetitoin_rate('500 Hz')
+pb.pulser_repetition_rate('500 Hz')
 
 for i in range(POINTS):
 
@@ -67,7 +67,7 @@ for i in range(POINTS):
 header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + 'Nutation\n' + \
             'Field: ' + str(FIELD) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + \
             str(mw.mw_bridge_synthesizer()) + '\n' + \
-           'Repetition Rate: ' + str(pb.pulser_repetitoin_rate()) + '\n' +\
+           'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' +\
            'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + ' ns\n' + \
            'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
            'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Time (pulse length_increment), X (V*s), Y (V*s) '

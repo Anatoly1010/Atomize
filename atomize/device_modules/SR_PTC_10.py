@@ -50,11 +50,8 @@ class SR_PTC_10:
     def __init__(self):
         if test_flag != 'test':
 
-            pass
-            #self.device_write('*CLS')
-            #general.wait('30 ms')
-            #answer = self.device_query('*TST?', 1)
-            #general.wait('30 ms')
+            self.device_write('*CLS')
+            answer = self.device_query('*TST?', 10)
 
         elif test_flag == 'test':
             pass
@@ -64,7 +61,7 @@ class SR_PTC_10:
         try:
             self.sock = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
             # timeout
-            self.sock.settimeout(10) 
+            self.sock.settimeout(2) 
             self.sock.connect( (TCP_IP, TCP_PORT) )
 
             command_term = str(command) + '\r\n'
@@ -81,7 +78,7 @@ class SR_PTC_10:
         try:
             self.sock = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
             # timeout
-            self.sock.settimeout(10) 
+            self.sock.settimeout(2) 
             self.sock.connect( (TCP_IP, TCP_PORT) )
 
             command_term = str(command) + '\r\n'
@@ -112,7 +109,7 @@ class SR_PTC_10:
         if test_flag != 'test':
             ch = str(channel) + '.value?'
             try:
-                answer = float(self.device_query(ch, 6))    
+                answer = float(self.device_query(ch, 50))
                 return answer
             except ValueError:
                 general.message('Incorrect channel name. Please, check')
@@ -161,11 +158,12 @@ class SR_PTC_10:
         if test_flag != 'test':
             ch = str(channel) + '.value?'
             try:
-                raw_answer = float(self.device_query(ch, 4))    
+                raw_answer = float(self.device_query(ch, 50))
                 return str(raw_answer) + ' W'
             except ValueError:
                 general.message('Incorrect output channel name. Please, check')
-          
+
+
         elif test_flag == 'test':
             answer = test_heater
             return answer

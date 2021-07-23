@@ -124,13 +124,13 @@ On Windows 10 one should use:
 ## Available devices
 #### [Temperature Controllers](#temperature-controllers-1)
 	- Lakeshore (GPIB, RS-232)
-	325; 331; 332; 335; 336; 340; Tested 01/21
+	325; 331; 332; 335; 336; 340; Tested 01/2021
 	- Oxford Instruments (RS-232)
-	ITC 503; Tested 01/21
+	ITC 503; Tested 01/2021
     - Termodat (RS-485)
-    11M6; 13KX3; Tested 04/21
-    - Stanford Research (TCP-IP)
-	PTC10; Tested 07/21
+    11M6; 13KX3; Tested 04/2021
+    - Stanford Research (TCP/IP Socket)
+	PTC10; Tested 07/2021
 
 #### [Lock-in Amplifiers](#lock-in-amplifiers-1)
 	- Stanford Research Lock-In Amplifier (GPIB, RS-232)
@@ -153,13 +153,13 @@ On Windows 10 one should use:
 	Available via corresponding oscilloscope module.
 
 #### [Arbitrary Wave Generators](#arbitrary-wave-generators-1)
-	- Spectrum M4I 6631 X8; Untested
-The original [library] (https://spectrum-instrumentation.com/en/m4i6631-x8) was written by Spectrum.
+	- Spectrum M4I 6631 X8; Tested 07/2021
+The original [library](https://spectrum-instrumentation.com/en/m4i6631-x8) was written by Spectrum.
 
 #### [Pulse Programmers](#pulse-programmers-1)
     - Pulse Blaster ESR 500 Pro; Tested 06/2021
     The device is available via ctypes. 
-The original [C library] (http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml) was written by SpinCore Technologies.
+The original [C library](http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml) was written by SpinCore Technologies.
 
 #### [Frequency Counters](#frequency-counters-1)
 	- Agilent Frequency Counter (GPIB, RS-232)
@@ -284,9 +284,16 @@ wave_gen_query(command)
 ### [Arbitrary wave generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/awg_functions.md)
 ```python3
 awg_name()
-awg_start()
+awg_update()
 awg_stop()
 awg_pulse(*kargs)
+awg_shift(*pulses)
+awg_increment(*pulses)
+awg_redefine_delta_phase(*, name, delta_phase)
+awg_redefine_increment(*, name, increment)
+awg_add_phase(*, name, add_phase)
+awg_reset()
+awg_pulse_reset(*pulses)
 awg_number_of_segments(*segments)
 awg_channel(*channel)
 awg_sample_rate(*s_rate)
@@ -298,6 +305,7 @@ awg_trigger_mode(*mode)
 awg_loop(*loop)
 awg_trigger_delay(*delay)
 awg_amplitude(*amplitude)
+awg_visualize()
 awg_pulse_list()
 ```
 ### [Pulse programmers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/pulse_programmers_functions.md)
@@ -306,9 +314,11 @@ pulser_name()
 pulser_pulse(*kargs)
 pulser_update()
 pulser_next_phase()
-pulser_repetitoin_rate(*r_rate)
+pulser_repetition_rate(*r_rate)
 pulser_shift(*pulses)
 pulser_increment(*pulses)
+pulser_redefine_delta_start(*, name, delta_start)
+pulser_redefine_length_increment(*, name, length_increment)
 pulser_reset()
 pulser_pulse_reset(*pulses)
 pulser_stop()

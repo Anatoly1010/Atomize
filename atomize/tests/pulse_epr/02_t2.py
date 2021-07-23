@@ -44,7 +44,7 @@ pb.pulser_pulse(name = 'P0', channel = 'MW', start = '100 ns', length = '16 ns')
 pb.pulser_pulse(name = 'P1', channel = 'MW', start = '400 ns', length = '32 ns', delta_start = str(int(STEP/2)) + ' ns')
 pb.pulser_pulse(name = 'P2', channel = 'TRIGGER', start = '700 ns', length = '100 ns', delta_start = str(STEP) + ' ns')
 
-pb.pulser_repetitoin_rate('2000 Hz')
+pb.pulser_repetition_rate('2000 Hz')
 
 # Data acquisition
 for i in range(POINTS):
@@ -69,7 +69,7 @@ for i in range(POINTS):
 header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + \
          'T2 Measurement\n' + 'Field: ' + str(FIELD) + ' G \n' + \
           str(mw.mw_bridge_att_prm()) + '\n' + str(mw.mw_bridge_synthesizer()) + '\n' + \
-          'Repetition Rate: ' + str(pb.pulser_repetitoin_rate()) + '\n' + \
+          'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' + \
           'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + ' ns\n' \
           + 'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
           'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Time (trig. delta_start), X (V*s), Y (V*s) '

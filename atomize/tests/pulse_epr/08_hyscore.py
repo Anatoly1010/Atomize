@@ -40,7 +40,7 @@ pb.pulser_pulse(name = 'P2', channel = 'MW', start = '420 ns', length = '32 ns',
 pb.pulser_pulse(name = 'P3', channel = 'MW', start = '620 ns', length = '16 ns', delta_start = str(STEP) + ' ns')
 pb.pulser_pulse(name = 'P4', channel = 'TRIGGER', start = '740 ns', length = '100 ns', delta_start = str(STEP) + ' ns')
 
-pb.pulser_repetitoin_rate('200 Hz')
+pb.pulser_repetition_rate('200 Hz')
 
 j = 0
 while j < POINTS:
@@ -77,7 +77,7 @@ pb.pulser_stop()
 header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + 'HYSCORE\n' + \
             'Field: ' + str(FIELD) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + \
             str(mw.mw_bridge_synthesizer()) + '\n' + \
-           'Repetition Rate: ' + str(pb.pulser_repetitoin_rate()) + '\n' +\
+           'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' +\
            'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + ' ns\n' + \
            'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
            'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + '2D Array of X '

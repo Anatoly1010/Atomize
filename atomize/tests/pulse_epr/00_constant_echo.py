@@ -10,16 +10,16 @@ pb = pb_pro.PB_ESR_500_Pro()
 bh15 = bh.BH_15()
 # FIELD SETTING
 bh15.magnet_setup(3536, 1)
-bh15.magnet_field(3503)
+bh15.magnet_field(3526)
 
 # RESONATOR TUNING CHECK
-#pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '100 ns')
-#pb.pulser_pulse(name ='P1', channel = 'TRIGGER', start = '0 ns', length = '100 ns')
+pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '100 ns')
+pb.pulser_pulse(name ='P1', channel = 'TRIGGER', start = '0 ns', length = '100 ns')
 
 # ECHO CHECK
-pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '16 ns')
-pb.pulser_pulse(name ='P1', channel = 'MW', start = '400 ns', length = '32 ns')
-pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = '700 ns', length = '100 ns')
+#pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '16 ns')
+#pb.pulser_pulse(name ='P1', channel = 'MW', start = '400 ns', length = '32 ns')
+#pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = '700 ns', length = '100 ns')
 
 # AWG CHECK
 #pb.pulser_pulse(name ='P0', channel = 'AWG', start = '2680 ns', length = '90 ns')
@@ -43,7 +43,7 @@ pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = '700 ns', length = '100
 #pb.pulser_pulse(name = 'P5', channel = 'TRIGGER', start = '4780 ns', length = '100 ns')
 
 
-pb.pulser_repetitoin_rate('600 Hz')
+pb.pulser_repetition_rate('600 Hz')
 
 pb.pulser_update()
 #pb.pulser_visualize()

@@ -230,11 +230,102 @@ class PB_ESR_500_Pro:
                         self.pulse_array.append( pulse )
                         # for saving the initial pulse_array without increments
                         # deepcopy helps to create a TRULY NEW array and not a link to the object
-                        self.pulse_array_init = deepcopy(self.pulse_array)                        
+                        self.pulse_array_init = deepcopy(self.pulse_array)
                 else:
                     assert(1 == 2), 'Incorrect auto_defense setting'
             else:
                 assert (1 == 2), 'Incorrect channel name'
+
+    def pulser_redefine_delta_start(self, *, name, delta_start):
+        """
+        A function for redefining delta_start of the specified pulse.
+        pulser_redefine_delta_start(name = 'P0', delta_start = '10 ns') changes delta_start of the 'P0' pulse to 10 ns.
+        The main purpose of the function is non-uniform sampling.
+
+        def func(*, name1, name2): defines a function without default values of key arguments
+        """
+
+        if test_flag != 'test':
+            i = 0
+
+            while i < len( self.pulse_array ):
+                if name == self.pulse_array[i]['name']:
+                    self.pulse_array[i]['delta_start'] = str(delta_start)
+                    self.shift_count = 1
+                else:
+                    pass
+
+                i += 1
+
+        elif test_flag == 'test':
+            i = 0
+            assert( name in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+
+            while i < len( self.pulse_array ):
+                if name == self.pulse_array[i]['name']:
+
+                    # checks
+                    temp_delta_start = delta_start.split(" ")
+                    if temp_delta_start[1] in timebase_dict:
+                        coef = timebase_dict[temp_delta_start[1]]
+                        p_delta_start = coef*float(temp_delta_start[0])
+                        assert(p_delta_start % 2 == 0), 'Pulse delta start should be divisible by 2'
+                        assert(p_delta_start >= 0), 'Pulse delta start is a negative number'
+                    else:
+                        assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+
+                    self.pulse_array[i]['delta_start'] = str(delta_start)
+                    self.shift_count = 1
+                else:
+                    pass
+
+                i += 1
+
+    def pulser_redefine_length_increment(self, *, name, length_increment):
+        """
+        A function for redefining length_increment of the specified pulse.
+        pulser_redefine_length_increment(name = 'P0', length_increment = '10 ns') changes length_increment of the 'P0' pulse to '10 ns'.
+        The main purpose of the function is non-uniform sampling.
+
+        def func(*, name1, name2): defines a function without default values of key arguments
+        """
+
+        if test_flag != 'test':
+            i = 0
+
+            while i < len( self.pulse_array ):
+                if name == self.pulse_array[i]['name']:
+                    self.pulse_array[i]['length_increment'] = str(length_increment)
+                    self.increment_count = 1
+                else:
+                    pass
+
+                i += 1
+
+        elif test_flag == 'test':
+            i = 0
+
+            assert( name in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+
+            while i < len( self.pulse_array ):
+                if name == self.pulse_array[i]['name']:
+                    # checks
+                    temp_length_increment = length_increment.split(" ")
+                    if temp_length_increment[1] in timebase_dict:
+                        coef = timebase_dict[temp_length_increment[1]]
+                        p_length_increment = coef*float(temp_length_increment[0])
+                        assert(p_length_increment % 2 == 0), 'Pulse length increment should be divisible by 2'
+                        assert (p_length_increment >= 0 and p_length_increment < max_pulse_length), \
+                        'Pulse length increment is longer than maximum available length or negative'
+                    else:
+                        assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+
+                    self.pulse_array[i]['length_increment'] = str(length_increment)
+                    self.increment_count = 1
+                else:
+                    pass
+
+                i += 1
 
     def pulser_next_phase(self):
         """
@@ -512,7 +603,7 @@ class PB_ESR_500_Pro:
             else:
                 pass
 
-    def pulser_repetitoin_rate(self, *r_rate):
+    def pulser_repetition_rate(self, *r_rate):
         """
         A function to get or set repetition rate.
         Repetition rate specifies the delay of the last
@@ -672,14 +763,14 @@ class PB_ESR_500_Pro:
                         temp = self.pulse_array[i]['length_increment'].split(' ')
                         if temp[1] in timebase_dict:
                             flag = timebase_dict[temp[1]]
-                            d_length = int((temp[0]))*flag
+                            d_length = int(float(temp[0]))*flag
                         else:
                             pass
 
                         temp2 = self.pulse_array[i]['length'].split(' ')
                         if temp2[1] in timebase_dict:
                             flag2 = timebase_dict[temp2[1]]
-                            leng = int((temp2[0]))*flag2
+                            leng = int(float(temp2[0]))*flag2
                         else:
                             pass
 
@@ -687,7 +778,7 @@ class PB_ESR_500_Pro:
  
                     i += 1
 
-                self.shift_count = 1
+                self.increment_count = 1
                 self.current_phase_index = 0
 
             else:
@@ -703,20 +794,20 @@ class PB_ESR_500_Pro:
                             temp = self.pulse_array[pulse_index]['length_increment'].split(' ')
                             if temp[1] in timebase_dict:
                                 flag = timebase_dict[temp[1]]
-                                d_length = int((temp[0]))*flag
+                                d_length = int(float(temp[0]))*flag
                             else:
                                 pass
 
                             temp2 = self.pulse_array[pulse_index]['length'].split(' ')
                             if temp2[1] in timebase_dict:
                                 flag2 = timebase_dict[temp2[1]]
-                                leng = int((temp2[0]))*flag2
+                                leng = int(float(temp2[0]))*flag2
                             else:
                                 pass
                             
                             self.pulse_array[pulse_index]['length'] = str( leng + d_length ) + ' ns'
 
-                        self.shift_count = 1
+                        self.increment_count = 1
                         self.current_phase_index = 0
 
         elif test_flag == 'test':
@@ -730,14 +821,14 @@ class PB_ESR_500_Pro:
                         temp = self.pulse_array[i]['length_increment'].split(' ')
                         if temp[1] in timebase_dict:
                             flag = timebase_dict[temp[1]]
-                            d_length = int((temp[0]))*flag
+                            d_length = int(float(temp[0]))*flag
                         else:
                             assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
 
                         temp2 = self.pulse_array[i]['length'].split(' ')
                         if temp2[1] in timebase_dict:
                             flag2 = timebase_dict[temp2[1]]
-                            leng = int((temp2[0]))*flag2
+                            leng = int(float(temp2[0]))*flag2
                         else:
                             assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
                         
@@ -748,7 +839,7 @@ class PB_ESR_500_Pro:
 
                     i += 1
 
-                self.shift_count = 1
+                self.increment_count = 1
                 self.current_phase_index = 0
 
             else:
@@ -764,14 +855,14 @@ class PB_ESR_500_Pro:
                             temp = self.pulse_array[pulse_index]['length_increment'].split(' ')
                             if temp[1] in timebase_dict:
                                 flag = timebase_dict[temp[1]]
-                                d_length = int((temp[0]))*flag
+                                d_length = int(float(temp[0]))*flag
                             else:
                                 assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
 
                             temp2 = self.pulse_array[pulse_index]['length'].split(' ')
                             if temp2[1] in timebase_dict:
                                 flag2 = timebase_dict[temp2[1]]
-                                leng = int((temp2[0]))*flag2
+                                leng = int(float(temp2[0]))*flag2
                             else:
                                 assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
                                     
@@ -780,7 +871,7 @@ class PB_ESR_500_Pro:
                             else:
                                 assert(1 == 2), 'Exceeded maximum pulse length (1900 ns) when increment the pulse'
 
-                        self.shift_count = 1
+                        self.increment_count = 1
                         self.current_phase_index = 0
 
                     else:
@@ -1000,8 +1091,8 @@ class PB_ESR_500_Pro:
 
             #general.plot_1d('Plot XY Test', np.arange(len(to_spinapi)), to_spinapi, label='test data1', timeaxis = 'False')
             general.plot_2d('Pulses Visualizer', visualizer, \
-                start_step=( (0, 1), (0, 1) ), xname='Time',\
-                xscale='ns', yname='Pulse Number', yscale='', zname='2**(channel)', zscale='')
+                start_step = ( (0, 1), (0, 1) ), xname = 'Time',\
+                xscale = 'ns', yname = 'Pulse Number', yscale = '', zname = '2**(channel)', zscale = '')
 
         elif test_flag == 'test':
             pass

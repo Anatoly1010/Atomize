@@ -7,6 +7,7 @@ import sys
 #sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
 from math import sin, pi, exp, log2
 from itertools import groupby, chain
+from copy import deepcopy
 import numpy as np
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
@@ -92,8 +93,15 @@ class Spectrum_M4I_6631_X8:
             self.buffer_size = 2*self.memsize # two bytes per sample
             self.segment_memsize = 32 # segment card memory
             # pulse settings
+            self.reset_count = 0
+            self.shift_count = 0
+            self.increment_count = 0
+            self.setting_change_count = 0
             self.pulse_array = []
+            self.pulse_array_init = []
             self.pulse_name_array = []
+            self.pulse_ch0_array = []
+            self.pulse_ch1_array = []
 
         elif test_flag == 'test':
             # Collect all parameters for AWG settings
@@ -115,15 +123,22 @@ class Spectrum_M4I_6631_X8:
             self.buffer_size = 2*self.memsize # two bytes per sample
             self.segment_memsize = 32 # segment card memory
             # pulse settings
+            self.reset_count = 0
+            self.shift_count = 0
+            self.increment_count = 0
+            self.setting_change_count = 0
             self.pulse_array = []
+            self.pulse_array_init = []
             self.pulse_name_array = []
+            self.pulse_ch0_array = []
+            self.pulse_ch1_array = []
 
     # Module functions
     def awg_name(self):
         answer = 'Spectrum M4I.6631-X8'
         return answer
 
-    def awg_start(self):
+    def awg_update(self):
         """
         Start AWG card. No argument; No output
         A big function that write all the settings into AWG card.
@@ -134,90 +149,120 @@ class Spectrum_M4I_6631_X8:
         Number of segments is 1; Card memory size is 64 samples;
         """
         if test_flag != 'test':
-            # open card
-            hCard = spcm_hOpen (create_string_buffer (b'/dev/spcm0'))
-            if hCard == None:
-                general.message("No card found...")
-                sys.exit()
 
-            # general parameters of the card; internal/external clock
-            if self.clock_mode == 1:
-                spcm_dwSetParam_i64 (hCard, SPC_SAMPLERATE, MEGA(self.sample_rate))
-            elif self.clock_mode == 32:
-                spcm_dwSetParam_i32 (hCard, SPC_CLOCKMODE, self.clock_mode)
-                spcm_dwSetParam_i64 (hCard, SPC_REFERENCECLOCK, MEGA(self.reference_clock))
-                spcm_dwSetParam_i64 (hCard, SPC_SAMPLERATE, MEGA(self.sample_rate))
+            if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1:
+                # open card
+                hCard = spcm_hOpen (create_string_buffer (b'/dev/spcm0'))
+                if hCard == None:
+                    general.message("No card found...")
+                    sys.exit()
 
-            # change card mode and memory
-            if self.card_mode == 32768:
-                spcm_dwSetParam_i32(hCard, SPC_CARDMODE, self.card_mode)
-                spcm_dwSetParam_i32(hCard, SPC_MEMSIZE, self.memsize)
-            elif self.card_mode == 512:
-                spcm_dwSetParam_i32(hCard, SPC_CARDMODE, self.card_mode)
-                spcm_dwSetParam_i32(hCard, SPC_MEMSIZE, self.memsize)
-                spcm_dwSetParam_i32(hCard, SPC_SEGMENTSIZE, self.segment_memsize)
+                # general parameters of the card; internal/external clock
+                if self.clock_mode == 1:
+                    spcm_dwSetParam_i64 (hCard, SPC_SAMPLERATE, MEGA(self.sample_rate))
+                elif self.clock_mode == 32:
+                    spcm_dwSetParam_i32 (hCard, SPC_CLOCKMODE, self.clock_mode)
+                    spcm_dwSetParam_i64 (hCard, SPC_REFERENCECLOCK, MEGA(self.reference_clock))
+                    spcm_dwSetParam_i64 (hCard, SPC_SAMPLERATE, MEGA(self.sample_rate))
+
+                # change card mode and memory
+                if self.card_mode == 32768:
+                    buf = self.define_buffer_single()
+                    spcm_dwSetParam_i32(hCard, SPC_CARDMODE, self.card_mode)
+                    spcm_dwSetParam_i32(hCard, SPC_MEMSIZE, self.memsize)
+                elif self.card_mode == 512:
+                    buf = self.define_buffer_multi()
+                    spcm_dwSetParam_i32(hCard, SPC_CARDMODE, self.card_mode)
+                    spcm_dwSetParam_i32(hCard, SPC_MEMSIZE, self.memsize)
+                    spcm_dwSetParam_i32(hCard, SPC_SEGMENTSIZE, self.segment_memsize)
+
+                # trigger
+                spcm_dwSetParam_i32(hCard, SPC_TRIG_ORMASK, self.trigger_ch) # software / external
+                if self.trigger_ch == 2:
+                    spcm_dwSetParam_i32(hCard, SPC_TRIG_EXT0_MODE, self.trigger_mode)
                 
-            # trigger
-            spcm_dwSetParam_i32(hCard, SPC_TRIG_ORMASK, self.trigger_ch) # software / external
-            if self.trigger_ch == 2:
-                spcm_dwSetParam_i32(hCard, SPC_TRIG_EXT0_MODE, self.trigger_mode)
-            
-            # loop
-            spcm_dwSetParam_i32(hCard, SPC_LOOPS, self.loop)
-            
-            # trigger delay
-            spcm_dwSetParam_i32( hCard, SPC_TRIG_DELAY, int(self.delay) )
+                # loop
+                spcm_dwSetParam_i32(hCard, SPC_LOOPS, self.loop)
+                
+                # trigger delay
+                spcm_dwSetParam_i32( hCard, SPC_TRIG_DELAY, int(self.delay) )
 
-            # set the output channels
-            spcm_dwSetParam_i32 (hCard, SPC_CHENABLE, self.channel)
-            spcm_dwSetParam_i32 (hCard, SPC_ENABLEOUT0, self.enable_out_0)
-            spcm_dwSetParam_i32 (hCard, SPC_ENABLEOUT1, self.enable_out_1)
-            spcm_dwSetParam_i32 (hCard, SPC_AMP0, int32 (self.amplitude_0))
-            spcm_dwSetParam_i32 (hCard, SPC_AMP1, int32 (self.amplitude_1))
+                # set the output channels
+                spcm_dwSetParam_i32 (hCard, SPC_CHENABLE, self.channel)
+                spcm_dwSetParam_i32 (hCard, SPC_ENABLEOUT0, self.enable_out_0)
+                spcm_dwSetParam_i32 (hCard, SPC_ENABLEOUT1, self.enable_out_1)
+                spcm_dwSetParam_i32 (hCard, SPC_AMP0, int32 (self.amplitude_0))
+                spcm_dwSetParam_i32 (hCard, SPC_AMP1, int32 (self.amplitude_1))
 
-            # define the memory size / max amplitude
-            llMemSamples = int64 (self.memsize)
-            #lBytesPerSample = int32(0)
-            #spcm_dwGetParam_i32 (hCard, SPC_MIINST_BYTESPERSAMPLE,  byref(lBytesPerSample))
-            #lSetChannels = int32 (0)
-            #spcm_dwGetParam_i32 (hCard, SPC_CHCOUNT, byref (lSetChannels))
+                # define the memory size / max amplitude
+                #llMemSamples = int64 (self.memsize)
+                #lBytesPerSample = int32(0)
+                #spcm_dwGetParam_i32 (hCard, SPC_MIINST_BYTESPERSAMPLE,  byref(lBytesPerSample))
+                #lSetChannels = int32 (0)
+                #spcm_dwGetParam_i32 (hCard, SPC_CHCOUNT, byref (lSetChannels))
 
-            # MaxDACValue corresponds to the amplitude of the output signal; MaxDACValue - Amplitude and so on
-            lMaxDACValue = int32 (0)
-            spcm_dwGetParam_i32 (hCard, SPC_MIINST_MAXADCVALUE, byref(lMaxDACValue))
-            lMaxDACValue.value = lMaxDACValue.value - 1
+                # MaxDACValue corresponds to the amplitude of the output signal; MaxDACValue - Amplitude and so on
+                lMaxDACValue = int32 (0)
+                spcm_dwGetParam_i32 (hCard, SPC_MIINST_MAXADCVALUE, byref(lMaxDACValue))
+                lMaxDACValue.value = lMaxDACValue.value - 1
 
-            # define the buffer
-            pnBuffer = c_void_p()
-            qwBufferSize = uint64 (self.buffer_size)  # buffer size
-            pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
-            pnBuffer = cast (pvBuffer, ptr16)
+                # define the buffer
+                pnBuffer = c_void_p()
+                qwBufferSize = uint64 (self.buffer_size)  # buffer size
+                pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
+                pnBuffer = cast (pvBuffer, ptr16)
 
-            # fill the buffer
-            if self.card_mode == 32768:
-                # convert numpy array to integer
-                pnBuffer = (lMaxDACValue.value * self.define_buffer_single()).astype('int64')
-            elif self.card_mode == 512:
-                pnBuffer = (lMaxDACValue.value * self.define_buffer_multi()).astype('int64')
+                
+                # fill the buffer
+                if self.card_mode == 32768:
+                    # convert numpy array to integer
+                    for index, element in enumerate(buf):
+                        pnBuffer[index] = int(lMaxDACValue.value * element)
+                        #pnBuffer = (lMaxDACValue.value * self.define_buffer_single()).astype('int64')
+                elif self.card_mode == 512:
+                    for index, element in enumerate(buf):
+                        pnBuffer[index] = int(lMaxDACValue.value * element)
+                        #pnBuffer = (lMaxDACValue.value * self.define_buffer_multi()).astype('int64')
 
-            # we define the buffer for transfer and start the DMA transfer
-            #sys.stdout.write("Starting the DMA transfer and waiting until data is in board memory\n")
-            # spcm_dwDefTransfer_i64 (device, buffer_type, direction, event (0=and of transfer), data, offset, buffer length)
-            spcm_dwDefTransfer_i64 (hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), pvBuffer, uint64 (0), qwBufferSize)
-            # transfer
-            spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
-            general.message("AWG buffer has been transferred to board memory")
+                # we define the buffer for transfer and start the DMA transfer
+                #sys.stdout.write("Starting the DMA transfer and waiting until data is in board memory\n")
+                # spcm_dwDefTransfer_i64 (device, buffer_type, direction, event (0=and of transfer), data, offset, buffer length)
+                spcm_dwDefTransfer_i64 (hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), pvBuffer, uint64 (0), qwBufferSize)
+                # transfer
+                spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
+                general.message("AWG buffer has been transferred to board memory")
 
-            # We'll start and wait until the card has finished or until a timeout occurs
-            dwError = spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_CARD_START | M2CMD_CARD_ENABLETRIGGER | M2CMD_CARD_WAITTRIGGER)
-            # test or error message
-            general.message(dwError)
+                # We'll start and wait until the card has finished or until a timeout occurs
+                dwError = spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_CARD_START | M2CMD_CARD_ENABLETRIGGER | M2CMD_CARD_WAITTRIGGER)
+                # test or error message
+                general.message(dwError)
 
-            # clean up
-            spcm_vClose (hCard)
+                # clean up
+                spcm_vClose (hCard)
+
+                self.reset_count = 1
+                self.shift_count = 0
+                self.increment_count = 0
+                self.setting_change_count = 0
+
+            else:
+                pass
 
         elif test_flag == 'test':
-            pass
+            # to run several important checks
+            if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1:
+                if self.card_mode == 32768:
+                    buf = self.define_buffer_single()
+                elif self.card_mode == 512:
+                    buf = self.define_buffer_multi()
+
+                self.reset_count = 1
+                self.shift_count = 0
+                self.increment_count = 0
+                self.setting_change_count = 0
+
+            else:
+                pass
 
     def awg_stop(self):
         """
@@ -236,12 +281,13 @@ class Spectrum_M4I_6631_X8:
             # clean up
             spcm_vClose (hCard)
 
-            general.message('AWG card stopped.')
+            general.message('AWG card stopped')
 
         elif test_flag == 'test':
             pass
 
-    def awg_pulse(self, name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, length = '16 ns', sigma = '16 ns'):
+    def awg_pulse(self, name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0,\
+     delta_phase = 0, length = '16 ns', sigma = '16 ns', increment = '0 ns'):
         """
         A function for awg pulse creation;
         The possible arguments:
@@ -252,18 +298,31 @@ class Spectrum_M4I_6631_X8:
         """
         if test_flag != 'test':
             pulse = {'name': name, 'channel': channel, 'function': func, 'frequency': frequency, 'phase' : phase,\
-             'length': length, 'sigma': sigma}
+             'delta_phase' : delta_phase, 'length': length, 'sigma': sigma, 'increment': increment}
 
             self.pulse_array.append( pulse )
+            # for saving the initial pulse_array without increments
+            # deepcopy helps to create a TRULY NEW array and not a link to the object
+            self.pulse_array_init = deepcopy( self.pulse_array )
+            # pulse_name array
+            self.pulse_name_array.append( pulse['name'] )
+
+            # For Single/Multi mode checking
+            # Only one pulse per channel for Single
+            # Number of segments equals to number of pulses for each channel
+            if channel == 'CH0':
+                self.pulse_ch0_array.append( pulse['name'] )
+            elif channel == 'CH1':
+                self.pulse_ch1_array.append( pulse['name'] )
             
         elif test_flag == 'test':
             pulse = {'name': name, 'channel': channel, 'function': func, 'frequency': frequency, 'phase' : phase,\
-             'length': length, 'sigma': sigma}
+             'delta_phase' : delta_phase, 'length': length, 'sigma': sigma, 'increment': increment}
 
             # Checks
             # two equal names
             temp_name = str(name)
-            set_from_list = set(self.pulse_name_array)          
+            set_from_list = set(self.pulse_name_array)
             if temp_name in set_from_list:
                 assert (1 == 2), 'Two pulses have the same name. Please, rename'
 
@@ -272,6 +331,12 @@ class Spectrum_M4I_6631_X8:
             # channels
             temp_ch = str(channel)
             assert (temp_ch in channel_dict), 'Incorrect channel. Only CH0 or CH1 are available'
+
+            # for Single/Multi mode checking
+            if channel == 'CH0':
+                self.pulse_ch0_array.append( pulse['name'] )
+            elif channel == 'CH1':
+                self.pulse_ch1_array.append( pulse['name'] )
 
             # Function type
             temp_func = str(func)
@@ -308,7 +373,454 @@ class Spectrum_M4I_6631_X8:
             # length should be longer than sigma
             assert( p_length >= p_sigma ), 'Pulse length should be longer or equal to sigma'
 
+            # increment
+            temp_increment = increment.split(" ")
+            if temp_increment[1] in timebase_dict:
+                coef = timebase_dict[temp_increment[1]]
+                p_increment = coef*float(temp_increment[0])
+                assert (p_increment >= 0 and p_increment < max_pulse_length), \
+                'Length and sigma increment is longer than maximum available length or negative'
+            else:
+                assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
+
             self.pulse_array.append( pulse )
+            self.pulse_array_init = deepcopy(self.pulse_array)
+
+    def awg_redefine_delta_phase(self, *, name, delta_phase):
+        """
+        A function for redefining delta_phase of the specified pulse.
+        awg_redefine_delta_phase(name = 'P0', delta_phase = pi/2) changes delta_phase of the 'P0' pulse to pi/2.
+        The main purpose of the function is non-uniform sampling.
+
+        def func(*, name1, name2): defines a function without default values of key arguments
+        """
+
+        if test_flag != 'test':
+            i = 0
+
+            while i < len( self.pulse_array ):
+                if name == self.pulse_array[i]['name']:
+                    self.pulse_array[i]['delta_phase'] = float(delta_phase)
+                    self.shift_count = 1
+                else:
+                    pass
+
+                i += 1
+
+        elif test_flag == 'test':
+            i = 0
+            assert( name in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+
+            while i < len( self.pulse_array ):
+                if name == self.pulse_array[i]['name']:
+                    self.pulse_array[i]['delta_phase'] = float(delta_phase)
+                    self.shift_count = 1
+                else:
+                    pass
+
+                i += 1
+
+    def awg_add_phase(self, *, name, add_phase):
+        """
+        A function for adding a constant phase to the specified pulse.
+        awg_add_phase(name = 'P0', add_phase = pi/2) changes the current phase of the 'P0' pulse 
+        to the value ofcurrent_phase + pi/2.
+        The main purpose of the function is phase cycling.
+
+        def func(*, name1, name2): defines a function without default values of key arguments
+        """
+
+        if test_flag != 'test':
+            i = 0
+
+            while i < len( self.pulse_array ):
+                if name == self.pulse_array[i]['name']:
+                    self.pulse_array[i]['phase'] = self.pulse_array[i]['phase'] + float(add_phase)
+                    self.shift_count = 1
+                else:
+                    pass
+
+                i += 1
+
+            # it is bad idea to update it here, since the phase of only one pulse
+            # can be changed in one call of this function
+            #self.awg_update_test()
+
+        elif test_flag == 'test':
+            i = 0
+            assert( name in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+
+            while i < len( self.pulse_array ):
+                if name == self.pulse_array[i]['name']:
+                    self.pulse_array[i]['phase'] = self.pulse_array[i]['phase'] + float(add_phase)
+                    self.shift_count = 1
+                else:
+                    pass
+
+                i += 1
+
+            #self.awg_update_test()
+
+    def awg_redefine_increment(self, *, name, increment):
+        """
+        A function for redefining increment of the specified pulse.
+        awg_redefine_increment(name = 'P0', increment = '10 ns') changes increment of the 'P0' pulse to '10 ns'.
+        The main purpose of the function is non-uniform sampling.
+
+        def func(*, name1, name2): defines a function without default values of key arguments
+        """
+
+        if test_flag != 'test':
+            i = 0
+
+            while i < len( self.pulse_array ):
+                if name == self.pulse_array[i]['name']:
+                    self.pulse_array[i]['increment'] = str(increment)
+                    self.increment_count = 1
+                else:
+                    pass
+
+                i += 1
+
+        elif test_flag == 'test':
+            i = 0
+            assert( name in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+
+            while i < len( self.pulse_array ):
+                if name == self.pulse_array[i]['name']:
+                    # checks
+                    temp_increment = increment.split(" ")
+                    if temp_increment[1] in timebase_dict:
+                        coef = timebase_dict[temp_increment[1]]
+                        p_increment = coef*float(temp_increment[0])
+                        assert (p_increment >= 0 and p_increment < max_pulse_length), \
+                        'Length and sigma increment is longer than maximum available length or negative'
+                    else:
+                        assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
+
+                    self.pulse_array[i]['increment'] = str(increment)
+                    self.increment_count = 1
+                else:
+                    pass
+
+                i += 1
+
+    def awg_shift(self, *pulses):
+        """
+        A function to shift the phase of the pulses.
+        The function directly affects the pulse_array.
+        """
+        if test_flag != 'test':
+            if len(pulses) == 0:
+                i = 0
+                while i < len( self.pulse_array ):
+                    if float( self.pulse_array[i]['delta_phase'] ) == 0.:
+                        pass
+                    else:
+                        temp = float( self.pulse_array[i]['phase'] )
+                        temp2 = float( self.pulse_array[i]['delta_phase'] )
+
+                        self.pulse_array[i]['phase'] = temp + temp2
+ 
+                    i += 1
+
+                self.shift_count = 1
+
+            else:
+                set_from_list = set(pulses)
+                for element in set_from_list:
+                    if element in self.pulse_name_array:
+                        pulse_index = self.pulse_name_array.index(element)
+
+                        if float( self.pulse_array[pulse_index]['delta_phase'] ) == 0.:
+                            pass
+
+                        else:
+                            temp = float( self.pulse_array[pulse_index]['phase'] )
+                            temp2 = float( self.pulse_array[pulse_index]['delta_phase'] )
+                                    
+                            self.pulse_array[pulse_index]['phase'] = temp + temp2
+
+                        self.shift_count = 1
+
+        elif test_flag == 'test':
+            if len(pulses) == 0:
+                i = 0
+                while i < len( self.pulse_array ):
+                    if float( self.pulse_array[i]['delta_phase'] ) == 0.:
+                        pass
+                    else:
+                        temp = float( self.pulse_array[i]['phase'] )
+                        temp2 = float( self.pulse_array[i]['delta_phase'] )
+
+                        self.pulse_array[i]['phase'] = temp + temp2
+ 
+                    i += 1
+
+                self.shift_count = 1
+
+            else:
+                set_from_list = set(pulses)
+                for element in set_from_list:
+                    if element in self.pulse_name_array:
+                        pulse_index = self.pulse_name_array.index(element)
+
+                        if float( self.pulse_array[pulse_index]['delta_phase'] ) == 0.:
+                            pass
+
+                        else:
+                            temp = float( self.pulse_array[pulse_index]['phase'] )
+                            temp2 = float( self.pulse_array[pulse_index]['delta_phase'] )
+                                    
+                            self.pulse_array[pulse_index]['phase'] = temp + temp2
+
+                        self.shift_count = 1
+
+                    else:
+                        assert(1 == 2), "There is no pulse with the specified name"        
+
+    def awg_increment(self, *pulses):
+        """
+        A function to increment both the length and sigma of the pulses.
+        The function directly affects the pulse_array.
+        """
+        if test_flag != 'test':
+            if len(pulses) == 0:
+                i = 0
+                while i < len( self.pulse_array ):
+                    if int( self.pulse_array[i]['increment'][:-3] ) == 0:
+                        pass
+                    else:
+                        # convertion to ns
+                        temp = self.pulse_array[i]['increment'].split(' ')
+                        if temp[1] in timebase_dict:
+                            flag = timebase_dict[temp[1]]
+                            d_length = int(float(temp[0]))*flag
+                        else:
+                            pass
+
+                        temp2 = self.pulse_array[i]['length'].split(' ')
+                        if temp2[1] in timebase_dict:
+                            flag2 = timebase_dict[temp2[1]]
+                            leng = int(float(temp2[0]))*flag2
+                        else:
+                            pass
+
+                        temp3 = self.pulse_array[i]['sigma'].split(' ')
+                        if temp3[1] in timebase_dict:
+                            flag3 = timebase_dict[temp3[1]]
+                            sigm = int(float(temp3[0]))*flag3
+                        else:
+                            pass
+
+                        if self.pulse_array[i]['function'] == 'SINE':
+                            self.pulse_array[i]['length'] = str( leng + d_length ) + ' ns'
+                            self.pulse_array[i]['sigma'] = str( sigm + d_length ) + ' ns'
+                        elif self.pulse_array[i]['function'] == 'GAUSS' or self.pulse_array[i]['function'] == 'SINC':
+                            ratio = leng/sigm
+                            self.pulse_array[i]['length'] = str( leng + ratio*d_length ) + ' ns'
+                            self.pulse_array[i]['sigma'] = str( sigm + d_length ) + ' ns'
+
+                    i += 1
+
+                self.increment_count = 1
+
+            else:
+                set_from_list = set(pulses)
+                for element in set_from_list:
+                    if element in self.pulse_name_array:
+                        pulse_index = self.pulse_name_array.index(element)
+
+                        if int( self.pulse_array[pulse_index]['increment'][:-3] ) == 0:
+                            pass
+                        else:
+                            # convertion to ns
+                            temp = self.pulse_array[pulse_index]['increment'].split(' ')
+                            if temp[1] in timebase_dict:
+                                flag = timebase_dict[temp[1]]
+                                d_length = int(float(temp[0]))*flag
+                            else:
+                                pass
+
+                            temp2 = self.pulse_array[pulse_index]['length'].split(' ')
+                            if temp2[1] in timebase_dict:
+                                flag2 = timebase_dict[temp2[1]]
+                                leng = int(float(temp2[0]))*flag2
+                            else:
+                                pass
+
+                            temp3 = self.pulse_array[pulse_index]['sigma'].split(' ')
+                            if temp3[1] in timebase_dict:
+                                flag3 = timebase_dict[temp3[1]]
+                                sigm = int(float(temp3[0]))*flag3
+                            else:
+                                pass
+
+                            if self.pulse_array[i]['function'] == 'SINE':
+                                self.pulse_array[i]['length'] = str( leng + d_length ) + ' ns'
+                                self.pulse_array[i]['sigma'] = str( sigm + d_length ) + ' ns'
+                            elif self.pulse_array[i]['function'] == 'GAUSS' or self.pulse_array[i]['function'] == 'SINC':
+                                ratio = leng/sigm
+                                self.pulse_array[i]['length'] = str( leng + ratio*d_length ) + ' ns'
+                                self.pulse_array[i]['sigma'] = str( sigm + d_length ) + ' ns'
+
+                        self.increment_count = 1
+
+        elif test_flag == 'test':
+
+            if len(pulses) == 0:
+                i = 0
+                while i < len( self.pulse_array ):
+                    if int( self.pulse_array[i]['increment'][:-3] ) == 0:
+                        pass
+                    else:
+                        # convertion to ns
+                        temp = self.pulse_array[i]['increment'].split(' ')
+                        if temp[1] in timebase_dict:
+                            flag = timebase_dict[temp[1]]
+                            d_length = int(float(temp[0]))*flag
+                        else:
+                            assert(1 == 2), "Incorrect time dimension (ns, us, ms)"
+
+                        temp2 = self.pulse_array[i]['length'].split(' ')
+                        if temp2[1] in timebase_dict:
+                            flag2 = timebase_dict[temp2[1]]
+                            leng = int(float(temp2[0]))*flag2
+                        else:
+                            assert(1 == 2), "Incorrect time dimension (ns, us, ms)"
+
+                        temp3 = self.pulse_array[i]['sigma'].split(' ')
+                        if temp3[1] in timebase_dict:
+                            flag3 = timebase_dict[temp3[1]]
+                            sigm = int(float(temp3[0]))*flag3
+                        else:
+                            assert(1 == 2), "Incorrect time dimension (ns, us, ms)"
+                        
+                        ratio = leng/sigm
+                        if ( leng + ratio*d_length ) <= max_pulse_length:
+                            self.pulse_array[i]['length'] = str( leng + d_length ) + ' ns'
+                        else:
+                            assert(1 == 2), 'Exceeded maximum pulse length (1900 ns) when increment the pulse'
+
+                    i += 1
+
+                self.increment_count = 1
+
+            else:
+                set_from_list = set(pulses)
+                for element in set_from_list:
+                    if element in self.pulse_name_array:
+
+                        pulse_index = self.pulse_name_array.index(element)
+                        if int( self.pulse_array[pulse_index]['increment'][:-3] ) == 0:
+                            pass
+                        else:
+                            # convertion to ns
+                            temp = self.pulse_array[pulse_index]['increment'].split(' ')
+                            if temp[1] in timebase_dict:
+                                flag = timebase_dict[temp[1]]
+                                d_length = int(float(temp[0]))*flag
+                            else:
+                                assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
+
+                            temp2 = self.pulse_array[pulse_index]['length'].split(' ')
+                            if temp2[1] in timebase_dict:
+                                flag2 = timebase_dict[temp2[1]]
+                                leng = int(float(temp2[0]))*flag2
+                            else:
+                                assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
+                            
+                            temp3 = self.pulse_array[pulse_index]['sigma'].split(' ')
+                            if temp3[1] in timebase_dict:
+                                flag3 = timebase_dict[temp3[1]]
+                                sigm = int(float(temp3[0]))*flag3
+                            else:
+                                assert(1 == 2), "Incorrect time dimension (ns, us, ms)"
+
+                            ratio = leng/sigm
+                            if ( leng + ratio*d_length ) <= max_pulse_length:
+                                self.pulse_array[pulse_index]['length'] = str( leng + d_length ) + ' ns'
+                            else:
+                                assert(1 == 2), 'Exceeded maximum pulse length (1900 ns) when increment the pulse'
+
+                        self.increment_count = 1
+
+                    else:
+                        assert(1 == 2), "There is no pulse with the specified name"
+
+    def awg_reset(self):
+        """
+        Reset all pulses to the initial state it was in at the start of the experiment.
+        It includes the complete functionality of awg_pulse_reset(), but also immediately
+        updates the AWG card as it is done by calling awg_update().
+        """
+        if test_flag != 'test':
+            # reset the pulses; deepcopy helps to create a TRULY NEW array
+            self.pulse_array = deepcopy( self.pulse_array_init )
+
+            self.awg_update()
+
+            self.reset_count = 1
+            self.increment_count = 0
+            self.shift_count = 0
+            self.current_phase_index = 0
+
+        elif test_flag == 'test':
+            # reset the pulses; deepcopy helps to create a TRULY NEW array
+            self.pulse_array = deepcopy( self.pulse_array_init )
+
+            self.awg_update()
+
+            self.reset_count = 1
+            self.increment_count = 0
+            self.shift_count = 0
+            self.current_phase_index = 0
+
+    def awg_pulse_reset(self, *pulses):
+        """
+        Reset all pulses to the initial state it was in at the start of the experiment.
+        It does not update the AWG card, if you want to reset all pulses and and also update 
+        the AWG card use the function awg_reset() instead.
+        """
+        if test_flag != 'test':
+            if len(pulses) == 0:
+                self.pulse_array = deepcopy(self.pulse_array_init)
+                self.reset_count = 0
+                self.increment_count = 0
+                self.shift_count = 0
+            else:
+                set_from_list = set(pulses)
+                for element in set_from_list:
+                    if element in self.pulse_name_array:
+                        pulse_index = self.pulse_name_array.index(element)
+
+                        self.pulse_array[pulse_index]['phase'] = self.pulse_array_init[pulse_index]['phase']
+                        self.pulse_array[pulse_index]['length'] = self.pulse_array_init[pulse_index]['length']
+                        self.pulse_array[pulse_index]['sigma'] = self.pulse_array_init[pulse_index]['sigma']
+
+                        self.reset_count = 0
+                        self.increment_count = 0
+                        self.shift_count = 0
+
+        elif test_flag == 'test':
+            if len(pulses) == 0:
+                self.pulse_array = deepcopy(self.pulse_array_init)
+                self.reset_count = 0
+                self.increment_count = 0
+                self.shift_count = 0
+            else:
+                set_from_list = set(pulses)
+                for element in set_from_list:
+                    if element in self.pulse_name_array:
+                        pulse_index = self.pulse_name_array.index(element)
+
+                        self.pulse_array[pulse_index]['phase'] = self.pulse_array_init[pulse_index]['phase']
+                        self.pulse_array[pulse_index]['length'] = self.pulse_array_init[pulse_index]['length']
+                        self.pulse_array[pulse_index]['sigma'] = self.pulse_array_init[pulse_index]['sigma']
+
+                        self.reset_count = 0
+                        self.increment_count = 0
+                        self.shift_count = 0
 
     def awg_number_of_segments(self, *segmnets):
         """
@@ -319,6 +831,8 @@ class Spectrum_M4I_6631_X8:
         Output: '2'
         """
         if test_flag != 'test':
+            self.setting_change_count = 1
+
             if len(segmnets) == 1:
                 seg = int(segmnets[0])
                 if self.card_mode == 512:
@@ -332,10 +846,12 @@ class Spectrum_M4I_6631_X8:
                 return self.num_segments
 
         elif test_flag == 'test':
+            self.setting_change_count = 1
+
             if len(segmnets) == 1:
                 seg = int(segmnets[0])
                 if seg != 1:
-                    assert( self.card_mode == 512), 'AWG is not in Multi mode. Please, change it using awg_card_mode()'
+                    assert( self.card_mode == 512), 'Number of segments higher than one is available only in Multi mode. Please, change it using awg_card_mode()'
                 assert (seg > 0 and seg <= 200), 'Incorrect number of segments; Should be 0 < segmenets <= 200'
                 self.num_segments = seg
 
@@ -352,6 +868,8 @@ class Spectrum_M4I_6631_X8:
         Output: 'CH0'
         """
         if test_flag != 'test':
+            self.setting_change_count = 1
+
             if len(channel) == 1:
                 ch = str(channel[0])
                 if ch == 'CH0':
@@ -388,6 +906,8 @@ class Spectrum_M4I_6631_X8:
                 sys.exit()
 
         elif test_flag == 'test':
+            self.setting_change_count = 1
+
             if len(channel) == 1:
                 ch = str(channel[0])
                 assert( ch == 'CH0' or ch == 'CH1' ), 'Incorrect channel; Channel should be CH0 or CH1'
@@ -420,6 +940,8 @@ class Spectrum_M4I_6631_X8:
         Output: '1000 MHz'
         """
         if test_flag != 'test':
+            self.setting_change_count = 1
+
             if len(s_rate) == 1:
                 rate = int(s_rate[0])
                 if rate <= sample_rate_max and rate >= sample_rate_min:
@@ -432,6 +954,8 @@ class Spectrum_M4I_6631_X8:
                 return str(self.sample_rate) + ' MHz'
 
         elif test_flag == 'test':
+            self.setting_change_count = 1
+
             if len(s_rate) == 1:
                 rate = int(s_rate[0])
                 assert(rate <= sample_rate_max and rate >= sample_rate_min), "Incorrect sample rate; Should be 1250 <= Rate <= 50"
@@ -450,6 +974,8 @@ class Spectrum_M4I_6631_X8:
         Output: 'Internal'
         """
         if test_flag != 'test':
+            self.setting_change_count = 1
+
             if len(mode) == 1:
                 md = str(mode[0])
                 if md == 'Internal':
@@ -467,6 +993,8 @@ class Spectrum_M4I_6631_X8:
                     return 'External'
 
         elif test_flag == 'test':
+            self.setting_change_count = 1
+
             if len(mode) == 1:
                 md = str(mode[0])
                 assert(md == 'Internal' or md == 'External'), "Incorrect clock mode; Only Internal and External modes are available"
@@ -488,6 +1016,8 @@ class Spectrum_M4I_6631_X8:
         Output: '200 MHz'
         """
         if test_flag != 'test':
+            self.setting_change_count = 1
+
             if len(ref_clock) == 1:
                 rate = int(ref_clock[0])
                 if rate <= sample_ref_clock_max and rate >= sample_ref_clock_min:
@@ -500,6 +1030,8 @@ class Spectrum_M4I_6631_X8:
                 return str(self.reference_clock) + ' MHz'
 
         elif test_flag == 'test':
+            self.setting_change_count = 1
+
             if len(ref_clock) == 1:
                 rate = int(ref_clock[0])
                 assert(rate <= sample_ref_clock_max and rate >= sample_ref_clock_min), "Incorrect reference clock; Should be 1000 <= Clock <= 10"
@@ -522,6 +1054,8 @@ class Spectrum_M4I_6631_X8:
         Output: 'Single'
         """
         if test_flag != 'test':
+            self.setting_change_count = 1
+
             if len(mode) == 1:
                 md = str(mode[0])
                 if md == 'Single':
@@ -539,6 +1073,8 @@ class Spectrum_M4I_6631_X8:
                     return 'Multi'
 
         elif test_flag == 'test':
+            self.setting_change_count = 1
+
             if len(mode) == 1:
                 md = str(mode[0])
                 assert(md == 'Single' or md == 'Multi'), "Incorrect card mode; Only Single and Multi modes are available"
@@ -560,6 +1096,8 @@ class Spectrum_M4I_6631_X8:
         Output: 'Software'
         """
         if test_flag != 'test':
+            self.setting_change_count = 1
+
             if len(ch) == 1:
                 md = str(ch[0])
                 if md == 'Software':
@@ -577,6 +1115,8 @@ class Spectrum_M4I_6631_X8:
                     return 'External'
 
         elif test_flag == 'test':
+            self.setting_change_count = 1
+
             if len(ch) == 1:
                 md = str(ch[0])
                 assert(md == 'Software' or md == 'External'), "Incorrect trigger channel; Only Software and External modes are available"
@@ -598,6 +1138,8 @@ class Spectrum_M4I_6631_X8:
         Output: 'Positive'
         """
         if test_flag != 'test':
+            self.setting_change_count = 1
+
             if len(mode) == 1:
                 md = str(mode[0])
                 if md == 'Positive':
@@ -623,6 +1165,8 @@ class Spectrum_M4I_6631_X8:
                     return 'Low'
 
         elif test_flag == 'test':
+            self.setting_change_count = 1
+
             if len(mode) == 1:
                 md = str(mode[0])
                 assert(md == 'Positive' or md == 'Negative' or md == 'High' or md == 'Low'), "Incorrect trigger mode; \
@@ -649,6 +1193,8 @@ class Spectrum_M4I_6631_X8:
         Output: '100'
         """
         if test_flag != 'test':
+            self.setting_change_count = 1
+
             if len(loop) == 1:
                 lp = int(loop[0])
                 self.loop = lp
@@ -657,6 +1203,8 @@ class Spectrum_M4I_6631_X8:
                 return self.loop
 
         elif test_flag == 'test':
+            self.setting_change_count = 1
+
             if len(loop) == 1:
                 lp = int(loop[0])
                 assert( lp >= 0 and lp <= loop_max ), "Incorrect number of loops; Should be 0 <= Loop <= 100000"
@@ -676,6 +1224,8 @@ class Spectrum_M4I_6631_X8:
         Output: '100 ns'
         """
         if test_flag != 'test':
+            self.setting_change_count = 1
+
             if len(delay) == 1:
                 temp = delay[0].split(' ')
                 delay_num = int(temp[0])
@@ -699,6 +1249,8 @@ class Spectrum_M4I_6631_X8:
                 return str(self.delay / self.sample_rate * 1000) + ' ns'
 
         elif test_flag == 'test':
+            self.setting_change_count = 1
+
             if len(delay) == 1:
                 temp = delay[0].split(' ')
                 delay_num = int(temp[0])
@@ -730,6 +1282,8 @@ class Spectrum_M4I_6631_X8:
         Output: '600 mV'
         """
         if test_flag != 'test':
+            self.setting_change_count = 1
+
             if len(amplitude) == 2:
                 temp = delay[0].split(' ')
                 ch = str(temp[0])
@@ -762,6 +1316,8 @@ class Spectrum_M4I_6631_X8:
                     return str(self.amplitude_1) + ' mV'
 
         elif test_flag == 'test':
+            self.setting_change_count = 1
+
             if len(amplitude) == 2:
                 temp = delay[0].split(' ')
                 ch = str(temp[0])
@@ -811,7 +1367,90 @@ class Spectrum_M4I_6631_X8:
 
         return pulse_list_mod
 
+    def awg_visualize(self):
+        if test_flag != 'test':
+            if self.card_mode == 32768 and (self.channel == 1 or self.channel == 2):
+                buf = ( 32000*self.define_buffer_single()).astype('int64')
+                xs = 0.8*np.arange( len( buf ) )
+                general.plot_1d('Buffer_single', xs, buf, label = 'ch0 or ch1')
+
+            elif self.card_mode == 32768 and self.channel == 3:
+                buf = ( 32000*self.define_buffer_single()).astype('int64')
+                xs = 0.8*np.arange( len( buf )/2 )
+                general.plot_1d('Buffer_single', xs, buf[0::2], label = 'ch0')
+                general.plot_1d('Buffer_single', xs, 64000 + buf[1::2], label = 'ch1')
+
+            elif self.card_mode == 512 and (self.channel == 1 or self.channel == 2):
+                buf = ( 32000*self.define_buffer_multi()).astype('int64')
+                xs = 0.8*np.arange( len( buf ) )
+                general.plot_1d('Buffer_multi', xs, buf, label = 'ch0 or ch1')
+           
+            elif self.card_mode == 512 and self.channel == 3:
+                buf = ( 32000*self.define_buffer_multi()).astype('int64')
+                xs = 0.8*np.arange( len( buf )/2 )
+                general.plot_1d('Buffer_multi', xs, buf[0::2], label = 'ch0')
+                general.plot_1d('Buffer_multi', xs, 64000 + buf[1::2], label = 'ch1')
+
+        elif test_flag == 'test':
+            if self.card_mode == 32768 and (self.channel == 1 or self.channel == 2):
+                buf = ( 32000*self.define_buffer_single()).astype('int64')
+                xs = 0.8*np.arange( len( buf ) )
+                general.plot_1d('Buffer_single', xs, buf, label = 'ch0 or ch1')
+
+            elif self.card_mode == 32768 and self.channel == 3:
+                buf = ( 32000*self.define_buffer_single()).astype('int64')
+                xs = 0.8*np.arange( len( buf )/2 )
+                general.plot_1d('Buffer_single', xs, buf[0::2], label = 'ch0')
+                general.plot_1d('Buffer_single', xs, 64000 + buf[1::2], label = 'ch1')
+
+            elif self.card_mode == 512 and (self.channel == 1 or self.channel == 2):
+                buf = ( 32000*self.define_buffer_multi()).astype('int64')
+                xs = 0.8*np.arange( len( buf ) )
+                general.plot_1d('Buffer_multi', xs, buf, label = 'ch0 or ch1')
+           
+            elif self.card_mode == 512 and self.channel == 3:
+                buf = ( 32000*self.define_buffer_multi()).astype('int64')
+                xs = 0.8*np.arange( len( buf )/2 )
+                general.plot_1d('Buffer_multi', xs, buf[0::2], label = 'ch0')
+                general.plot_1d('Buffer_multi', xs, 64000 + buf[1::2], label = 'ch1')
+
     # Auxilary functions
+
+    def awg_update_test(self):
+        """
+        Function that can be used for tests instead of awg_update()
+        """
+        if test_flag != 'test':
+            if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1:
+                if self.card_mode == 32768:
+                    buf = self.define_buffer_single()
+                elif self.card_mode == 512:
+                    buf = self.define_buffer_multi()
+
+                self.reset_count = 1
+                self.shift_count = 0
+                self.increment_count = 0
+                self.setting_change_count = 0
+
+            else:
+                pass
+
+        elif test_flag == 'test':
+
+            if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1:
+                if self.card_mode == 32768:
+                    buf = self.define_buffer_single()
+                elif self.card_mode == 512:
+                    buf = self.define_buffer_multi()
+
+                self.reset_count = 1
+                self.shift_count = 0
+                self.increment_count = 0
+                self.setting_change_count = 0
+
+            else:
+                pass
+
     def convertion_to_numpy(self, p_array):
         """
         Convertion of the pulse_array into numpy array in the form of
@@ -1059,8 +1698,8 @@ class Spectrum_M4I_6631_X8:
         # define buffer differently for only one or two channels enabled
         if self.channel == 1 or self.channel == 2:
             # two bytes per sample; multiply by number of enabled channels
-            self.buffer_size = np.zeros(2 * self.memsize * 1)
-            buffer = np.zeros(self.memsize * 1, dtype = np.float64 )
+            self.buffer_size = len( np.zeros(2 * self.memsize * 1) ) 
+            buf = np.zeros(self.memsize * 1, dtype = np.float64 )
 
             # pulses for different channel
             for element in pulses:
@@ -1073,29 +1712,29 @@ class Spectrum_M4I_6631_X8:
                     for i in range ( self.segment_memsize*index2, self.segment_memsize*(index2 + 1), 1):
                         if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples)]
                             if i <= ( element2[4] + self.segment_memsize*index2 ):
-                                buffer[i] = sin(2*pi*(( i - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3])
+                                buf[i] = sin(2*pi*(( i - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3])
                             else:
                                 # keeping 0
                                 pass
                         elif element2[1] == 1: # GAUSS
                             if i <= ( element2[4] + self.segment_memsize*index2 ):
-                                buffer[i] = exp(-((( i - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                buf[i] = exp(-((( i - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
                                     sin(2*pi*(( i - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3])
                             else:
                                 pass
                         elif element2[1] == 2: # SINC
                             if i <= ( element2[4] + self.segment_memsize*index2 ):
-                                buffer[i] = np.sinc(2*(( i - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
+                                buf[i] = np.sinc(2*(( i - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
                                     sin(2*pi*( i - self.segment_memsize*index2)*element2[2] / self.sample_rate + element2[3])
                             else:
                                 pass
 
-            return buffer
+            return buf
 
         elif self.channel == 3:
             # two bytes per sample; multiply by number of enabled channels
-            self.buffer_size = np.zeros(2 * self.memsize * 2)
-            buffer = np.zeros(self.memsize * 2)
+            self.buffer_size = len( np.zeros(2 * self.memsize * 2) )
+            buf = np.zeros(self.memsize * 2)
 
             # pulses for different channel
             for element in pulses:
@@ -1111,18 +1750,18 @@ class Spectrum_M4I_6631_X8:
                             if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples)]
                                 if i <= (2 * element2[4] + 2 * self.segment_memsize*index2 ):
                                     # Sine Signal CH_0; i/2 in order to keep the frequency
-                                    buffer[i] = sin(2*pi*(( i/2 - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3])
+                                    buf[i] = sin(2*pi*(( i/2 - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3])
                                 else:
                                     pass
                             elif element2[1] == 1: # GAUSS
                                 if i <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
-                                    buffer[i] = exp(-((( i/2 - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                    buf[i] = exp(-((( i/2 - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
                                         sin(2*pi*(( i/2 - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3])
                                 else:
                                     pass
                             elif element2[1] == 2: # SINC
                                 if i <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
-                                    buffer[i] = np.sinc(2*(( i/2 - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
+                                    buf[i] = np.sinc(2*(( i/2 - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
                                         sin(2*pi*( i/2 - self.segment_memsize*index2)*element2[2] / self.sample_rate + element2[3])
                                 else:
                                     pass
@@ -1133,23 +1772,23 @@ class Spectrum_M4I_6631_X8:
                             if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples)]
                                 if (i - 1) <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
                                     # Sine Signal CH_1; i/2 in order to keep the frequency
-                                    buffer[i] = sin(2*pi*(( (i - 1)/2 - self.segment_memsize*index2 ))*element2[2] / self.sample_rate + element2[3])
+                                    buf[i] = sin(2*pi*(( (i - 1)/2 - self.segment_memsize*index2 ))*element2[2] / self.sample_rate + element2[3])
                                 else:
                                     pass
                             elif element2[1] == 1: # GAUSS
                                 if (i - 1) <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
-                                    buffer[i] = exp(-((( (i - 1)/2 - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                    buf[i] = exp(-((( (i - 1)/2 - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
                                         sin(2*pi*(( (i - 1)/2 - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3])
                                 else:
                                     pass
                             elif element2[1] == 2: # SINC
                                 if (i - 1) <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
-                                    buffer[i] = np.sinc(2*(( (i - 1)/2 - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
+                                    buf[i] = np.sinc(2*(( (i - 1)/2 - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
                                         sin(2*pi*( (i - 1)/2 - self.segment_memsize*index2)*element2[2] / self.sample_rate + element2[3])
                                 else:
                                     pass
 
-            return buffer
+            return buf
 
     def preparing_buffer_single(self):
         """
@@ -1181,9 +1820,17 @@ class Spectrum_M4I_6631_X8:
             return memsize, pulses
 
         elif test_flag == 'test':
-            
+
             #checks
             assert( self.card_mode == 32768 ), 'You are not in Single mode'
+
+            if self.channel == 1:
+                assert( len(self.pulse_ch0_array) == 1 and len(self.pulse_ch1_array) == 0 ), "Only one CH0 pulse can be defined in Single mode with only CH0 enabled"
+            elif self.channel == 2:
+                assert( len(self.pulse_ch1_array) == 1 and len(self.pulse_ch0_array) == 0 ), "Only one CH1 pulse can be defined in Single mode with only CH1 enabled"
+            elif self.channel == 3:
+                assert( len(self.pulse_ch1_array) == 1 and len(self.pulse_ch0_array) == 1 ), "Only one CH1 and CH0 pulses can be defined in Single mode with CH0 and CH1 enabled"
+
             assert( self.num_segments == 1 ), 'More than one segment is declared in Single mode. Please, use Multi mode'
 
             max_length_array = []
@@ -1201,9 +1848,9 @@ class Spectrum_M4I_6631_X8:
 
             # check number of channels and determine the memory size 
             # (buffer size will be doubled if two channels are enabled)
-            num_ch = len(pulses)
-            assert( (num_ch == 1 and ( self.channel == 1 or self.channel == 2)) or \
-                num_ch == 2 and ( self.channel == 3 ) ), 'Number of enabled channels are not equal to the number of channels in AWG pulses'
+            #num_ch = len(pulses)
+            #assert( (num_ch == 1 and ( self.channel == 1 or self.channel == 2)) or \
+            #    num_ch == 2 and ( self.channel == 3 ) ), 'Number of enabled channels are not equal to the number of channels in AWG pulses'
 
             memsize = buffer_per_max_pulse
 
@@ -1226,8 +1873,8 @@ class Spectrum_M4I_6631_X8:
         # define buffer differently for only one or two channels enabled
         if self.channel == 1 or self.channel == 2:
             # two bytes per sample; multiply by number of enabled channels
-            self.buffer_size = np.zeros(2 * self.memsize * 1)
-            buffer = np.zeros(self.memsize * 1, dtype = np.float64 )
+            self.buffer_size = len( np.zeros(2 * self.memsize * 1) )
+            buf = np.zeros(self.memsize * 1, dtype = np.float64 )
 
             # pulses for different channel
             for element in pulses:
@@ -1239,28 +1886,28 @@ class Spectrum_M4I_6631_X8:
                     for i in range (0, self.memsize, 1):
                         if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples)]
                             if i <= ( element2[4] ):
-                                buffer[i] = sin(2*pi*(( i ))*element2[2] / self.sample_rate + element2[3])
+                                buf[i] = sin(2*pi*(( i ))*element2[2] / self.sample_rate + element2[3])
                             else:
                                 pass
                         elif element2[1] == 1: # GAUSS
                             if i <= ( element2[4] ):
-                                buffer[i] = exp(-((( i ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                buf[i] = exp(-((( i ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
                                     sin(2*pi*(( i ))*element2[2] / self.sample_rate + element2[3])
                             else:
                                 pass
                         elif element2[1] == 2: # SINC
                             if i <= ( element2[4] ):
-                                buffer[i] = np.sinc(2*(( i ) - mid_point) / (element2[5]) )*\
+                                buf[i] = np.sinc(2*(( i ) - mid_point) / (element2[5]) )*\
                                     sin(2*pi*( i )*element2[2] / self.sample_rate + element2[3])
                             else:
                                 pass
 
-            return buffer
+            return buf
 
         elif self.channel == 3:
             # two bytes per sample; multiply by number of enabled channels
-            self.buffer_size = np.zeros(2 * self.memsize * 1)
-            buffer = np.zeros(self.memsize * 2)
+            self.buffer_size = len( np.zeros(2 * self.memsize * 2) )
+            buf = np.zeros(self.memsize * 2, dtype = np.float64 )
 
             # pulses for different channel
             for element in pulses:
@@ -1275,18 +1922,18 @@ class Spectrum_M4I_6631_X8:
                             if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples)]
                                 if i <= ( 2 * element2[4] ):
                                     # Sine Signal CH_0; i/2 in order to keep the frequency
-                                    buffer[i] = sin(2*pi*(( i/2 ))*element2[2] / self.sample_rate + element2[3])
+                                    buf[i] = sin(2*pi*(( i/2 ))*element2[2] / self.sample_rate + element2[3])
                                 else:
                                     pass
                             elif element2[1] == 1: # GAUSS
                                 if i <= ( 2 * element2[4] ):
-                                    buffer[i] = exp(-((( i/2 ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                    buf[i] = exp(-((( i/2 ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
                                         sin(2*pi*(( i/2 ))*element2[2] / self.sample_rate + element2[3])
                                 else:
                                     pass
                             elif element2[1] == 2: # SINC
                                 if i <= ( 2 * element2[4] ):
-                                    buffer[i] = np.sinc(2*(( i/2 ) - mid_point) / (element2[5]) )*\
+                                    buf[i] = np.sinc(2*(( i/2 ) - mid_point) / (element2[5]) )*\
                                         sin(2*pi*( i/2 )*element2[2] / self.sample_rate + element2[3])
                                 else:
                                     pass
@@ -1297,23 +1944,23 @@ class Spectrum_M4I_6631_X8:
                             if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples)]
                                 if (i - 1) <= ( 2 * element2[4] ):
                                     # Sine Signal CH_1; i/2 in order to keep the frequency
-                                    buffer[i] = sin(2*pi*(( (i - 1)/2 ))*element2[2] / self.sample_rate + element2[3])
+                                    buf[i] = sin(2*pi*(( (i - 1)/2 ))*element2[2] / self.sample_rate + element2[3])
                                 else:
                                     pass
                             elif element2[1] == 1: # GAUSS
                                 if (i - 1) <= ( 2 * element2[4] ):
-                                    buffer[i] = exp(-((( (i - 1)/2 ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                    buf[i] = exp(-((( (i - 1)/2 ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
                                         sin(2*pi*(( (i - 1)/2 ))*element2[2] / self.sample_rate + element2[3])
                                 else:
                                     pass
                             elif element2[1] == 2: # SINC
                                 if (i - 1) <= ( 2 * element2[4] ):
-                                    buffer[i] = np.sinc(2*(( (i - 1)/2 ) - mid_point) / (element2[5]) )*\
+                                    buf[i] = np.sinc(2*(( (i - 1)/2 ) - mid_point) / (element2[5]) )*\
                                         sin(2*pi*( (i - 1)/2 )*element2[2] / self.sample_rate + element2[3])
                                 else:
                                     pass
 
-            return buffer        
+            return buf
 
     def closest_power_of_two(self, x):
         """

@@ -29,7 +29,6 @@ from pyqtgraph.dockarea import DockArea
 import atomize.main.messenger_socket_server as socket_server
 ###AWG
 #sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
-
 #from pyspcm import *
 #from spcm_tools import *
 
@@ -601,8 +600,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 # AWG
                 #hCard = spcm_hOpen (create_string_buffer (b'/dev/spcm0'))
                 #if hCard == None:
-                #    sys.stdout.write("no card found...\n")
-                #    exit ()
+                #    print("no card found...\n")
+                #    sys.exit()
 
                 #spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_CARD_STOP)
 

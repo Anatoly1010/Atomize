@@ -23,7 +23,7 @@
 ITC 503; Tested 01/21
 - Termodat (RS-485)
 11M6; 13KX3; Tested 04/21
-- Stanford Research (TCP-IP)
+- Stanford Research (TCP/IP Socket)
 PTC10; Tested 07/21
 
 ## Lock-in Amplifiers

@@ -2,13 +2,13 @@
 
 Available devices:
 - Lakeshore (GPIB, RS-232)
-325; 331; 332; 335; 336; 340; Tested 01/21
+325; 331; 332; 335; 336; 340; Tested 01/2021
 - Oxford Instruments (RS-232)
-ITC 503; Tested 01/21
+ITC 503; Tested 01/2021
 - Termodat (RS-485)
-11M6; 13KX3; Tested 04/21
-- Stanford Research (TCP-IP)
-PTC10; Untested
+11M6; 13KX3; Tested 04/2021
+- Stanford Research (TCP/IP Socket)
+PTC10; 07/2021
 
 Functions:
 - [tc_name()](#tc_name)<br/>

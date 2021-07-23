@@ -50,7 +50,7 @@ pb.pulser_pulse(name = 'P4', channel = 'TRIGGER_AWG', start = '526 ns', length =
 #DETECTION
 pb.pulser_pulse(name = 'P5', channel = 'TRIGGER', start = '4780 ns', length = '100 ns', delta_start = str(int(STEP*4)) + ' ns')
 
-pb.pulser_repetitoin_rate('1000 Hz')
+pb.pulser_repetition_rate('1000 Hz')
 
 k = 1 
 while k < 9:
@@ -107,7 +107,7 @@ while k < 9:
 header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + 'DEER Measurement\n' + \
             'Field: ' + str(FIELD) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + \
             str(mw.mw_bridge_synthesizer()) + '\n' + \
-           'Repetition Rate: ' + str(pb.pulser_repetitoin_rate()) + '\n' +\
+           'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' +\
            'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + ' ns\n' + \
            'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
            'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Time (trig_awg delta_start), X (V*s), Y (V*s) '
