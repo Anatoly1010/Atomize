@@ -3,8 +3,9 @@
 
 import os
 import sys
+import random
 ###AWG
-#sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
+sys.path.append('/home/anatoly/awg_files/python')
 from math import sin, pi, exp, log2
 from itertools import groupby, chain
 from copy import deepcopy
@@ -12,8 +13,8 @@ import numpy as np
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
-#from pyspcm import *
-#from spcm_tools import *
+from pyspcm import *
+from spcm_tools import *
 
 #### Inizialization
 # setting path to *.ini file
@@ -39,6 +40,12 @@ max_freq = int(float(specific_parameters['max_freq'])) # in MHz
 min_freq = int(float(specific_parameters['min_freq'])) # in MHz
 
 # Delays and restrictions
+# MaxDACValue corresponds to the amplitude of the output signal; MaxDACValue - Amplitude and so on
+# lMaxDACValue = int32 (0)
+# spcm_dwGetParam_i32 (hCard, SPC_MIINST_MAXADCVALUE, byref(lMaxDACValue))
+# lMaxDACValue.value = lMaxDACValue.value - 1
+maxCAD = 32767 # MaxCADValue of the AWG card - 1
+phase_shift_ch1_seq_mode = pi/1.52
 amplitude_max = 2500 # mV
 amplitude_min = 80 # mV
 sample_rate_max = 1250 # MHz
@@ -78,7 +85,7 @@ class Spectrum_M4I_6631_X8:
             self.sample_rate = 1250 # MHz
             self.clock_mode = 1 # 1 is Internal; 32 is External
             self.reference_clock = 100 # MHz
-            self.card_mode = 32768 # 32768 is Single; 512 is Multi
+            self.card_mode = 32768 # 32768 is Single; 512 is Multi; 262144 is Sequence
             self.trigger_ch = 2 # 1 is Software; 2 is External
             self.trigger_mode = 1 # 1 is Positive; 2 is Negative; 8 is High; 10 is Low
             self.loop = 0 # 0 is infinity
@@ -92,6 +99,15 @@ class Spectrum_M4I_6631_X8:
             self.memsize = 64 # full card memory
             self.buffer_size = 2*self.memsize # two bytes per sample
             self.segment_memsize = 32 # segment card memory
+            self.single_joined = 0
+            # sequence mode
+            self.sequence_mode = 0
+            self.full_buffer = 0
+            self.full_buffer_pointer = 0
+            self.sequence_segments = 2
+            self.sequence_loop = 1
+            self.qwBufferSize = uint64 (2 *2)  # buffer size
+            self.sequence_mode_count = 0
             # pulse settings
             self.reset_count = 0
             self.shift_count = 0
@@ -122,6 +138,15 @@ class Spectrum_M4I_6631_X8:
             self.memsize = 64 # full card memory
             self.buffer_size = 2*self.memsize # two bytes per sample
             self.segment_memsize = 32 # segment card memory
+            self.single_joined = 0
+            # sequence mode
+            self.sequence_mode = 0
+            self.full_buffer = 0
+            self.full_buffer_pointer = 0
+            self.sequence_segments = 2
+            self.sequence_loop = 1
+            self.qwBufferSize = uint64 (2 *2)  # buffer size
+            self.sequence_mode_count = 0
             # pulse settings
             self.reset_count = 0
             self.shift_count = 0
@@ -150,7 +175,7 @@ class Spectrum_M4I_6631_X8:
         """
         if test_flag != 'test':
 
-            if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1:
+            if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1 or self.sequence_mode_count == 1:
                 # open card
                 hCard = spcm_hOpen (create_string_buffer (b'/dev/spcm0'))
                 if hCard == None:
@@ -166,15 +191,26 @@ class Spectrum_M4I_6631_X8:
                     spcm_dwSetParam_i64 (hCard, SPC_SAMPLERATE, MEGA(self.sample_rate))
 
                 # change card mode and memory
-                if self.card_mode == 32768:
-                    buf = self.define_buffer_single()
+                if self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 0:
+                    buf = self.define_buffer_single()[0]
                     spcm_dwSetParam_i32(hCard, SPC_CARDMODE, self.card_mode)
                     spcm_dwSetParam_i32(hCard, SPC_MEMSIZE, self.memsize)
-                elif self.card_mode == 512:
-                    buf = self.define_buffer_multi()
+                elif self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 1:
+                    buf = self.define_buffer_single_joined()[0]
+                    spcm_dwSetParam_i32(hCard, SPC_CARDMODE, self.card_mode)
+                    spcm_dwSetParam_i32(hCard, SPC_MEMSIZE, self.memsize)                    
+                elif self.card_mode == 512 and self.sequence_mode == 0:
+                    buf = self.define_buffer_multi()[0]
                     spcm_dwSetParam_i32(hCard, SPC_CARDMODE, self.card_mode)
                     spcm_dwSetParam_i32(hCard, SPC_MEMSIZE, self.memsize)
                     spcm_dwSetParam_i32(hCard, SPC_SEGMENTSIZE, self.segment_memsize)
+                elif self.sequence_mode == 1:
+                    #self.full_buffer
+                    # 262144 is SPC_REP_STD_SEQUENCE
+                    spcm_dwSetParam_i32( hCard, SPC_CARDMODE, 262144 )
+                    spcm_dwSetParam_i32( hCard, SPC_SEQMODE_MAXSEGMENTS, int32(self.sequence_segments) )
+                    spcm_dwSetParam_i32( hCard, SPC_SEQMODE_STARTSTEP, 0 ) # Step#0 is the first step after card start
+
 
                 # trigger
                 spcm_dwSetParam_i32(hCard, SPC_TRIG_ORMASK, self.trigger_ch) # software / external
@@ -206,31 +242,72 @@ class Spectrum_M4I_6631_X8:
                 spcm_dwGetParam_i32 (hCard, SPC_MIINST_MAXADCVALUE, byref(lMaxDACValue))
                 lMaxDACValue.value = lMaxDACValue.value - 1
 
+                if lMaxDACValue.value == maxCAD:
+                    pass
+                else:
+                    general.message('maxCAD value does not equal to lMaxDACValue.value')
+                    sys.exit()
+
                 # define the buffer
-                pnBuffer = c_void_p()
-                qwBufferSize = uint64 (self.buffer_size)  # buffer size
-                pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
-                pnBuffer = cast (pvBuffer, ptr16)
+                #pnBuffer = c_void_p()
+                #qwBufferSize = uint64 (self.buffer_size)  # buffer size
+                #pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
+                #pnBuffer = cast (pvBuffer, ptr16)
 
-                
                 # fill the buffer
-                if self.card_mode == 32768:
+                if self.card_mode == 32768 and self.sequence_mode == 0:
                     # convert numpy array to integer
-                    for index, element in enumerate(buf):
-                        pnBuffer[index] = int(lMaxDACValue.value * element)
-                        #pnBuffer = (lMaxDACValue.value * self.define_buffer_single()).astype('int64')
-                elif self.card_mode == 512:
-                    for index, element in enumerate(buf):
-                        pnBuffer[index] = int(lMaxDACValue.value * element)
-                        #pnBuffer = (lMaxDACValue.value * self.define_buffer_multi()).astype('int64')
+                    #for index, element in enumerate(buf):
+                    #    pnBuffer[index] = int(lMaxDACValue.value * element)
+                    #    #pnBuffer = (lMaxDACValue.value * self.define_buffer_single()).astype('int64')
 
-                # we define the buffer for transfer and start the DMA transfer
-                #sys.stdout.write("Starting the DMA transfer and waiting until data is in board memory\n")
-                # spcm_dwDefTransfer_i64 (device, buffer_type, direction, event (0=and of transfer), data, offset, buffer length)
-                spcm_dwDefTransfer_i64 (hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), pvBuffer, uint64 (0), qwBufferSize)
-                # transfer
-                spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
-                general.message("AWG buffer has been transferred to board memory")
+                    # we define the buffer for transfer and start the DMA transfer
+                    #sys.stdout.write("Starting the DMA transfer and waiting until data is in board memory\n")
+                    # spcm_dwDefTransfer_i64 (device, buffer_type, direction, event (0=and of transfer), data, offset, buffer length)
+                    spcm_dwDefTransfer_i64 (hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), buf, uint64 (0), qwBufferSize)
+                    # transfer
+                    spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
+                    general.message("AWG buffer has been transferred to board memory")
+
+                elif self.card_mode == 512 and self.sequence_mode == 0:
+                    #for index, element in enumerate(buf):
+                    #    pnBuffer[index] = int(lMaxDACValue.value * element)
+                    #    #pnBuffer = (lMaxDACValue.value * self.define_buffer_multi()).astype('int64')
+
+                    # we define the buffer for transfer and start the DMA transfer
+                    #sys.stdout.write("Starting the DMA transfer and waiting until data is in board memory\n")
+                    # spcm_dwDefTransfer_i64 (device, buffer_type, direction, event (0=and of transfer), data, offset, buffer length)
+                    spcm_dwDefTransfer_i64 (hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), buf, uint64 (0), qwBufferSize)
+                    # transfer
+                    spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
+                    general.message("AWG buffer has been transferred to board memory")
+
+                elif self.sequence_mode == 1:
+                    if self.channel == 1 or self.channel == 2:
+                        seg_memory = int(self.qwBufferSize.value / 2)
+                    elif self.channel == 3:
+                        seg_memory = int(self.qwBufferSize.value / 4)
+
+                    for index, element in enumerate(self.full_buffer_pointer):
+                        # Setting up the data memory and transfer data
+                        spcm_dwSetParam_i32 (hCard, SPC_SEQMODE_WRITESEGMENT, index) # set current configuration switch to segment 0
+                        spcm_dwSetParam_i32 (hCard, SPC_SEQMODE_SEGMENTSIZE, seg_memory) # define size of current segment 0
+                        # data transfer
+                        spcm_dwDefTransfer_i64 (hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, 0, self.full_buffer_pointer, 0, self.qwBufferSize.value)
+                        spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
+
+                        # self.vWriteStepEntry (hCard, dwStepIndex, dwStepNextIndex, dwSegmentIndex, dwLoops, dwFlags)
+                        if index != self.sequence_segments:
+                            self.vWriteStepEntry (hCard,  index,  index + 1, index, self.sequence_loop,  0)
+                        else:
+                            self.vWriteStepEntry (hCard,  index,  index + 1, index, self.sequence_loop,  2147483648)
+                        # SPCSEQ_ENDLOOPONTRIG = 1073741824
+                        # Feature flag that marks the step to conditionally change to the next step on a trigger condition. The occurrence
+                        # of a trigger event is repeatedly checked each time the defined loops for the current segment have been
+                        # replayed. A temporary valid trigger condition will be stored until evaluation at the end of the step.
+                        # SPCSEQ_END = 2147483648
+                        # Feature flag that marks the current step to be the last in the sequence. The card is stopped at the end of this seg-
+                        # ment after the loop counter has reached his end.
 
                 # We'll start and wait until the card has finished or until a timeout occurs
                 dwError = spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_CARD_START | M2CMD_CARD_ENABLETRIGGER | M2CMD_CARD_WAITTRIGGER)
@@ -244,22 +321,26 @@ class Spectrum_M4I_6631_X8:
                 self.shift_count = 0
                 self.increment_count = 0
                 self.setting_change_count = 0
+                self.sequence_mode_count == 0
 
             else:
                 pass
 
         elif test_flag == 'test':
             # to run several important checks
-            if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1:
-                if self.card_mode == 32768:
-                    buf = self.define_buffer_single()
+            if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1 or self.sequence_mode_count == 1:
+                if self.card_mode == 32768 and self.single_joined == 0:
+                    buf = self.define_buffer_single()[0]
+                elif self.card_mode == 32768 and self.single_joined == 1:
+                    buf = self.define_buffer_single_joined()[0]
                 elif self.card_mode == 512:
-                    buf = self.define_buffer_multi()
+                    buf = self.define_buffer_multi()[0]
 
                 self.reset_count = 1
                 self.shift_count = 0
                 self.increment_count = 0
                 self.setting_change_count = 0
+                self.sequence_mode_count == 0
 
             else:
                 pass
@@ -287,18 +368,24 @@ class Spectrum_M4I_6631_X8:
             pass
 
     def awg_pulse(self, name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0,\
-     delta_phase = 0, length = '16 ns', sigma = '16 ns', increment = '0 ns'):
+     delta_phase = 0, length = '16 ns', sigma = '16 ns', increment = '0 ns', start = '0 ns', delta_start = '0 ns'):
         """
         A function for awg pulse creation;
         The possible arguments:
         NAME, CHANNEL (CHO, CH1), FUNC (SINE, GAUSS, SINC), FREQUENCY (1 - 280 MHz),
-        PHASE (in rad), LENGTH (in ns, us; should be longer than sigma; minimun is 10 ns; maximum is 1900 ns), 
+        PHASE (in rad), DELTA_PHASE (in rad), 
+        LENGTH (in ns, us; should be longer than sigma; minimun is 10 ns; maximum is 1900 ns), 
         SIGMA (sigma for gauss; sinc (length = 32 ns, sigma = 16 ns means +-2pi); sine for uniformity )
+        INCREMENT (in ns, us, ms; for incrementing both sigma and length)
+        START (in ns, us, ms; for joined pulses in 'Single mode')
+        DELTA_START (in ns, us, ms; for joined pulses in 'Single mode')
+
         Buffer according to arguments will be filled after
         """
         if test_flag != 'test':
             pulse = {'name': name, 'channel': channel, 'function': func, 'frequency': frequency, 'phase' : phase,\
-             'delta_phase' : delta_phase, 'length': length, 'sigma': sigma, 'increment': increment}
+             'delta_phase': delta_phase, 'length': length, 'sigma': sigma, 'increment': increment, 'start': start,\
+              'delta_start': delta_start }
 
             self.pulse_array.append( pulse )
             # for saving the initial pulse_array without increments
@@ -317,7 +404,8 @@ class Spectrum_M4I_6631_X8:
             
         elif test_flag == 'test':
             pulse = {'name': name, 'channel': channel, 'function': func, 'frequency': frequency, 'phase' : phase,\
-             'delta_phase' : delta_phase, 'length': length, 'sigma': sigma, 'increment': increment}
+             'delta_phase' : delta_phase, 'length': length, 'sigma': sigma, 'increment': increment, 'start': start,\
+              'delta_start': delta_start }
 
             # Checks
             # two equal names
@@ -383,8 +471,74 @@ class Spectrum_M4I_6631_X8:
             else:
                 assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
 
+            # start
+            temp_start = start.split(" ")
+            if temp_start[1] in timebase_dict:
+                coef = timebase_dict[temp_start[1]]
+                p_start = coef*float(temp_start[0])
+                assert(p_start >= 0), 'Pulse start should be a positive number'
+                assert(p_start % 2 == 0), 'Pulse start should be divisible by 2'                
+            else:
+                assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
+
+            # delta_start
+            temp_delta_start = delta_start.split(" ")
+            if temp_delta_start[1] in timebase_dict:
+                coef = timebase_dict[temp_delta_start[1]]
+                p_delta_start = coef*float(temp_delta_start[0])
+                assert(p_delta_start >= 0), 'Pulse delta start should be a positive number'
+                assert(p_delta_start % 2 == 0), 'Pulse delta start should be divisible by 2'
+            else:
+                assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
+
             self.pulse_array.append( pulse )
             self.pulse_array_init = deepcopy(self.pulse_array)
+
+    # DOCUMENTATION
+    def awg_redefine_delta_start(self, *, name, delta_start):
+        """
+        A function for redefining delta_start of the specified pulse for Single Joined mode.
+        awg_redefine_delta_start(name = 'P0', delta_start = '10 ns') changes delta_start of the 'P0' pulse to 10 ns.
+        The main purpose of the function is non-uniform sampling.
+
+        def func(*, name1, name2): defines a function without default values of key arguments
+        """
+
+        if test_flag != 'test':
+            i = 0
+
+            while i < len( self.pulse_array ):
+                if name == self.pulse_array[i]['name']:
+                    self.pulse_array[i]['delta_start'] = str(delta_start)
+                    self.shift_count = 1
+                else:
+                    pass
+
+                i += 1
+
+        elif test_flag == 'test':
+            i = 0
+            assert( name in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+
+            while i < len( self.pulse_array ):
+                if name == self.pulse_array[i]['name']:
+
+                    # checks
+                    temp_delta_start = delta_start.split(" ")
+                    if temp_delta_start[1] in timebase_dict:
+                        coef = timebase_dict[temp_delta_start[1]]
+                        p_delta_start = coef*float(temp_delta_start[0])
+                        assert(p_delta_start % 2 == 0), 'Pulse delta start should be divisible by 2'
+                        assert(p_delta_start >= 0), 'Pulse delta start is a negative number'
+                    else:
+                        assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+
+                    self.pulse_array[i]['delta_start'] = str(delta_start)
+                    self.shift_count = 1
+                else:
+                    pass
+
+                i += 1
 
     def awg_redefine_delta_phase(self, *, name, delta_phase):
         """
@@ -461,6 +615,11 @@ class Spectrum_M4I_6631_X8:
 
             #self.awg_update_test()
 
+    # TO DO
+    def awg_redefine_pulse(self, *, name, channel, func, frequency, phase,\
+                            delta_phase, length, sigma, increment, start, delta_start):
+        pass
+
     def awg_redefine_increment(self, *, name, increment):
         """
         A function for redefining increment of the specified pulse.
@@ -507,77 +666,184 @@ class Spectrum_M4I_6631_X8:
 
     def awg_shift(self, *pulses):
         """
-        A function to shift the phase of the pulses.
+        A function to shift the phase of the pulses for Single mode.
+        Or the start of the pulses for Single Joined mode.
         The function directly affects the pulse_array.
         """
         if test_flag != 'test':
+            self.shift_count = 1
+
             if len(pulses) == 0:
                 i = 0
-                while i < len( self.pulse_array ):
-                    if float( self.pulse_array[i]['delta_phase'] ) == 0.:
-                        pass
-                    else:
-                        temp = float( self.pulse_array[i]['phase'] )
-                        temp2 = float( self.pulse_array[i]['delta_phase'] )
+                if self.single_joined == 0:
+                    while i < len( self.pulse_array ):
+                        if float( self.pulse_array[i]['delta_phase'] ) == 0.:
+                            pass
+                        else:
+                            temp = float( self.pulse_array[i]['phase'] )
+                            temp2 = float( self.pulse_array[i]['delta_phase'] )
 
-                        self.pulse_array[i]['phase'] = temp + temp2
- 
-                    i += 1
+                            self.pulse_array[i]['phase'] = temp + temp2
+     
+                        i += 1
 
-                self.shift_count = 1
+                # increment start if in Single Joined
+                elif self.single_joined == 1:
+                    while i < len( self.pulse_array ):
+                        if int( self.pulse_array[i]['delta_start'][:-3] ) == 0:
+                            pass
+                        else:
+                            # convertion to ns
+                            temp = self.pulse_array[i]['delta_start'].split(' ')
+                            if temp[1] in timebase_dict:
+                                flag = timebase_dict[temp[1]]
+                                d_start = int((temp[0]))*flag
+                            else:
+                                pass
+
+                            temp2 = self.pulse_array[i]['start'].split(' ')
+                            if temp2[1] in timebase_dict:
+                                flag2 = timebase_dict[temp2[1]]
+                                st = int((temp2[0]))*flag2
+                            else:
+                                pass
+                                    
+                            self.pulse_array[i]['start'] = str( st + d_start ) + ' ns'
+
+                        i += 1
 
             else:
-                set_from_list = set(pulses)
-                for element in set_from_list:
-                    if element in self.pulse_name_array:
-                        pulse_index = self.pulse_name_array.index(element)
+                if self.single_joined == 0:
+                    set_from_list = set(pulses)
+                    for element in set_from_list:
+                        if element in self.pulse_name_array:
+                            pulse_index = self.pulse_name_array.index(element)
 
-                        if float( self.pulse_array[pulse_index]['delta_phase'] ) == 0.:
-                            pass
+                            if float( self.pulse_array[pulse_index]['delta_phase'] ) == 0.:
+                                pass
 
-                        else:
-                            temp = float( self.pulse_array[pulse_index]['phase'] )
-                            temp2 = float( self.pulse_array[pulse_index]['delta_phase'] )
-                                    
-                            self.pulse_array[pulse_index]['phase'] = temp + temp2
+                            else:
+                                temp = float( self.pulse_array[pulse_index]['phase'] )
+                                temp2 = float( self.pulse_array[pulse_index]['delta_phase'] )
+                                        
+                                self.pulse_array[pulse_index]['phase'] = temp + temp2
 
-                        self.shift_count = 1
+                elif self.single_joined == 1:
+                    set_from_list = set(pulses)
+                    for element in set_from_list:
+                        if element in self.pulse_name_array:
+                            pulse_index = self.pulse_name_array.index(element)
+
+                            if int( self.pulse_array[pulse_index]['delta_start'][:-3] ) == 0:
+                                pass
+                            else:
+                                # convertion to ns
+                                temp = self.pulse_array[pulse_index]['delta_start'].split(' ')
+                                if temp[1] in timebase_dict:
+                                    flag = timebase_dict[temp[1]]
+                                    d_start = int((temp[0]))*flag
+                                else:
+                                    pass
+
+                                temp2 = self.pulse_array[pulse_index]['start'].split(' ')
+                                if temp2[1] in timebase_dict:
+                                    flag2 = timebase_dict[temp2[1]]
+                                    st = int((temp2[0]))*flag2
+                                else:
+                                    pass
+                                        
+                                self.pulse_array[pulse_index]['start'] = str( st + d_start ) + ' ns'
 
         elif test_flag == 'test':
+            self.shift_count = 1
+
             if len(pulses) == 0:
                 i = 0
-                while i < len( self.pulse_array ):
-                    if float( self.pulse_array[i]['delta_phase'] ) == 0.:
-                        pass
-                    else:
-                        temp = float( self.pulse_array[i]['phase'] )
-                        temp2 = float( self.pulse_array[i]['delta_phase'] )
+                if self.single_joined == 0:
+                    while i < len( self.pulse_array ):
+                        if float( self.pulse_array[i]['delta_phase'] ) == 0.:
+                            pass
+                        else:
+                            temp = float( self.pulse_array[i]['phase'] )
+                            temp2 = float( self.pulse_array[i]['delta_phase'] )
 
-                        self.pulse_array[i]['phase'] = temp + temp2
- 
-                    i += 1
+                            self.pulse_array[i]['phase'] = temp + temp2
+                            
+                        i += 1
 
-                self.shift_count = 1
+                # increment start if in Single Joined
+                elif self.single_joined == 1:
+                    while i < len( self.pulse_array ):
+                        if int( self.pulse_array[i]['delta_start'][:-3] ) == 0:
+                            pass
+                        else:
+                            # convertion to ns
+                            temp = self.pulse_array[i]['delta_start'].split(' ')
+                            if temp[1] in timebase_dict:
+                                flag = timebase_dict[temp[1]]
+                                d_start = int((temp[0]))*flag
+                            else:
+                                pass
+
+                            temp2 = self.pulse_array[i]['start'].split(' ')
+                            if temp2[1] in timebase_dict:
+                                flag2 = timebase_dict[temp2[1]]
+                                st = int((temp2[0]))*flag2
+                            else:
+                                pass
+                                    
+                            self.pulse_array[i]['start'] = str( st + d_start ) + ' ns'
+
+                        i += 1
 
             else:
-                set_from_list = set(pulses)
-                for element in set_from_list:
-                    if element in self.pulse_name_array:
-                        pulse_index = self.pulse_name_array.index(element)
+                if self.single_joined == 0:
+                    set_from_list = set(pulses)
+                    for element in set_from_list:
+                        if element in self.pulse_name_array:
+                            pulse_index = self.pulse_name_array.index(element)
 
-                        if float( self.pulse_array[pulse_index]['delta_phase'] ) == 0.:
-                            pass
+                            if float( self.pulse_array[pulse_index]['delta_phase'] ) == 0.:
+                                pass
+
+                            else:
+                                temp = float( self.pulse_array[pulse_index]['phase'] )
+                                temp2 = float( self.pulse_array[pulse_index]['delta_phase'] )
+                                        
+                                self.pulse_array[pulse_index]['phase'] = temp + temp2
 
                         else:
-                            temp = float( self.pulse_array[pulse_index]['phase'] )
-                            temp2 = float( self.pulse_array[pulse_index]['delta_phase'] )
-                                    
-                            self.pulse_array[pulse_index]['phase'] = temp + temp2
+                            assert(1 == 2), "There is no pulse with the specified name"
 
-                        self.shift_count = 1
+                elif self.single_joined == 1:
 
-                    else:
-                        assert(1 == 2), "There is no pulse with the specified name"        
+                    set_from_list = set(pulses)
+                    for element in set_from_list:
+                        if element in self.pulse_name_array:
+                            pulse_index = self.pulse_name_array.index(element)
+
+                            if int( self.pulse_array[pulse_index]['delta_start'][:-3] ) == 0:
+                                pass
+                            else:
+                                # convertion to ns
+                                temp = self.pulse_array[pulse_index]['delta_start'].split(' ')
+                                if temp[1] in timebase_dict:
+                                    flag = timebase_dict[temp[1]]
+                                    d_start = int((temp[0]))*flag
+                                else:
+                                    pass
+
+                                temp2 = self.pulse_array[pulse_index]['start'].split(' ')
+                                if temp2[1] in timebase_dict:
+                                    flag2 = timebase_dict[temp2[1]]
+                                    st = int((temp2[0]))*flag2
+                                else:
+                                    pass
+                                        
+                                self.pulse_array[pulse_index]['start'] = str( st + d_start ) + ' ns'
+
+                        else:
+                            assert(1 == 2), "There is no pulse with the specified name"
 
     def awg_increment(self, *pulses):
         """
@@ -1042,14 +1308,20 @@ class Spectrum_M4I_6631_X8:
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
 
+    # DOCUMENTATION
     def awg_card_mode(self, *mode):
         """
-        Set or query card mode; 
+        Set or query card mode;
+
         'Single' is "Data generation from on-board memory replaying the complete programmed memory on every detected trigger
         event. The number of replays can be programmed by loops."
+        "Single Joined" is 'Single' with joined pulses in one combined buffer.
         'Multi' is "With every detected trigger event one data block (segment) is replayed."
         Segmented memory is available only in External trigger mode.
-        Input: awg_card_mode('Single'); Card mode is 'Single'; 'Multi'
+        'Sequence' is 'The sequence replay mode is a special firmware mode that allows to program an output sequence by defining one or more sequences each
+        associated with a certain memory pattern.'
+
+        Input: awg_card_mode('Single'); Card mode is 'Single'; 'Multi'; 'Sequence'
         Default: 'Single';
         Output: 'Single'
         """
@@ -1059,29 +1331,46 @@ class Spectrum_M4I_6631_X8:
             if len(mode) == 1:
                 md = str(mode[0])
                 if md == 'Single':
+                    self.single_joined = 0
                     self.card_mode = 32768
+                elif md == 'Single Joined':
+                    self.single_joined = 1
+                    self.card_mode = 32768                    
                 elif md == 'Multi':
                     self.card_mode = 512
+                elif md == 'Sequence':
+                    self.sequence_mode = 1
                 else:
-                    general.message('Incorrect card mode; Only Single and Multi modes are available')
+                    general.message('Incorrect card mode; Only Single, Single Joined, Multi, and Sequence modes are available')
                     sys.exit()
 
             elif len(mode) == 0:
-                if self.card_mode == 32768:
+                if self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 0:
                     return 'Single'
-                elif self.card_mode == 512:
+                elif self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 1:
+                    return 'Single Joined'
+                elif self.card_mode == 512 and self.sequence_mode == 0:
                     return 'Multi'
+                elif self.sequence_mode == 1:
+                    return 'Sequence'
 
         elif test_flag == 'test':
             self.setting_change_count = 1
 
             if len(mode) == 1:
                 md = str(mode[0])
-                assert(md == 'Single' or md == 'Multi'), "Incorrect card mode; Only Single and Multi modes are available"
+                assert(md == 'Single' or md == 'Single Joined' or md == 'Multi' or md == 'Sequence'), "Incorrect card mode; Only Single,\
+                                                                               Single Joined, Multi, and Sequence modes are available"
                 if md == 'Single':
+                    self.single_joined = 0
+                    self.card_mode = 32768
+                elif md == 'Single Joined':
+                    self.single_joined = 1
                     self.card_mode = 32768
                 elif md == 'Multi':
                     self.card_mode = 512
+                elif md == 'Sequence':
+                    self.sequence_mode = 1                    
 
             elif len(mode) == 0:
                 return test_card_mode        
@@ -1367,65 +1656,553 @@ class Spectrum_M4I_6631_X8:
 
         return pulse_list_mod
 
+    # DOCUMENTATION
     def awg_visualize(self):
+        """
+        A function for buffer visualization
+        """
         if test_flag != 'test':
-            if self.card_mode == 32768 and (self.channel == 1 or self.channel == 2):
-                buf = ( 32000*self.define_buffer_single()).astype('int64')
-                xs = 0.8*np.arange( len( buf ) )
-                general.plot_1d('Buffer_single', xs, buf, label = 'ch0 or ch1')
 
-            elif self.card_mode == 32768 and self.channel == 3:
-                buf = ( 32000*self.define_buffer_single()).astype('int64')
-                xs = 0.8*np.arange( len( buf )/2 )
-                general.plot_1d('Buffer_single', xs, buf[0::2], label = 'ch0')
-                general.plot_1d('Buffer_single', xs, 64000 + buf[1::2], label = 'ch1')
+            if self.sequence_mode == 0:
+                if self.card_mode == 32768 and (self.channel == 1 or self.channel == 2) and self.single_joined == 0:
+                    buf = self.define_buffer_single()[1]
+                    xs = 0.8*np.arange( int(self.memsize) )
+                    # A way to convert c_types poinet back to np.array
+                    # np.ctypeslib.as_array(buf, shape = (int(self.memsize), ))
+                    # also try
+                    # pbyData = cast  (addressof (pvBuffer) + lPCPos.value, ptr8) # cast to pointer to 8bit integer
+                    general.plot_1d('Buffer_single', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize), )), \
+                                    label = 'ch0 or ch1')
 
-            elif self.card_mode == 512 and (self.channel == 1 or self.channel == 2):
-                buf = ( 32000*self.define_buffer_multi()).astype('int64')
-                xs = 0.8*np.arange( len( buf ) )
-                general.plot_1d('Buffer_multi', xs, buf, label = 'ch0 or ch1')
-           
-            elif self.card_mode == 512 and self.channel == 3:
-                buf = ( 32000*self.define_buffer_multi()).astype('int64')
-                xs = 0.8*np.arange( len( buf )/2 )
-                general.plot_1d('Buffer_multi', xs, buf[0::2], label = 'ch0')
-                general.plot_1d('Buffer_multi', xs, 64000 + buf[1::2], label = 'ch1')
+                # Single Joined
+                elif self.card_mode == 32768 and (self.channel == 1 or self.channel == 2) and self.single_joined == 1:
+                    buf = self.define_buffer_single_joined()[1]
+                    xs = 0.8*np.arange( int(self.memsize) )
+                    # A way to convert c_types poinet back to np.array
+                    # np.ctypeslib.as_array(buf, shape = (int(self.memsize), ))
+                    general.plot_1d('Buffer_single_joined', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize), )), \
+                                    label = 'ch0 or ch1')
+
+                elif self.card_mode == 32768 and self.channel == 3 and self.single_joined == 0:
+                    buf = self.define_buffer_single()[1]
+                    xs = 0.8*np.arange( int(self.memsize) )
+                    general.plot_1d('Buffer_single', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
+                                    label = 'ch0')
+                    general.plot_1d('Buffer_single', xs, 2 * maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
+                                    label = 'ch1')
+
+                # Single Joined
+                elif self.card_mode == 32768 and self.channel == 3 and self.single_joined == 1:
+                    buf = self.define_buffer_single_joined()[1]
+                    xs = 0.8*np.arange( int(self.memsize) )
+                    general.plot_1d('Buffer_single_joined', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
+                                    label = 'ch0')
+                    general.plot_1d('Buffer_single_joined', xs, 2 * maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
+                                    label = 'ch1')
+
+                elif self.card_mode == 512 and (self.channel == 1 or self.channel == 2):
+                    buf = self.define_buffer_multi()[1]
+                    xs = 0.8*np.arange( int(self.memsize) )
+                    general.plot_1d('Buffer_multi', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize), )), \
+                                    label = 'ch0 or ch1')
+               
+                elif self.card_mode == 512 and self.channel == 3:
+                    buf = self.define_buffer_multi()[1]
+                    xs = 0.8*np.arange( int(self.memsize) )
+                    general.plot_1d('Buffer_multi', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
+                                    label = 'ch0')
+                    general.plot_1d('Buffer_multi', xs, 2 * maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
+                                    label = 'ch1')
+
+            elif self.sequence_mode == 1:
+                if self.channel != 3:
+                    xs = np.arange( 0, int(self.qwBufferSize.value/2) )*0.8
+
+                    general.plot_1d('Buffer_sequence', xs, np.ctypeslib.as_array(self.full_buffer[0], shape = (int(self.qwBufferSize.value/2), )),\
+                                        label = '0ch0')
+                    general.plot_1d('Buffer_sequence', xs, 2*maxCAD + np.ctypeslib.as_array(self.full_buffer[1], shape = (int(self.qwBufferSize.value/2), )), \
+                                        label = '1ch0')
+                    general.plot_1d('Buffer_sequence', xs, 4*maxCAD + np.ctypeslib.as_array(self.full_buffer[2], shape = (int(self.qwBufferSize.value/2), )), \
+                                        label = '2ch0')
+
+                elif self.channel == 3:
+                    xs = np.arange( 0, int(self.qwBufferSize.value/4) )*0.8
+                
+                    general.plot_1d('Buffer_sequence', xs, np.ctypeslib.as_array(self.full_buffer[0], \
+                                    shape = (int(self.qwBufferSize.value/2), ))[0::2], label = '0ch0')
+                    general.plot_1d('Buffer_sequence', xs, 2*maxCAD + np.ctypeslib.as_array(self.full_buffer[0], \
+                                    shape = (int(self.qwBufferSize.value/2), ))[1::2], label = '0ch1')
+                    general.plot_1d('Buffer_sequence', xs, 4*maxCAD + np.ctypeslib.as_array(self.full_buffer[1], \
+                                    shape = (int(self.qwBufferSize.value/2), ))[0::2], label = '1ch0')
+                    general.plot_1d('Buffer_sequence', xs, 6*maxCAD + np.ctypeslib.as_array(self.full_buffer[1], \
+                                    shape = (int(self.qwBufferSize.value/2), ))[1::2], label = '1ch1')
+
+                    #pure_sinus = np.zeros(len(xs))
+                    #for i in range(len(xs)):
+                    #    pure_sinus[i] = sin(2*pi*(( i ))*70 / 1250)
+                    #general.plot_1d('buffer', xs, 6 + pure_sinus, label = 'sine')
 
         elif test_flag == 'test':
-            if self.card_mode == 32768 and (self.channel == 1 or self.channel == 2):
-                buf = ( 32000*self.define_buffer_single()).astype('int64')
-                xs = 0.8*np.arange( len( buf ) )
-                general.plot_1d('Buffer_single', xs, buf, label = 'ch0 or ch1')
+            if self.sequence_mode == 0:
+                if self.card_mode == 32768 and (self.channel == 1 or self.channel == 2) and self.single_joined == 0:
+                    buf = self.define_buffer_single()[1]
+                    xs = 0.8*np.arange( int(self.memsize) )
+                    general.plot_1d('Buffer_single', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize), )), \
+                                    label = 'ch0 or ch1')
 
-            elif self.card_mode == 32768 and self.channel == 3:
-                buf = ( 32000*self.define_buffer_single()).astype('int64')
-                xs = 0.8*np.arange( len( buf )/2 )
-                general.plot_1d('Buffer_single', xs, buf[0::2], label = 'ch0')
-                general.plot_1d('Buffer_single', xs, 64000 + buf[1::2], label = 'ch1')
+                # Single Joined
+                elif self.card_mode == 32768 and (self.channel == 1 or self.channel == 2) and self.single_joined == 1:
+                    buf = self.define_buffer_single_joined()[1]
+                    xs = 0.8*np.arange( int(self.memsize) )
+                    # A way to convert c_types poinet back to np.array
+                    #np.ctypeslib.as_array(buf, shape = (int(self.memsize), ))
+                    general.plot_1d('Buffer_single_joined', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize), )), \
+                                    label = 'ch0 or ch1')
 
-            elif self.card_mode == 512 and (self.channel == 1 or self.channel == 2):
-                buf = ( 32000*self.define_buffer_multi()).astype('int64')
-                xs = 0.8*np.arange( len( buf ) )
-                general.plot_1d('Buffer_multi', xs, buf, label = 'ch0 or ch1')
-           
-            elif self.card_mode == 512 and self.channel == 3:
-                buf = ( 32000*self.define_buffer_multi()).astype('int64')
-                xs = 0.8*np.arange( len( buf )/2 )
-                general.plot_1d('Buffer_multi', xs, buf[0::2], label = 'ch0')
-                general.plot_1d('Buffer_multi', xs, 64000 + buf[1::2], label = 'ch1')
+                elif self.card_mode == 32768 and self.channel == 3 and self.single_joined == 0:
+                    buf = self.define_buffer_single()[1]
+                    xs = 0.8*np.arange( int(self.memsize) )
+                    general.plot_1d('Buffer_single', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
+                                    label = 'ch0')
+                    general.plot_1d('Buffer_single', xs, 2 * maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
+                                    label = 'ch1')
+                
+                # Single Joined
+                elif self.card_mode == 32768 and self.channel == 3 and self.single_joined == 1:
+                    buf = self.define_buffer_single_joined()[1]
+                    xs = 0.8*np.arange( int(self.memsize) )
+                    general.plot_1d('Buffer_single_joined', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
+                                    label = 'ch0')
+                    general.plot_1d('Buffer_single_joined', xs, 2 * maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
+                                    label = 'ch1')
+
+                elif self.card_mode == 512 and (self.channel == 1 or self.channel == 2):
+                    buf = self.define_buffer_multi()[1]
+                    xs = 0.8*np.arange( int(self.memsize) )
+                    general.plot_1d('Buffer_multi', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize), )), \
+                                    label = 'ch0 or ch1')
+               
+                elif self.card_mode == 512 and self.channel == 3:
+                    buf = self.define_buffer_multi()[1]
+                    xs = 0.8*np.arange( int(self.memsize) )
+                    general.plot_1d('Buffer_multi', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
+                                    label = 'ch0')
+                    general.plot_1d('Buffer_multi', xs, 2 * maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
+                                    label = 'ch1')
+
+            elif self.sequence_mode == 1:
+                if self.channel != 3:
+                    pass
+                    # no buffer is filled in test
+
+
+                elif self.channel == 3:
+                    pass
+                    # no buffer is filled in test
+
+            elif self.full_buffer != 0:
+                assert( 1 == 2 ), 'No pulse sequence is defined'
+
+    # DOCUMENTATION
+    # ADD repetition rate
+    def awg_pulse_sequence(self, *, pulse_type, pulse_start, pulse_delta_start,\
+                            pulse_length, pulse_phase, pulse_sigma, pulse_frequency, number_of_points, loop):
+        """
+        A function for Sequence mode of the AWG card.
+        The sequence replay mode is a special firmware mode that allows to program an output sequence by defining one or more sequences each
+        associated with a certain memory pattern.
+        #######
+        Possible trigger is needed only once. Should be also zeros that define repetition rate
+        #######
+
+        Pulse_start must be sorted
+        number of channel should be define before awg.awg_pulse_sequence()
+
+        The function refilling the sequence buffer after each call
+        After going through all the buffer the AWG card willbe stopped
+        Inside an experimental script this function can be called only with all arguments specified
+        """
+        if test_flag != 'test':
+
+            # collect arguments in special array for further handling
+            arguments_array = []
+            arguments_array.append(pulse_type)          #   0
+            arguments_array.append(pulse_start)         #   1
+            arguments_array.append(pulse_delta_start)   #   2
+            arguments_array.append(pulse_length)        #   3
+            arguments_array.append(pulse_phase)         #   4
+            arguments_array.append(pulse_sigma)         #   5
+            arguments_array.append(pulse_frequency)     #   6
+            arguments_array.append(number_of_points)    #   7
+            arguments_array.append(loop)                #   8
+
+            # turn on the sequence mode
+            self.sequence_mode = 1
+            # number of segments should be power of two
+            # segments can be empty
+            self.sequence_segments = self.closest_power_of_two(arguments_array[7])
+            self.sequence_loop = arguments_array[8]
+
+            # convert phase list to radians
+            pulse_phase_converted = []
+            for el in arguments_array[4]:
+                if el == '+x':
+                    pulse_phase_converted.append(0)
+                elif el == '-x':
+                    pulse_phase_converted.append(pi)
+                elif el == '+y':
+                    pulse_phase_converted.append(pi/2)
+                elif el == '-y':
+                    pulse_phase_converted.append(3*pi/2)
+                elif el == 'rand':
+                    # 1000 will never be reached
+                    # use it for distinguish DEER random phase pulse
+                    pulse_phase_converted.append(1000)
+            
+            # convert everything in samples 
+            pulse_phase_np = np.asarray(pulse_phase_converted)
+            pulse_start_smp = (np.asarray(arguments_array[1])*self.sample_rate/1000).astype('int64')
+            pulse_delta_start_smp = (np.asarray(arguments_array[2])*self.sample_rate/1000).astype('int64')
+            pulse_length_smp = (np.asarray(arguments_array[3])*self.sample_rate/1000).astype('int64')
+            pulse_sigma_smp = np.asarray(arguments_array[5])*self.sample_rate/1000
+            
+            # we do not expect that pulses will have drastically different
+            # pulse length. It is better to define the same buffer length 
+            # for each segment, since in this case we should not worry about
+            # saving the information about memory size for each segments
+            max_pulse_length = max( pulse_length_smp )
+            max_start = max( pulse_start_smp )
+            max_delta_start = max( pulse_delta_start_smp )
+            # buffer length defines for the largest delay
+            segment_length = self.closest_power_of_two( max_start + max_pulse_length + max_delta_start*arguments_array[7] )
+
+            # define buffer differently for only one or two channels enabled
+            # for ch1 phase is automatically shifted by phase_shift_ch1_seq_mode
+            if self.channel == 1 or self.channel == 2:
+                #self.full_buffer = np.zeros( ( arguments_array[7], segment_length ), dtype = np.float64 )
+                # save buffer directly in c_types format
+                self.full_buffer = []
+                self.full_buffer_pointer = []
+
+                # define the buffer
+                pnBuffer = c_void_p()
+                self.qwBufferSize = uint64 (2 * segment_length)  # buffer size
+                
+                # run over all defined pulses for each point
+                for point in range(arguments_array[7]):
+                    # clear the buffer
+                    pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
+                    pnBuffer = cast (pvBuffer, ptr16)
+
+                    # run over defined pulses inside a sequence point
+                    for index, element in enumerate(pulse_type):
+                        # for DEER pulse with random phase
+                        rnd_phase = 2*pi*random.random()
+
+                        if element == 'SINE':
+                            for i in range(pulse_start_smp[index] + pulse_delta_start_smp[index]*point, segment_length):
+
+                                    if i < (pulse_start_smp[index] + pulse_delta_start_smp[index]*point):
+                                        pass
+                                    elif ( i >= ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point) and \
+                                           i <= (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point) ):
+                                        
+                                        if pulse_phase_np[index] != 1000:
+                                            #self.full_buffer[point, i] 
+                                            pnBuffer[i] = int( maxCAD * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+
+                                        else:
+                                            #self.full_buffer[point, i] 
+                                            pnBuffer[i] = int( maxCAD * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + rnd_phase) )
+                                    else:
+                                        break
+
+                        elif element == 'GAUSS':
+                            # mid_point for GAUSS and SINC
+                            mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index]*point + \
+                                        pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point)/2 )
+
+                            for i in range(pulse_start_smp[index] + pulse_delta_start_smp[index]*point, segment_length):
+                                    if i < (pulse_start_smp[index] + pulse_delta_start_smp[index]*point):
+                                        pass
+                                    elif ( i >= ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point) and \
+                                           i <= (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point) ):
+                                        
+                                        if pulse_phase_np[index] != 1000:
+                                            #self.full_buffer[point, i] 
+                                            pnBuffer[i] = int( maxCAD * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                                    sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+
+                                        else:
+                                            #self.full_buffer[point, i] 
+                                            pnBuffer[i] = int( maxCAD * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                                    sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                                                    rnd_phase) )
+                                    else:
+                                        break
+
+                        elif element == 'SINC':
+                            # mid_point for GAUSS and SINC
+                            mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index]*point + \
+                                        pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point)/2 )
+
+                            for i in range(pulse_start_smp[index] + pulse_delta_start_smp[index]*point, segment_length):
+                                    if i < (pulse_start_smp[index] + pulse_delta_start_smp[index]*point):
+                                        pass
+                                    elif ( i >= ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point) and \
+                                           i <= (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point) ):
+                                        
+                                        if pulse_phase_np[index] != 1000:
+                                            #self.full_buffer[point, i] 
+                                            pnBuffer[i] = int( maxCAD * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                                    sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+
+                                        else:
+                                            #self.full_buffer[point, i]
+                                            pnBuffer[i] = int( maxCAD * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                                    sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                                                    rnd_phase) )
+                                    else:
+                                        break
+
+                    self.full_buffer.append(pnBuffer)
+                    self.full_buffer_pointer.append(pvBuffer)
+
+            elif self.channel == 3:
+                #self.full_buffer = np.zeros( ( arguments_array[7], 2*segment_length ), dtype = np.float64 )
+                # save buffer directly in c_types format
+                self.full_buffer = []
+                self.full_buffer_pointer = []
+
+                # define the buffer
+                pnBuffer = c_void_p()
+                self.qwBufferSize = uint64 (2 * segment_length * 2)  # buffer size for two channels
+
+                # run over all defined pulses for each point
+                for point in range(arguments_array[7]):
+                    # clear the buffer
+                    pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
+                    pnBuffer = cast (pvBuffer, ptr16)
+
+                    # run over defined pulses inside a sequence point
+                    for index, element in enumerate(pulse_type):
+                        # DEER pulse
+                        rnd_phase = 2*pi*random.random()
+
+                        if element == 'SINE':
+                            # ch0
+                            for i in range(2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]*point), 2*segment_length, 2):
+                                    if i < 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]*point):
+                                        pass
+                                    elif ( i >= 2 * ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point) and \
+                                           i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point) ):
+                                        
+                                        if pulse_phase_np[index] != 1000:
+                                            #self.full_buffer[point, i] 
+                                            pnBuffer[i] = int( maxCAD * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+
+                                        else:
+                                            #self.full_buffer[point, i]
+                                            pnBuffer[i] = int( maxCAD * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase) )
+                                    else:
+                                        break
+                            # ch1
+                            for i in range(1 + 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]*point), 1 + 2*segment_length, 2):
+                                    if (i - 1) < 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]*point):
+                                        pass
+                                    elif ( (i - 1) >= 2 * ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point) and \
+                                           (i - 1) <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point) ):
+                                        
+                                        if pulse_phase_np[index] != 1000:
+                                            #self.full_buffer[point, i]
+                                            pnBuffer[i] = int( maxCAD * sin(2*pi*(( (i - 1)/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                                                     phase_shift_ch1_seq_mode) )
+
+                                        else:
+                                            #self.full_buffer[point, i]
+                                            pnBuffer[i] = int( maxCAD * sin(2*pi*(( (i - 1)/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase + \
+                                                                     phase_shift_ch1_seq_mode) )
+                                    else:
+                                        break
+
+                        elif element == 'GAUSS':
+                            # mid_point for GAUSS and SINC
+                            mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index]*point + \
+                                pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point)/2 )
+
+                            # ch0
+                            for i in range(2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]*point), 2*segment_length, 2):
+
+                                    if i < 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]*point):
+                                        pass
+                                    elif ( i >= 2 * ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point) and \
+                                           i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point) ):
+                                        
+                                        if pulse_phase_np[index] != 1000:
+                                            #self.full_buffer[point, i]
+                                            pnBuffer[i] = int( maxCAD * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                                    sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+
+                                        else:
+                                            #self.full_buffer[point, i]
+                                            pnBuffer[i] = int( maxCAD * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                                    sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase ) )
+
+                                    else:
+                                        break
+                            
+                            # ch1
+                            for i in range(1 + 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]*point), 1 + 2*segment_length, 2):
+                                    if (i - 1) < 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]*point):
+                                        pass
+                                    elif ( (i - 1) >= 2 * ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point) and \
+                                           (i - 1) <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point) ):
+                                        
+                                        if pulse_phase_np[index] != 1000:
+                                            #self.full_buffer[point, i]
+                                            pnBuffer[i] = int( maxCAD * exp(-((( (i - 1)/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                                    sin(2*pi*(( (i - 1)/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                                                    phase_shift_ch1_seq_mode) )
+
+                                        else:
+                                            #self.full_buffer[point, i]
+                                            pnBuffer[i] = int( maxCAD * exp(-((( (i - 1)/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                                    sin(2*pi*(( (i - 1)/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase +\
+                                                                    phase_shift_ch1_seq_mode) )
+
+                                    else:
+                                        break
+
+                        elif element == 'SINC':
+                            # mid_point for GAUSS and SINC
+                            mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index]*point + \
+                                pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point)/2 )
+
+                            # ch0
+                            for i in range(2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]*point), 2*segment_length, 2):
+
+                                    if i < 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]*point):
+                                        pass
+                                    elif ( i >= 2 * ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point) and \
+                                           i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point) ):
+                                        
+                                        if pulse_phase_np[index] != 1000:
+                                            #self.full_buffer[point, i]
+                                            pnBuffer[i] = int( maxCAD * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                                     sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+
+                                        else:
+                                            #self.full_buffer[point, i]
+                                            pnBuffer[i] = int( maxCAD * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                                     sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase) )
+
+                                    else:
+                                        break
+                            
+                            # ch1
+                            for i in range(1 + 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]*point), 1 + 2*segment_length, 2):
+                                    if (i - 1) < 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]*point):
+                                        pass
+                                    elif ( (i - 1) >= 2 * ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point) and \
+                                           (i - 1) <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point) ):
+                                        
+                                        if pulse_phase_np[index] != 1000:
+                                            #self.full_buffer[point, i]
+                                            pnBuffer[i] = int( maxCAD * np.sinc(2*(( (i - 1)/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                                     sin(2*pi*(( (i - 1)/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                                                     phase_shift_ch1_seq_mode) )
+
+                                        else:
+                                            #self.full_buffer[point, i]
+                                            pnBuffer[i] = int( maxCAD * np.sinc(2*(( (i - 1)/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                                     sin(2*pi*(( (i - 1)/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                                                     phase_shift_ch1_seq_mode + rnd_phase) )
+
+                                    else:
+                                        break
+
+                    self.full_buffer.append(pnBuffer)
+                    self.full_buffer_pointer.append(pvBuffer)
+
+            #general.message( (self.full_buffer_pointer[0]) )
+            # A way to convert c_types poinet back to np.array
+            #general.message( np.ctypeslib.as_array(self.full_buffer[0], shape = (int(self.qwBufferSize.value/2), )) )
+            self.sequence_mode_count == 1
+
+        elif test_flag == 'test':
+            self.sequence_mode = 1
+            # check that length of pulse_start, pulse_delta_start and other are the same
+            # collect arguments in special array for check
+            arguments_array = []
+            length_array = []
+
+            arguments_array.append(pulse_type)          #   0
+            length_array.append( len( pulse_type ) )
+            arguments_array.append(pulse_start)         #   1
+            length_array.append( len( pulse_start ) )
+            arguments_array.append(pulse_delta_start)   #   2
+            length_array.append( len( pulse_delta_start ) )
+            arguments_array.append(pulse_length)        #   3
+            length_array.append( len( pulse_length ) )
+            arguments_array.append(pulse_phase)         #   4
+            length_array.append( len( pulse_phase ) )
+            arguments_array.append(pulse_sigma)         #   5
+            length_array.append( len( pulse_sigma ) )
+            arguments_array.append(pulse_frequency)     #   6
+            length_array.append( len( pulse_frequency ) )
+            arguments_array.append(number_of_points)    #   7
+            arguments_array.append(loop)                #   8
+
+            assert( loop > 0 ), 'Number of loops should be higher than 0'
+            assert( number_of_points > 0 ), 'Number of points in pulse sequence should be higher than 0'
+
+            for el in arguments_array[0]:
+                assert( el == 'SINE' or el == 'GAUSS' or el == 'SINC'), 'Only SINE, GAUSS, and SINC pulses are available'
+
+            for el in arguments_array[1]:
+                assert( el >= 0 ), 'Pulse starts should be positive numbers'
+                assert( el % 2 == 0 ), 'Pulse starts should be divisible by 2'
+
+            for el in arguments_array[2]:
+                assert( el >= 0 ), 'Pulse delta starts should be positive numbers'
+                assert( el % 2 == 0 ), 'Pulse delta starts should be divisible by 2'
+
+            for el in arguments_array[3]:
+                assert( el > 0 ), 'Pulse lengths should be positive numbers'
+                assert( el % 2 == 0 ), 'Pulse lengths should be divisible by 2'
+
+            for el in arguments_array[4]:
+                #assert( type(el) == int or type(el) == float ), 'Phase should be a number'
+                assert( el == '+x' or el == '-x' or el == '-y' or el == '+y' ), 'Pulse phase should be one of the following: [+x, -x, +y, -y]'
+
+            for el in arguments_array[5]:
+                assert( el > 0 ), 'Pulse sigmas should be positive numbers'
+
+            for el in arguments_array[5]:
+                assert( el >= min_freq and el <= max_freq), 'Pulse frequency should be from 1 to 280 MHz'
+
+            # check that the length is equal (compare all elements in length_array)
+            gr = groupby(length_array)
+            if (next(gr, True) and not next(gr, False)) == False:
+                assert(1 == 2), 'Defined arrays in pulse sequence does not have equal length'
+
+            # TO DO
+            # overlapping check
+            # It will be done by pulse_programmer RECT_AWG pulses
 
     # Auxilary functions
-
     def awg_update_test(self):
         """
         Function that can be used for tests instead of awg_update()
         """
         if test_flag != 'test':
             if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1:
-                if self.card_mode == 32768:
-                    buf = self.define_buffer_single()
+                if self.card_mode == 32768 and self.single_joined == 0:
+                    buf = self.define_buffer_single()[0]
+                elif self.card_mode == 32768 and self.single_joined == 1:
+                    buf = self.define_buffer_single_joined()[0]
                 elif self.card_mode == 512:
-                    buf = self.define_buffer_multi()
+                    buf = self.define_buffer_multi()[0]
 
                 self.reset_count = 1
                 self.shift_count = 0
@@ -1438,10 +2215,12 @@ class Spectrum_M4I_6631_X8:
         elif test_flag == 'test':
 
             if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1:
-                if self.card_mode == 32768:
-                    buf = self.define_buffer_single()
+                if self.card_mode == 32768 and self.single_joined == 0:
+                    buf = self.define_buffer_single()[0]
+                elif self.card_mode == 32768 and self.single_joined == 1:
+                    buf = self.define_buffer_single_joined()[0]
                 elif self.card_mode == 512:
-                    buf = self.define_buffer_multi()
+                    buf = self.define_buffer_multi()[0]
 
                 self.reset_count = 1
                 self.shift_count = 0
@@ -1454,13 +2233,16 @@ class Spectrum_M4I_6631_X8:
     def convertion_to_numpy(self, p_array):
         """
         Convertion of the pulse_array into numpy array in the form of
-        [channel_number, function, frequency, phase, length, sigma]
+        [channel_number, function, frequency, phase, length, sigma, start, delta_start, mode]
         channel_number is from channel_dict
         function is from function_dict
         frequency is a pulse frequency in MHz
         phase is a pulse phase in rad
         length is a pulse length in sample rate
         sigma is a pulse sigma in sample rate
+        start is a pulse start in sample rate forjoined pulses in 'Single'
+        delta_start is a pulse delta start in sample rate forjoined pulses in 'Single'
+
         The numpy array is sorted according to channel number
         """
         if test_flag != 'test':
@@ -1509,8 +2291,32 @@ class Spectrum_M4I_6631_X8:
                 elif sig[-2:] == 's':
                     sig_time = int(float(sig[:-3])*1000000000*self.sample_rate/1000)
 
+                # get start
+                st = p_array[i]['start']
+
+                if st[-2:] == 'ns':
+                    st_time = int(float(st[:-3])*self.sample_rate/1000)
+                elif st[-2:] == 'us':
+                    st_time = int(float(st[:-3])*1000*self.sample_rate/1000)
+                elif st[-2:] == 'ms':
+                    st_time = int(float(st[:-3])*1000000*self.sample_rate/1000)
+                elif st[-2:] == 's':
+                    st_time = int(float(st[:-3])*1000000000*self.sample_rate/1000)
+
+                # get delta_start
+                del_st = p_array[i]['delta_start']
+
+                if del_st[-2:] == 'ns':
+                    del_st_time = int(float(del_st[:-3])*self.sample_rate/1000)
+                elif del_st[-2:] == 'us':
+                    del_st_time = int(float(del_st[:-3])*1000*self.sample_rate/1000)
+                elif del_st[-2:] == 'ms':
+                    del_st_time = int(float(del_st[:-3])*1000000*self.sample_rate/1000)
+                elif del_st[-2:] == 's':
+                    del_st_time = int(float(del_st[:-3])*1000000000*self.sample_rate/1000)
+
                 # creating converted array
-                pulse_temp_array.append( (ch_num, func, freq_mhz, phase, leng_time, sig_time) )
+                pulse_temp_array.append( (ch_num, func, freq_mhz, phase, leng_time, sig_time, st_time, del_st_time) )
 
                 i += 1
 
@@ -1563,8 +2369,32 @@ class Spectrum_M4I_6631_X8:
                 elif sig[-2:] == 's':
                     sig_time = int(float(sig[:-3])*1000000000*self.sample_rate/1000)
 
+                # get start
+                st = p_array[i]['start']
+
+                if st[-2:] == 'ns':
+                    st_time = int(float(st[:-3])*self.sample_rate/1000)
+                elif st[-2:] == 'us':
+                    st_time = int(float(st[:-3])*1000*self.sample_rate/1000)
+                elif st[-2:] == 'ms':
+                    st_time = int(float(st[:-3])*1000000*self.sample_rate/1000)
+                elif st[-2:] == 's':
+                    st_time = int(float(st[:-3])*1000000000*self.sample_rate/1000)
+
+                # get delta_start
+                del_st = p_array[i]['delta_start']
+
+                if del_st[-2:] == 'ns':
+                    del_st_time = int(float(del_st[:-3])*self.sample_rate/1000)
+                elif del_st[-2:] == 'us':
+                    del_st_time = int(float(del_st[:-3])*1000*self.sample_rate/1000)
+                elif del_st[-2:] == 'ms':
+                    del_st_time = int(float(del_st[:-3])*1000000*self.sample_rate/1000)
+                elif del_st[-2:] == 's':
+                    del_st_time = int(float(del_st[:-3])*1000000000*self.sample_rate/1000)
+
                 # creating converted array
-                pulse_temp_array.append( (ch_num, func, freq_mhz, phase, leng_time, sig_time) )
+                pulse_temp_array.append( (ch_num, func, freq_mhz, phase, leng_time, sig_time, st_time, del_st_time) )
 
                 i += 1
 
@@ -1699,7 +2529,13 @@ class Spectrum_M4I_6631_X8:
         if self.channel == 1 or self.channel == 2:
             # two bytes per sample; multiply by number of enabled channels
             self.buffer_size = len( np.zeros(2 * self.memsize * 1) ) 
-            buf = np.zeros(self.memsize * 1, dtype = np.float64 )
+            #buf = np.zeros(self.memsize * 1, dtype = np.float64 )
+
+            # define the buffer
+            pnBuffer = c_void_p()
+            qwBufferSize = uint64 (self.buffer_size)  # buffer size
+            pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
+            pnBuffer = cast (pvBuffer, ptr16)
 
             # pulses for different channel
             for element in pulses:
@@ -1712,29 +2548,36 @@ class Spectrum_M4I_6631_X8:
                     for i in range ( self.segment_memsize*index2, self.segment_memsize*(index2 + 1), 1):
                         if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples)]
                             if i <= ( element2[4] + self.segment_memsize*index2 ):
-                                buf[i] = sin(2*pi*(( i - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3])
+                                #buf[i]
+                                pnBuffer[i] = int(maxCAD * sin(2*pi*(( i - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3]) )
                             else:
                                 # keeping 0
-                                pass
+                                break
                         elif element2[1] == 1: # GAUSS
                             if i <= ( element2[4] + self.segment_memsize*index2 ):
-                                buf[i] = exp(-((( i - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
-                                    sin(2*pi*(( i - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3])
+                                pnBuffer[i] = int(maxCAD * exp(-((( i - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                    sin(2*pi*(( i - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3]) )
                             else:
-                                pass
+                                break
                         elif element2[1] == 2: # SINC
                             if i <= ( element2[4] + self.segment_memsize*index2 ):
-                                buf[i] = np.sinc(2*(( i - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
-                                    sin(2*pi*( i - self.segment_memsize*index2)*element2[2] / self.sample_rate + element2[3])
+                                pnBuffer[i] = int(maxCAD * np.sinc(2*(( i - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
+                                    sin(2*pi*( i - self.segment_memsize*index2)*element2[2] / self.sample_rate + element2[3]) )
                             else:
-                                pass
+                                break
 
-            return buf
+            return pvBuffer, pnBuffer
 
         elif self.channel == 3:
             # two bytes per sample; multiply by number of enabled channels
             self.buffer_size = len( np.zeros(2 * self.memsize * 2) )
-            buf = np.zeros(self.memsize * 2)
+            #buf = np.zeros(self.memsize * 2)
+            
+            # define the buffer
+            pnBuffer = c_void_p()
+            qwBufferSize = uint64 (self.buffer_size)  # buffer size
+            pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
+            pnBuffer = cast (pvBuffer, ptr16)
 
             # pulses for different channel
             for element in pulses:
@@ -1750,21 +2593,22 @@ class Spectrum_M4I_6631_X8:
                             if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples)]
                                 if i <= (2 * element2[4] + 2 * self.segment_memsize*index2 ):
                                     # Sine Signal CH_0; i/2 in order to keep the frequency
-                                    buf[i] = sin(2*pi*(( i/2 - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3])
+                                    #buf[i] 
+                                    pnBuffer[i] = int(maxCAD * sin(2*pi*(( i/2 - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3]) )
                                 else:
-                                    pass
+                                    break
                             elif element2[1] == 1: # GAUSS
                                 if i <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
-                                    buf[i] = exp(-((( i/2 - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
-                                        sin(2*pi*(( i/2 - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3])
+                                    pnBuffer[i] = int(maxCAD * exp(-((( i/2 - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                        sin(2*pi*(( i/2 - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3]) )
                                 else:
-                                    pass
+                                    break
                             elif element2[1] == 2: # SINC
                                 if i <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
-                                    buf[i] = np.sinc(2*(( i/2 - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
-                                        sin(2*pi*( i/2 - self.segment_memsize*index2)*element2[2] / self.sample_rate + element2[3])
+                                    pnBuffer[i] = int(maxCAD * np.sinc(2*(( i/2 - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
+                                        sin(2*pi*( i/2 - self.segment_memsize*index2)*element2[2] / self.sample_rate + element2[3]) )
                                 else:
-                                    pass
+                                    break
 
                     elif element2[0] == 1:
                         # fill odd indexes for CH1; step in the cycle is 2
@@ -1772,23 +2616,24 @@ class Spectrum_M4I_6631_X8:
                             if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples)]
                                 if (i - 1) <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
                                     # Sine Signal CH_1; i/2 in order to keep the frequency
-                                    buf[i] = sin(2*pi*(( (i - 1)/2 - self.segment_memsize*index2 ))*element2[2] / self.sample_rate + element2[3])
+                                    #buf[i]
+                                    pnBuffer[i] = int(maxCAD * sin(2*pi*(( (i - 1)/2 - self.segment_memsize*index2 ))*element2[2] / self.sample_rate + element2[3]) )
                                 else:
-                                    pass
+                                    break
                             elif element2[1] == 1: # GAUSS
                                 if (i - 1) <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
-                                    buf[i] = exp(-((( (i - 1)/2 - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
-                                        sin(2*pi*(( (i - 1)/2 - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3])
+                                    pnBuffer[i] = int(maxCAD * exp(-((( (i - 1)/2 - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                        sin(2*pi*(( (i - 1)/2 - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3]) )
                                 else:
-                                    pass
+                                    break
                             elif element2[1] == 2: # SINC
                                 if (i - 1) <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
-                                    buf[i] = np.sinc(2*(( (i - 1)/2 - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
-                                        sin(2*pi*( (i - 1)/2 - self.segment_memsize*index2)*element2[2] / self.sample_rate + element2[3])
+                                    pnBuffer[i] = int(maxCAD * np.sinc(2*(( (i - 1)/2 - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
+                                        sin(2*pi*( (i - 1)/2 - self.segment_memsize*index2)*element2[2] / self.sample_rate + element2[3]) )
                                 else:
-                                    pass
+                                    break
 
-            return buf
+            return pvBuffer, pnBuffer
 
     def preparing_buffer_single(self):
         """
@@ -1821,20 +2666,28 @@ class Spectrum_M4I_6631_X8:
 
         elif test_flag == 'test':
 
-            #checks
+            # checks
             assert( self.card_mode == 32768 ), 'You are not in Single mode'
-
-            if self.channel == 1:
-                assert( len(self.pulse_ch0_array) == 1 and len(self.pulse_ch1_array) == 0 ), "Only one CH0 pulse can be defined in Single mode with only CH0 enabled"
-            elif self.channel == 2:
-                assert( len(self.pulse_ch1_array) == 1 and len(self.pulse_ch0_array) == 0 ), "Only one CH1 pulse can be defined in Single mode with only CH1 enabled"
-            elif self.channel == 3:
-                assert( len(self.pulse_ch1_array) == 1 and len(self.pulse_ch0_array) == 1 ), "Only one CH1 and CH0 pulses can be defined in Single mode with CH0 and CH1 enabled"
-
-            assert( self.num_segments == 1 ), 'More than one segment is declared in Single mode. Please, use Multi mode'
 
             max_length_array = []
             pulses = self.splitting_acc_to_channel( self.convertion_to_numpy(self.pulse_array) )
+
+            if self.single_joined == 0:
+                if self.channel == 1:
+                    assert( len(self.pulse_ch0_array) == 1 and len(self.pulse_ch1_array) == 0 ), "Only one CH0 pulse can be defined in Single mode with only CH0 enabled"
+                elif self.channel == 2:
+                    assert( len(self.pulse_ch1_array) == 1 and len(self.pulse_ch0_array) == 0 ), "Only one CH1 pulse can be defined in Single mode with only CH1 enabled"
+                elif self.channel == 3:
+                    assert( len(self.pulse_ch0_array) == 1 and len(self.pulse_ch1_array) == 1 ), "Only one CH1 and CH0 pulses can be defined in Single mode with CH0 and CH1 enabled"
+            elif self.single_joined == 1:
+                if self.channel == 1:
+                    assert( len(self.pulse_ch0_array) > 1 and len(self.pulse_ch1_array) == 0 ), "At least one CH0 pulse should be defined in Single Joined mode with only CH0 enabled"
+                elif self.channel == 2:
+                    assert( len(self.pulse_ch1_array) > 1 and len(self.pulse_ch0_array) == 0 ), "At least one CH1 pulse should be defined in Single Joined mode with only CH1 enabled"
+                elif self.channel == 3:
+                    assert( len(self.pulse_ch0_array) > 0 and len(self.pulse_ch1_array) == 0 ), "Only CH0 pulses should be defined in Single Joined mode with CH0 and CH1 enabled. CH1 pulses are filled automatically"                
+
+            assert( self.num_segments == 1 ), 'More than one segment is declared in Single mode. Please, use Multi mode'
 
             # finding the maximum pulse length to create a buffer
             for index, element in enumerate(pulses):
@@ -1874,7 +2727,13 @@ class Spectrum_M4I_6631_X8:
         if self.channel == 1 or self.channel == 2:
             # two bytes per sample; multiply by number of enabled channels
             self.buffer_size = len( np.zeros(2 * self.memsize * 1) )
-            buf = np.zeros(self.memsize * 1, dtype = np.float64 )
+            #buf = np.zeros(self.memsize * 1, dtype = np.float64 )
+
+            # define the buffer
+            pnBuffer = c_void_p()
+            qwBufferSize = uint64 (self.buffer_size)  # buffer size
+            pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
+            pnBuffer = cast (pvBuffer, ptr16)
 
             # pulses for different channel
             for element in pulses:
@@ -1886,28 +2745,35 @@ class Spectrum_M4I_6631_X8:
                     for i in range (0, self.memsize, 1):
                         if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples)]
                             if i <= ( element2[4] ):
-                                buf[i] = sin(2*pi*(( i ))*element2[2] / self.sample_rate + element2[3])
+                                #buf[i]
+                                pnBuffer[i] = int( maxCAD * sin(2*pi*(( i ))*element2[2] / self.sample_rate + element2[3]) )
                             else:
-                                pass
+                                break
                         elif element2[1] == 1: # GAUSS
                             if i <= ( element2[4] ):
-                                buf[i] = exp(-((( i ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
-                                    sin(2*pi*(( i ))*element2[2] / self.sample_rate + element2[3])
+                                pnBuffer[i] = int( maxCAD * exp(-((( i ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                    sin(2*pi*(( i ))*element2[2] / self.sample_rate + element2[3]) )
                             else:
-                                pass
+                                break
                         elif element2[1] == 2: # SINC
                             if i <= ( element2[4] ):
-                                buf[i] = np.sinc(2*(( i ) - mid_point) / (element2[5]) )*\
-                                    sin(2*pi*( i )*element2[2] / self.sample_rate + element2[3])
+                                pnBuffer[i] = int( maxCAD * np.sinc(2*(( i ) - mid_point) / (element2[5]) )*\
+                                    sin(2*pi*( i )*element2[2] / self.sample_rate + element2[3]) )
                             else:
-                                pass
+                                break
 
-            return buf
+            return pvBuffer, pnBuffer
 
         elif self.channel == 3:
             # two bytes per sample; multiply by number of enabled channels
             self.buffer_size = len( np.zeros(2 * self.memsize * 2) )
-            buf = np.zeros(self.memsize * 2, dtype = np.float64 )
+            #buf = np.zeros(self.memsize * 2, dtype = np.float64 )
+
+            # define the buffer
+            pnBuffer = c_void_p()
+            qwBufferSize = uint64 (self.buffer_size)  # buffer size
+            pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
+            pnBuffer = cast (pvBuffer, ptr16)
 
             # pulses for different channel
             for element in pulses:
@@ -1922,21 +2788,22 @@ class Spectrum_M4I_6631_X8:
                             if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples)]
                                 if i <= ( 2 * element2[4] ):
                                     # Sine Signal CH_0; i/2 in order to keep the frequency
-                                    buf[i] = sin(2*pi*(( i/2 ))*element2[2] / self.sample_rate + element2[3])
+                                    #buf[i]
+                                    pnBuffer[i] = int( maxCAD * sin(2*pi*(( i/2 ))*element2[2] / self.sample_rate + element2[3]) )
                                 else:
-                                    pass
+                                    break
                             elif element2[1] == 1: # GAUSS
                                 if i <= ( 2 * element2[4] ):
-                                    buf[i] = exp(-((( i/2 ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
-                                        sin(2*pi*(( i/2 ))*element2[2] / self.sample_rate + element2[3])
+                                    pnBuffer[i] = int( maxCAD * exp(-((( i/2 ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                        sin(2*pi*(( i/2 ))*element2[2] / self.sample_rate + element2[3]) )
                                 else:
-                                    pass
+                                    break
                             elif element2[1] == 2: # SINC
                                 if i <= ( 2 * element2[4] ):
-                                    buf[i] = np.sinc(2*(( i/2 ) - mid_point) / (element2[5]) )*\
-                                        sin(2*pi*( i/2 )*element2[2] / self.sample_rate + element2[3])
+                                    pnBuffer[i] = int( maxCAD * np.sinc(2*(( i/2 ) - mid_point) / (element2[5]) )*\
+                                        sin(2*pi*( i/2 )*element2[2] / self.sample_rate + element2[3]) )
                                 else:
-                                    pass
+                                    break
 
                     elif element2[0] == 1:
                         # fill odd indexes for CH1; step in the cycle is 2
@@ -1944,29 +2811,329 @@ class Spectrum_M4I_6631_X8:
                             if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples)]
                                 if (i - 1) <= ( 2 * element2[4] ):
                                     # Sine Signal CH_1; i/2 in order to keep the frequency
-                                    buf[i] = sin(2*pi*(( (i - 1)/2 ))*element2[2] / self.sample_rate + element2[3])
+                                    #buf[i]
+                                    pnBuffer[i] = int( maxCAD * sin(2*pi*(( (i - 1)/2 ))*element2[2] / self.sample_rate + element2[3]) )
                                 else:
-                                    pass
+                                    break
                             elif element2[1] == 1: # GAUSS
                                 if (i - 1) <= ( 2 * element2[4] ):
-                                    buf[i] = exp(-((( (i - 1)/2 ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
-                                        sin(2*pi*(( (i - 1)/2 ))*element2[2] / self.sample_rate + element2[3])
+                                    pnBuffer[i] = int( maxCAD * exp(-((( (i - 1)/2 ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                        sin(2*pi*(( (i - 1)/2 ))*element2[2] / self.sample_rate + element2[3]) )
                                 else:
-                                    pass
+                                    break
                             elif element2[1] == 2: # SINC
                                 if (i - 1) <= ( 2 * element2[4] ):
-                                    buf[i] = np.sinc(2*(( (i - 1)/2 ) - mid_point) / (element2[5]) )*\
-                                        sin(2*pi*( (i - 1)/2 )*element2[2] / self.sample_rate + element2[3])
+                                    pnBuffer[i] = int( maxCAD * np.sinc(2*(( (i - 1)/2 ) - mid_point) / (element2[5]) )*\
+                                        sin(2*pi*( (i - 1)/2 )*element2[2] / self.sample_rate + element2[3]) )
                                 else:
-                                    pass
+                                    break
 
-            return buf
+            return pvBuffer, pnBuffer
 
     def closest_power_of_two(self, x):
         """
-        A function to round card memory
+        A function to round card memory or sequence segments
         """
         return 2**int(log2(x - 1) + 1 )
+
+    def write_seg_memory(self, hCard, dwStepIndex, dwStepNextIndex, dwSegmentIndex, dwLoops, dwFlags):
+        """
+        Function for setting up the sequence memory
+        Page 104 of the programming guide of the AWG card
+        """
+        if test_flag != 'test':
+            qwSequenceEntry = uint64 (0)
+
+            # setup register value
+            qwSequenceEntry = (dwFlags & ~SPCSEQ_LOOPMASK) | (dwLoops & SPCSEQ_LOOPMASK)
+            qwSequenceEntry <<= 32
+            qwSequenceEntry |= ((dwStepNextIndex << 16)& SPCSEQ_NEXTSTEPMASK) | (int(dwSegmentIndex) & SPCSEQ_SEGMENTMASK)
+
+            dwError = spcm_dwSetParam_i64 (hCard, SPC_SEQMODE_STEPMEM0 + dwStepIndex, int64(qwSequenceEntry))
+
+        elif test_flag == 'test':
+            pass
+
+    def define_buffer_single_joined(self):
+        """
+
+        """
+
+        # pulses are in a form [channel_number, function, frequency, phase, length, sigma, start, delta_start, mode] 
+        #                     [0,               1,          2,      3,      4,      5,      6,      7,        8   ]
+        self.memsize, pulses = self.preparing_buffer_single()
+        
+        # only ch0 pulses are analyzed
+        # ch1 will be generated automatically with shifted phase
+        # approach is similar to awg_pulse_sequence()
+        arguments_array = [[], [], [], [], [], [], []]
+        for element in pulses[0]:
+            # collect arguments in special array for further handling
+            arguments_array[0].append(int(element[1]))     #   0    type
+            arguments_array[1].append(element[6])          #   1    start
+            arguments_array[2].append(element[7])          #   2    delta_start
+            arguments_array[3].append(element[4])          #   3    length
+            arguments_array[4].append(element[3])          #   4    phase
+            arguments_array[5].append(element[5])          #   5    sigma
+            arguments_array[6].append(element[2])          #   6    frequency
+
+        # TO DO
+        # overlapping check
+        # It will be done by pulse_programmer RECT_AWG pulses
+        #general.message( np.diff(arguments_array[1]) )
+        #if min(np.diff(arguments_array[1])) < 0:
+        #    general.message('Overlapped pulses')
+        
+        #general.message(arguments_array)
+
+        # convert everything in samples 
+        pulse_phase_np = np.asarray(arguments_array[4])
+        pulse_start_smp = (np.asarray(arguments_array[1])).astype('int64')
+        pulse_delta_start_smp = (np.asarray(arguments_array[2])).astype('int64')
+        pulse_length_smp = (np.asarray(arguments_array[3])).astype('int64')
+        pulse_sigma_smp = np.asarray(arguments_array[5])
+        pulse_frequency = np.asarray(arguments_array[6])
+        
+        # we do not expect that pulses will have drastically different
+        # pulse length. It is better to define the same buffer length 
+        # for each segment, since in this case we should not worry about
+        # saving the information about memory size for each segments
+        last_pulse_length = pulse_length_smp[-1]
+        last_start = pulse_start_smp[-1]
+
+        #general.message(last_start)
+        # buffer length defines for the largest delay
+        self.memsize = self.closest_power_of_two( last_start + last_pulse_length )
+
+        # define buffer differently for only one or two channels enabled
+        # for ch1 phase is automatically shifted by phase_shift_ch1_seq_mode
+        if (self.channel == 1 or self.channel == 2) and self.single_joined == 1:
+
+            # define the buffer
+            pnBuffer = c_void_p()
+            qwBufferSize = uint64 (2 * self.memsize)  # buffer size
+            pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
+            pnBuffer = cast (pvBuffer, ptr16)
+
+            # run over defined pulses inside a sequence point
+            for index, element in enumerate(arguments_array[0]):
+                # for DEER pulse with random phase
+                rnd_phase = 2*pi*random.random()
+
+                if element == 0: # 'SINE'
+                    for i in range(pulse_start_smp[index] + pulse_delta_start_smp[index], self.memsize):
+
+                            if i < (pulse_start_smp[index] + pulse_delta_start_smp[index]):
+                                pass
+                            elif ( i >= ( pulse_start_smp[index] + pulse_delta_start_smp[index]) and \
+                                   i <= (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]) ):
+                                
+                                if pulse_phase_np[index] != 1000:
+                                    pnBuffer[i] = int( maxCAD * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+
+                                else:
+                                    #self.full_buffer[point, i] 
+                                    pnBuffer[i] = int( maxCAD * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + rnd_phase) )
+                            else:
+                                break
+
+                elif element == 1: # GAUSS
+                    # mid_point for GAUSS and SINC
+                    mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index] + \
+                                pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index])/2 )
+
+                    for i in range(pulse_start_smp[index] + pulse_delta_start_smp[index], self.memsize):
+                            if i < (pulse_start_smp[index] + pulse_delta_start_smp[index]):
+                                pass
+                            elif ( i >= ( pulse_start_smp[index] + pulse_delta_start_smp[index]) and \
+                                   i <= (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]) ):
+                                
+                                if pulse_phase_np[index] != 1000:
+                                    #self.full_buffer[point, i] 
+                                    pnBuffer[i] = int( maxCAD * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                            sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+
+                                else:
+                                    #self.full_buffer[point, i] 
+                                    pnBuffer[i] = int( maxCAD * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                            sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                                            rnd_phase) )
+                            else:
+                                break
+
+                elif element == 2: # 'SINC'
+                    # mid_point for GAUSS and SINC
+                    mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index] + \
+                                pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index])/2 )
+
+                    for i in range(pulse_start_smp[index] + pulse_delta_start_smp[index], self.memsize):
+                            if i < (pulse_start_smp[index] + pulse_delta_start_smp[index]):
+                                pass
+                            elif ( i >= ( pulse_start_smp[index] + pulse_delta_start_smp[index]) and \
+                                   i <= (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]) ):
+                                
+                                if pulse_phase_np[index] != 1000:
+                                    #self.full_buffer[point, i] 
+                                    pnBuffer[i] = int( maxCAD * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                            sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+
+                                else:
+                                    #self.full_buffer[point, i]
+                                    pnBuffer[i] = int( maxCAD * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                            sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                                            rnd_phase) )
+                            else:
+                                break
+
+            return pvBuffer, pnBuffer
+
+        elif self.channel == 3 and self.single_joined == 1:
+
+            # define the buffer
+            pnBuffer = c_void_p()
+            qwBufferSize = uint64 (2 * self.memsize * 2)  # buffer size for two channels
+            pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
+            pnBuffer = cast (pvBuffer, ptr16)
+
+            # run over defined pulses inside a sequence point
+            for index, element in enumerate(arguments_array[0]):
+                # DEER pulse
+                rnd_phase = 2*pi*random.random()
+
+                if element == 0: #'SINE'
+                    # ch0
+                    for i in range(2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]), 2*self.memsize, 2):
+                            if i < 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]):
+                                pass
+                            elif ( i >= 2 * ( pulse_start_smp[index] + pulse_delta_start_smp[index]) and \
+                                   i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]) ):
+                                
+                                if pulse_phase_np[index] != 1000:
+                                    #self.full_buffer[point, i] 
+                                    pnBuffer[i] = int( maxCAD * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+
+                                else:
+                                    #self.full_buffer[point, i]
+                                    pnBuffer[i] = int( maxCAD * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase) )
+                            else:
+                                break
+                    # ch1
+                    for i in range(1 + 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]), 1 + 2*self.memsize, 2):
+                            if (i - 1) < 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]):
+                                pass
+                            elif ( (i - 1) >= 2 * ( pulse_start_smp[index] + pulse_delta_start_smp[index]) and \
+                                   (i - 1) <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]) ):
+                                
+                                if pulse_phase_np[index] != 1000:
+                                    #self.full_buffer[point, i]
+                                    pnBuffer[i] = int( maxCAD * sin(2*pi*(( (i - 1)/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                                             phase_shift_ch1_seq_mode) )
+
+                                else:
+                                    #self.full_buffer[point, i]
+                                    pnBuffer[i] = int( maxCAD * sin(2*pi*(( (i - 1)/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase + \
+                                                             phase_shift_ch1_seq_mode) )
+                            else:
+                                break
+
+                elif element == 1: #'GAUSS'
+                    # mid_point for GAUSS and SINC
+                    mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index] + \
+                        pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index])/2 )
+
+                    # ch0
+                    for i in range(2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]), 2*self.memsize, 2):
+
+                            if i < 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]):
+                                pass
+                            elif ( i >= 2 * ( pulse_start_smp[index] + pulse_delta_start_smp[index]) and \
+                                   i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]) ):
+                                
+                                if pulse_phase_np[index] != 1000:
+                                    #self.full_buffer[point, i]
+                                    pnBuffer[i] = int( maxCAD * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                            sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+
+                                else:
+                                    #self.full_buffer[point, i]
+                                    pnBuffer[i] = int( maxCAD * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                            sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase ) )
+
+                            else:
+                                break
+                    
+                    # ch1
+                    for i in range(1 + 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]), 1 + 2*self.memsize, 2):
+                            if (i - 1) < 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]):
+                                pass
+                            elif ( (i - 1) >= 2 * ( pulse_start_smp[index] + pulse_delta_start_smp[index]) and \
+                                   (i - 1) <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]) ):
+                                
+                                if pulse_phase_np[index] != 1000:
+                                    #self.full_buffer[point, i]
+                                    pnBuffer[i] = int( maxCAD * exp(-((( (i - 1)/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                            sin(2*pi*(( (i - 1)/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                                            phase_shift_ch1_seq_mode) )
+
+                                else:
+                                    #self.full_buffer[point, i]
+                                    pnBuffer[i] = int( maxCAD * exp(-((( (i - 1)/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                            sin(2*pi*(( (i - 1)/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase +\
+                                                            phase_shift_ch1_seq_mode) )
+
+                            else:
+                                break
+
+                elif element == 2: #'SINC'
+                    # mid_point for GAUSS and SINC
+                    mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index] + \
+                        pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index])/2 )
+
+                    # ch0
+                    for i in range(2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]), 2*self.memsize, 2):
+
+                            if i < 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]):
+                                pass
+                            elif ( i >= 2 * ( pulse_start_smp[index] + pulse_delta_start_smp[index]) and \
+                                   i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]) ):
+                                
+                                if pulse_phase_np[index] != 1000:
+                                    #self.full_buffer[point, i]
+                                    pnBuffer[i] = int( maxCAD * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                             sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+
+                                else:
+                                    #self.full_buffer[point, i]
+                                    pnBuffer[i] = int( maxCAD * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                             sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase) )
+
+                            else:
+                                break
+                    
+                    # ch1
+                    for i in range(1 + 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]), 1 + 2*self.memsize, 2):
+                            if (i - 1) < 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]):
+                                pass
+                            elif ( (i - 1) >= 2 * ( pulse_start_smp[index] + pulse_delta_start_smp[index]) and \
+                                   (i - 1) <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]) ):
+                                
+                                if pulse_phase_np[index] != 1000:
+                                    #self.full_buffer[point, i]
+                                    pnBuffer[i] = int( maxCAD * np.sinc(2*(( (i - 1)/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                             sin(2*pi*(( (i - 1)/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                                             phase_shift_ch1_seq_mode) )
+
+                                else:
+                                    #self.full_buffer[point, i]
+                                    pnBuffer[i] = int( maxCAD * np.sinc(2*(( (i - 1)/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                             sin(2*pi*(( (i - 1)/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                                             phase_shift_ch1_seq_mode + rnd_phase) )
+
+                            else:
+                                break
+
+            return pvBuffer, pnBuffer
+
 
 def main():
     pass

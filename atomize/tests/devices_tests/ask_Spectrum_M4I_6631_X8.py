@@ -23,20 +23,20 @@ x = 2*pi*(init_distance + 0.8)*200/1000
 # A possible use in an experimental script
 awg = spectrum.Spectrum_M4I_6631_X8()
 
-awg.awg_pulse(name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = pi/2, length = '80 ns', sigma = '16 ns')
-#awg.awg_pulse(name = 'P1', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, length = '40 ns', sigma = '16 ns')
-#awg.awg_pulse(name = 'P2', channel = 'CH0', func = 'GAUSS', frequency = '200 MHz', phase = 0, length = '64 ns', sigma = '16 ns')
+awg.awg_pulse(name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = pi/2, length = '80 ns', sigma = '16 ns', start = '0 ns')
+#awg.awg_pulse(name = 'P1', channel = 'CH0', func = 'GAUSS', frequency = '200 MHz', phase = 0, length = '64 ns', sigma = '16 ns', start = '300 ns', delta_start = '2 ns')
+#awg.awg_pulse(name = 'P2', channel = 'CH0', func = 'SINC', frequency = '200 MHz', phase = 0, length = '64 ns', sigma = '16 ns', start = '500 ns', increment = '2 ns')
 
-#awg.awg_pulse(name = 'P3', channel = 'CH1', func = 'GAUSS', frequency = '200 MHz', phase = pi/2, length = '64 ns', sigma = '16 ns', increment = '10 ns')
+awg.awg_pulse(name = 'P1', channel = 'CH1', func = 'GAUSS', frequency = '200 MHz', phase = pi/2, length = '64 ns', sigma = '16 ns', increment = '10 ns')
 #awg.awg_pulse(name = 'P4', channel = 'CH1', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = pi/2, length = '64 ns', sigma = '16 ns')
 #awg.awg_pulse(name = 'P5', channel = 'CH1', func = 'SINE', frequency = '200 MHz', phase = 0, length = '64 ns', sigma = '16 ns')
 
 #awg.awg_channel('CH0', 'CH1')
-awg.awg_channel('CH0')
+#awg.awg_channel('CH0')
+#awg.awg_card_mode('Single Joined')
 awg.awg_card_mode('Single')
 #awg.awg_card_mode('Multi')
 #awg.awg_number_of_segments(2)
-
 
 #start_time = time.time()
 #awg.awg_update_test()
@@ -53,7 +53,7 @@ for i in range(6):
     
        ##### non-uniform sampling
 #    if i == 3:
-        #awg.awg_redefine_delta_phase(name = 'P10', delta_phase = pi/4)
+#        awg.awg_redefine_delta_start(name = 'P0', delta_start = '10 ns')
 #        awg.awg_redefine_increment(name = 'P1', increment = '20 ns')
     #   awg.awg_pulse_reset('P4')
         
