@@ -14,9 +14,12 @@ Functions:
 - [awg_update()](#awg_update)<br/>
 - [awg_stop()](#awg_stop)<br/>
 - [awg_pulse(*kargs)](#awg_pulsekargs)<br/>
+- [awg_pulse_sequence(kargs)](#awg_pulse_sequencekargs)<br/>
 - [awg_shift(*pulses)](#awg_shiftpulses)<br/>
 - [awg_increment(*pulses)](#awg_incrementpulses)<br/>
 - [awg_redefine_delta_phase(*, name, delta_phase)](#awg_redefine_delta_phase-name-delta_phase)<br/>
+- [awg_redefine_phase(*, name, phase)](#awg_redefine_phase-name-phase)<br/>
+- [awg_redefine_delta_start(*, name, delta_start)](#awg_redefine_delta_start-name-delta_start)<br/>
 - [awg_redefine_increment(*, name, increment)](#awg_redefine_increment-name-increment)<br/>
 - [awg_add_phase(*, name, add_phase)](#awg_add_phase-name-add_phase)<br/>
 - [awg_reset()](#awg_reset)<br/>
@@ -61,53 +64,104 @@ awg_pulse(*kagrs)
 Arguments:
 name = 'P0' specifies a name of the pulse
 channel = 'CH0' specifies a channel string (['CH0','CH1'])
-func = 'SINE' specifies a type of the function for a pulse (['SINE','GAUSS','SINC'])
+func = 'SINE' specifies a type of the function for a pulse (['SINE','GAUSS','SINC','BLANK'])
 frequency = '200 MHz' specifies a frequency of the pulse (['1-280 MHz'])
 phase = 0 specifies a phase of the pulse (in radians)
-delta_phase = 0 specifies a phase increment of the pulse (in radians)
+delta_phase = 0 specifies a phase increment of the pulse (in radians) for
+'Single' and 'Multi' card mode
 length = '16 ns' specifies a pulse length (['ns','us','ms'])
 sigma = '16 ns' specifies a sigma value for GAUSS pulses (['ns','us','ms'])
 increment = '0 ns' specifies a pulse length and sigma increment (['ns','us','ms'])
+start = '0 ns' specifies a pulse start (['ns','us','ms']) for the 'Single 
+Joined' card mode
+delta_start = '0 ns' specifies a pulse delta start (['ns','us','ms']) for the
+'Single Joined' card mode
 Output: none.
 Example: awg_pulse(name = 'P0', channel = 'CH0', func = 'SINE', frequency =
-'200 MHz', phase = pi/2, length = '40 ns', sigma = '16 ns') sets the 40 ns length
-200 MHz sine pulse with pi/2 phase.
+'200 MHz', phase = pi/2, length = '40 ns', sigma = '16 ns') sets the 40 ns
+length 200 MHz sine pulse with pi/2 phase.
 ```
-The function sets a pulse with specified parameters. The AWG card buffer will be filled according to key arguments of the awg_pulse() function. The default argument is the following: 
-name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = 0, length = '16 ns', sigma = '16 ns', increment = '0 ns'.
-A channel should be one of the following ['CH0','CH1']. The frequency should be in MHz, the minimum value is 1 MHz, maximum is 280 MHz. The scaling factor for length and sigma key arguments should be one of the following ['ns','us','ms']. The minimum available length and sigma of the pulse is 0 ns. The maximum available length and sigma of the pulse is 1900 ns. The available functions are ['SINE','GAUSS','SINC']. For 'SINE' function parameter sigma has no meaning. For 'GAUSS' function parameter sigma is a sigma of Gaussian. For 'SINC' function a combination of parameters length and sigma specifies the width of the SINC pulse, i.e. length = '40 ns' and sigma = '10 ns' means that SINC pulse will be from -4pi to +4pi. The increment keyword affects both the length and sigma of the pulse.<br/>
-It is recommended to first define all pulses and then define the settings of the AWG card.<br/>
+The function sets a pulse with specified parameters for 'Single', 'Multi', and 'Single Joined' card mode. The AWG card buffer will be filled according to key arguments of the awg_pulse() function. The default argument is the following: 
+name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = 0, length = '16 ns', sigma = '16 ns', increment = '0 ns', start = '0 ns', delta_start = '0 ns'. A channel should be one of the following ['CH0','CH1']. The frequency should be in MHz, the minimum value is 1 MHz, maximum is 280 MHz. The scaling factor for length and sigma key arguments should be one of the following ['ns','us','ms']. The minimum available length and sigma of the pulse is 0 ns. The maximum available length and sigma of the pulse is 1900 ns. The available functions are ['SINE','GAUSS','SINC','BLANK']. For 'SINE' and 'BLANK' function parameter sigma has no meaning. For 'GAUSS' function parameter sigma is a sigma of Gaussian. For 'SINC' function a combination of parameters length and sigma specifies the width of the SINC pulse, i.e. length = '40 ns' and sigma = '10 ns' means that SINC pulse will be from -4pi to +4pi. Function 'BLANK' is an empty pulse. The increment keyword affects both the length and sigma of the pulse. The scaling factor for start and delta_start key arguments should be one of the following ['ns','us','ms'].<br/>
+It is recommended to first define all pulses and then define the settings of the AWG card. To run specified pulses the [awg_update()](#awg_update) function should be called.<br/>
+Key argument delta_phase define a pulse phase shift and has no meaning for 'Single Joined' card mode, since the phase of the pulse will be calculated automatically. Key arguments start and delta_start define a pulse position for 'Single Joined' card mode and has no meaning for 'Single' or 'Multi' card mode.<br/>
+### awg_pulse_sequence(kargs)
+```python3
+awg_pulse_sequence(kagrs)
+Arguments:
+pulse_type = ['SINE','GAUSS','SINC','BLANK']
+pulse_start = [pulse 1 start in ns, pulse 2 start in ns, ...]
+pulse_delta_start = [pulse 1 delta start in ns, pulse 2 delat start in ns, ...]
+pulse_length = [pulse 1 length in ns, pulse 2 length in ns, ...]
+pulse_phase = [pulse 1 phase, pulse 2 phase, ...], phase = ['+x','-x','+y','-y']
+pulse_sigma = [pulse 1 sigma in ns, pulse 2 sigma in ns, ...]
+pulse_frequency = [pulse 1 frequency in ns, pulse 2 frequency in ns, ...]
+number_of_points = total number of points in a pulse sequence, taking into
+account shifting of the pulses
+loop = number of repetition of each point
+rep_rate = repetition rate of the pulse sequence in Hz
+Output: none.
+Example: awg_pulse_sequence(pulse_type = ['SINE', 'GAUSS', 'SINE'],
+pulse_start = [0, 160, 320], pulse_delta_start = [0, 0, 40],
+pulse_length = [40, 120, 40], pulse_phase = ['+x', '+x', '+x'],
+pulse_sigma = [40, 20, 40], pulse_frequency = [50, 200, 40],
+number_of_points = 800, loop = 10, rep_rate = 10000) sets a pulse train of
+three pulses with 10 kHz repetition rate and a third pulse shifting by 40 ns at
+each of 800 points.
+```
+The function sets a pulse sequence with specified parameters for 'Sequence' card [mode](#awg_cardmode). The AWG card buffer will be filled according to key arguments of the awg_pulse_sequence() function. There is no default arguments, that is why all keywords must be specified. The minimum available length and sigma of the pulse is 0 ns. The maximum available length and sigma of the pulse is 1900 ns. The available functions are ['SINE','GAUSS','SINC','BLANK']. For 'SINE' and 'BLANK' functions parameter sigma has no meaning. For 'GAUSS' function parameter sigma is a sigma of Gaussian. For 'SINC' function a combination of parameters length and sigma specifies the width of the SINC pulse in the same manner as the function [awg_pulse()](#awg_pulsekargs). Function 'BLANK' is an empty pulse.<br/>
+Please note, that each new call of the [awg_pulse_sequence()](#awg_pulse_sequencekargs) function will redefine the pulse sequence. Pulse_start array must be sorted. A number of enabled channels should be defined before [awg_pulse_sequence()](#awg_pulse_sequencekargs).<br/>
+To run a specified pulse sequence the [awg_update()](#awg_update) function should be called. After going through all the buffer the AWG card will be stopped.<br/>
 ### awg_shift(*pulses)
 ```python3
 awg_shift(*pulses)
 Arguments: none or string of pulse names; Output: none.
 Example: awg_shift() shifts the phase of all currently active pulses by their respective delta_phase.
 ```
-This function can be called with either no argument or with a list of comma separated pulse names (i.e. 'P0', 'P1'). If no argument is given the phase of all pulses that have a nonzero delta_phase and are currently active (do not have a length of 0) are shifted by their corresponding delta_phase value. If there is one argument or a list of comma separated pulse names only the phase of the listed pulses are changed.
+This function can be called with either no argument or with a list of comma separated pulse names (i.e. 'P0', 'P1'). In the 'Single' or 'Multi' card mode, if no argument is given the phase of all pulses that have a nonzero delta_phase and are currently active (do not have a length of 0) are shifted by their corresponding delta_phase value. If there is one argument or a list of comma separated pulse names only the phase of the listed pulses are changed.<br/>
+In the 'Single Joined' card mode, the start values of the specified pulses are shifted by the defined delta_start values. Phases of the pulses are not changed, since they are calculated from the pulse positions automatically.<br/>
+For the 'Sequence' card mode, the function has no meaning.
 ### awg_increment(*pulses)
 ```python3
 awg_increment(*pulses)
 Arguments: none or string of pulse names; Output: none.
 Example: awg_increment('P0') increments the length and sigma of the pulse named 'P0' by the corresponding increment value.
 ```
-This function can be called with either no argument or with a list of comma separated pulse names (i.e. 'P0', 'P1'). If no argument is given the lengths and sigmas of all pulses that have a nonzero increment and are currently active (do not have a length of 0) are incremented by their corresponding increment value. If there is one argument or a list of comma separated pulse names only the lengths and sigmas of the listed pulses are changed.<br/>
+This function can be called with either no argument or with a list of comma separated pulse names (i.e. 'P0', 'P1'). In the 'Single', 'Multi' or 'Single Joined' card mode, if no argument is given the lengths and sigmas of all pulses that have a nonzero increment and are currently active (do not have a length of 0) are incremented by their corresponding increment value. If there is one argument or a list of comma separated pulse names only the lengths and sigmas of the listed pulses are changed.<br/>
 Please, note that the function always keeps the ratio length/sigma for GAUSS and SINC pulses. For instance, if length = '64 ns', sigma = '16 ns', and increment = '10 ns' after calling awg_increment() once, the parameters will be length = '104 ns', sigma = '26 ns', and increment = '10 ns'.<br/>
+For the 'Sequence' card mode, the function has no meaning.
 ### awg_redefine_delta_phase(*, name, delta_phase)
 ```python3
 awg_redefine_delta_phase(*, name, delta_phase)
-Arguments: name = 'Pulse name', delta_phase = phase increment (in radians);
+Arguments: name = 'Pulse name', delta_phase = a new phase increment (in radians);
 Output: none.
 Example: awg_redefine_delta_phase('P0', delta_phase = pi) changes delta_phase setting of the 'P0' pulse to pi radians.
 ```
-This function should be called with two keyword arguments, namely name and delta_phase. The first argument specifies the name of the pulse as a string. The second argument defines a new value of delta_phase in radians. The main purpose of the function is non-uniform sampling. Please note, that the function does not update the AWG card. [awg_update()](#awg_update) should be called to apply changes.
+This function should be called with two keyword arguments, namely name and delta_phase. The first argument specifies the name of the pulse as a string. The second argument defines a new value of delta_phase in radians. The main purpose of the function is non-uniform sampling. Please note, that the function does not update the AWG card. [awg_update()](#awg_update) should be called to apply changes. The function has no meaning for the 'Single Joined' and Sequence' card mode, since phases of the pulses are calculated from the pulse positions automatically.
+### awg_redefine_phase(*, name, phase)
+```python3
+awg_redefine_phase(*, name, phase)
+Arguments: name = 'Pulse name', phase = a new phase (in radians);
+Output: none.
+Example: awg_redefine_phase('P0', phase = pi) changes phase setting of the 'P0' pulse to pi radians.
+```
+This function should be called with two keyword arguments, namely name and phase. The first argument specifies the name of the pulse as a string. The second argument defines a new value of phase in radians. The main purpose of the function is phase cycling. Please note, that the function does not update the AWG card. [awg_update()](#awg_update) should be called to apply changes. The function has no meaning for the 'Sequence' card mode. One should redefine all the sequence instead.
+### awg_redefine_delta_start(*, name, delta_start)
+```python3
+awg_redefine_delta_start(*, name, delta_start)
+Arguments: name = 'Pulse name', delta_start = a new start time increment (in ns);
+Output: none.
+Example: awg_redefine_delta_start('P0', delta_start = '10 ns') changes delta_start setting of the 'P0' pulse to 10 ns.
+```
+This function should be called with two keyword arguments, namely name and delta_start. The first argument specifies the name of the pulse as a string. The second argument defines a new value of delta_start as a string in the format value + dimension (i.e. '10 ns'). The main purpose of the function is non-uniform sampling. Please note, that the function does not update the AWG card. [awg_update()](#awg_update) should be called to apply changes. The function has no meaning for the 'Single', 'Multi', and 'Sequence' card mode, since in these modes the start of the pulse is determined by the trigger event.
 ### awg_redefine_increment(*, name, increment)
 ```python3
 awg_redefine_increment(*, name, increment)
-Arguments: name = 'Pulse name', increment = increment (as a string);
+Arguments: name = 'Pulse name', increment = a new increment (as a string);
 Output: none.
 Example: awg_redefine_increment('P2', increment = '10 ns') changes increment setting of the 'P2' pulse to 10 ns.
 ```
-This function should be called with two keyword arguments, namely name and increment. The first argument specifies the name of the pulse as a string. The second argument defines a new value of increment as a string in the format value + dimension (i.e. '100 ns'). The main purpose of the function is non-uniform sampling. Please note, that the function does not update the AWG card. [awg_update()](#awg_update) should be called to apply changes.
+This function should be called with two keyword arguments, namely name and increment. The first argument specifies the name of the pulse as a string. The second argument defines a new value of increment as a string in the format value + dimension (i.e. '100 ns'). The main purpose of the function is non-uniform sampling. Please note, that the function does not update the AWG card. [awg_update()](#awg_update) should be called to apply changes. The function has no meaning for the 'Sequence' card mode. One should redefine all the sequence instead.
 ### awg_add_phase(*, name, add_phase)
 ```python3
 awg_add_phase(*, name, add_phase)
@@ -115,21 +169,21 @@ Arguments: name = 'Pulse name', add_phase = phase to add (in radians);
 Output: none.
 Example: awg_add_phase('P0', add_phase = pi) adds pi radians to the 'P0' pulse.
 ```
-This function should be called with two keyword arguments, namely name and add_phase. The first argument specifies the name of the pulse as a string. The second argument defines a value of phase in radians to add. The main purpose of the function is phase cycling. Please note, that the function does not update the AWG card. [awg_update()](#awg_update) should be called to apply changes.
+This function should be called with two keyword arguments, namely name and add_phase. The first argument specifies the name of the pulse as a string. The second argument defines a value of phase in radians to add. The main purpose of the function is phase cycling. Please note, that the function does not update the AWG card. [awg_update()](#awg_update) should be called to apply changes. The function has no meaning for the 'Sequence' card mode. One should redefine all the sequence instead.
 ### awg_reset()
 ```python3
 awg_reset()
 Arguments: none; Output: none.
 Example: awg_reset() resets all the pulses to their initial state and updates the AWG card.
 ```
-The function switches the AWG card back to the initial state in which it was in at the start of the experiment. This function can be called only without arguments. It includes the complete functionality of [awg_pulse_reset()](#awg_pulse_reset), but also immediately updates the AWG card as it is done by calling [awg_update()](#awg_update).
+The function switches the AWG card back to the initial state in which it was in at the start of the experiment. This function can be called only without arguments. It includes the complete functionality of [awg_pulse_reset()](#awg_pulse_reset), but also immediately updates the AWG card as it is done by calling [awg_update()](#awg_update). The function has no meaning for the 'Sequence' card mode. One should redefine all the sequence instead.
 ### awg_pulse_reset(*pulses)
 ```python3
 awg_pulse_reset(*pulses)
 Arguments: none or string of pulse names; Output: none.
 Example: awg_pulse_reset('P1') resets the pulse named 'P1' to its initial state.
 ```
-The function switches the AWG card back to the initial state in which it was in at the start of the experiment. This function can be called with either no argument or with a list of comma separated pulse names. If no argument is given all pulses are reset to their initial states. If there is one argument or a list of comma separated pulse names only the listed pulses are returned back to the initial state. The function does not update the AWG card, if you want to reset all pulses and and also update the AWG card use the function [awg_reset()](#awg_reset) instead.
+The function switches the AWG card back to the initial state in which it was in at the start of the experiment. This function can be called with either no argument or with a list of comma separated pulse names. If no argument is given all pulses are reset to their initial states. If there is one argument or a list of comma separated pulse names only the listed pulses are returned back to the initial state. The function does not update the AWG card, if you want to reset all pulses and and also update the AWG card use the function [awg_reset()](#awg_reset) instead. The function has no meaning for the 'Sequence' card mode. One should redefine all the sequence instead.
 ### awg_number_of_segments(*segments)
 ```python3
 awg_number_of_segments(*segments)
@@ -168,10 +222,11 @@ This function queries or sets the AWG card reference clock (in MHz) for 'Externa
 ### awg_card_mode(*mode)
 ```python3
 awg_card_mode(*mode)
-Arguments: mode = string (['Single','Multi']); Output: string.
+Arguments: mode = string (['Single','Multi','Single Joined','Sequence']);
+Output: string.
 Example: awg_card_mode('Multi') sets the 'Multi' card mode.
 ```
-This function queries or sets the AWG card mode. If there is no argument the function will return the current сard mode setting. If there is an argument the specified card mode will be set. The card mode should be one of the following: ['Single','Multi']. In the 'Single' mode a data from on-board memory will be replayed on every detected trigger event. The number of replays can be programmed by [loops](#awg_looploop). In the 'Multi' mode every detected trigger event replays one data block (segment). Segmented memory is available only in 'External' trigger [mode](#awg_trigger_modemode). Default setting is 'Single'.<br/>
+This function queries or sets the AWG card mode. If there is no argument the function will return the current сard mode setting. If there is an argument the specified card mode will be set. The card mode should be one of the following: ['Single','Multi','Single Joined','Sequence']. In the 'Single' mode a data from on-board memory will be replayed on every detected trigger event. The number of replays can be programmed by [loops](#awg_looploop). 'Single Joined' mode is a modification of the 'Single' mode with a possibility of defining more than one pulse. In this mode, all defined pulses are combined into a sequence of pulses according to the their start position, determined by start keyword of the [awg_pulse()](#awg_pulse) function. Please note, that if two channels are enabled the pulse sequence for the second channel will be generated automatically using a phase shifting specified in the config file. In the 'Multi' mode every detected trigger event replays one data block (segment). Segmented memory is available only in 'External' trigger [mode](#awg_trigger_modemode). In the 'Sequence' mode it is possible to define a whole pulse sequence by the [awg_pulse_sequence()](#awg_pulse_sequence) function. The pulse sequence has a specified number of points that is looped specified times. Switching between points is achieved using a trigger event. Please note, that if two channels are enabled the pulse sequence for the second channel will be generated automatically using a phase shifting specified in the config file. Default setting is 'Single'.<br/>
 ### awg_trigger_channel(*channel)
 ```python3
 awg_trigger_channel(*channel)
@@ -214,7 +269,7 @@ awg_visualize()
 Arguments: none; Output: string.
 Example: awg_visualize() visualizes the AWG card buffer.
 ```
-This function visualizes the AWG card buffer and can be called only without arguments.
+This function visualizes the AWG card buffer and can be called only without arguments. For the 'Single', 'Multi', and 'Single Joined' card mode, the complete buffer will be shown. For the 'Sequence' card mode only first two points will be shown. It is not recommended to use this function for very low repetition rate (less than 10 kHz) of [awg_pulse_sequence()](#awg_pulse_sequencekargs) in the 'Sequence' card mode.
 ### awg_pulse_list()
 ```python3
 awg_pulse_list()

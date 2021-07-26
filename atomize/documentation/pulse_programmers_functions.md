@@ -82,7 +82,7 @@ This function can be called with either no argument or with a list of comma sepa
 ### pulser_redefine_delta_start(*, name, delta_start)
 ```python3
 pulser_redefine_delta_start(*, name, delta_start)
-Arguments: name = 'Pulse name', delta_start = start time increment (as a string);
+Arguments: name = 'Pulse name', delta_start = a new start time increment (as a string);
 Output: none.
 Example: pulser_redefine_delta_start('P0', delta_start = '10 ns') changes delta_start setting of the 'P0' pulse to 10 ns.
 ```
@@ -90,7 +90,7 @@ This function should be called with two keyword arguments, namely name and delta
 ### pulser_redefine_length_increment(*, name, length_increment)
 ```python3
 pulser_redefine_length_increment(*, name, length_increment)
-Arguments: name = 'Pulse name', length_increment = length increment (as a string);
+Arguments: name = 'Pulse name', length_increment = a new length increment (as a string);
 Output: none.
 Example: pulser_redefine_length_increment('P2', length_increment = '2 ns') changes length
 increment setting of the 'P2' pulse to 2 ns.

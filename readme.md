@@ -8,13 +8,13 @@ Atomize uses [liveplot library](https://github.com/PhilReinhold/liveplot) based 
 
 [Python Programming Language](https://www.python.org/) is used inside experimental scripts, which opens up almost unlimited possibilities for raw experimental data treatment. In addition, with PyQt, one can create experimental scripts with a simple graphical interface, allowing users not familiar with Python to use it. Several examples of scripts (with dummy data) are provided in /atomize/tests/ directory, including a GUI script with extended comments inside.<br/>
 
-If you would like to write a module for the device that is not currently available, please, read this [instruction.](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/writing_modules.md)
+Currently there are more than 200 device specific and general functions available for over 25 different devices, including 4 series of devices. If you would like to write a module for the device that is not currently available, please, read this short [instruction.](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/writing_modules.md)
 
 Detailed documentation can be found [here.](https://github.com/Anatoly1010/Atomize/tree/master/atomize/documentation)
 
-At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and Windows 10.
+## Status
 
-### Status: in development; device testing
+At the moment, Atomize has been tested and is currently used for controlling several EPR spectrometers using a broad range of different devices. Examples of experimental scripts for standard pulsed EPR methods can be found in /atomize/tests/pulse_epr directory. The program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and Windows 10.
 
 ## Contents
 - [Requirements](#requirements)<br/>
@@ -49,14 +49,14 @@ At the moment, the program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and W
 - [pyqtgraph 0.11](http://www.pyqtgraph.org)
 - [PyVisa](https://pyvisa.readthedocs.io/en/latest/)
 - [PyVisa-py](https://github.com/pyvisa/pyvisa-py)<br/>
+<br/>
 Optional:
 - [PySerial;](https://pypi.org/project/pyserial/) for serial instruments
 - [Minimalmodbus;](https://minimalmodbus.readthedocs.io/en/stable/index.html) for Modbus instruments
-- [OpenGL;](https://pypi.org/project/PyOpenGL/) highly recommended for efficient plotting 
-- [Scipy;](https://www.scipy.org/) for math modules
 - [GPIB driver;](https://linux-gpib.sourceforge.io/) for GPIB devices
 - [Telegram bot API;](https://github.com/eternnoir/pyTelegramBotAPI) for Telegram bot messages
 - [SpinAPI;](http://www.spincore.com/support/spinapi/) for Pulse Blaster ESR 500 Pro
+- [Spcm driver;](https://spectrum-instrumentation.com/en/m4i4450-x8) for Spectrum M4I 6631 X8
 
 ## Basic usage
 
@@ -81,10 +81,28 @@ general.plot_1d(arguments)
 ```
 The text editor used for editing can be specified in atomize/config.ini. The Telegram bot token and message chat ID can be specified in the same file.
 
-2. Using device modules
+2. Setting up general configuration data
+
+The /atomize directory contains a general configuration file with the name config.ini. It should be changed at will according to the description below:
+```python
+[DEFAULT]
+# configure the text editor that will opened when Edit is pressed:
+editor = subl								# Linux
+editorW = /path/to/text_editor/on/Windows/	# Windows
+# configure the directory that will opened when Open 1D Data or Open 2D Data
+# features is used in Liveplot:
+open_dir = /path/to/experimental/data/to/open/
+# configure the directory that will be opened when Open Script is pressed:
+script_dir = /Atomize/atomize/tests
+# configure Telegram bot
+telegram_bot_token = 
+message_id = 
+```
+
+3. Using device modules
 
 To communicate with a device one should:
-1) modify the config file (/atomize/device_modules/config/) of the desired device accordingly. Choose the desired protocol (rs-232, gpib, ethernet) and correct the settings of the specified protocol in accordance with device settings. A little bit more detailed information about protocol settings can be found [here.](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md)
+1) modify the config file (/atomize/device_modules/config/) of the desired device accordingly. Choose the desired protocol (rs-232, gpib, ethernet, etc.) and correct the settings of the specified protocol in accordance with device settings. A little bit more detailed information about protocol settings can be found [here.](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md)
 2) import the module or modules in your script and initialize the appropriate class. A class always
 has the same name as the module file. Initialization connect the desired device, if the settings are correct.
 ```python
@@ -104,12 +122,12 @@ file_handler = openfile.Saver_Opener()
 head, data = file_handler.open_1D_dialog(header = 0)
 general.plot_1d('1D Plot', data[0], data[1], label = 'test_data', yname = 'Y axis', yscale = 'V')
 ```
-3. Experimental scripts
+4. Experimental scripts
 
 Python is used to write an experimental script. Examples (with dummy data) can be found in
 /atomize/tests/ directory.
 
-4. Speeding up plotting functions
+5. Speeding up plotting functions
 
 It is highly recommended to use OpenGL, if you want to plot data with more than 2000 points.
 On Ubuntu 18.04 LTS, 20.04 LTS python openGL bindings can be installed as:
@@ -287,9 +305,12 @@ awg_name()
 awg_update()
 awg_stop()
 awg_pulse(*kargs)
+awg_pulse_sequence(kargs)
 awg_shift(*pulses)
 awg_increment(*pulses)
 awg_redefine_delta_phase(*, name, delta_phase)
+awg_redefine_phase(self, *, name, phase)
+awg_redefine_delta_start(self, *, name, delta_start)
 awg_redefine_increment(*, name, increment)
 awg_add_phase(*, name, add_phase)
 awg_reset()

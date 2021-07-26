@@ -12,9 +12,9 @@ awg = spectrum.Spectrum_M4I_6631_X8()
 #awg.awg_channel('CH0', 'CH1')
 
 start_time = time.time()
-# 3 ms per point for two pulses
+# 3 ms per point for three pulses
 awg.awg_pulse_sequence(pulse_type = ['SINE', 'GAUSS', 'SINE'], pulse_start = [0, 160, 320], pulse_delta_start = [0, 0, 40], pulse_length = [40, 120, 40], pulse_phase = ['+x', '+x', '+x'], \
-                        pulse_sigma = [40, 20, 40], pulse_frequency = [50, 200, 40], number_of_points = 800, loop = 10)
+                        pulse_sigma = [40, 20, 40], pulse_frequency = [50, 200, 40], number_of_points = 800, loop = 10, rep_rate = 10000)
 # for phase cycling pulse_sequence should be redefined
 # it seems that it will be more efficient than filling a large buffer
 # four phase cycles will multiply a number of pulses by four!!!
