@@ -49,7 +49,6 @@ At the moment, Atomize has been tested and is currently used for controlling sev
 - [pyqtgraph 0.11](http://www.pyqtgraph.org)
 - [PyVisa](https://pyvisa.readthedocs.io/en/latest/)
 - [PyVisa-py](https://github.com/pyvisa/pyvisa-py)<br/>
-<br/>
 Optional:
 - [PySerial;](https://pypi.org/project/pyserial/) for serial instruments
 - [Minimalmodbus;](https://minimalmodbus.readthedocs.io/en/stable/index.html) for Modbus instruments
@@ -87,10 +86,10 @@ The /atomize directory contains a general configuration file with the name confi
 ```python
 [DEFAULT]
 # configure the text editor that will opened when Edit is pressed:
-editor = subl								# Linux
+editor = subl	# Linux
 editorW = /path/to/text_editor/on/Windows/	# Windows
 # configure the directory that will opened when Open 1D Data or Open 2D Data
-# features is used in Liveplot:
+# feature is used in Liveplot:
 open_dir = /path/to/experimental/data/to/open/
 # configure the directory that will be opened when Open Script is pressed:
 script_dir = /Atomize/atomize/tests
