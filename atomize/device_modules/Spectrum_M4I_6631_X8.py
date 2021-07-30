@@ -5,8 +5,8 @@ import os
 import sys
 import random
 ###AWG
-#sys.path.append('/home/anatoly/awg_files/python')
-sys.path.append('C:/Users/User/Desktop/Examples/python')
+sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
+#sys.path.append('C:/Users/User/Desktop/Examples/python')
 from math import sin, pi, exp, log2
 from itertools import groupby, chain
 from copy import deepcopy
@@ -207,8 +207,8 @@ class Spectrum_M4I_6631_X8:
                     spcm_dwSetParam_i32(hCard, SPC_SEGMENTSIZE, self.segment_memsize)
                 elif self.sequence_mode == 1:
                     #self.full_buffer
-                    # 262144 is SPC_REP_STD_SEQUENCE
-                    spcm_dwSetParam_i32( hCard, SPC_CARDMODE, 262144 )
+                    # 262144 is SPC_REP_STD_SEQUENCE 262144
+                    spcm_dwSetParam_i32( hCard, SPC_CARDMODE, SPC_REP_STD_SEQUENCE )
                     spcm_dwSetParam_i32( hCard, SPC_SEQMODE_MAXSEGMENTS, int32(self.sequence_segments) )
                     spcm_dwSetParam_i32( hCard, SPC_SEQMODE_STARTSTEP, 0 ) # Step#0 is the first step after card start
 
@@ -265,7 +265,7 @@ class Spectrum_M4I_6631_X8:
                     # we define the buffer for transfer and start the DMA transfer
                     #sys.stdout.write("Starting the DMA transfer and waiting until data is in board memory\n")
                     # spcm_dwDefTransfer_i64 (device, buffer_type, direction, event (0=and of transfer), data, offset, buffer length)
-                    spcm_dwDefTransfer_i64 (hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), buf, uint64 (0), qwBufferSize)
+                    spcm_dwDefTransfer_i64 (hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), buf, uint64 (0), self.qwBufferSize.value)
                     # transfer
                     spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
                     general.message("AWG buffer has been transferred to board memory")
@@ -278,7 +278,7 @@ class Spectrum_M4I_6631_X8:
                     # we define the buffer for transfer and start the DMA transfer
                     #sys.stdout.write("Starting the DMA transfer and waiting until data is in board memory\n")
                     # spcm_dwDefTransfer_i64 (device, buffer_type, direction, event (0=and of transfer), data, offset, buffer length)
-                    spcm_dwDefTransfer_i64 (hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), buf, uint64 (0), qwBufferSize)
+                    spcm_dwDefTransfer_i64 (hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), buf, uint64 (0), self.qwBufferSize.value)
                     # transfer
                     spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
                     general.message("AWG buffer has been transferred to board memory")
@@ -293,15 +293,17 @@ class Spectrum_M4I_6631_X8:
                         # Setting up the data memory and transfer data
                         spcm_dwSetParam_i32 (hCard, SPC_SEQMODE_WRITESEGMENT, index) # set current configuration switch to segment 0
                         spcm_dwSetParam_i32 (hCard, SPC_SEQMODE_SEGMENTSIZE, seg_memory) # define size of current segment 0
-                        # data transfer
-                        spcm_dwDefTransfer_i64 (hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, 0, self.full_buffer_pointer, 0, self.qwBufferSize.value)
+                        # data transfer #self.full_buffer_pointer[index]
+                        spcm_dwDefTransfer_i64 (hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), element, uint64 (0), self.qwBufferSize.value)
                         spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
+                        #general.message("AWG buffer has been transferred to board memory")
 
                         # self.vWriteStepEntry (hCard, dwStepIndex, dwStepNextIndex, dwSegmentIndex, dwLoops, dwFlags)
-                        if index != self.sequence_segments:
-                            self.vWriteStepEntry (hCard,  index,  index + 1, index, self.sequence_loop,  0)
-                        else:
-                            self.vWriteStepEntry (hCard,  index,  index + 1, index, self.sequence_loop,  2147483648)
+                        if index <= self.sequence_segments - 2:
+                            self.write_seg_memory (hCard,  index,  index + 1, index, self.sequence_loop,  0) #0
+                        elif index == self.sequence_segments - 1:
+                            self.write_seg_memory (hCard,  index, 0, index, self.sequence_loop,  2147483648)
+
                         # SPCSEQ_ENDLOOPONTRIG = 1073741824
                         # Feature flag that marks the step to conditionally change to the next step on a trigger condition. The occurrence
                         # of a trigger event is repeatedly checked each time the defined loops for the current segment have been
@@ -330,11 +332,11 @@ class Spectrum_M4I_6631_X8:
         elif test_flag == 'test':
             # to run several important checks
             if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1 or self.sequence_mode_count == 1:
-                if self.card_mode == 32768 and self.single_joined == 0:
+                if self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 0:
                     buf = self.define_buffer_single()[0]
-                elif self.card_mode == 32768 and self.single_joined == 1:
+                elif self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 1:
                     buf = self.define_buffer_single_joined()[0]
-                elif self.card_mode == 512:
+                elif self.card_mode == 512 and self.sequence_mode == 0:
                     buf = self.define_buffer_multi()[0]
 
                 self.reset_count = 1
@@ -2200,11 +2202,11 @@ class Spectrum_M4I_6631_X8:
         """
         if test_flag != 'test':
             if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1:
-                if self.card_mode == 32768 and self.single_joined == 0:
+                if self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 0:
                     buf = self.define_buffer_single()[0]
-                elif self.card_mode == 32768 and self.single_joined == 1:
+                elif self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 1:
                     buf = self.define_buffer_single_joined()[0]
-                elif self.card_mode == 512:
+                elif self.card_mode == 512 and self.sequence_mode == 0:
                     buf = self.define_buffer_multi()[0]
 
                 self.reset_count = 1
@@ -2218,11 +2220,11 @@ class Spectrum_M4I_6631_X8:
         elif test_flag == 'test':
 
             if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1:
-                if self.card_mode == 32768 and self.single_joined == 0:
+                if self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 0:
                     buf = self.define_buffer_single()[0]
-                elif self.card_mode == 32768 and self.single_joined == 1:
+                elif self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 1:
                     buf = self.define_buffer_single_joined()[0]
-                elif self.card_mode == 512:
+                elif self.card_mode == 512 and self.sequence_mode == 0:
                     buf = self.define_buffer_multi()[0]
 
                 self.reset_count = 1
@@ -2536,8 +2538,8 @@ class Spectrum_M4I_6631_X8:
 
             # define the buffer
             pnBuffer = c_void_p()
-            qwBufferSize = uint64 (self.buffer_size)  # buffer size
-            pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
+            self.qwBufferSize = uint64 (self.buffer_size)  # buffer size
+            pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
             pnBuffer = cast (pvBuffer, ptr16)
 
             # pulses for different channel
@@ -2580,8 +2582,8 @@ class Spectrum_M4I_6631_X8:
             
             # define the buffer
             pnBuffer = c_void_p()
-            qwBufferSize = uint64 (self.buffer_size)  # buffer size
-            pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
+            self.qwBufferSize = uint64 (self.buffer_size)  # buffer size
+            pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
             pnBuffer = cast (pvBuffer, ptr16)
 
             # pulses for different channel
@@ -2740,8 +2742,8 @@ class Spectrum_M4I_6631_X8:
 
             # define the buffer
             pnBuffer = c_void_p()
-            qwBufferSize = uint64 (self.buffer_size)  # buffer size
-            pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
+            self.qwBufferSize = uint64 (self.buffer_size)  # buffer size
+            pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
             pnBuffer = cast (pvBuffer, ptr16)
 
             # pulses for different channel
@@ -2782,8 +2784,8 @@ class Spectrum_M4I_6631_X8:
 
             # define the buffer
             pnBuffer = c_void_p()
-            qwBufferSize = uint64 (self.buffer_size)  # buffer size
-            pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
+            self.qwBufferSize = uint64 (self.buffer_size)  # buffer size
+            pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
             pnBuffer = cast (pvBuffer, ptr16)
 
             # pulses for different channel
@@ -2926,8 +2928,8 @@ class Spectrum_M4I_6631_X8:
 
             # define the buffer
             pnBuffer = c_void_p()
-            qwBufferSize = uint64 (2 * self.memsize)  # buffer size
-            pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
+            self.qwBufferSize = uint64 (2 * self.memsize)  # buffer size
+            pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
             pnBuffer = cast (pvBuffer, ptr16)
 
             # run over defined pulses inside a sequence point
@@ -2936,12 +2938,12 @@ class Spectrum_M4I_6631_X8:
                 rnd_phase = 2*pi*random.random()
 
                 if element == 0: # 'SINE'
-                    for i in range(pulse_start_smp[index] + pulse_delta_start_smp[index], self.memsize):
+                    for i in range(pulse_start_smp[index], self.memsize):
 
-                            if i < (pulse_start_smp[index] + pulse_delta_start_smp[index]):
+                            if i < (pulse_start_smp[index] ):
                                 pass
-                            elif ( i >= ( pulse_start_smp[index] + pulse_delta_start_smp[index]) and \
-                                   i <= (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]) ):
+                            elif ( i >= ( pulse_start_smp[index] ) and \
+                                   i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                                 
                                 if pulse_phase_np[index] != 1000:
                                     pnBuffer[i] = int( maxCAD * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
@@ -2954,14 +2956,13 @@ class Spectrum_M4I_6631_X8:
 
                 elif element == 1: # GAUSS
                     # mid_point for GAUSS and SINC
-                    mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index] + \
-                                pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index])/2 )
+                    mid_point = int( pulse_start_smp[index] + ( pulse_length_smp[index] )/2 )
 
-                    for i in range(pulse_start_smp[index] + pulse_delta_start_smp[index], self.memsize):
-                            if i < (pulse_start_smp[index] + pulse_delta_start_smp[index]):
+                    for i in range(pulse_start_smp[index], self.memsize):
+                            if i < (pulse_start_smp[index] ):
                                 pass
-                            elif ( i >= ( pulse_start_smp[index] + pulse_delta_start_smp[index]) and \
-                                   i <= (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]) ):
+                            elif ( i >= ( pulse_start_smp[index] ) and \
+                                   i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                                 
                                 if pulse_phase_np[index] != 1000:
                                     #self.full_buffer[point, i] 
@@ -2978,14 +2979,13 @@ class Spectrum_M4I_6631_X8:
 
                 elif element == 2: # 'SINC'
                     # mid_point for GAUSS and SINC
-                    mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index] + \
-                                pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index])/2 )
+                    mid_point = int( pulse_start_smp[index] + ( pulse_length_smp[index] )/2 )
 
-                    for i in range(pulse_start_smp[index] + pulse_delta_start_smp[index], self.memsize):
-                            if i < (pulse_start_smp[index] + pulse_delta_start_smp[index]):
+                    for i in range(pulse_start_smp[index], self.memsize):
+                            if i < (pulse_start_smp[index]):
                                 pass
-                            elif ( i >= ( pulse_start_smp[index] + pulse_delta_start_smp[index]) and \
-                                   i <= (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]) ):
+                            elif ( i >= ( pulse_start_smp[index] ) and \
+                                   i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                                 
                                 if pulse_phase_np[index] != 1000:
                                     #self.full_buffer[point, i] 
@@ -3001,7 +3001,7 @@ class Spectrum_M4I_6631_X8:
                                 break
 
                 elif element == 3: # BLANK
-                    break
+                    pass
 
             return pvBuffer, pnBuffer
 
@@ -3009,8 +3009,8 @@ class Spectrum_M4I_6631_X8:
 
             # define the buffer
             pnBuffer = c_void_p()
-            qwBufferSize = uint64 (2 * self.memsize * 2)  # buffer size for two channels
-            pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
+            self.qwBufferSize = uint64 (2 * self.memsize * 2)  # buffer size for two channels
+            pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
             pnBuffer = cast (pvBuffer, ptr16)
 
             # run over defined pulses inside a sequence point
@@ -3019,11 +3019,11 @@ class Spectrum_M4I_6631_X8:
                 rnd_phase = 2*pi*random.random()
 
                 if element == 0: #'SINE'
-                    for i in range(2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]), 2*self.memsize, 2):
-                            if i < 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]):
+                    for i in range(2 * (pulse_start_smp[index] ), 2*self.memsize, 2):
+                            if i < 2 * (pulse_start_smp[index] ):
                                 pass
-                            elif ( i >= 2 * ( pulse_start_smp[index] + pulse_delta_start_smp[index]) and \
-                                   i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]) ):
+                            elif ( i >= 2 * ( pulse_start_smp[index] ) and \
+                                   i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                                 
                                 if pulse_phase_np[index] != 1000:
                                     #self.full_buffer[point, i] 
@@ -3045,15 +3045,14 @@ class Spectrum_M4I_6631_X8:
 
                 elif element == 1: #'GAUSS'
                     # mid_point for GAUSS and SINC
-                    mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index] + \
-                        pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index])/2 )
+                    mid_point = int( pulse_start_smp[index] + (pulse_length_smp[index] )/2 )
 
-                    for i in range(2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]), 2*self.memsize, 2):
+                    for i in range(2 * (pulse_start_smp[index] ), 2*self.memsize, 2):
 
-                            if i < 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]):
+                            if i < 2 * (pulse_start_smp[index] ):
                                 pass
-                            elif ( i >= 2 * ( pulse_start_smp[index] + pulse_delta_start_smp[index]) and \
-                                   i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]) ):
+                            elif ( i >= 2 * ( pulse_start_smp[index] ) and \
+                                   i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                                 
                                 if pulse_phase_np[index] != 1000:
                                     #self.full_buffer[point, i]
@@ -3080,15 +3079,14 @@ class Spectrum_M4I_6631_X8:
                     
                 elif element == 2: #'SINC'
                     # mid_point for GAUSS and SINC
-                    mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index] + \
-                        pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index])/2 )
+                    mid_point = int( pulse_start_smp[index] + (pulse_length_smp[index])/2 )
 
-                    for i in range(2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]), 2*self.memsize, 2):
+                    for i in range(2 * (pulse_start_smp[index] ), 2*self.memsize, 2):
 
-                            if i < 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]):
+                            if i < 2 * (pulse_start_smp[index] ):
                                 pass
-                            elif ( i >= 2 * ( pulse_start_smp[index] + pulse_delta_start_smp[index]) and \
-                                   i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]) ):
+                            elif ( i >= 2 * ( pulse_start_smp[index] ) and \
+                                   i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                                 
                                 if pulse_phase_np[index] != 1000:
                                     #self.full_buffer[point, i]
@@ -3111,7 +3109,7 @@ class Spectrum_M4I_6631_X8:
                                 break
                 
                 elif element == 3: # BLANK
-                    break
+                    pass
 
             return pvBuffer, pnBuffer
 
