@@ -9,7 +9,7 @@ from datetime import datetime
 from pyqtgraph.dockarea import Dock
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtWidgets import QFileDialog
-import OpenGL
+#import OpenGL
 
 pg.setConfigOption('background', (63,63,97))
 pg.setConfigOption('leftButtonPan', False)

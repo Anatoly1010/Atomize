@@ -5,7 +5,7 @@ import os
 import sys
 import random
 ###AWG
-sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
+sys.path.append('/home/anatoly/AWG/spcm_examples/python')
 #sys.path.append('C:/Users/User/Desktop/Examples/python')
 from math import sin, pi, exp, log2
 from itertools import groupby, chain
@@ -291,8 +291,15 @@ class Spectrum_M4I_6631_X8:
 
                     for index, element in enumerate(self.full_buffer_pointer):
                         # Setting up the data memory and transfer data
-                        spcm_dwSetParam_i32 (hCard, SPC_SEQMODE_WRITESEGMENT, index) # set current configuration switch to segment 0
-                        spcm_dwSetParam_i32 (hCard, SPC_SEQMODE_SEGMENTSIZE, seg_memory) # define size of current segment 0
+                        spcm_dwSetParam_i32 (hCard, SPC_SEQMODE_WRITESEGMENT, index) # set current configuration switch to segment
+                        
+                        ###
+                        ###
+                        #seg_memory should be rounded to 32, which means repetition rate should be dividable by 32
+                        ###
+                        ###
+                        spcm_dwSetParam_i64 (hCard, SPC_SEQMODE_SEGMENTSIZE, seg_memory ) # define size of current segment
+
                         # data transfer #self.full_buffer_pointer[index]
                         spcm_dwDefTransfer_i64 (hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), element, uint64 (0), self.qwBufferSize.value)
                         spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
@@ -1555,7 +1562,7 @@ class Spectrum_M4I_6631_X8:
                     # trigger delay in samples; maximum is 8589934560, step is 32
                     del_in_sample = int( delay_num*flag*self.sample_rate / 1000 )
                     if del_in_sample % 32 != 0:
-                        general.message('Delay should be dividable by 25.8 ns; The closest avalaibale number is used')
+                        general.message('Delay should be dividable by 25.6 ns; The closest avalaibale number is used')
                         self.delay = int( 32*(del_in_sample // 32) )
                     else:
                         self.delay = del_in_sample
@@ -1873,7 +1880,10 @@ class Spectrum_M4I_6631_X8:
             self.sequence_segments = self.closest_power_of_two(arguments_array[7])
             self.sequence_loop = arguments_array[8]
             # repetition rate for pulse sequence in samples; Hz -> ns -> samples
-            seq_rep_rate = int( ( 10**9 / arguments_array[9]) * self.sample_rate/1000 )
+            seq_rep_rate = int( ( 10**9 / (arguments_array[9])) * self.sample_rate/1000 )
+            if seq_rep_rate % 32 != 0:
+                seq_rep_rate = int( 32*(seq_rep_rate // 32) )
+                general.message('Delay should be dividable by 25.6 ns; The closest avalaibale number is used: ' + str(1/(seq_rep_rate*0.8*10**-9)) + ' Hz' )
 
             # convert phase list to radians
             pulse_phase_converted = []

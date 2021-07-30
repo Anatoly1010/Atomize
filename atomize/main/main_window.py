@@ -18,7 +18,7 @@ import numpy as np
 from . import widgets
 import pyqtgraph as pg
 from datetime import datetime
-import OpenGL
+#import OpenGL
 from PyQt5.QtCore import QSharedMemory, QSize
 from PyQt5.QtGui import QColor, QIcon, QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QListView, QDockWidget, QVBoxLayout, QAction
