@@ -11,8 +11,10 @@ from spcm_tools import *
 
 Functions:
 - [awg_name()](#awg_name)<br/>
+- [awg_setup()](#awg_setup)<br/>
 - [awg_update()](#awg_update)<br/>
 - [awg_stop()](#awg_stop)<br/>
+- [awg_close()](#awg_close)<br/>
 - [awg_pulse(*kargs)](#awg_pulsekargs)<br/>
 - [awg_pulse_sequence(kargs)](#awg_pulse_sequencekargs)<br/>
 - [awg_shift(*pulses)](#awg_shiftpulses)<br/>
@@ -44,20 +46,34 @@ awg_name()
 Arguments: none; Output: string.
 ```
 The function returns device name.
+### awg_setup()
+```python3
+awg_setup()
+Arguments: none; Output: none.
+Examples: awg_setup() writes all the settings into the AWG card.
+```
+This function writes all the settings modified by other functions to the AWG card. The function should be called only without arguments. One needs to initialize the settings before calling [awg_update()](#awg_update). The default settings (if no other function was called) are the following: Sample clock is 1250 MHz; Clock mode is 'Internal'; Reference clock is 100 MHz; Card mode is 'Single'; Trigger channel is 'External'; Trigger mode is 'Positive'; Loop is infinity; Trigger delay is 0; Enabled channels is CH0 and CH1; Amplitude of CH0 is '600 mV'; Amplitude of CH1 is '533 mV'; Number of segments is 1; Card memory size is 64 samples; Buffer is empty.<br/>
 ### awg_update()
 ```python3
 awg_update()
 Arguments: none; Output: none.
 Examples: awg_update() runs the AWG card.
 ```
-This function writes all the settings modified by other functions to the AWG card and runs it. The function should be called only without arguments. The default settings (if no other function was called) are the following: Sample clock is 1250 MHz; Clock mode is 'Internal'; Reference clock is 100 MHz; Card mode is 'Single'; Trigger channel is 'External'; Trigger mode is 'Positive'; Loop is infinity; Trigger delay is 0; Enabled channels is CH0 and CH1; Amplitude of CH0 is '600 mV'; Amplitude of CH1 is '533 mV'; Number of segments is 1; Card memory size is 64 samples; Buffer is empty.<br/>
+This function redefines the buffer (in case the function like [awg_shift()](#awg_shift) has been called) and runs the AWG card. The function should be called only without arguments. 
 ### awg_stop()
 ```python3
 awg_stop()
 Arguments: none; Output: none.
 Example: awg_stop() stops the AWG card.
 ```
-This function stops the AWG card and should be called only without arguments. The function should always be called at the end of an experimental script.<br/>
+This function stops the AWG card and should be called only without arguments. If an infinite number of loops is defined by the [awg_loop()](#awg_looploop) function, the [awg_stop()](#awg_stop) should always be called before redefining the buffer by the [awg_update()](#awg_update). If a finite number of loops is defined, the card will stop automatically.<br/>
+### awg_close()
+```python3
+awg_close()
+Arguments: none; Output: none.
+Example: awg_close() closes the AWG card.
+```
+This function closes the AWG card and should be called only without arguments. The function should always be called at the end of an experimental script.<br/>
 ### awg_pulse(*kargs)
 ```python3
 awg_pulse(*kagrs)
@@ -83,7 +99,7 @@ length 200 MHz sine pulse with pi/2 phase.
 ```
 The function sets a pulse with specified parameters for 'Single', 'Multi', and 'Single Joined' card mode. The AWG card buffer will be filled according to key arguments of the awg_pulse() function. The default argument is the following: 
 name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = 0, length = '16 ns', sigma = '16 ns', increment = '0 ns', start = '0 ns', delta_start = '0 ns'. A channel should be one of the following ['CH0','CH1']. The frequency should be in MHz, the minimum value is 1 MHz, maximum is 280 MHz. The scaling factor for length and sigma key arguments should be one of the following ['ns','us','ms']. The minimum available length and sigma of the pulse is 0 ns. The maximum available length and sigma of the pulse is 1900 ns. The available functions are ['SINE','GAUSS','SINC','BLANK']. For 'SINE' and 'BLANK' function parameter sigma has no meaning. For 'GAUSS' function parameter sigma is a sigma of Gaussian. For 'SINC' function a combination of parameters length and sigma specifies the width of the SINC pulse, i.e. length = '40 ns' and sigma = '10 ns' means that SINC pulse will be from -4pi to +4pi. Function 'BLANK' is an empty pulse. The increment keyword affects both the length and sigma of the pulse. The scaling factor for start and delta_start key arguments should be one of the following ['ns','us','ms'].<br/>
-It is recommended to first define all pulses and then define the settings of the AWG card. To run specified pulses the [awg_update()](#awg_update) function should be called.<br/>
+It is recommended to first define all pulses and then define the settings of the AWG card. To write the settings [awg_setup()](#awg_setup) function should be called. To run specified pulses the [awg_update()](#awg_update) function should be called.<br/>
 Key argument delta_phase define a pulse phase shift and has no meaning for 'Single Joined' card mode, since the phase of the pulse will be calculated automatically. Key arguments start and delta_start define a pulse position for 'Single Joined' card mode and has no meaning for 'Single' or 'Multi' card mode.<br/>
 ### awg_pulse_sequence(kargs)
 ```python3
@@ -111,7 +127,7 @@ each of 800 points.
 ```
 The function sets a pulse sequence with specified parameters for 'Sequence' card [mode](#awg_cardmode). The AWG card buffer will be filled according to key arguments of the awg_pulse_sequence() function. There is no default arguments, that is why all keywords must be specified. The minimum available length and sigma of the pulse is 0 ns. The maximum available length and sigma of the pulse is 1900 ns. The available functions are ['SINE','GAUSS','SINC','BLANK']. For 'SINE' and 'BLANK' functions parameter sigma has no meaning. For 'GAUSS' function parameter sigma is a sigma of Gaussian. For 'SINC' function a combination of parameters length and sigma specifies the width of the SINC pulse in the same manner as the function [awg_pulse()](#awg_pulsekargs). Function 'BLANK' is an empty pulse.<br/>
 Please note, that each new call of the [awg_pulse_sequence()](#awg_pulse_sequencekargs) function will redefine the pulse sequence. Pulse_start array must be sorted. A number of enabled channels should be defined before [awg_pulse_sequence()](#awg_pulse_sequencekargs).<br/>
-To run a specified pulse sequence the [awg_update()](#awg_update) function should be called. After going through all the buffer the AWG card will be stopped.<br/>
+To write the settings [awg_setup()](#awg_setup) function should be called. To run a specified pulse sequence the [awg_update()](#awg_update) function should be called. After going through all the buffer the AWG card will be stopped.<br/>
 ### awg_shift(*pulses)
 ```python3
 awg_shift(*pulses)

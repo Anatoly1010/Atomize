@@ -120,6 +120,9 @@ class Spectrum_M4I_6631_X8:
             self.pulse_ch0_array = []
             self.pulse_ch1_array = []
 
+            # state counter
+            self.state = 0
+
         elif test_flag == 'test':
             # Collect all parameters for AWG settings
             self.sample_rate = 1250 
@@ -159,10 +162,112 @@ class Spectrum_M4I_6631_X8:
             self.pulse_ch0_array = []
             self.pulse_ch1_array = []
 
+            # state counter
+            self.state = 0
+
     # Module functions
     def awg_name(self):
         answer = 'Spectrum M4I.6631-X8'
         return answer
+
+    def awg_setup(self):
+        """
+        Write settings to the AWG card. No argument; No output
+        Everything except the buffer will be write to the AWG card
+
+        This function should be called after all functions that change settings are called
+        """
+        if test_flag != 'test':
+            
+            if self.state == 0:
+                # open card
+                self.hCard = spcm_hOpen ( create_string_buffer (b'/dev/spcm0') )
+                self.state = 1
+                if self.hCard == None:
+                    general.message("No card found...")
+                    sys.exit()
+            else:
+                pass
+
+            # general parameters of the card; internal/external clock
+            if self.clock_mode == 1:
+                spcm_dwSetParam_i64 (self.hCard, SPC_SAMPLERATE, MEGA(self.sample_rate))
+            elif self.clock_mode == 32:
+                spcm_dwSetParam_i32 (self.hCard, SPC_CLOCKMODE, self.clock_mode)
+                spcm_dwSetParam_i64 (self.hCard, SPC_REFERENCECLOCK, MEGA(self.reference_clock))
+                spcm_dwSetParam_i64 (self.hCard, SPC_SAMPLERATE, MEGA(self.sample_rate))
+
+            # change card mode and memory
+            if self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 0:
+                #self.buf = self.define_buffer_single()[0]
+                spcm_dwSetParam_i32(self.hCard, SPC_CARDMODE, self.card_mode)
+                spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, self.memsize)
+            elif self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 1:
+                #self.buf = self.define_buffer_single_joined()[0]
+                spcm_dwSetParam_i32(self.hCard, SPC_CARDMODE, self.card_mode)
+                spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, self.memsize)
+            elif self.card_mode == 512 and self.sequence_mode == 0:
+                #self.buf = self.define_buffer_multi()[0]
+                spcm_dwSetParam_i32(self.hCard, SPC_CARDMODE, self.card_mode)
+                spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, self.memsize)
+                spcm_dwSetParam_i32(self.hCard, SPC_SEGMENTSIZE, self.segment_memsize)
+            elif self.sequence_mode == 1:
+                #self.full_buffer
+                # 262144 is SPC_REP_STD_SEQUENCE 262144
+                spcm_dwSetParam_i32( self.hCard, SPC_CARDMODE, SPC_REP_STD_SEQUENCE )
+                spcm_dwSetParam_i32( self.hCard, SPC_SEQMODE_MAXSEGMENTS, int32(self.sequence_segments) )
+                spcm_dwSetParam_i32( self.hCard, SPC_SEQMODE_STARTSTEP, 0 ) # Step#0 is the first step after card start
+
+
+            # trigger
+            spcm_dwSetParam_i32(self.hCard, SPC_TRIG_ORMASK, self.trigger_ch) # software / external
+            if self.trigger_ch == 2:
+                spcm_dwSetParam_i32(self.hCard, SPC_TRIG_EXT0_MODE, self.trigger_mode)
+            
+            # loop
+            spcm_dwSetParam_i32(self.hCard, SPC_LOOPS, self.loop)
+            
+            # trigger delay
+            spcm_dwSetParam_i32( self.hCard, SPC_TRIG_DELAY, int(self.delay) )
+
+            # set the output channels
+            spcm_dwSetParam_i32 (self.hCard, SPC_CHENABLE, self.channel)
+            spcm_dwSetParam_i32 (self.hCard, SPC_ENABLEOUT0, self.enable_out_0)
+            spcm_dwSetParam_i32 (self.hCard, SPC_ENABLEOUT1, self.enable_out_1)
+            spcm_dwSetParam_i32 (self.hCard, SPC_AMP0, int32 (self.amplitude_0))
+            spcm_dwSetParam_i32 (self.hCard, SPC_AMP1, int32 (self.amplitude_1))
+
+            # define the memory size / max amplitude
+            #llMemSamples = int64 (self.memsize)
+            #lBytesPerSample = int32(0)
+            #spcm_dwGetParam_i32 (hCard, SPC_MIINST_BYTESPERSAMPLE,  byref(lBytesPerSample))
+            #lSetChannels = int32 (0)
+            #spcm_dwGetParam_i32 (hCard, SPC_CHCOUNT, byref (lSetChannels))
+
+            # MaxDACValue corresponds to the amplitude of the output signal; MaxDACValue - Amplitude and so on
+            lMaxDACValue = int32 (0)
+            spcm_dwGetParam_i32 (self.hCard, SPC_MIINST_MAXADCVALUE, byref(lMaxDACValue))
+            lMaxDACValue.value = lMaxDACValue.value - 1
+
+            if lMaxDACValue.value == maxCAD:
+                pass
+            else:
+                general.message('maxCAD value does not equal to lMaxDACValue.value')
+                sys.exit()
+
+            spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
+
+        elif test_flag == 'test':
+            # to run several important checks
+            if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1 or self.sequence_mode_count == 1:
+                if self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 0:
+                    self.buf = self.define_buffer_single()[0]
+                elif self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 1:
+                    self.buf = self.define_buffer_single_joined()[0]
+                elif self.card_mode == 512 and self.sequence_mode == 0:
+                    self.buf = self.define_buffer_multi()[0]
+            else:
+                pass
 
     def awg_update(self):
         """
@@ -177,77 +282,24 @@ class Spectrum_M4I_6631_X8:
         if test_flag != 'test':
 
             if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1 or self.sequence_mode_count == 1:
-                # open card
-                hCard = spcm_hOpen (create_string_buffer (b'/dev/spcm0'))
-                if hCard == None:
-                    general.message("No card found...")
-                    sys.exit()
-
-                # general parameters of the card; internal/external clock
-                if self.clock_mode == 1:
-                    spcm_dwSetParam_i64 (hCard, SPC_SAMPLERATE, MEGA(self.sample_rate))
-                elif self.clock_mode == 32:
-                    spcm_dwSetParam_i32 (hCard, SPC_CLOCKMODE, self.clock_mode)
-                    spcm_dwSetParam_i64 (hCard, SPC_REFERENCECLOCK, MEGA(self.reference_clock))
-                    spcm_dwSetParam_i64 (hCard, SPC_SAMPLERATE, MEGA(self.sample_rate))
 
                 # change card mode and memory
                 if self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 0:
-                    buf = self.define_buffer_single()[0]
-                    spcm_dwSetParam_i32(hCard, SPC_CARDMODE, self.card_mode)
-                    spcm_dwSetParam_i32(hCard, SPC_MEMSIZE, self.memsize)
+                    self.buf = self.define_buffer_single()[0]
+                    spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, self.memsize)
                 elif self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 1:
-                    buf = self.define_buffer_single_joined()[0]
-                    spcm_dwSetParam_i32(hCard, SPC_CARDMODE, self.card_mode)
-                    spcm_dwSetParam_i32(hCard, SPC_MEMSIZE, self.memsize)                    
+                    #start_time = time.time()
+                    self.buf = self.define_buffer_single_joined()[0]
+                    #general.message('BUFFER TIME: ' + str( time.time() - start_time ))
+                    spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, self.memsize)
                 elif self.card_mode == 512 and self.sequence_mode == 0:
-                    buf = self.define_buffer_multi()[0]
-                    spcm_dwSetParam_i32(hCard, SPC_CARDMODE, self.card_mode)
-                    spcm_dwSetParam_i32(hCard, SPC_MEMSIZE, self.memsize)
-                    spcm_dwSetParam_i32(hCard, SPC_SEGMENTSIZE, self.segment_memsize)
+                    self.buf = self.define_buffer_multi()[0]
+                    spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, self.memsize)
+                    spcm_dwSetParam_i32(self.hCard, SPC_SEGMENTSIZE, self.segment_memsize)
                 elif self.sequence_mode == 1:
-                    #self.full_buffer
-                    # 262144 is SPC_REP_STD_SEQUENCE 262144
-                    spcm_dwSetParam_i32( hCard, SPC_CARDMODE, SPC_REP_STD_SEQUENCE )
-                    spcm_dwSetParam_i32( hCard, SPC_SEQMODE_MAXSEGMENTS, int32(self.sequence_segments) )
-                    spcm_dwSetParam_i32( hCard, SPC_SEQMODE_STARTSTEP, 0 ) # Step#0 is the first step after card start
-
-
-                # trigger
-                spcm_dwSetParam_i32(hCard, SPC_TRIG_ORMASK, self.trigger_ch) # software / external
-                if self.trigger_ch == 2:
-                    spcm_dwSetParam_i32(hCard, SPC_TRIG_EXT0_MODE, self.trigger_mode)
-                
-                # loop
-                spcm_dwSetParam_i32(hCard, SPC_LOOPS, self.loop)
-                
-                # trigger delay
-                spcm_dwSetParam_i32( hCard, SPC_TRIG_DELAY, int(self.delay) )
-
-                # set the output channels
-                spcm_dwSetParam_i32 (hCard, SPC_CHENABLE, self.channel)
-                spcm_dwSetParam_i32 (hCard, SPC_ENABLEOUT0, self.enable_out_0)
-                spcm_dwSetParam_i32 (hCard, SPC_ENABLEOUT1, self.enable_out_1)
-                spcm_dwSetParam_i32 (hCard, SPC_AMP0, int32 (self.amplitude_0))
-                spcm_dwSetParam_i32 (hCard, SPC_AMP1, int32 (self.amplitude_1))
-
-                # define the memory size / max amplitude
-                #llMemSamples = int64 (self.memsize)
-                #lBytesPerSample = int32(0)
-                #spcm_dwGetParam_i32 (hCard, SPC_MIINST_BYTESPERSAMPLE,  byref(lBytesPerSample))
-                #lSetChannels = int32 (0)
-                #spcm_dwGetParam_i32 (hCard, SPC_CHCOUNT, byref (lSetChannels))
-
-                # MaxDACValue corresponds to the amplitude of the output signal; MaxDACValue - Amplitude and so on
-                lMaxDACValue = int32 (0)
-                spcm_dwGetParam_i32 (hCard, SPC_MIINST_MAXADCVALUE, byref(lMaxDACValue))
-                lMaxDACValue.value = lMaxDACValue.value - 1
-
-                if lMaxDACValue.value == maxCAD:
                     pass
-                else:
-                    general.message('maxCAD value does not equal to lMaxDACValue.value')
-                    sys.exit()
+
+                spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
 
                 # define the buffer
                 #pnBuffer = c_void_p()
@@ -265,9 +317,9 @@ class Spectrum_M4I_6631_X8:
                     # we define the buffer for transfer and start the DMA transfer
                     #sys.stdout.write("Starting the DMA transfer and waiting until data is in board memory\n")
                     # spcm_dwDefTransfer_i64 (device, buffer_type, direction, event (0=and of transfer), data, offset, buffer length)
-                    spcm_dwDefTransfer_i64 (hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), buf, uint64 (0), self.qwBufferSize.value)
+                    spcm_dwDefTransfer_i64 (self.hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), self.buf, uint64 (0), self.qwBufferSize.value)
                     # transfer
-                    spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
+                    spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
                     general.message("AWG buffer has been transferred to board memory")
 
                 elif self.card_mode == 512 and self.sequence_mode == 0:
@@ -278,9 +330,9 @@ class Spectrum_M4I_6631_X8:
                     # we define the buffer for transfer and start the DMA transfer
                     #sys.stdout.write("Starting the DMA transfer and waiting until data is in board memory\n")
                     # spcm_dwDefTransfer_i64 (device, buffer_type, direction, event (0=and of transfer), data, offset, buffer length)
-                    spcm_dwDefTransfer_i64 (hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), buf, uint64 (0), self.qwBufferSize.value)
+                    spcm_dwDefTransfer_i64 (self.hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), self.buf, uint64 (0), self.qwBufferSize.value)
                     # transfer
-                    spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
+                    spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
                     general.message("AWG buffer has been transferred to board memory")
 
                 elif self.sequence_mode == 1:
@@ -291,25 +343,25 @@ class Spectrum_M4I_6631_X8:
 
                     for index, element in enumerate(self.full_buffer_pointer):
                         # Setting up the data memory and transfer data
-                        spcm_dwSetParam_i32 (hCard, SPC_SEQMODE_WRITESEGMENT, index) # set current configuration switch to segment
+                        spcm_dwSetParam_i32 (self.hCard, SPC_SEQMODE_WRITESEGMENT, index) # set current configuration switch to segment
                         
                         ###
                         ###
                         #seg_memory should be rounded to 32, which means repetition rate should be dividable by 32
                         ###
                         ###
-                        spcm_dwSetParam_i64 (hCard, SPC_SEQMODE_SEGMENTSIZE, seg_memory ) # define size of current segment
+                        spcm_dwSetParam_i64 (self.hCard, SPC_SEQMODE_SEGMENTSIZE, seg_memory ) # define size of current segment
 
                         # data transfer #self.full_buffer_pointer[index]
-                        spcm_dwDefTransfer_i64 (hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), element, uint64 (0), self.qwBufferSize.value)
-                        spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
+                        spcm_dwDefTransfer_i64 (self.hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), element, uint64 (0), self.qwBufferSize.value)
+                        spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
                         #general.message("AWG buffer has been transferred to board memory")
 
                         # self.vWriteStepEntry (hCard, dwStepIndex, dwStepNextIndex, dwSegmentIndex, dwLoops, dwFlags)
                         if index <= self.sequence_segments - 2:
-                            self.write_seg_memory (hCard,  index,  index + 1, index, self.sequence_loop,  0) #0
+                            self.write_seg_memory (self.hCard,  index,  index + 1, index, self.sequence_loop,  0) #0
                         elif index == self.sequence_segments - 1:
-                            self.write_seg_memory (hCard,  index, 0, index, self.sequence_loop,  2147483648)
+                            self.write_seg_memory (self.hCard,  index, 0, index, self.sequence_loop,  2147483648)
 
                         # SPCSEQ_ENDLOOPONTRIG = 1073741824
                         # Feature flag that marks the step to conditionally change to the next step on a trigger condition. The occurrence
@@ -320,12 +372,12 @@ class Spectrum_M4I_6631_X8:
                         # ment after the loop counter has reached his end.
 
                 # We'll start and wait until the card has finished or until a timeout occurs
-                dwError = spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_CARD_START | M2CMD_CARD_ENABLETRIGGER | M2CMD_CARD_WAITTRIGGER)
+                dwError = spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_START | M2CMD_CARD_ENABLETRIGGER | M2CMD_CARD_WAITTRIGGER)
                 # test or error message
-                general.message(dwError)
+                #general.message(dwError)
 
                 # clean up
-                spcm_vClose (hCard)
+                #spcm_vClose (hCard)
 
                 self.reset_count = 1
                 self.shift_count = 0
@@ -340,11 +392,11 @@ class Spectrum_M4I_6631_X8:
             # to run several important checks
             if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1 or self.sequence_mode_count == 1:
                 if self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 0:
-                    buf = self.define_buffer_single()[0]
+                    self.buf = self.define_buffer_single()[0]
                 elif self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 1:
-                    buf = self.define_buffer_single_joined()[0]
+                    self.buf = self.define_buffer_single_joined()[0]
                 elif self.card_mode == 512 and self.sequence_mode == 0:
-                    buf = self.define_buffer_multi()[0]
+                    self.buf = self.define_buffer_multi()[0]
 
                 self.reset_count = 1
                 self.shift_count = 0
@@ -355,6 +407,17 @@ class Spectrum_M4I_6631_X8:
             else:
                 pass
 
+    def awg_close(self):
+        """
+        Close AWG card. No argument; No output
+        """
+        if test_flag != 'test':
+            # clean up
+            spcm_vClose (self.hCard)
+
+        elif test_flag == 'test':
+            pass
+
     def awg_stop(self):
         """
         Stop AWG card. No argument; No output
@@ -362,17 +425,14 @@ class Spectrum_M4I_6631_X8:
         if test_flag != 'test':
 
             # open card
-            hCard = spcm_hOpen( create_string_buffer (b'/dev/spcm0') )
-            if hCard == None:
-                general.message("No card found...")
-                sys.exit()
-
-            spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_CARD_STOP)
-
-            # clean up
-            spcm_vClose (hCard)
-
+            #hCard = spcm_hOpen( create_string_buffer (b'/dev/spcm0') )
+            #if hCard == None:
+            #    general.message("No card found...")
+            #    sys.exit()
+            spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_STOP)
             general.message('AWG card stopped')
+            # for correct work with awg_update() is called without length or start arguments changed
+            self.reset_count = 0
 
         elif test_flag == 'test':
             pass
@@ -1611,20 +1671,18 @@ class Spectrum_M4I_6631_X8:
             self.setting_change_count = 1
 
             if len(amplitude) == 2:
-                temp = delay[0].split(' ')
-                ch = str(temp[0])
-                ampl = int(temp[1])
+                ch = str(amplitude[0])
+                ampl = int(amplitude[1])
                 if ch == 'CH0':
                     self.amplitude_0 = ampl
                 elif ch == 'CH1':
                     self.amplitude_1 = ampl
             
             elif len(amplitude) == 4:
-                temp = delay[0].split(' ')
-                ch1 = str(temp[0])
-                ampl1 = int(temp[1])
-                ch2 = str(temp[2])
-                ampl2 = int(temp[3])
+                ch1 = str(amplitude[0])
+                ampl1 = int(amplitude[1])
+                ch2 = str(amplitude[2])
+                ampl2 = int(amplitude[3])
                 if ch1 == 'CH0':
                     self.amplitude_0 = ampl1
                 elif ch1 == 'CH1':
@@ -1645,9 +1703,8 @@ class Spectrum_M4I_6631_X8:
             self.setting_change_count = 1
 
             if len(amplitude) == 2:
-                temp = delay[0].split(' ')
-                ch = str(temp[0])
-                ampl = int(temp[1])
+                ch = str(amplitude[0])
+                ampl = int(amplitude[1])
                 assert(ch == 'CH0' or ch == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
                 assert( ampl >= amplitude_min and ampl <= amplitude_max ), "Incorrect amplitude; Should be 80 <= amplitude <= 2500"
                 if ch == 'CH0':
@@ -1656,11 +1713,10 @@ class Spectrum_M4I_6631_X8:
                     self.amplitude_1 = ampl
             
             elif len(amplitude) == 4:
-                temp = delay[0].split(' ')
-                ch1 = str(temp[0])
-                ampl1 = int(temp[1])
-                ch2 = str(temp[2])
-                ampl2 = int(temp[3])
+                ch1 = str(amplitude[0])
+                ampl1 = int(amplitude[1])
+                ch2 = str(amplitude[2])
+                ampl2 = int(amplitude[3])
                 assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel 1; Should be CH0 or CH1"
                 assert( ampl1 >= amplitude_min and ampl1 <= amplitude_max ), "Incorrect amplitude 1; Should be 80 <= amplitude <= 2500"
                 assert(ch2 == 'CH0' or ch2 == 'CH1'), "Incorrect channel 2; Should be CH0 or CH1"
@@ -1681,7 +1737,7 @@ class Spectrum_M4I_6631_X8:
             else:
                 assert( 1 == 2 ), 'Incorrect arguments'
 
-    #UPDATE
+    #CHECK
     def awg_pulse_list(self):
         """
         Function for saving a pulse list from 
@@ -1689,10 +1745,18 @@ class Spectrum_M4I_6631_X8:
         header of the experimental data
         """
         pulse_list_mod = ''
-        for element in self.pulse_array:
-            pulse_list_mod = pulse_list_mod + str(element) + '\n'
+        pulse_list_mod = pulse_list_mod + 'AWG card mode: ' + str( self.card_mode ) + '\n'
 
-        return pulse_list_mod
+        if  self.sequence_mode == 0:
+            for element in self.pulse_array:
+                pulse_list_mod = pulse_list_mod + str(element) + '\n'
+
+            return pulse_list_mod
+
+        elif  self.sequence_mode == 1:
+            pulse_list_mod = pulse_list_mod + str(arguments_array) + '\n'
+
+            return pulse_list_mod
 
     def awg_visualize(self):
         """
@@ -1840,7 +1904,7 @@ class Spectrum_M4I_6631_X8:
             elif self.full_buffer != 0:
                 assert( 1 == 2 ), 'No pulse sequence is defined'
 
-    # ADD repetition rate; check segment size as not a power of two!!!
+    # ADD repetition rate
     def awg_pulse_sequence(self, *, pulse_type, pulse_start, pulse_delta_start,\
                             pulse_length, pulse_phase, pulse_sigma, pulse_frequency, number_of_points, loop, rep_rate):
         """
@@ -2888,8 +2952,7 @@ class Spectrum_M4I_6631_X8:
 
         # pulses are in a form [channel_number, function, frequency, phase, length, sigma, start, delta_start, mode] 
         #                      [0,               1,          2,      3,      4,      5,      6,      7,        8   ]
-        self.memsize, pulses = self.preparing_buffer_single()
-        
+        self.memsize, pulses = self.preparing_buffer_single() # 0.2-0.3 ms
         # only ch0 pulses are analyzed
         # ch1 will be generated automatically with shifted phase
         # approach is similar to awg_pulse_sequence()
@@ -2945,7 +3008,7 @@ class Spectrum_M4I_6631_X8:
             # run over defined pulses inside a sequence point
             for index, element in enumerate(arguments_array[0]):
                 # for DEER pulse with random phase
-                rnd_phase = 2*pi*random.random()
+                #rnd_phase = 2*pi*random.random()
 
                 if element == 0: # 'SINE'
                     for i in range(pulse_start_smp[index], self.memsize):
@@ -2955,12 +3018,12 @@ class Spectrum_M4I_6631_X8:
                             elif ( i >= ( pulse_start_smp[index] ) and \
                                    i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                                 
-                                if pulse_phase_np[index] != 1000:
-                                    pnBuffer[i] = int( maxCAD * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+                                #if pulse_phase_np[index] != 1000:
+                                pnBuffer[i] = int( maxCAD * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
 
-                                else:
+                                #else:
                                     #self.full_buffer[point, i] 
-                                    pnBuffer[i] = int( maxCAD * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + rnd_phase) )
+                                #    pnBuffer[i] = int( maxCAD * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + rnd_phase) )
                             else:
                                 break
 
@@ -2974,16 +3037,16 @@ class Spectrum_M4I_6631_X8:
                             elif ( i >= ( pulse_start_smp[index] ) and \
                                    i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                                 
-                                if pulse_phase_np[index] != 1000:
+                                #if pulse_phase_np[index] != 1000:
                                     #self.full_buffer[point, i] 
-                                    pnBuffer[i] = int( maxCAD * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                pnBuffer[i] = int( maxCAD * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                                                             sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
 
-                                else:
+                                #else:
                                     #self.full_buffer[point, i] 
-                                    pnBuffer[i] = int( maxCAD * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                                            sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
-                                                            rnd_phase) )
+                                #    pnBuffer[i] = int( maxCAD * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                #                            sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                #                            rnd_phase) )
                             else:
                                 break
 
@@ -2997,16 +3060,16 @@ class Spectrum_M4I_6631_X8:
                             elif ( i >= ( pulse_start_smp[index] ) and \
                                    i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                                 
-                                if pulse_phase_np[index] != 1000:
+                                #if pulse_phase_np[index] != 1000:
                                     #self.full_buffer[point, i] 
-                                    pnBuffer[i] = int( maxCAD * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                pnBuffer[i] = int( maxCAD * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
                                                             sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
 
-                                else:
+                                #else:
                                     #self.full_buffer[point, i]
-                                    pnBuffer[i] = int( maxCAD * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                                            sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
-                                                            rnd_phase) )
+                                #    pnBuffer[i] = int( maxCAD * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                #                            sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                #                            rnd_phase) )
                             else:
                                 break
 
@@ -3015,8 +3078,9 @@ class Spectrum_M4I_6631_X8:
 
             return pvBuffer, pnBuffer
 
-        elif self.channel == 3 and self.single_joined == 1:
 
+        elif self.channel == 3 and self.single_joined == 1:
+            # 1-2 ms per pulse
             # define the buffer
             pnBuffer = c_void_p()
             self.qwBufferSize = uint64 (2 * self.memsize * 2)  # buffer size for two channels
@@ -3026,7 +3090,7 @@ class Spectrum_M4I_6631_X8:
             # run over defined pulses inside a sequence point
             for index, element in enumerate(arguments_array[0]):
                 # DEER pulse
-                rnd_phase = 2*pi*random.random()
+                #rnd_phase = 2*pi*random.random()
 
                 if element == 0: #'SINE'
                     for i in range(2 * (pulse_start_smp[index] ), 2*self.memsize, 2):
@@ -3035,21 +3099,21 @@ class Spectrum_M4I_6631_X8:
                             elif ( i >= 2 * ( pulse_start_smp[index] ) and \
                                    i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                                 
-                                if pulse_phase_np[index] != 1000:
+                                #if pulse_phase_np[index] != 1000:
                                     #self.full_buffer[point, i] 
-                                    # ch0
-                                    pnBuffer[i] = int( maxCAD * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
-                                    #ch1
-                                    pnBuffer[i + 1] = int( maxCAD * sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                # ch0
+                                pnBuffer[i] = int( maxCAD * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+                                #ch1
+                                pnBuffer[i + 1] = int( maxCAD * sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
                                                              phase_shift_ch1_seq_mode) )
 
-                                else:
+                                #else:
                                     #self.full_buffer[point, i]
                                     # ch0
-                                    pnBuffer[i] = int( maxCAD * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase) )
+                                    #pnBuffer[i] = int( maxCAD * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase) )
                                     #ch1
-                                    pnBuffer[i + 1] = int( maxCAD * sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase + \
-                                                             phase_shift_ch1_seq_mode) )
+                                    #pnBuffer[i + 1] = int( maxCAD * sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase + \
+                                    #                         phase_shift_ch1_seq_mode) )
                             else:
                                 break
 
@@ -3064,25 +3128,25 @@ class Spectrum_M4I_6631_X8:
                             elif ( i >= 2 * ( pulse_start_smp[index] ) and \
                                    i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                                 
-                                if pulse_phase_np[index] != 1000:
+                                #if pulse_phase_np[index] != 1000:
                                     #self.full_buffer[point, i]
-                                    # ch0
-                                    pnBuffer[i] = int( maxCAD * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                # ch0
+                                pnBuffer[i] = int( maxCAD * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                                                             sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
-                                    #ch1
-                                    pnBuffer[i + 1] = int( maxCAD * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                #ch1
+                                pnBuffer[i + 1] = int( maxCAD * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                                                             sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
                                                             phase_shift_ch1_seq_mode) )
 
-                                else:
+                                #else:
                                     #self.full_buffer[point, i]
                                     # ch0
-                                    pnBuffer[i] = int( maxCAD * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                                            sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase ) )
+                                #    pnBuffer[i] = int( maxCAD * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                #                            sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase ) )
                                     #ch1
-                                    pnBuffer[i + 1] = int( maxCAD * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                                            sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase +\
-                                                            phase_shift_ch1_seq_mode) )                                    
+                                #    pnBuffer[i + 1] = int( maxCAD * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                #                            sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase +\
+                                #                            phase_shift_ch1_seq_mode) )                                    
 
                             else:
                                 break
@@ -3098,23 +3162,23 @@ class Spectrum_M4I_6631_X8:
                             elif ( i >= 2 * ( pulse_start_smp[index] ) and \
                                    i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                                 
-                                if pulse_phase_np[index] != 1000:
+                                #if pulse_phase_np[index] != 1000:
                                     #self.full_buffer[point, i]
-                                    # ch0
-                                    pnBuffer[i] = int( maxCAD * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                # ch0
+                                pnBuffer[i] = int( maxCAD * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
                                                              sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
-                                    #ch1
-                                    pnBuffer[i + 1] = int( maxCAD * np.sinc(2*(( ( i  )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                #ch1
+                                pnBuffer[i + 1] = int( maxCAD * np.sinc(2*(( ( i  )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
                                                              sin(2*pi*(( ( i  )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
                                                              phase_shift_ch1_seq_mode) )
-                                else:
+                                #else:
                                     #self.full_buffer[point, i]
                                     # ch0
-                                    pnBuffer[i] = int( maxCAD * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                                             sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase) )
-                                    pnBuffer[i + 1] = int( maxCAD * np.sinc(2*(( ( i )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                                             sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
-                                                             phase_shift_ch1_seq_mode + rnd_phase) )
+                                #    pnBuffer[i] = int( maxCAD * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                #                             sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase) )
+                                #    pnBuffer[i + 1] = int( maxCAD * np.sinc(2*(( ( i )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                #                             sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                #                             phase_shift_ch1_seq_mode + rnd_phase) )
                             else:
                                 break
                 
@@ -3122,8 +3186,7 @@ class Spectrum_M4I_6631_X8:
                     pass
 
             return pvBuffer, pnBuffer
-
-
+    
 def main():
     pass
 
