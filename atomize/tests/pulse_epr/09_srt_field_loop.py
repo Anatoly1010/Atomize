@@ -55,6 +55,7 @@ class MainWindow(QWidget):
             # Settings, connection of functions, adding of widgets to layouts
             i = 0;
             while i < len(sb_list):
+                sb_list[i].setKeyboardTracking(0)
                 sb_list[i].setRange(10, 9000) # range of QSpinBox; it is important to set correct range here,
                 # since intrnal parameter tests cannot work in scripts with GUI
                 sb_list[i].setSingleStep(10) # step of QSpinBox
@@ -67,7 +68,7 @@ class MainWindow(QWidget):
                 i = i + 1;
 
             # small field step
-            sb_list[2].setRange(1000, 5000) # step of QSpinBox
+            sb_list[2].setRange(0, 5000) # step of QSpinBox
             sb_list[2].setSingleStep(0.5) # step of QSpinBox
 
             i = 0;
