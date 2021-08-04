@@ -220,6 +220,7 @@ class Spectrum_M4I_6631_X8:
 
 
             # trigger
+            spcm_dwSetParam_i32(self.hCard, SPC_TRIG_TERM, 1) # 50 Ohm trigger load
             spcm_dwSetParam_i32(self.hCard, SPC_TRIG_ORMASK, self.trigger_ch) # software / external
             if self.trigger_ch == 2:
                 spcm_dwSetParam_i32(self.hCard, SPC_TRIG_EXT0_MODE, self.trigger_mode)
@@ -272,7 +273,6 @@ class Spectrum_M4I_6631_X8:
     def awg_update(self):
         """
         Start AWG card. No argument; No output
-        A big function that write all the settings into AWG card.
         Default settings:
         Sample clock is 1250 MHz; Clock mode is 'Internal'; Reference clock is 100 MHz; Card mode is 'Single';
         Trigger channel is 'External'; Trigger mode is 'Positive'; Loop is infinity; Trigger delay is 0;
@@ -347,7 +347,7 @@ class Spectrum_M4I_6631_X8:
                         
                         ###
                         ###
-                        #seg_memory should be rounded to 32, which means repetition rate should be dividable by 32
+                        #seg_memory should be rounded to 32, which means repetition rate should be divisible by 32
                         ###
                         ###
                         spcm_dwSetParam_i64 (self.hCard, SPC_SEQMODE_SEGMENTSIZE, seg_memory ) # define size of current segment
@@ -430,8 +430,8 @@ class Spectrum_M4I_6631_X8:
             #    general.message("No card found...")
             #    sys.exit()
             spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_STOP)
-            general.message('AWG card stopped')
-            # for correct work with awg_update() is called without length or start arguments changed
+            #general.message('AWG card stopped')
+            # for correct work awg_update() is called without length or start arguments changed
             self.reset_count = 0
 
         elif test_flag == 'test':
@@ -1311,7 +1311,7 @@ class Spectrum_M4I_6631_X8:
                 if rate <= sample_rate_max and rate >= sample_rate_min:
                     self.sample_rate = rate
                 else:
-                    general.message('Incorrect sample rate; Should be 1250 <= Rate <= 50')
+                    general.message('Incorrect sample rate; Should be 1250 MHz <= Rate <= 50 MHz')
                     sys.exit()
 
             elif len(s_rate) == 0:
@@ -1322,7 +1322,7 @@ class Spectrum_M4I_6631_X8:
 
             if len(s_rate) == 1:
                 rate = int(s_rate[0])
-                assert(rate <= sample_rate_max and rate >= sample_rate_min), "Incorrect sample rate; Should be 1250 <= Rate <= 50"
+                assert(rate <= sample_rate_max and rate >= sample_rate_min), "Incorrect sample rate; Should be 1250 MHz <= Rate <= 50 MHz"
                 self.sample_rate = rate
 
             elif len(s_rate) == 0:
@@ -1387,7 +1387,7 @@ class Spectrum_M4I_6631_X8:
                 if rate <= sample_ref_clock_max and rate >= sample_ref_clock_min:
                     self.reference_clock = rate
                 else:
-                    general.message('Incorrect reference clock; Should be 1000 <= Clock <= 10')
+                    general.message('Incorrect reference clock; Should be 1000 MHz <= Clock <= 10 MHz')
                     sys.exit()
 
             elif len(ref_clock) == 0:
@@ -1398,7 +1398,7 @@ class Spectrum_M4I_6631_X8:
 
             if len(ref_clock) == 1:
                 rate = int(ref_clock[0])
-                assert(rate <= sample_ref_clock_max and rate >= sample_ref_clock_min), "Incorrect reference clock; Should be 1000 <= Clock <= 10"
+                assert(rate <= sample_ref_clock_max and rate >= sample_ref_clock_min), "Incorrect reference clock; Should be 1000 MHz <= Clock <= 10 MHz"
                 self.reference_clock = rate
 
             elif len(ref_clock) == 0:
@@ -1605,7 +1605,7 @@ class Spectrum_M4I_6631_X8:
         """
         Set or query trigger delay;
         Input: awg_trigger_delay('100 ns'); delay in [ms, us, ns]
-        Step is 32 sample clock; will be rounded if input is not dividable by 32 sample clock
+        Step is 32 sample clock; will be rounded if input is not divisible by 32 sample clock
         Default: 0 ns;
         Output: '100 ns'
         """
@@ -1622,7 +1622,7 @@ class Spectrum_M4I_6631_X8:
                     # trigger delay in samples; maximum is 8589934560, step is 32
                     del_in_sample = int( delay_num*flag*self.sample_rate / 1000 )
                     if del_in_sample % 32 != 0:
-                        general.message('Delay should be dividable by 25.6 ns; The closest avalaibale number is used')
+                        general.message('Delay should be divisible by 32 samples (25.6 ns at 1.250 GHz); The closest avalaibale number is used')
                         self.delay = int( 32*(del_in_sample // 32) )
                     else:
                         self.delay = del_in_sample
@@ -1947,7 +1947,7 @@ class Spectrum_M4I_6631_X8:
             seq_rep_rate = int( ( 10**9 / (arguments_array[9])) * self.sample_rate/1000 )
             if seq_rep_rate % 32 != 0:
                 seq_rep_rate = int( 32*(seq_rep_rate // 32) )
-                general.message('Delay should be dividable by 25.6 ns; The closest avalaibale number is used: ' + str(1/(seq_rep_rate*0.8*10**-9)) + ' Hz' )
+                general.message('Delay should be divisible by 25.6 ns; The closest avalaibale number is used: ' + str(1/(seq_rep_rate*0.8*10**-9)) + ' Hz' )
 
             # convert phase list to radians
             pulse_phase_converted = []
