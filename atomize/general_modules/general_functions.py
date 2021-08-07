@@ -10,7 +10,7 @@ import configparser
 from atomize.main.client import LivePlotClient
 #from liveplot import LivePlotClient
 
-time_dict = {'ks': 0.001, 's': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000, 'ps': 1000000000000, };
+time_dict = {'ks': 0.001, 's': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000, 'ps': 1000000000000, }
 
 # Test run parameters
 if len(sys.argv) > 1:
@@ -110,6 +110,12 @@ def plot_remove(strname):
 
     elif test_flag == 'test':
         pass
+
+def round_to_closest(x, y):
+    """
+    A function to round x to divisible by y
+    """
+    return int( y * ( ( x // y) + (x % y > 0) ) )
 
 def bot_message(*text):
     import telebot

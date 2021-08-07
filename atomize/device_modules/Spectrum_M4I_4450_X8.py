@@ -4,7 +4,8 @@
 import os
 import sys
 ###AWG
-sys.path.append('/home/anatoly/AWG/spcm_examples/python')
+#sys.path.append('/home/anatoly/AWG/spcm_examples/python')
+sys.path.append('/home/anatoly/awg_files/python')
 #sys.path.append('C:/Users/User/Desktop/Examples/python')
 import numpy as np
 import atomize.device_modules.config.config_utils as cutil
@@ -27,9 +28,13 @@ specific_parameters = cutil.read_specific_parameters(path_config_file)
 
 timebase_dict = {'ms': 1000000, 'us': 1000, 'ns': 1, }
 channel_dict = {'CH0': 0, 'CH1': 1, }
+coupling_dict = {'DC': 0, 'AC': 1, }
+impedance_dict = {'1 M': 0, '50': 1, }
 sample_rate_list = [1907, 3814, 7629, 15258, 30517, 61035, 122070, 244140, 488281, 976562, \
                     1953125, 3906250, 7812500, 15625000, 31250000, 62500000, 125000000, \
                     250000000, 500000000]
+hf_mode_range_list = [500, 1000, 2500, 5000]
+buffered_mode_range_list = [200, 500, 1000, 2000, 5000, 10000]
 
 # Limits and Ranges (depends on the exact model):
 #clock = float(specific_parameters['clock'])
@@ -39,8 +44,8 @@ sample_rate_list = [1907, 3814, 7629, 15258, 30517, 61035, 122070, 244140, 48828
 # lMaxDACValue = int32 (0)
 # spcm_dwGetParam_i32 (hCard, SPC_MIINST_MAXADCVALUE, byref(lMaxDACValue))
 # lMaxDACValue.value = lMaxDACValue.value - 1
-maxCAD = 8191 # MaxCADValue of the AWG card - 1
-minCAD = -8192
+#maxCAD = 8191 # MaxCADValue of the AWG card - 1
+#minCAD = -8192
 amplitude_max = 2500 # mV
 amplitude_min = 80 # mV
 sample_rate_max = 500 # MHz
@@ -69,16 +74,20 @@ test_trigger_mode = 'Positive'
 test_averages = 10
 test_delay = 0
 test_channel = 'CH0'
-test_amplitude = '600 mV'
+test_amplitude = 'CH0: 500 mV; CH1: 500 mV'
 test_num_segments = 1
 test_points = 128
 test_posttrig_points = 64
+test_input_mode = 'HF'
+test_offset = 'CH0: 10'
+test_coupling = 'CH0: DC'
+test_impedance = 'CH0: 50'
 
 class Spectrum_M4I_4450_X8:
     def __init__(self):
         if test_flag != 'test':
 
-            # Collect all parameters for AWG settings
+            # Collect all parameters for digitizer settings
             self.sample_rate = 500 # MHz
             self.clock_mode = 1 # 1 is Internal; 32 is External
             self.reference_clock = 100 # MHz
@@ -91,9 +100,17 @@ class Spectrum_M4I_4450_X8:
             self.points = 128 # number of points
             self.posttrig_points = 64 # number of posttrigger points
 
-            self.amplitude_0 = 600 # amlitude for CH0 in mV
-            self.amplitude_1 = 533 # amlitude for CH0 in mV
-            self.num_segments = 1 # number of segments for 'Multi mode'
+            self.input_mode = 1 # 1 is HF mode; 0 is Buffered
+            self.amplitude_0 = 500 # amlitude for CH0 in mV
+            self.amplitude_1 = 500 # amlitude for CH1 in mV
+            self.offset_0 = 0 # offset for CH0 in percentage
+            self.offset_1 = 0 # offset for CH1 in percentage
+            self.coupling_0 = 0 # coupling for CH0; AC is 1; DC is 0
+            self.coupling_1 = 0 # coupling for CH1
+            self.impedance_0 = 1 # impedance for CH0; 1 M is 0; 50 is 0
+            self.impedance_1 = 1 # impedance for CH1;
+
+            self.num_segments = 1 # number of segments for 'Average mode'
             
             # change of settings
             self.setting_change_count = 0
@@ -102,7 +119,7 @@ class Spectrum_M4I_4450_X8:
             self.state = 0
 
         elif test_flag == 'test':
-            # Collect all parameters for AWG settings
+            # Collect all parameters for digitizer settings
             self.sample_rate = 500 
             self.clock_mode = 1
             self.reference_clock = 100
@@ -115,8 +132,16 @@ class Spectrum_M4I_4450_X8:
             self.points = 128
             self.posttrig_points = 64
 
-            self.amplitude_0 = 600
-            self.amplitude_1 = 533
+            self.input_mode = 1
+            self.amplitude_0 = 500
+            self.amplitude_1 = 500
+            self.offset_0 = 0
+            self.offset_1 = 0
+            self.coupling_0 = 0
+            self.coupling_1 = 0
+            self.impedance_0 = 1
+            self.impedance_1 = 1
+
             self.num_segments = 1
 
             # change of settings
@@ -152,7 +177,7 @@ class Spectrum_M4I_4450_X8:
             spcm_dwSetParam_i32 (self.hCard, SPC_TIMEOUT, 10000) 
             # general parameters of the card; internal/external clock
             if self.clock_mode == 1:
-                er = spcm_dwSetParam_i64 (self.hCard, SPC_SAMPLERATE, int( 1000000 * self.sample_rate ))
+                spcm_dwSetParam_i64 (self.hCard, SPC_SAMPLERATE, int( 1000000 * self.sample_rate ))
             elif self.clock_mode == 32:
                 spcm_dwSetParam_i32 (self.hCard, SPC_CLOCKMODE, self.clock_mode)
                 spcm_dwSetParam_i64 (self.hCard, SPC_REFERENCECLOCK, MEGA(self.reference_clock))
@@ -165,9 +190,14 @@ class Spectrum_M4I_4450_X8:
                 spcm_dwSetParam_i32(self.hCard, SPC_POSTTRIGGER, self.posttrig_points)
             elif self.card_mode == 131072:
                 spcm_dwSetParam_i32(self.hCard, SPC_CARDMODE, self.card_mode)
-                # TO DO:
-                spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, self.points)
+                # TO CHECK:
+                spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, int( self.points * self.num_segments ) )
+                # segment size should be multiple of memory size
+                spcm_dwSetParam_i32(self.hCard, SPC_SEGMENTSIZE, self.points)
                 spcm_dwSetParam_i32(self.hCard, SPC_POSTTRIGGER, self.posttrig_points)
+                spcm_dwSetParam_i32(self.hCard, SPC_SEGMENTSIZE, self.aver)
+                # SPC_LOOPS ?? page 181
+
 
             # trigger
             spcm_dwSetParam_i32(self.hCard, SPC_TRIG_TERM, 1) # 50 Ohm trigger load
@@ -182,10 +212,26 @@ class Spectrum_M4I_4450_X8:
             spcm_dwSetParam_i32( self.hCard, SPC_TRIG_DELAY, int(self.delay) )
 
             # set the output channels
+            spcm_dwSetParam_i32 (self.hCard, SPC_PATH0, self.input_mode)
+            spcm_dwSetParam_i32 (self.hCard, SPC_PATH1, self.input_mode)
             spcm_dwSetParam_i32 (self.hCard, SPC_CHENABLE, self.channel)
-            # TO DO
-            spcm_dwSetParam_i32 (self.hCard, SPC_AMP0, int32 (1000))
-            spcm_dwSetParam_i32 (self.hCard, SPC_AMP1, int32 (1000))
+            spcm_dwSetParam_i32 (self.hCard, SPC_AMP0, self.amplitude_0)
+            spcm_dwSetParam_i32 (self.hCard, SPC_AMP1, self.amplitude_1)
+
+            if ( self.amplitude_0 != 1000 or self.amplitude_0 != 10000 ) and self.input_mode == 0:
+                spcm_dwSetParam_i32 (self.hCard, SPC_OFFS0, -self.offset_0 )
+                spcm_dwSetParam_i32 (self.hCard, SPC_OFFS1, -self.offset_1 )
+            elif self.input_mode == 1:
+                spcm_dwSetParam_i32 (self.hCard, SPC_OFFS0, -self.offset_0 )
+                spcm_dwSetParam_i32 (self.hCard, SPC_OFFS1, -self.offset_1 )
+
+            spcm_dwSetParam_i32 (self.hCard, SPC_ACDC0, self.coupling_0)
+            spcm_dwSetParam_i32 (self.hCard, SPC_ACDC1, self.coupling_1)
+
+            # in HF mode impedance is fixed
+            if self.input_mode == 0:
+                spcm_dwSetParam_i32 (self.hCard, SPC_50OHM0, self.impedance_0 )
+                spcm_dwSetParam_i32 (self.hCard, SPC_50OHM1, self.impedance_1 )
 
             # define the memory size / max amplitude
             #llMemSamples = int64 (self.memsize)
@@ -194,22 +240,34 @@ class Spectrum_M4I_4450_X8:
             #lSetChannels = int32 (0)
             #spcm_dwGetParam_i32 (hCard, SPC_CHCOUNT, byref (lSetChannels))
 
-            # MaxDACValue corresponds to the amplitude of the output signal; MaxDACValue - Amplitude and so on
-            lMaxDACValue = int32 (0)
-            spcm_dwGetParam_i32 (self.hCard, SPC_MIINST_MAXADCVALUE, byref(lMaxDACValue))
-            lMaxDACValue.value = lMaxDACValue.value - 1
 
-            if lMaxDACValue.value == maxCAD:
-                pass
-            else:
-                general.message('maxCAD value does not equal to lMaxDACValue.value')
-                sys.exit()
+            # The Spectrum driver also contains a register that holds the value of the decimal value of the full scale representation of the installed ADC. This
+            # value should be used when converting ADC values (in LSB) into real-world voltage values, because this register also automatically takes any
+            # specialities into account, such as slightly reduced ADC resolution with reserved codes for gain/offset compensation.
+            self.lMaxDACValue = int32 (0)
+            spcm_dwGetParam_i32 (self.hCard, SPC_MIINST_MAXADCVALUE, byref(self.lMaxDACValue))
+
+            #if lMaxDACValue.value == maxCAD:
+            #    pass
+            #else:
+            #    general.message('maxCAD value does not equal to lMaxDACValue.value')
+            #    sys.exit()
 
             if self.channel == 1 or self.channel == 2:
+                
+                if self.card_mode == 1:
+                    self.qwBufferSize = uint64 (self.points * 2 * 1) # in bytes. samples with 2 bytes each, one channel active
                 # MAYBE DIFFERENT FOR AVERAGE MODE
-                self.qwBufferSize = uint64 (self.points * 2 * 1) # in bytes. samples with 2 bytes each, one channel active
+                elif self.card_mode == 131072:
+                    self.qwBufferSize = uint64 (self.points * sizeof(int32) * 1) # for averaging the number of bytes per sample is fixed to 4 (32 bit samples)
+
             elif self.channel == 3:
-                self.qwBufferSize = uint64 (self.points * 2 * 2)
+
+                if self.card_mode == 1:
+                    self.qwBufferSize = uint64 (self.points * 2 * 2) # in bytes. samples with 2 bytes each
+                # MAYBE DIFFERENT FOR AVERAGE MODE
+                elif self.card_mode == 131072:
+                    self.qwBufferSize = uint64 (self.points * sizeof(int32) * 2) # for averaging the number of bytes per sample is fixed to 4 (32 bit samples)
 
             self.lNotifySize = int32 (0) # driver should notify program after all data has been transfered
 
@@ -259,20 +317,55 @@ class Spectrum_M4I_4450_X8:
 
             pnData = cast  (pvBuffer, ptr16) # cast to pointer to 16bit integer
             if self.channel == 1 or self.channel == 2:
-                data = np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 1 ), ))
-                xs = np.arange( len(data) ) / (self.sample_rate * 1000000)
+
+                if self.card_mode == 1:
+
+                    if self.channel == 1:
+                        data = ( self.amplitude_0 / 1000) * np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 2 ), )) / self.lMaxDACValue.value
+
+                    elif self.channel == 2:
+                        data = ( self.amplitude_1 / 1000) * np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 2 ), )) / self.lMaxDACValue.value
+
+                    xs = np.arange( len(data) ) / (self.sample_rate * 1000000)
+
+                # SHOULD BE CHECKED
+                elif self.card_mode == 131072:
+
+                    if self.channel == 1:
+                        data = ( self.amplitude_0 / 1000) * np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 4 ), )) / self.lMaxDACValue.value
+
+                    elif self.channel == 2:
+                        data = ( self.amplitude_1 / 1000) * np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 4 ), )) / self.lMaxDACValue.value
+
+                    xs = np.arange( len(data) ) / (self.sample_rate * 1000000)
 
                 return xs, data
-            elif self.channel == 3:
-                data = np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 2 ), ))
-                # in V
-                # CH0
-                data1 = data[0::2] * 1 / ( maxCAD + 1 )     # * Range of the chanell
-                # CH1
-                data2 = data[1::2] * 1 / ( maxCAD + 1 )
 
-                xs = np.arange( len(data1) ) / (self.sample_rate * 1000000)
+            elif self.channel == 3:
+
+                if self.card_mode == 1:
+
+                    data = np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 2 ), ))
+                    # / 1000 convertion in V
+                    # CH0
+                    data1 = ( data[0::2] * ( self.amplitude_0 / 1000) ) / self.lMaxDACValue.value
+                    # CH1
+                    data2 = ( data[1::2] * ( self.amplitude_1 / 1000) ) / self.lMaxDACValue.value
+
+                    xs = np.arange( len(data1) ) / (self.sample_rate * 1000000)
                 
+                # SHOULD BE CHECKED
+                elif self.card_mode == 131072:
+                    
+                    data = np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 4 ), ))
+                    # / 1000 convertion in V
+                    # CH0
+                    data1 = ( data[0::2] * ( self.amplitude_0 / 1000) ) / self.lMaxDACValue.value
+                    # CH1
+                    data2 = ( data[1::2] * ( self.amplitude_1 / 1000) ) / self.lMaxDACValue.value
+
+                    xs = np.arange( len(data1) ) / (self.sample_rate * 1000000)
+
                 return xs, data1, data2
 
             #print( len(data) )
@@ -285,7 +378,10 @@ class Spectrum_M4I_4450_X8:
             #spcm_vClose (hCard)
 
         elif test_flag == 'test':
+
+            # CHECK FOR AVERAGE MODE
             dummy = np.zeros( self.points )
+
             if self.channel == 1 or self.channel == 2:
                 return dummy, dummy
             elif self.channel == 3:
@@ -314,7 +410,7 @@ class Spectrum_M4I_4450_X8:
             #    general.message("No card found...")
             #    sys.exit()
             spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_STOP)
-            #general.message('AWG card stopped')
+            #general.message('Digitizer stopped')
 
         elif test_flag == 'test':
             pass
@@ -336,9 +432,45 @@ class Spectrum_M4I_4450_X8:
                     general.message('Number of points must be more than 32')
                 if pnts % 16 != 0:
                     general.message('Number of points should be divisible by 16; The closest avalaibale number is used')
-                    self.points = int( 16*(pnts // 16) )
+                    #self.points = int( 16*(pnts // 16) )
+                    self.points = self.round_to_closest(pnts, 16)
                 else:
                     self.points = pnts
+
+
+            # to update on-the-fly
+            if self.state == 0:
+                pass
+            elif self.state == 1:
+
+                # change card mode and memory
+                if self.card_mode == 1:
+                    spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, self.points)
+                elif self.card_mode == 131072:
+                    # TO CHECK:
+                    spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, int( self.points * self.num_segments ) )
+                    # segment size should be multiple of memory size
+                    spcm_dwSetParam_i32(self.hCard, SPC_SEGMENTSIZE, self.points)
+
+                # correct buffer size
+                if self.channel == 1 or self.channel == 2:
+                
+                    if self.card_mode == 1:
+                        self.qwBufferSize = uint64 (self.points * 2 * 1) # in bytes. samples with 2 bytes each, one channel active
+                    # MAYBE DIFFERENT FOR AVERAGE MODE
+                    elif self.card_mode == 131072:
+                        self.qwBufferSize = uint64 (self.points * sizeof(int32) * 1) # for averaging the number of bytes per sample is fixed to 4 (32 bit samples)
+
+                elif self.channel == 3:
+
+                    if self.card_mode == 1:
+                        self.qwBufferSize = uint64 (self.points * 2 * 2) # in bytes. samples with 2 bytes each
+                    # MAYBE DIFFERENT FOR AVERAGE MODE
+                    elif self.card_mode == 131072:
+                        self.qwBufferSize = uint64 (self.points * sizeof(int32) * 2) # for averaging the number of bytes per sample is fixed to 4 (32 bit samples)
+
+                spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
+
 
             elif len(points) == 0:
                 return self.points
@@ -351,7 +483,8 @@ class Spectrum_M4I_4450_X8:
                 assert( pnts >= 32 ), "Number of points must be more than 32"
                 if pnts % 16 != 0:
                     #general.message('Number of points should be divisible by 16; The closest avalaibale number is used')
-                    self.points = int( 16*(pnts // 16) )
+                    #self.points = int( 16*(pnts // 16) )
+                    self.points = self.round_to_closest(pnts, 16)
                 else:
                     self.points = pnts
 
@@ -377,12 +510,21 @@ class Spectrum_M4I_4450_X8:
                     general.message('Number of posttrigger points must be more than 16')
                 if pnts % 16 != 0:
                     general.message('Number of posttrigger points should be divisible by 16; The closest avalaibale number is used')
-                    self.posttrig_points = int( 16*(pnts // 16) )
+                    #self.posttrig_points = int( 16*(pnts // 16) )
+                    self.posttrig_points = self.round_to_closest(pnts, 16)
                 else:
                     self.posttrig_points = pnts
                 if self.posttrig_points > self.points:
                     general.message('Number of posttrigger points should be less than number of points; The closest avalaibale number is used')
                     self.posttrig_points = self.points
+
+            # to update on-the-fly
+            if self.state == 0:
+                pass
+            elif self.state == 1:
+                spcm_dwSetParam_i32(self.hCard, SPC_POSTTRIGGER, self.posttrig_points)
+                spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
+
 
             elif len(post_points) == 0:
                 return self.posttrig_points
@@ -395,7 +537,8 @@ class Spectrum_M4I_4450_X8:
                 assert( pnts >= 16 ), "Number of points must be more than 16"
                 if pnts % 16 != 0:
                     #general.message('Number of points should be divisible by 16; The closest avalaibale number is used')
-                    self.posttrig_points = int( 16*(pnts // 16) )
+                    #self.posttrig_points = int( 16*(pnts // 16) )
+                    self.posttrig_points = self.round_to_closest(pnts, 16)
                 else:
                     self.posttrig_points = pnts
                 if self.posttrig_points > self.points:
@@ -407,12 +550,11 @@ class Spectrum_M4I_4450_X8:
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
     
-    # TO DO
-    def awg_number_of_segments(self, *segmnets):
+    def digitizer_number_of_segments(self, *segmnets):
         """
-        Set or query the number of segments for 'Multi" card mode;
-        AWG should be in 'Multi' mode. Please, refer to awg_card_mode() function
-        Input: awg_number_of_segments(2); Number of segment is from the range 0-200
+        Set or query the number of segments for 'Average' digitizer mode;
+        Digitizer should be in 'Average' mode. Please, refer to digitizer_card_mode() function
+        Input: digitizer_number_of_segments(2); Number of segment is from the range 0-200
         Default: 1;
         Output: '2'
         """
@@ -421,12 +563,10 @@ class Spectrum_M4I_4450_X8:
 
             if len(segmnets) == 1:
                 seg = int(segmnets[0])
-                if self.card_mode == 512:
-                    self.num_segments = seg
-                elif self.card_mode == 32768 and seg == 1:
+                if self.card_mode == 131072:
                     self.num_segments = seg
                 else:
-                    general.message('AWG is not in Multi mode')
+                    general.message('Digitizer is not in Average mode')
                     sys.exit()
             elif len(segmnets) == 0:
                 return self.num_segments
@@ -437,7 +577,7 @@ class Spectrum_M4I_4450_X8:
             if len(segmnets) == 1:
                 seg = int(segmnets[0])
                 if seg != 1:
-                    assert( self.card_mode == 512), 'Number of segments higher than one is available only in Multi mode. Please, change it using awg_card_mode()'
+                    assert( self.card_mode == 131072), 'Number of segments higher than one is available only in Average mode. Please, change it using digitizer_card_mode()'
                 assert (seg > 0 and seg <= 200), 'Incorrect number of segments; Should be 0 < segmenets <= 200'
                 self.num_segments = seg
 
@@ -518,7 +658,7 @@ class Spectrum_M4I_4450_X8:
 
             if len(s_rate) == 1:
                 rate = 1000000 * int(s_rate[0])
-                if rate <= sample_rate_max and rate >= sample_rate_min:
+                if rate <= 1000000 * sample_rate_max and rate >= 1000000 * sample_rate_min:
                     closest_available = min(sample_rate_list, key = lambda x: abs(x - rate))
                     if int(closest_available) != rate:
                         general.message("Desired sample rate cannot be set, the nearest available value " + str(closest_available) + " is used")
@@ -531,13 +671,21 @@ class Spectrum_M4I_4450_X8:
             elif len(s_rate) == 0:
                 return str(self.sample_rate / 1000000) + ' MHz'
 
+            # to update on-the-fly
+            if self.state == 0:
+                pass
+            elif self.state == 1:
+                spcm_dwSetParam_i64 (self.hCard, SPC_SAMPLERATE, int( 1000000 * self.sample_rate ))
+                spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
+
+
         elif test_flag == 'test':
             self.setting_change_count = 1
 
             if len(s_rate) == 1:
                 rate = 1000000 * int(s_rate[0])
                 closest_available = min(sample_rate_list, key = lambda x: abs(x - rate))
-                assert(rate <= sample_rate_max and rate >= sample_rate_min), "Incorrect sample rate; Should be 500 MHz <= Rate <= 0.001907 MHz"
+                assert(rate <= 1000000 * sample_rate_max and rate >= 1000000 * sample_rate_min), "Incorrect sample rate; Should be 500 MHz <= Rate <= 0.001907 MHz"
                 self.sample_rate = closest_available / 1000000
 
             elif len(s_rate) == 0:
@@ -816,8 +964,9 @@ class Spectrum_M4I_4450_X8:
                     # trigger delay in samples; maximum is 8589934576, step is 16
                     del_in_sample = int( delay_num*flag*self.sample_rate / 1000 )
                     if del_in_sample % 16 != 0:
-                        general.message('Delay should be divisible by 16 samples (32 ns at 500 MHz); The closest avalaibale number is used')
-                        self.delay = int( 16*(del_in_sample // 16) )
+                        #self.delay = int( 16*(del_in_sample // 16) )
+                        self.delay = self.round_to_closest(del_in_sample, 16)
+                        general.message('Delay should be divisible by 16 samples (32 ns at 500 MHz); The closest avalaibale number ' + str( self.delay * 1000 / self.sample_rate) + ' ns is used')
                     else:
                         self.delay = del_in_sample
 
@@ -841,7 +990,8 @@ class Spectrum_M4I_4450_X8:
                 # trigger delay in samples; maximum is 8589934576, step is 16
                 del_in_sample = int( delay_num*flag*self.sample_rate / 1000 )
                 if del_in_sample % 16 != 0:
-                    self.delay = int( 16*(del_in_sample // 16) )
+                    #self.delay = int( 16*(del_in_sample // 16) )
+                    self.delay = self.round_to_closest(del_in_sample, 16)
                 else:
                     self.delay = del_in_sample
 
@@ -853,92 +1003,421 @@ class Spectrum_M4I_4450_X8:
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
 
-    # TO DO different channel settings
-    def awg_amplitude(self, *amplitude):
+    def digitizer_input_mode(self, *mode):
         """
-        Set or query amplitude of the channel;
-        Input: awg_amplitude('CH0', '600'); amplitude is in mV
-        awg_amplitude('CH0', '600', 'CH1', '600')
-        Default: CH0 - 600 mV; CH1 - 533 mV;
-        Output: '600 mV'
+        Set or query input mode;
+        Input: digitizer_input_mode('HF'); Input mode is 'HF'; 'Buffered'.
+        HF mode allows using a high frequency 50 ohm path to have full bandwidth and best dynamic performance.
+        Buffered mode allows using a buffered path with all features but limited bandwidth and dynamic performance.
+        The specified input mode will be used for both channels.
+        Default: 'Buffered';
+        Output: 'Buffered'
         """
         if test_flag != 'test':
             self.setting_change_count = 1
 
-            if len(amplitude) == 2:
-                ch = str(amplitude[0])
-                ampl = int(amplitude[1])
-                if ch == 'CH0':
-                    self.amplitude_0 = ampl
-                elif ch == 'CH1':
-                    self.amplitude_1 = ampl
-            
-            elif len(amplitude) == 4:
-                ch1 = str(amplitude[0])
-                ampl1 = int(amplitude[1])
-                ch2 = str(amplitude[2])
-                ampl2 = int(amplitude[3])
-                if ch1 == 'CH0':
-                    self.amplitude_0 = ampl1
-                elif ch1 == 'CH1':
-                    self.amplitude_1 = ampl2
-                if ch2 == 'CH0':
-                    self.amplitude_0 = ampl1
-                elif ch2 == 'CH1':
-                    self.amplitude_1 = ampl2
+            if len(mode) == 1:
+                md = str(mode[0])
+                if md == 'Buffered':
+                    self.input_mode = 0
+                elif md == 'HF':
+                    self.input_mode = 1
+                else:
+                    general.message("Incorrect input mode; Only HF and Buffered are available")
+                    sys.exit()
 
-            elif len(amplitude) == 1:
-                ch = str(amplitude[0])
-                if ch == 'CH0':
-                    return str(self.amplitude_0) + ' mV'
-                elif ch == 'CH1':
-                    return str(self.amplitude_1) + ' mV'
+            elif len(mode) == 0:
+                if self.input_mode == 0:
+                    return 'Buffered'
+                elif self.input_mode == 1:
+                    return 'HF'
 
         elif test_flag == 'test':
             self.setting_change_count = 1
 
-            if len(amplitude) == 2:
-                ch = str(amplitude[0])
-                ampl = int(amplitude[1])
-                assert(ch == 'CH0' or ch == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
-                assert( ampl >= amplitude_min and ampl <= amplitude_max ), "Incorrect amplitude; Should be 80 <= amplitude <= 2500"
-                if ch == 'CH0':
-                    self.amplitude_0 = ampl
-                elif ch == 'CH1':
-                    self.amplitude_1 = ampl
-            
-            elif len(amplitude) == 4:
-                ch1 = str(amplitude[0])
-                ampl1 = int(amplitude[1])
-                ch2 = str(amplitude[2])
-                ampl2 = int(amplitude[3])
-                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel 1; Should be CH0 or CH1"
-                assert( ampl1 >= amplitude_min and ampl1 <= amplitude_max ), "Incorrect amplitude 1; Should be 80 <= amplitude <= 2500"
-                assert(ch2 == 'CH0' or ch2 == 'CH1'), "Incorrect channel 2; Should be CH0 or CH1"
-                assert( ampl2 >= amplitude_min and ampl2 <= amplitude_max ), "Incorrect amplitude 2; Should be 80 <= amplitude <= 2500"
-                if ch1 == 'CH0':
-                    self.amplitude_0 = ampl1
-                elif ch1 == 'CH1':
-                    self.amplitude_1 = ampl2
-                if ch2 == 'CH0':
-                    self.amplitude_0 = ampl1
-                elif ch2 == 'CH1':
-                    self.amplitude_1 = ampl2
+            if len(mode) == 1:
+                md = str(mode[0])
+                assert(md == 'Buffered' or md == 'HF'), "Incorrect input mode; Only HF and Buffered are available"
+                if md == 'Buffered':
+                    self.input_mode = 0
+                elif md == 'HF':
+                    self.input_mode = 1
 
-            elif len(amplitude) == 1:
-                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
+            elif len(mode) == 0:
+                return test_input_mode        
+            else:
+                assert( 1 == 2 ), 'Incorrect argument'        
+
+    def digitizer_amplitude(self, *ampl):
+        """
+        Set or query range of the channels in mV;
+        Input: digitizer_amplitude(500);
+        Buffered range is [200, 500, 1000, 2000, 5000, 10000]
+        HF range is [500, 1000, 25200, 5000]
+        The specified range will be used for both channels.
+        Default: '500';
+        Output: 'CH0: 500 mV; CH1: 500 mV'
+        """
+        if test_flag != 'test':
+            self.setting_change_count = 1
+
+            if len(ampl) == 1:
+                amp = int(ampl[0])
+                if self.input_mode == 0: # Buffered
+                    closest_available = min(buffered_mode_range_list, key = lambda x: abs(x - amp))
+                    if closest_available != amp:
+                        general.message("Desired amplitude cannot be set, the nearest available value " + str(closest_available) + " mV is used")
+                    self.amplitude_0 = closest_available
+                    self.amplitude_1 = closest_available
+                elif self.input_mode == 1: # HF
+                    closest_available = min(hf_mode_range_list, key = lambda x: abs(x - amp))
+                    if closest_available != amp:
+                        general.message("Desired amplitude cannot be set, the nearest available value " + str(closest_available) + " mV is used")
+                    self.amplitude_0 = closest_available
+                    self.amplitude_1 = closest_available
+                
+                else:
+                    general.message('Incorrect amplitude or input mode')
+                    sys.exit()
+
+            elif len(ampl) == 0:
+                return 'CH0: ' + str(self.amplitude_0) + ' mV; ' + 'CH1: ' + str(self.amplitude_1) + ' mV'
+
+            # to update on-the-fly
+            if self.state == 0:
+                pass
+            elif self.state == 1:
+                
+                spcm_dwGetParam_i32 (self.hCard, SPC_MIINST_MAXADCVALUE, byref(self.lMaxDACValue))
+                spcm_dwSetParam_i32 (self.hCard, SPC_AMP0, self.amplitude_0)
+                spcm_dwSetParam_i32 (self.hCard, SPC_AMP1, self.amplitude_1)
+                spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
+
+
+        elif test_flag == 'test':
+            self.setting_change_count = 1
+
+            if len(ampl) == 1:
+                amp = int(ampl[0])
+                if self.input_mode == 0: # Buffered
+                    closest_available = min(buffered_mode_range_list, key = lambda x: abs(x - amp))
+                    if closest_available != amp:
+                        general.message("Desired amplitude cannot be set, the nearest available value " + str(closest_available) + " mV is used")
+                    self.amplitude_0 = closest_available
+                    self.amplitude_1 = closest_available
+                elif self.input_mode == 1: # HF
+                    closest_available = min(hf_mode_range_list, key = lambda x: abs(x - amp))
+                    if closest_available != amp:
+                        general.message("Desired amplitude cannot be set, the nearest available value " + str(closest_available) + " mV is used")
+                    self.amplitude_0 = closest_available
+                    self.amplitude_1 = closest_available
+                
+                else:
+                    assert( 1 == 2), 'Incorrect amplitude or input mode'
+
+            elif len(ampl) == 0:
                 return test_amplitude
+
+    def digitizer_offset(self, *offset):
+        """
+        Set or query offset of the channels as a percentage of range;
+        The value of the offset (range * percentage) is ALWAYS substracted from the signal
+        No offset can be used for 1000 mV and 10000 mV range in Buffered mode
+        Input: digitizer_offset('CH0', '1', 'CH1', '50')
+        Default: '0'; '0'
+        Output: 'CH0: 10'
+        """
+        if test_flag != 'test':
+            self.setting_change_count = 1
+
+            if self.input_mode == 0:
+                if self.amplitude_0 == 1000 or self.amplitude_0 == 10000:
+                    general.message("No offset can be used for 1000 mV and 10000 mV range in Buffered mode")
+                    sys.exit()
+                elif self.amplitude_1 == 1000 or self.amplitude_1 == 10000:
+                    general.message("No offset can be used for 1000 mV and 10000 mV range in Buffered mode")
+                    sys.exit()
+
+            if len(offset) == 2:
+                ch = str(offset[0])
+                ofst = int(offset[1])
+
+                if ch == 'CH0':
+                    self.offset_0 = ofst
+                elif ch == 'CH1':
+                    self.offset_1 = ofst
+            
+            elif len(offset) == 4:
+                ch1 = str(offset[0])
+                ofst1 = int(offset[1])
+                ch2 = str(offset[2])
+                ofst2 = int(offset[3])
+                
+                if ch1 == 'CH0':
+                    self.offset_0 = ofst1
+                elif ch1 == 'CH1':
+                    self.offset_1 = ofst1
+                if ch2 == 'CH0':
+                    self.offset_0 = ofst2
+                elif ch2 == 'CH1':
+                    self.offset_1 = ofst2
+
+            elif len(offset) == 1:
+                ch = str(offset[0])
+                if ch == 'CH0':
+                    return 'CH0: ' + str(self.offset_0)
+                elif ch == 'CH1':
+                    return 'CH1: ' + str(self.offset_1)
+
+            # to update on-the-fly
+            if self.state == 0:
+                pass
+            elif self.state == 1:
+                if ( self.amplitude_0 != 1000 or self.amplitude_0 != 10000 ) and self.input_mode == 0:
+                    spcm_dwSetParam_i32 (self.hCard, SPC_OFFS0, -self.offset_0 )
+                    spcm_dwSetParam_i32 (self.hCard, SPC_OFFS1, -self.offset_1 )
+                elif self.input_mode == 1:
+                    spcm_dwSetParam_i32 (self.hCard, SPC_OFFS0, -self.offset_0 )
+                    spcm_dwSetParam_i32 (self.hCard, SPC_OFFS1, -self.offset_1 )
+
+                spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
+
+
+
+        elif test_flag == 'test':
+            self.setting_change_count = 1
+
+            if self.input_mode == 0:
+                assert(self.amplitude_0 != 1000 or self.amplitude_0 != 10000 ), "No offset can be used for 1000 mV and 10000 mV range in Buffered mode"
+                assert(self.amplitude_1 != 1000 or self.amplitude_1 != 10000 ), "No offset can be used for 1000 mV and 10000 mV range in Buffered mode"
+
+            if len(offset) == 2:
+                ch = str(offset[0])
+                ofst = int(offset[1])
+
+                assert(ch == 'CH0' or ch == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
+                assert( ofst >= 0 and ofst <= 100 ), "Incorrect offset percentage; Should be 0 <= offset <= 100"
+                if ch == 'CH0':
+                    self.offset_0 = ofst
+                elif ch == 'CH1':
+                    self.offset_1 = ofst
+            
+            elif len(offset) == 4:
+                ch1 = str(offset[0])
+                ofst1 = int(offset[1])
+                ch2 = str(offset[2])
+                ofst2 = int(offset[3])
+
+                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel 1; Should be CH0 or CH1"
+                assert( ofst1 >= 0 and ofst1 <= 100 ), "Incorrect offset percentage 1; Should be 0 <= offset <= 100"
+                assert(ch2 == 'CH0' or ch2 == 'CH1'), "Incorrect channel 2; Should be CH0 or CH1"
+                assert( ofst2 >= 0 and ofst2 <= 100 ), "Incorrect offset percentage 2; Should be 0 <= offset <= 100"
+                if ch1 == 'CH0':
+                    self.offset_0 = ofst1
+                elif ch1 == 'CH1':
+                    self.offset_1 = ofst1
+                if ch2 == 'CH0':
+                    self.offset_0 = ofst2
+                elif ch2 == 'CH1':
+                    self.offset_1 = ofst2
+
+            elif len(offset) == 1:
+                ch1 = str(offset[0])
+                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
+                return test_offset
+
+            else:
+                assert( 1 == 2 ), 'Incorrect arguments'
+
+    def digitizer_coupling(self, *coupling):
+        """
+        Set or query coupling of the channels; Two options are available: [AC, DC]
+        Input: digitizer_coupling('CH0', 'AC', 'CH1', 'DC')
+        Default: 'DC'; 'DC'
+        Output: 'CH0: AC'
+        """
+        if test_flag != 'test':
+            self.setting_change_count = 1
+            
+            if len(coupling) == 2:
+                ch = str(coupling[0])
+                cplng = str(coupling[1])
+                flag = coupling_dict[cplng]
+                if ch == 'CH0':
+                    self.coupling_0 = flag
+                elif ch == 'CH1':
+                    self.coupling_1 = flag
+            
+            elif len(coupling) == 4:
+                ch1 = str(coupling[0])
+                cplng1 = str(coupling[1])
+                flag1 = coupling_dict[cplng1]
+                ch2 = str(coupling[2])
+                cplng2 = str(coupling[3])
+                flag2 = coupling_dict[cplng2]
+                if ch1 == 'CH0':
+                    self.coupling_0 = flag1
+                elif ch1 == 'CH1':
+                    self.coupling_1 = flag1
+                if ch2 == 'CH0':
+                    self.coupling_0 = flag2
+                elif ch2 == 'CH1':
+                    self.coupling_1 = flag2
+
+            elif len(coupling) == 1:
+                ch = str(coupling[0])
+                if ch == 'CH0':
+                    return 'CH0: ' + str(self.coupling_0)
+                elif ch == 'CH1':
+                    return 'CH1: ' + str(self.coupling_1)
+
+        elif test_flag == 'test':
+            self.setting_change_count = 1
+
+            if len(coupling) == 2:
+                ch = str(coupling[0])
+                cplng = str(coupling[1])
+                assert(ch == 'CH0' or ch == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
+                assert( cplng in coupling_dict ), "Incorrect coupling; Only DC and AC are available"
+                flag = coupling_dict[cplng]
+                if ch == 'CH0':
+                    self.coupling_0 = flag
+                elif ch == 'CH1':
+                    self.coupling_1 = flag
+            
+            elif len(coupling) == 4:
+                ch1 = str(coupling[0])
+                cplng1 = str(coupling[1])
+                ch2 = str(coupling[2])
+                cplng2 = str(coupling[3])
+                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel 1; Should be CH0 or CH1"
+                assert( cplng1 in coupling_dict ), "Incorrect coupling 1; Only DC and AC are available"
+                flag1 = coupling_dict[cplng1]
+                assert(ch2 == 'CH0' or ch2 == 'CH1'), "Incorrect channel 2; Should be CH0 or CH1"
+                assert( cplng2 in coupling_dict ), "Incorrect coupling 2; Only DC and AC are available"
+                flag2 = coupling_dict[cplng2]
+                if ch1 == 'CH0':
+                    self.coupling_0 = flag1
+                elif ch1 == 'CH1':
+                    self.coupling_1 = flag1
+                if ch2 == 'CH0':
+                    self.coupling_0 = flag2
+                elif ch2 == 'CH1':
+                    self.coupling_1 = flag2
+
+            elif len(coupling) == 1:
+                ch1 = str(coupling[0])
+                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
+                return test_coupling
+
+            else:
+                assert( 1 == 2 ), 'Incorrect arguments'
+
+    def digitizer_impedance(self, *impedance):
+        """
+        Set or query impedance of the channels in buffered mode; Two options are available: [1 M, 50]
+        In the HF mode impedance is fized at 50 ohm
+        Input: digitizer_coupling('CH0', '50', 'CH1', '50')
+        Default: '50'; '50'
+        Output: 'CH0: 50'
+        """
+        if test_flag != 'test':
+            self.setting_change_count = 1
+            
+            if self.input_mode == 1:
+                general.message("Impedance is fixed at 50 Ohm in HF mode")
+                sys.exit()
+
+            if len(impedance) == 2:
+                ch = str(impedance[0])
+                imp = str(impedance[1])
+                flag = impedance_dict[imp]
+                if ch == 'CH0':
+                    self.impedance_0 = flag
+                elif ch == 'CH1':
+                    self.impedance_1 = flag
+                
+            elif len(impedance) == 4:
+                ch1 = str(impedance[0])
+                imp1 = str(impedance[1])
+                flag1 = impedance_dict[imp1]
+                ch2 = str(impedance[2])
+                imp2 = str(impedance[3])
+                flag2 = impedance_dict[imp2]
+
+                if ch1 == 'CH0':
+                    self.impedance_0 = flag1
+                elif ch1 == 'CH1':
+                    self.impedance_1 = flag1
+                if ch2 == 'CH0':
+                    self.impedance_0 = flag2
+                elif ch2 == 'CH1':
+                    self.impedance_1 = flag2
+
+            elif len(impedance) == 1:
+                ch = str(impedance[0])
+                if ch == 'CH0':
+                    return 'CH0: ' + str(self.impedance_0)
+                elif ch == 'CH1':
+                    return 'CH1: ' + str(self.impedance_1)
+
+        elif test_flag == 'test':
+            self.setting_change_count = 1
+
+            if self.input_mode == 1:
+                assert( 1 == 2 ), "Impedance is fixed at 50 Ohm in HF mode"
+
+            if len(impedance) == 2:
+
+                ch = str(impedance[0])
+                imp = str(impedance[1])
+                assert(ch == 'CH0' or ch == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
+                assert( imp in impedance_dict ), "Incorrect impedance; Only 1 M and 50 are available"
+                flag = impedance_dict[imp]
+                if ch == 'CH0':
+                    self.impedance_0 = flag
+                elif ch == 'CH1':
+                    self.impedance_1 = flag
+            
+            elif len(impedance) == 4:
+                ch1 = str(impedance[0])
+                imp1 = str(impedance[1])
+                ch2 = str(impedance[2])
+                imp2 = str(impedance[3])
+                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel 1; Should be CH0 or CH1"
+                assert( imp1 in impedance_dict ), "Incorrect impedance 1; Only 1 M and 50 are available"
+                flag1 = impedance_dict[imp1]
+                assert(ch2 == 'CH0' or ch2 == 'CH1'), "Incorrect channel 2; Should be CH0 or CH1"
+                assert( imp2 in impedance_dict ), "Incorrect impedance 2; Only 1 M and 50 are available"
+                flag2 = impedance_dict[imp2]
+                if ch1 == 'CH0':
+                    self.impedance_0 = flag1
+                elif ch1 == 'CH1':
+                    self.impedance_1 = flag1
+                if ch2 == 'CH0':
+                    self.impedance_0 = flag2
+                elif ch2 == 'CH1':
+                    self.impedance_1 = flag2
+
+            elif len(impedance) == 1:
+                ch1 = str(impedance[0])
+                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
+                return test_impedance
 
             else:
                 assert( 1 == 2 ), 'Incorrect arguments'
 
     # Auxilary functions
-    def closest_power_of_two(self, x):
+    def round_to_closest(self, x, y):
         """
-        A function to round card memory or sequence segments
+        A function to round x to divisible by y
         """
-        return 2**int(log2(x - 1) + 1 )
+        #temp = int( 16*(x // 16) )
 
+        #if temp < x:
+        #   temp = temp + 16
+
+        return int( y * ( ( x // y) + (x % y > 0) ) )
 
 def main():
     pass

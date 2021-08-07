@@ -13,11 +13,11 @@ awg.awg_channel('CH0', 'CH1')
 
 start_time = time.time()
 # 3 ms per point for three pulses
-#awg.awg_pulse_sequence(pulse_type = ['SINE', 'GAUSS', 'SINE', 'SINE'], pulse_start = [0, 160, 320, 480], pulse_delta_start = [0, 0, 40, 0], pulse_length = [40, 120, 40, 40], \
-#		pulse_phase = ['+x', '+x', '+x', '+x'], pulse_sigma = [40, 20, 40, 40], pulse_frequency = [50, 200, 40, 80], number_of_points = 4, loop = 20, rep_rate = 50)
+awg.awg_pulse_sequence(pulse_type = ['SINE', 'GAUSS', 'SINE', 'SINE'], pulse_start = [0, 160, 320, 780], pulse_delta_start = [0, 0, 40, 0], pulse_length = [40, 120, 40, 40], \
+		pulse_phase = ['+x', '+x', '+x', '+x'], pulse_sigma = [40, 20, 40, 40], pulse_frequency = [50, 200, 40, 80], number_of_points = 10, loop = 200, rep_rate = 2000)
 
-awg.awg_pulse_sequence(pulse_type = ['SINE'], pulse_start = [0], pulse_delta_start = [0], pulse_length = [40000], \
-		pulse_phase = ['+x'], pulse_sigma = [40], pulse_frequency = [100], number_of_points = 4, loop = 100, rep_rate = 50)
+#awg.awg_pulse_sequence(pulse_type = ['SINE'], pulse_start = [0], pulse_delta_start = [0], pulse_length = [100], \
+#		pulse_phase = ['+x'], pulse_sigma = [40], pulse_frequency = [100], number_of_points = 5, loop = 100, rep_rate = 200)
 
 # for phase cycling pulse_sequence should be redefined
 # it seems that it will be more efficient than filling a large buffer
@@ -25,8 +25,10 @@ awg.awg_pulse_sequence(pulse_type = ['SINE'], pulse_start = [0], pulse_delta_sta
 general.message(str(time.time() - start_time))
 
 awg.awg_card_mode('Sequence')
+awg.awg_setup()
 
 awg.awg_update()
+awg.awg_stop()
 
 #awg.awg_visualize()
 

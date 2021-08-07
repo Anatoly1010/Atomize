@@ -598,15 +598,16 @@ class MainWindow(QtWidgets.QMainWindow):
                 pb.pulser_stop()
 
                 # AWG
-                #hCard = spcm_hOpen (create_string_buffer (b'/dev/spcm0'))
-                #if hCard == None:
-                #    print("no card found...\n")
-                #    sys.exit()
-
-                #spcm_dwSetParam_i32 (hCard, SPC_M2CMD, M2CMD_CARD_STOP)
-
+                #hCard1 = spcm_hOpen (create_string_buffer (b'/dev/spcm0'))
+                #spcm_dwSetParam_i32 (hCard1, SPC_M2CMD, M2CMD_CARD_STOP)
                 # clean up
-                #spcm_vClose (hCard)
+                #spcm_vClose (hCard1)
+
+                #hCard2 = spcm_hOpen (create_string_buffer (b'/dev/spcm1'))
+                #spcm_dwSetParam_i32 (hCard2, SPC_M2CMD, M2CMD_CARD_STOP)
+                # clean up
+                #spcm_vClose (hCard2)
+
                 ###
 
                 self.process_python.close()

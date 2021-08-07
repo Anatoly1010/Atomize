@@ -144,6 +144,7 @@ class CrosshairDock(CloseableDock):
         self.menu = self.plot_widget.getMenu()
         self.menu.addSeparator()
         self.del_menu = QtGui.QMenu()
+        #self.del_menu = QtWidgets.QMenu()
         self.del_menu.setTitle('Delete Plot')
         self.menu.addMenu(self.del_menu)
 

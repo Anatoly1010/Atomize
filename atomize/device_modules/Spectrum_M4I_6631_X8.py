@@ -5,7 +5,8 @@ import os
 import sys
 import random
 ###AWG
-sys.path.append('/home/anatoly/AWG/spcm_examples/python')
+#sys.path.append('/home/anatoly/AWG/spcm_examples/python')
+sys.path.append('/home/anatoly/awg_files/python')
 #sys.path.append('C:/Users/User/Desktop/Examples/python')
 from math import sin, pi, exp, log2
 from itertools import groupby, chain
@@ -215,10 +216,11 @@ class Spectrum_M4I_6631_X8:
                 #self.full_buffer
                 # 262144 is SPC_REP_STD_SEQUENCE 262144
                 spcm_dwSetParam_i32( self.hCard, SPC_CARDMODE, SPC_REP_STD_SEQUENCE )
-                spcm_dwSetParam_i32( self.hCard, SPC_SEQMODE_MAXSEGMENTS, int32(self.sequence_segments) )
+                spcm_dwSetParam_i64( self.hCard, SPC_SEQMODE_MAXSEGMENTS, self.sequence_segments )
+                general.message( self.sequence_segments )
                 spcm_dwSetParam_i32( self.hCard, SPC_SEQMODE_STARTSTEP, 0 ) # Step#0 is the first step after card start
 
-
+            
             # trigger
             spcm_dwSetParam_i32(self.hCard, SPC_TRIG_TERM, 1) # 50 Ohm trigger load
             spcm_dwSetParam_i32(self.hCard, SPC_TRIG_ORMASK, self.trigger_ch) # software / external
@@ -227,7 +229,7 @@ class Spectrum_M4I_6631_X8:
             
             # loop
             spcm_dwSetParam_i32(self.hCard, SPC_LOOPS, self.loop)
-            
+
             # trigger delay
             spcm_dwSetParam_i32( self.hCard, SPC_TRIG_DELAY, int(self.delay) )
 
@@ -256,7 +258,12 @@ class Spectrum_M4I_6631_X8:
                 general.message('maxCAD value does not equal to lMaxDACValue.value')
                 sys.exit()
 
-            spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
+            if self.sequence_mode == 0:
+                spcm_dwSetParam_i64 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
+            else:
+                # due to some reason in Sequence mode M2CMD_CARD_WRITESETUP does not work correctly:
+                # Call: (SPC_M2CMD, M2CMD_CARD_WRITESETUP) -> the setup isn't valid"
+                pass
 
         elif test_flag == 'test':
             # to run several important checks
@@ -291,7 +298,7 @@ class Spectrum_M4I_6631_X8:
                     #start_time = time.time()
                     self.buf = self.define_buffer_single_joined()[0]
                     #general.message('BUFFER TIME: ' + str( time.time() - start_time ))
-                    spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, self.memsize)
+                    spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, self.memsize )
                 elif self.card_mode == 512 and self.sequence_mode == 0:
                     self.buf = self.define_buffer_multi()[0]
                     spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, self.memsize)
@@ -299,7 +306,12 @@ class Spectrum_M4I_6631_X8:
                 elif self.sequence_mode == 1:
                     pass
 
-                spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
+                if self.sequence_mode == 0:
+                    spcm_dwSetParam_i64 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
+                else:
+                    # due to some reason in Sequence mode M2CMD_CARD_WRITESETUP does not work correctly:
+                    # Call: (SPC_M2CMD, M2CMD_CARD_WRITESETUP) -> the setup isn't valid"
+                    pass
 
                 # define the buffer
                 #pnBuffer = c_void_p()
@@ -320,7 +332,7 @@ class Spectrum_M4I_6631_X8:
                     spcm_dwDefTransfer_i64 (self.hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), self.buf, uint64 (0), self.qwBufferSize.value)
                     # transfer
                     spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
-                    general.message("AWG buffer has been transferred to board memory")
+                    #general.message("AWG buffer has been transferred to board memory")
 
                 elif self.card_mode == 512 and self.sequence_mode == 0:
                     #for index, element in enumerate(buf):
@@ -333,7 +345,7 @@ class Spectrum_M4I_6631_X8:
                     spcm_dwDefTransfer_i64 (self.hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), self.buf, uint64 (0), self.qwBufferSize.value)
                     # transfer
                     spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
-                    general.message("AWG buffer has been transferred to board memory")
+                    #general.message("AWG buffer has been transferred to board memory")
 
                 elif self.sequence_mode == 1:
                     if self.channel == 1 or self.channel == 2:
@@ -344,7 +356,6 @@ class Spectrum_M4I_6631_X8:
                     for index, element in enumerate(self.full_buffer_pointer):
                         # Setting up the data memory and transfer data
                         spcm_dwSetParam_i32 (self.hCard, SPC_SEQMODE_WRITESEGMENT, index) # set current configuration switch to segment
-                        
                         ###
                         ###
                         #seg_memory should be rounded to 32, which means repetition rate should be divisible by 32
@@ -355,6 +366,7 @@ class Spectrum_M4I_6631_X8:
                         # data transfer #self.full_buffer_pointer[index]
                         spcm_dwDefTransfer_i64 (self.hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), element, uint64 (0), self.qwBufferSize.value)
                         spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
+
                         #general.message("AWG buffer has been transferred to board memory")
 
                         # self.vWriteStepEntry (hCard, dwStepIndex, dwStepNextIndex, dwSegmentIndex, dwLoops, dwFlags)
@@ -375,7 +387,7 @@ class Spectrum_M4I_6631_X8:
                 dwError = spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_START | M2CMD_CARD_ENABLETRIGGER | M2CMD_CARD_WAITTRIGGER)
                 # test or error message
                 #general.message(dwError)
-
+                               
                 # clean up
                 #spcm_vClose (hCard)
 
@@ -1622,8 +1634,10 @@ class Spectrum_M4I_6631_X8:
                     # trigger delay in samples; maximum is 8589934560, step is 32
                     del_in_sample = int( delay_num*flag*self.sample_rate / 1000 )
                     if del_in_sample % 32 != 0:
-                        general.message('Delay should be divisible by 32 samples (25.6 ns at 1.250 GHz); The closest avalaibale number is used')
-                        self.delay = int( 32*(del_in_sample // 32) )
+                        #self.delay = int( 32*(del_in_sample // 32) )
+                        self.delay = self.round_to_closest( del_in_sample, 32 )
+                        general.message('Delay should be divisible by 32 samples (25.6 ns at 1.250 GHz); The closest avalaibale number ' + str(self.delay * 1000 / self.sample_rate) + ' ns is used')
+
                     else:
                         self.delay = del_in_sample
 
@@ -1647,7 +1661,8 @@ class Spectrum_M4I_6631_X8:
                 # trigger delay in samples; maximum is 8589934560, step is 32
                 del_in_sample = int( delay_num*flag*self.sample_rate / 1000 )
                 if del_in_sample % 32 != 0:
-                    self.delay = int( 32*(del_in_sample // 32) )
+                    #self.delay = int( 32*(del_in_sample // 32) )
+                    self.delay = self.round_to_closest( del_in_sample, 32 )
                 else:
                     self.delay = del_in_sample
 
@@ -1686,9 +1701,9 @@ class Spectrum_M4I_6631_X8:
                 if ch1 == 'CH0':
                     self.amplitude_0 = ampl1
                 elif ch1 == 'CH1':
-                    self.amplitude_1 = ampl2
+                    self.amplitude_1 = ampl1
                 if ch2 == 'CH0':
-                    self.amplitude_0 = ampl1
+                    self.amplitude_0 = ampl2
                 elif ch2 == 'CH1':
                     self.amplitude_1 = ampl2
 
@@ -1724,9 +1739,9 @@ class Spectrum_M4I_6631_X8:
                 if ch1 == 'CH0':
                     self.amplitude_0 = ampl1
                 elif ch1 == 'CH1':
-                    self.amplitude_1 = ampl2
+                    self.amplitude_1 = ampl1
                 if ch2 == 'CH0':
-                    self.amplitude_0 = ampl1
+                    self.amplitude_0 = ampl2
                 elif ch2 == 'CH1':
                     self.amplitude_1 = ampl2
 
@@ -1741,11 +1756,17 @@ class Spectrum_M4I_6631_X8:
     def awg_pulse_list(self):
         """
         Function for saving a pulse list from 
-        the script into the
-        header of the experimental data
+        the script into the header of the experimental data
         """
         pulse_list_mod = ''
-        pulse_list_mod = pulse_list_mod + 'AWG card mode: ' + str( self.card_mode ) + '\n'
+        if self.card_mode == 32768 and self.single_joined == 0:
+            pulse_list_mod = pulse_list_mod + 'AWG card mode: ' + str( "Single" ) + '\n'
+        elif self.card_mode == 32768 and self.single_joined == 1:
+            pulse_list_mod = pulse_list_mod + 'AWG card mode: ' + str( "Single Joined" ) + '\n'
+        elif self.card_mode == 512:
+            pulse_list_mod = pulse_list_mod + 'AWG card mode: ' + str( "Multi" ) + '\n'
+        elif self.card_mode == 262144:
+            pulse_list_mod = pulse_list_mod + 'AWG card mode: ' + str( "Sequence" ) + '\n'
 
         if  self.sequence_mode == 0:
             for element in self.pulse_array:
@@ -1904,7 +1925,6 @@ class Spectrum_M4I_6631_X8:
             elif self.full_buffer != 0:
                 assert( 1 == 2 ), 'No pulse sequence is defined'
 
-    # ADD repetition rate
     def awg_pulse_sequence(self, *, pulse_type, pulse_start, pulse_delta_start,\
                             pulse_length, pulse_phase, pulse_sigma, pulse_frequency, number_of_points, loop, rep_rate):
         """
@@ -1941,13 +1961,15 @@ class Spectrum_M4I_6631_X8:
             self.sequence_mode = 1
             # number of segments should be power of two
             # segments can be empty
-            self.sequence_segments = self.closest_power_of_two(arguments_array[7])
+            self.sequence_segments = self.closest_power_of_two( arguments_array[7] )
+            #self.sequence_segments = self.round_to_closest( arguments_array[7], 32 )
             self.sequence_loop = arguments_array[8]
             # repetition rate for pulse sequence in samples; Hz -> ns -> samples
             seq_rep_rate = int( ( 10**9 / (arguments_array[9])) * self.sample_rate/1000 )
             if seq_rep_rate % 32 != 0:
-                seq_rep_rate = int( 32*(seq_rep_rate // 32) )
-                general.message('Delay should be divisible by 25.6 ns; The closest avalaibale number is used: ' + str(1/(seq_rep_rate*0.8*10**-9)) + ' Hz' )
+                #seq_rep_rate = int( 32*(seq_rep_rate // 32) )
+                seq_rep_rate = self.round_to_closest( seq_rep_rate, 32 )
+                general.message('Repetition rate should be divisible by 25.6 ns; The closest avalaibale number is used: ' + str( 1/(seq_rep_rate*10**-6 / self.sample_rate )) + ' Hz' )
 
             # convert phase list to radians
             pulse_phase_converted = []
@@ -2078,6 +2100,15 @@ class Spectrum_M4I_6631_X8:
 
                     self.full_buffer.append(pnBuffer)
                     self.full_buffer_pointer.append(pvBuffer)
+                
+                # for sequence_segments as a power of two
+                for point in range(arguments_array[7], self.sequence_segments):
+                    # clear the buffer
+                    pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
+                    pnBuffer = cast (pvBuffer, ptr16)
+
+                    self.full_buffer.append(pnBuffer)
+                    self.full_buffer_pointer.append(pvBuffer)
 
             elif self.channel == 3:
                 #self.full_buffer = np.zeros( ( arguments_array[7], 2*segment_length ), dtype = np.float64 )
@@ -2198,6 +2229,15 @@ class Spectrum_M4I_6631_X8:
                         
                         elif element == 'BLANK':
                             break
+
+                    self.full_buffer.append(pnBuffer)
+                    self.full_buffer_pointer.append(pvBuffer)
+
+                # for sequence_segments as a power of two
+                for point in range(arguments_array[7], self.sequence_segments):
+                    # clear the buffer
+                    pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
+                    pnBuffer = cast (pvBuffer, ptr16)
 
                     self.full_buffer.append(pnBuffer)
                     self.full_buffer_pointer.append(pvBuffer)
@@ -2538,7 +2578,8 @@ class Spectrum_M4I_6631_X8:
 
             # finding the maximum pulse length to create a buffer
             max_pulse_length = max( max_length_array )
-            buffer_per_max_pulse = self.closest_power_of_two( max_pulse_length )
+            #buffer_per_max_pulse = self.closest_power_of_two( max_pulse_length )
+            buffer_per_max_pulse = self.round_to_closest( max_pulse_length , 32 )
             if buffer_per_max_pulse < 32:
                 buffer_per_max_pulse = 32
                 general.message('Buffer size was rounded to the minimal available value (32 samples)')
@@ -2572,7 +2613,8 @@ class Spectrum_M4I_6631_X8:
 
             # finding the maximum pulse length to create a buffer
             max_pulse_length = max( max_length_array )
-            buffer_per_max_pulse = self.closest_power_of_two( max_pulse_length )
+            #buffer_per_max_pulse = self.closest_power_of_two( max_pulse_length )
+            buffer_per_max_pulse = self.round_to_closest( max_pulse_length , 32 )
             if buffer_per_max_pulse < 32:
                 buffer_per_max_pulse = 32
                 general.message('Buffer size was rounded to the minimal available value (32 samples)')
@@ -2739,7 +2781,8 @@ class Spectrum_M4I_6631_X8:
 
             # finding the maximum pulse length to create a buffer
             max_pulse_length = max( max_length_array )
-            buffer_per_max_pulse = self.closest_power_of_two( max_pulse_length )
+            #buffer_per_max_pulse = self.closest_power_of_two( max_pulse_length )
+            buffer_per_max_pulse = self.round_to_closest( max_pulse_length , 32 )
             if buffer_per_max_pulse < 32:
                 buffer_per_max_pulse = 32
                 general.message('Buffer size was rounded to the minimal available value (32 samples)')
@@ -2779,7 +2822,8 @@ class Spectrum_M4I_6631_X8:
                 max_length_array.append( max( element[:,4] ))
 
             max_pulse_length = max( max_length_array )
-            buffer_per_max_pulse = self.closest_power_of_two( max_pulse_length )
+            #buffer_per_max_pulse = self.closest_power_of_two( max_pulse_length )
+            buffer_per_max_pulse = self.round_to_closest( max_pulse_length , 32 )
             if buffer_per_max_pulse < 32:
                 buffer_per_max_pulse = 32
                 general.message('Buffer size was rounded to the minimal available value (32 samples)')
@@ -2925,7 +2969,7 @@ class Spectrum_M4I_6631_X8:
         """
         A function to round card memory or sequence segments
         """
-        return 2**int(log2(x - 1) + 1 )
+        return int( 2**int(log2(x - 1) + 1 ) )
 
     def write_seg_memory(self, hCard, dwStepIndex, dwStepNextIndex, dwSegmentIndex, dwLoops, dwFlags):
         """
@@ -2947,9 +2991,13 @@ class Spectrum_M4I_6631_X8:
 
     def define_buffer_single_joined(self):
         """
+        Define and fill the buffer in 'Single Joined' mode;
+        
+        Every even index is a new data sample for CH0,
+        Every odd index is a new data sample for CH1.
 
+        Second channel will be filled automatically
         """
-
         # pulses are in a form [channel_number, function, frequency, phase, length, sigma, start, delta_start, mode] 
         #                      [0,               1,          2,      3,      4,      5,      6,      7,        8   ]
         self.memsize, pulses = self.preparing_buffer_single() # 0.2-0.3 ms
@@ -2993,7 +3041,8 @@ class Spectrum_M4I_6631_X8:
 
         #general.message(last_start)
         # buffer length defines for the largest delay
-        self.memsize = self.closest_power_of_two( last_start + last_pulse_length )
+        #self.memsize = self.closest_power_of_two( last_start + last_pulse_length )
+        self.memsize = self.round_to_closest( (last_start + last_pulse_length) , 32)
 
         # define buffer differently for only one or two channels enabled
         # for ch1 phase is automatically shifted by phase_shift_ch1_seq_mode
@@ -3187,6 +3236,12 @@ class Spectrum_M4I_6631_X8:
 
             return pvBuffer, pnBuffer
     
+    def round_to_closest(self, x, y):
+        """
+        A function to round x to divisible by y
+        """
+        return int( y * ( ( x // y) + (x % y > 0) ) )
+
 def main():
     pass
 

@@ -1108,6 +1108,31 @@ class PB_ESR_500_Pro:
             pulse_list_mod = pulse_list_mod + str(element) + '\n'
 
         return pulse_list_mod
+    
+    def pulser_clear(self):
+        """
+        A special function for Pulse Control module
+        It clear self.pulse_array and other status flags
+        """
+        self.pulse_array = []
+        self.phase_array_length = []
+        self.pulse_name_array = []
+        self.pulse_array_init = []
+        self.rep_rate = (repetition_rate, )
+        self.shift_count = 0
+        self.rep_rate_count = 0
+        self.increment_count = 0
+        self.reset_count = 0
+        self.current_phase_index = 0
+        self.awg_pulses = 0
+
+    def pulser_test_flag(self, flag):
+        """
+        A special function for Pulse Control module
+        It runs TEST mode
+        """
+        global test_flag
+        test_flag = flag
 
     # Auxilary functions
     def convertion_to_numpy(self, p_array):

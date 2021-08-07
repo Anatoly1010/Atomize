@@ -14,11 +14,13 @@ __author__ = 'phil'
 logging.root.setLevel(logging.WARNING)
 
 class LivePlotClient(object):
+    
     def __init__(self, timeout=2000, size=2**28):
-        self.app = QCoreApplication.instance()
-
-        if self.app is None:
-            self.app = QCoreApplication([])
+        # from 06-08-2021; Freezing GUI when import general module
+        
+        #self.app = QCoreApplication.instance()
+        #if self.app is None:
+        #    self.app = QCoreApplication([])
 
         self.sock = QLocalSocket()
         self.sock.connectToServer("LivePlot")
@@ -32,12 +34,12 @@ class LivePlotClient(object):
         if not self.shared_mem.create(size):
             raise Exception("Couldn't create shared memory %s" % self.shared_mem.errorString())
         logging.debug('Memory created with key %s and size %s' % (key, self.shared_mem.size()))
-        self.sock.write(key.encode())
+        
+        self.sock.write(key.encode())      
         self.sock.waitForBytesWritten()
-
         self.is_connected = True
         self.timeout = timeout
-
+        
         atexit.register(self.close)
 
     def close(self):
@@ -137,8 +139,8 @@ class LivePlotClient(object):
             'TimeAxis': timeaxis
         }
         self.send_to_plotter(meta, np.array([xs, ys]).astype('float64')) 
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
-        
+        #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
+
     def append_y(self, name, point, start_step=(0, 1), label='', xname='X axis',\
      xscale='arb. u.', yname='Y axis', yscale='arb. u.',scatter='False', timeaxis='False'):
         self.send_to_plotter({
