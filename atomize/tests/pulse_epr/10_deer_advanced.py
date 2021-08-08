@@ -103,6 +103,8 @@ while k < 9:
 
     k += 1
 
+pb.pulser_stop()
+
 # Data saving
 header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + 'DEER Measurement\n' + \
             'Field: ' + str(FIELD) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + \
@@ -113,7 +115,4 @@ header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) +
            'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Time (trig_awg delta_start), X (V*s), Y (V*s) '
 
 file_handler.save_1D_dialog( (x_axis, data_x, data_y), header = header )
-
-pb.pulser_stop()
-
 

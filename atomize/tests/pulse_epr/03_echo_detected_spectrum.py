@@ -15,8 +15,16 @@ END_FIELD = 3610
 FIELD_STEP = 0.25
 AVERAGES = 5
 
-points = int( (END_FIELD - START_FIELD)/FIELD_STEP )
+# PULSES
+REP_RATE = '600 Hz'
+PULSE_1_LENGTH = '16 ns'
+PULSE_2_LENGTH = '32 ns'
+PULSE_1_START = '100 ns'
+PULSE_2_START = '400 ns'
+PULSE_SIGNAL_START = '700 ns'
 
+#
+points = int( (END_FIELD - START_FIELD)/FIELD_STEP )
 data_x = np.zeros(points)
 data_y = np.zeros(points)
 x_axis = np.arange(START_FIELD, END_FIELD, FIELD_STEP)
@@ -38,11 +46,11 @@ t3034.oscilloscope_acquisition_type('Average')
 t3034.oscilloscope_number_of_averages(AVERAGES)
 t3034.oscilloscope_stop()
 
-pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '16 ns')
-pb.pulser_pulse(name ='P1', channel = 'MW', start = '400 ns', length = '32 ns')
-pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = '700 ns', length = '100 ns')
+pb.pulser_pulse(name ='P0', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH)
+pb.pulser_pulse(name ='P1', channel = 'MW', start = PULSE_2_START, length = PULSE_2_LENGTH)
+pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns')
 
-pb.pulser_repetition_rate('600 Hz')
+pb.pulser_repetition_rate( REP_RATE )
 pb.pulser_update()
 
 i = 0

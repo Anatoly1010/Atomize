@@ -15,6 +15,17 @@ STEP = 2                  # in NS; length incremen = str(STEP) + ' ns' -> length
 FIELD = 3473
 AVERAGES = 1000
 
+# PULSES
+REP_RATE = '500 Hz'
+PULSE_1_LENGTH = '10 ns'
+PULSE_2_LENGTH = '50 ns'
+PULSE_3_LENGTH = '100 ns'
+PULSE_1_START = '100 ns'
+PULSE_2_START = '600 ns'
+PULSE_3_START = '950 ns'
+PULSE_SIGNAL_START = '1300 ns'
+
+#
 data_x = np.zeros(POINTS)
 data_y = np.zeros(POINTS)
 x_axis = np.arange(10, POINTS*STEP + 10, STEP) # 10 is initial length of the pulse
@@ -37,12 +48,12 @@ t3034.oscilloscope_acquisition_type('Average')
 t3034.oscilloscope_number_of_averages(AVERAGES)
 t3034.oscilloscope_stop()
 
-pb.pulser_pulse(name = 'P0', channel = 'MW', start = '100 ns', length = '10 ns', length_increment = str(STEP) + ' ns')
-pb.pulser_pulse(name = 'P1', channel = 'MW', start = '600 ns', length = '50 ns')
-pb.pulser_pulse(name = 'P2', channel = 'MW', start = '950 ns', length = '100 ns')
-pb.pulser_pulse(name = 'P3', channel = 'TRIGGER', start = '1300 ns', length = '100 ns')
+pb.pulser_pulse(name = 'P0', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH, length_increment = str(STEP) + ' ns')
+pb.pulser_pulse(name = 'P1', channel = 'MW', start = PULSE_2_START, length = PULSE_2_LENGTH)
+pb.pulser_pulse(name = 'P2', channel = 'MW', start = PULSE_3_START, length = PULSE_3_LENGTH)
+pb.pulser_pulse(name = 'P3', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns')
 
-pb.pulser_repetition_rate('500 Hz')
+pb.pulser_repetition_rate( REP_RATE )
 
 for i in range(POINTS):
 
@@ -63,6 +74,8 @@ for i in range(POINTS):
 
     pb.pulser_increment()
 
+pb.pulser_stop()
+
 # Data saving
 header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + 'Nutation\n' + \
             'Field: ' + str(FIELD) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + \
@@ -73,6 +86,4 @@ header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) +
            'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Time (pulse length_increment), X (V*s), Y (V*s) '
 
 file_handler.save_1D_dialog( (x_axis, data_x, data_y), header = header )
-
-pb.pulser_stop()
 

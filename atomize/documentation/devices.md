@@ -4,6 +4,7 @@
 - [Temperature Controllers](#temperature-controllers)<br/>
 - [Lock-in Amplifiers](#lock-in-amplifiers)<br/>
 - [Oscilloscopes](#oscilloscopes)<br/>
+- [Digitizers](#digitizers)<br/>
 - [Oscilloscope Wave Generators](#oscilloscope-wave-generators)<br/>
 - [Arbitrary Wave Generators](#arbitrary-wave-generators)<br/>
 - [Pulse Programmers](#pulse-programmers)<br/>
@@ -41,6 +42,10 @@ MSO-X 3014A; MSO-X 3012A; DSO-X 3014A; DSO-X 3012A; MSO-X 3024A; DSO-X 3024A; MS
 MSO-X 4022A; MSO-X 4024A; DSO-X 4022A; DSO-X 4024A; MSO-X 4032A; MSO-X 4034A; DSO-X 4032A; DSO-X 4034A; MSO-X 4052A; MSO-X 4054A; DSO-X 4052A; DSO-X 4054A; MSO-X 4104A; DSO-X 4104A; MSO-X 4154A; DSO-X 4154A.
 - Tektronix 4000 Series (Ethernet); Tested 01/2021
 
+## Digitizers
+- Spectrum M4I 4450 X8; Tested 08/2021
+The original [library](https://spectrum-instrumentation.com/en/m4i4450-x8) was written by Spectrum.
+
 ## Oscilloscope Wave Generators
 - Wave Generator of Keysight InfiniiVision 2000 X-Series (Ethernet)<br/>
 Available via corresponding oscilloscope module.
@@ -52,7 +57,6 @@ Available via corresponding oscilloscope module.
 ## Arbitrary Wave Generators
 - Spectrum M4I 6631 X8; Tested 07/2021
 The original [library](https://spectrum-instrumentation.com/en/m4i6631-x8) was written by Spectrum.
-
 
 ## Pulse Programmers
 - Pulse Blaster ESR 500 Pro; Tested 06/2021<br/>

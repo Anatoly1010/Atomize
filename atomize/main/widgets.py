@@ -3,8 +3,8 @@ import os
 import configparser
 import pyqtgraph as pg
 import numpy as np
-from tkinter import filedialog
-import tkinter
+#from tkinter import filedialog
+#import tkinter
 from datetime import datetime
 from pyqtgraph.dockarea import Dock
 from PyQt5 import QtWidgets, QtCore, QtGui
@@ -58,7 +58,7 @@ class CloseableDock(Dock):
                 d.close()
 
 class CrosshairPlotWidget(pg.PlotWidget):
-    def __init__(self, parametric=False, *args, **kwargs):
+    def __init__(self, parametric = False, *args, **kwargs):
         super(CrosshairPlotWidget, self).__init__(*args, **kwargs)
         self.scene().sigMouseClicked.connect(self.toggle_search)
         self.scene().sigMouseMoved.connect(self.handle_mouse_move)
@@ -136,7 +136,7 @@ class CrosshairDock(CloseableDock):
         self.open_dir = str(config['DEFAULT']['open_dir'])
 
         self.plot_widget = CrosshairPlotWidget()
-        self.legend = self.plot_widget.addLegend(offset=(50,10),horSpacing=35)
+        self.legend = self.plot_widget.addLegend(offset = (50, 10), horSpacing = 35)
         #self.plot_widget.setBackground(None)
         kwargs['widget'] = self.plot_widget
         super(CrosshairDock, self).__init__(**kwargs)
@@ -149,7 +149,7 @@ class CrosshairDock(CloseableDock):
         self.menu.addMenu(self.del_menu)
 
         open_action = QtWidgets.QAction('Open 1D Data', self)
-        open_action.triggered.connect(self.open_file_dialog)
+        open_action.triggered.connect(self.file_dialog) # self.open_file_dialog
         self.menu.addAction(open_action)
 
         self.avail_colors = [pg.mkPen(color=(0,0,0),width=1),pg.mkPen(color=(255,153,0),width=1),
@@ -218,39 +218,83 @@ class CrosshairDock(CloseableDock):
         self.avail_colors.append(self.used_colors[self.name_dict[key_action]])
         #TO DO the same for scatter plot
 
+    def open_file(self, filename):
+        """
+        A function to open 1d data.
+        :param filename: string
+        """
+        file_path = filename
+
+        header_array = []
+        header = 0
+
+        file_to_read = open(filename, 'r')
+        for i, line in enumerate(file_to_read):
+            if i is header: break
+            temp = line.split("#")
+            header_array.append(temp)
+        file_to_read.close()
+
+        temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 0) 
+        data = np.transpose(temp)
+
+        if len(data) == 2:
+            self.plot(data[0], data[1], parametric = True, name = file_path, xname = 'X', xscale = 'Arb. U.',\
+            yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+        elif len(data) == 3:
+            self.plot(data[0], data[1], parametric = True, name = file_path + '_1', xname = 'X', xscale = 'Arb. U.',\
+            yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+            self.plot(data[0], data[2], parametric = True, name = file_path + '_2', xname = 'X', xscale = 'Arb. U.',\
+            yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
+
+    # unused
     def open_file_dialog(self, directory = '', header = 0):
-            file_path = self.file_dialog(directory = directory)
+        pass
+        #file_path = self.file_dialog(directory = directory)
 
-            header_array = [];
-            file_to_read = open(file_path,'r')
-            for i, line in enumerate(file_to_read):
-                if i is header: break
-                temp = line.split("#")
-                header_array.append(temp)
-            file_to_read.close()
+        #header_array = []
+        #file_to_read = open(file_path,'r')
+        #for i, line in enumerate(file_to_read):
+        #    if i is header: break
+        #    temp = line.split("#")
+        #    header_array.append(temp)
+        #file_to_read.close()
 
-            temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 0) 
-            data = np.transpose(temp)
-            if len(data) == 2:
-                self.plot(data[0], data[1], parametric = True, name = file_path, xname = 'X', xscale = 'Arb. U.',\
-                yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
-            elif len(data) == 3:
-                self.plot(data[0], data[1], parametric = True, name = file_path + '_1', xname = 'X', xscale = 'Arb. U.',\
-                yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
-                self.plot(data[0], data[2], parametric = True, name = file_path + '_2', xname = 'X', xscale = 'Arb. U.',\
-                yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
+        #temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 0) 
+        #data = np.transpose(temp)
+        #if len(data) == 2:
+        #    self.plot(data[0], data[1], parametric = True, name = file_path, xname = 'X', xscale = 'Arb. U.',\
+        #    yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+        #elif len(data) == 3:
+        #    self.plot(data[0], data[1], parametric = True, name = file_path + '_1', xname = 'X', xscale = 'Arb. U.',\
+        #    yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+        #    self.plot(data[0], data[2], parametric = True, name = file_path + '_2', xname = 'X', xscale = 'Arb. U.',\
+        #    yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
 
     def file_dialog(self, directory = ''):
-        root = tkinter.Tk()
-        root.withdraw()
+        """
+        A function to open a new window for choosing 1d data
+        """
+        filedialog = QFileDialog(self, 'Open File', directory = self.open_dir, filter = "CSV (*.csv)", \
+                                    options = QtWidgets.QFileDialog.DontUseNativeDialog ) 
+        # options = QtWidgets.QFileDialog.DontUseNativeDialog
+        # use QFileDialog.DontUseNativeDialog to change directory
+        filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
+        filedialog.setFileMode(QtWidgets.QFileDialog.AnyFile)
+        filedialog.fileSelected.connect(self.open_file)
+        filedialog.show()
 
-        file_path = filedialog.askopenfilename(**dict(
-            initialdir = self.open_dir,
-            filetypes = [("CSV", "*.csv"), ("TXT", "*.txt"),\
-            ("DAT", "*.dat"), ("all", "*.*")],
-            title = 'Select file to open')
-            )
-        return file_path
+        # Tkinter Open 1D data
+        #root = tkinter.Tk()
+        #root.withdraw()
+
+        #file_path = filedialog.askopenfilename(**dict(
+        #    initialdir = self.open_dir,
+        #    filetypes = [("CSV", "*.csv"), ("TXT", "*.txt"),\
+        #    ("DAT", "*.dat"), ("all", "*.*")],
+        #    title = 'Select file to open')
+        #    )
+        #return file_path
 
     def clear(self):
         self.plot_widget.clear()
@@ -273,7 +317,7 @@ class CrosshairDock(CloseableDock):
         self.plot_widget.setTitle(text)
 
 class CrossSectionDock(CloseableDock):
-    def __init__(self, trace_size=80, **kwargs):
+    def __init__(self, trace_size = 80, **kwargs):
         self.plot_item = view = pg.PlotItem(labels=kwargs.pop('labels', None))
         self.img_view = kwargs['widget'] = pg.ImageView(view=view)
         # plot options menu
@@ -327,7 +371,7 @@ class CrossSectionDock(CloseableDock):
         self.v_cross_section_widget.search_mode = False
         self.v_cross_section_widget_data = self.v_cross_section_widget.plot([0,0])
 
-    def setLabels(self, xlabel="X", ylabel="Y", zlabel="Z"):
+    def setLabels(self, xlabel = "X", ylabel = "Y", zlabel = "Z"):
         print(self.h_cross_dock.label)
         self.plot_item.setLabels(bottom=(xlabel,), left=(ylabel,))
         self.h_cross_section_widget.plotItem.setLabels(bottom=xlabel, left=zlabel)

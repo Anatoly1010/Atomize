@@ -14,6 +14,11 @@ END_FREQ = 9900
 STEP = 1
 CYCLES = 1
 AVERAGES = 400
+
+# PULSES
+REP_RATE = '600 Hz'
+PULSE_1_LENGTH = '100 ns'
+PULSE_1_START = '100 ns'
 ###
 
 #open1d = openfile.Saver_Opener()
@@ -31,9 +36,9 @@ t3034.oscilloscope_number_of_averages(AVERAGES)
 
 # setting pulses:
 pb.pulser_pulse(name ='P0', channel = 'TRIGGER', start = '0 ns', length = '100 ns')
-pb.pulser_pulse(name ='P1', channel = 'MW', start = '100 ns', length = '100 ns')
+pb.pulser_pulse(name ='P1', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH)
 
-pb.pulser_repetition_rate('600 Hz')
+pb.pulser_repetition_rate( REP_RATE )
 pb.pulser_update()
 
 # initialize the power

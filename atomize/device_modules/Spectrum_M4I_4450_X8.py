@@ -291,8 +291,10 @@ class Spectrum_M4I_4450_X8:
         Default settings:
         Sample clock is 500 MHz; Clock mode is 'Internal'; Reference clock is 100 MHz; Card mode is 'Single';
         Trigger channel is 'External'; Trigger mode is 'Positive'; Number of averages is 2; Trigger delay is 0;
-        Enabled channels is CH0 and CH1; Range of CH0 is '1000 mV'; Range of CH1 is '1000 mV';
+        Enabled channels is CH0 and CH1; Range of CH0 is '500 mV'; Range of CH1 is '500 mV';
         Number of segments is 1; Number of points is 128 samples; Posttriger points is 64;
+        Input mode if 'HF'; Coupling of CH0 and CH1 are 'DC'; Impedance of CH0 and CH1 are '50';
+        Horizontal offset of CH0 and CH1 are 0%; 
         """
         if test_flag != 'test':
 
@@ -550,7 +552,7 @@ class Spectrum_M4I_4450_X8:
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
     
-    def digitizer_number_of_segments(self, *segmnets):
+    def digitizer_number_of_segments(self, *segments):
         """
         Set or query the number of segments for 'Average' digitizer mode;
         Digitizer should be in 'Average' mode. Please, refer to digitizer_card_mode() function
@@ -561,27 +563,27 @@ class Spectrum_M4I_4450_X8:
         if test_flag != 'test':
             self.setting_change_count = 1
 
-            if len(segmnets) == 1:
-                seg = int(segmnets[0])
+            if len(segments) == 1:
+                seg = int(segments[0])
                 if self.card_mode == 131072:
                     self.num_segments = seg
                 else:
                     general.message('Digitizer is not in Average mode')
                     sys.exit()
-            elif len(segmnets) == 0:
+            elif len(segments) == 0:
                 return self.num_segments
 
         elif test_flag == 'test':
             self.setting_change_count = 1
 
-            if len(segmnets) == 1:
-                seg = int(segmnets[0])
+            if len(segments) == 1:
+                seg = int(segments[0])
                 if seg != 1:
                     assert( self.card_mode == 131072), 'Number of segments higher than one is available only in Average mode. Please, change it using digitizer_card_mode()'
                 assert (seg > 0 and seg <= 200), 'Incorrect number of segments; Should be 0 < segmenets <= 200'
                 self.num_segments = seg
 
-            elif len(segmnets) == 0:
+            elif len(segments) == 0:
                 return test_num_segments
             else:
                 assert( 1 == 2 ), 'Incorrect argumnet'
@@ -917,7 +919,7 @@ class Spectrum_M4I_4450_X8:
         """
         Set or query number of averages;
         Input: digitizer_number_of_averages(10); Number of averages from 1 to 100000; 0 is infinite averages
-        Default: 10;
+        Default: 2;
         Output: '100'
         """
         if test_flag != 'test':
@@ -1010,7 +1012,7 @@ class Spectrum_M4I_4450_X8:
         HF mode allows using a high frequency 50 ohm path to have full bandwidth and best dynamic performance.
         Buffered mode allows using a buffered path with all features but limited bandwidth and dynamic performance.
         The specified input mode will be used for both channels.
-        Default: 'Buffered';
+        Default: 'HF';
         Output: 'Buffered'
         """
         if test_flag != 'test':
@@ -1316,7 +1318,7 @@ class Spectrum_M4I_4450_X8:
     def digitizer_impedance(self, *impedance):
         """
         Set or query impedance of the channels in buffered mode; Two options are available: [1 M, 50]
-        In the HF mode impedance is fized at 50 ohm
+        In the HF mode impedance is fixed at 50 ohm
         Input: digitizer_coupling('CH0', '50', 'CH1', '50')
         Default: '50'; '50'
         Output: 'CH0: 50'

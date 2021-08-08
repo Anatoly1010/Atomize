@@ -52,7 +52,7 @@ awg_setup()
 Arguments: none; Output: none.
 Examples: awg_setup() writes all the settings into the AWG card.
 ```
-This function writes all the settings modified by other functions to the AWG card. The function should be called only without arguments. One needs to initialize the settings before calling [awg_update()](#awg_update). The default settings (if no other function was called) are the following: Sample clock is 1250 MHz; Clock mode is 'Internal'; Reference clock is 100 MHz; Card mode is 'Single'; Trigger channel is 'External'; Trigger mode is 'Positive'; Loop is infinity; Trigger delay is 0; Enabled channels is CH0 and CH1; Amplitude of CH0 is '600 mV'; Amplitude of CH1 is '533 mV'; Number of segments is 1; Card memory size is 64 samples; Buffer is empty.<br/>
+This function writes all the settings modified by other functions to the AWG card. The function should be called only without arguments. One needs to initialize the settings before calling [awg_update()](#awg_update). The default settings (if no other function was called) are the following: Sample clock is 1250 MHz; Clock mode is 'Internal'; Reference clock is 100 MHz; Card mode is 'Single'; Trigger channel is 'External'; Trigger mode is 'Positive'; Loop is infinity; Trigger delay is 0; Enabled channels are CH0 and CH1; Amplitude of CH0 is '600 mV'; Amplitude of CH1 is '533 mV'; Number of segments is 1; Card memory size is 64 samples; Buffer is empty.<br/>
 ### awg_update()
 ```python3
 awg_update()
@@ -71,9 +71,9 @@ This function stops the AWG card and should be called only without arguments. If
 ```python3
 awg_close()
 Arguments: none; Output: none.
-Example: awg_close() closes the AWG card.
+Example: awg_close() closes the AWG driver.
 ```
-This function closes the AWG card and should be called only without arguments. The function should always be called at the end of an experimental script.<br/>
+This function closes the AWG driver and should be called only without arguments. The function should always be called at the end of an experimental script.<br/>
 ### awg_pulse(*kargs)
 ```python3
 awg_pulse(*kagrs)
@@ -206,14 +206,14 @@ awg_number_of_segments(*segments)
 Arguments: segments = integer (1-200); Output: integer.
 Example: awg_number_of_segments(2) sets the number of segments to 2.
 ```
-This function queries or sets the number of segments for ['Multi"](#awg_card_modemode) card mode. In order to set the number of segments higher than 1, the AWG card should be in ['Multi"](#awg_card_modemode) mode. If there is no argument the function will return the current number of segments. If there is an argument the specified number of segmetns will be set. The maximum available number of segments is 200. Default value is 1.<br/>
+This function queries or sets the number of segments for ['Multi'](#awg_card_modemode) card mode. In order to set the number of segments higher than 1, the AWG card should be in ['Multi'](#awg_card_modemode) mode. If there is no argument the function will return the current number of segments. If there is an argument the specified number of segmetns will be set. The maximum available number of segments is 200. Default value is 1.<br/>
 ### awg_channel(*channel)
 ```python3
 awg_channel(*channel)
 Arguments: channel = string (['CH0','CH1']); Output: string.
-Example: awg_channel('CH0', 'CH1') enabled output from CH0 and CH1.
+Example: awg_channel('CH0', 'CH1') enables output from CH0 and CH1.
 ```
-This function enables output from the specified channel or query enabled channels. If there is no argument the function will return the currently enabled channels. If there is an argument the output from the specified channel will be enabled. The channel should be one of the following: ['CH0','CH1']. Default option is when both channels are enabled.<br/>
+This function enables output from the specified channel or queries enabled channels. If there is no argument the function will return the currently enabled channels. If there is an argument the output from the specified channel will be enabled. The channel should be one of the following: ['CH0','CH1']. Default option is when both channels are enabled.<br/>
 ### awg_sample_rate(*s_rate)
 ```python3
 awg_sample_rate(*s_rate)
@@ -225,9 +225,9 @@ This function queries or sets the AWG card sample rate (in MHz). If there is no 
 ```python3
 awg_clock_mode(*mode)
 Arguments: mode = string (['Internal','External']); Output: string.
-Example: awg_clock_mode(*mode) sets the AWG card clock mode.
+Example: awg_clock_mode('Internal') sets the Internal AWG card clock mode.
 ```
-This function queries or sets the AWG card clock mode. If there is no argument the function will return the current clock mode setting. If there is an argument the specified clock mode will be set. The clock mode should be one of the following: ['Internal','External']. The internal sampling clock is generated in default mode by a programmable high precision quartz. The external clock input of the M3i/M4i series is fed through a PLL to the clock system. Therefore the input will act as a reference clock input thus allowing to either use a copy of the external clock or to generate any sampling clock within the allowed range from the reference clock. Due to the fact that the driver needs to know the external fed in frequency for an exact calculation of the sampling rate the reference clock should be set by the [awg_reference_clock()](#awg_reference_clockclock) function. Default setting is 'Internal'.<br/>
+This function queries or sets the AWG card clock mode. If there is no argument the function will return the current clock mode setting. If there is an argument the specified clock mode will be set. The clock mode should be one of the following: ['Internal','External']. According to the documentation, the internal sampling clock is generated in default mode by a programmable high precision quartz. The external clock input of the M3i/M4i series is fed through a PLL to the clock system. Therefore the input will act as a reference clock input thus allowing to either use a copy of the external clock or to generate any sampling clock within the allowed range from the reference clock. Due to the fact that the driver needs to know the external fed in frequency for an exact calculation of the sampling rate the reference clock should be set by the [awg_reference_clock()](#awg_reference_clockclock) function. Default setting is 'Internal'.<br/>
 ### awg_reference_clock(*ref_clock)
 ```python3
 awg_reference_clock(*ref_clock)
@@ -242,7 +242,7 @@ Arguments: mode = string (['Single','Multi','Single Joined','Sequence']);
 Output: string.
 Example: awg_card_mode('Multi') sets the 'Multi' card mode.
 ```
-This function queries or sets the AWG card mode. If there is no argument the function will return the current сard mode setting. If there is an argument the specified card mode will be set. The card mode should be one of the following: ['Single','Multi','Single Joined','Sequence']. In the 'Single' mode a data from on-board memory will be replayed on every detected trigger event. The number of replays can be programmed by [loops](#awg_looploop). 'Single Joined' mode is a modification of the 'Single' mode with a possibility of defining more than one pulse. In this mode, all defined pulses are combined into a sequence of pulses according to the their start position, determined by start keyword of the [awg_pulse()](#awg_pulse) function. Please note, that if two channels are enabled the pulse sequence for the second channel will be generated automatically using a phase shifting specified in the config file. In the 'Multi' mode every detected trigger event replays one data block (segment). Segmented memory is available only in 'External' trigger [mode](#awg_trigger_modemode). In the 'Sequence' mode it is possible to define a whole pulse sequence by the [awg_pulse_sequence()](#awg_pulse_sequence) function. The pulse sequence has a specified number of points that is looped specified times. Switching between points is achieved using a trigger event. Please note, that if two channels are enabled the pulse sequence for the second channel will be generated automatically using a phase shifting specified in the config file. Default setting is 'Single'.<br/>
+This function queries or sets the AWG card mode. If there is no argument the function will return the current сard mode setting. If there is an argument the specified card mode will be set. The card mode should be one of the following: ['Single','Multi','Single Joined','Sequence']. According to the documentation, in the 'Single' mode a data from on-board memory will be replayed on every detected trigger event. The number of replays can be programmed by [loops](#awg_looploop). 'Single Joined' mode is a modification of the 'Single' mode with a possibility of defining more than one pulse. In this mode, all defined pulses are combined into a sequence of pulses according to the their start position, determined by start keyword of the [awg_pulse()](#awg_pulse) function. Please note, that if two channels are enabled the pulse sequence for the second channel will be generated automatically using a phase shifting specified in the config file. In the 'Multi' mode every detected trigger event replays one data block (segment). Segmented memory is available only in 'External' trigger [mode](#awg_trigger_modemode). In the 'Sequence' mode it is possible to define a whole pulse sequence by the [awg_pulse_sequence()](#awg_pulse_sequence) function. The pulse sequence has a specified number of points that is looped specified times. Switching between points is achieved using a trigger event. Please note, that if two channels are enabled the pulse sequence for the second channel will be generated automatically using a phase shifting specified in the config file. Default setting is 'Single'.<br/>
 ### awg_trigger_channel(*channel)
 ```python3
 awg_trigger_channel(*channel)
@@ -270,15 +270,15 @@ awg_trigger_delay(*delay)
 Arguments: delay = value + dimension (['ms','us','ns']); Output: string.
 Example: awg_trigger_delay('51.2 ns') sets the trigger delay to 51.2 ns.
 ```
-This function queries or sets the AWG card trigger delay. If there is no argument the function will return the current trigger delay. If there is an argument the specified trigger delay will be set. The delay step is 32 sample clock. If an input is not dividable by 32 sample clock the delay will be rounded and a warning message will be printed. Default value is '0 ns'.<br/>
+This function queries or sets the AWG card trigger delay. If there is no argument the function will return the current trigger delay. If there is an argument the specified trigger delay will be set. The delay step is 32 sample clock. If an input is not divisible by 32 sample clock the delay will be rounded and a warning message will be printed. Default value is '0 ns'.<br/>
 ### awg_amplitude(*amplitude)
 ```python3
 awg_amplitude(*amplitude)
 Arguments: amplitude = channel ['CH0','CH1'] + value (in mV); Output: string.
 Example: awg_amplitude('CH0', '600', 'CH1', '600') sets the amplitude of CH0 to 600 mV
- and the amplitude of CH1 to 600 mV.
+and the amplitude of CH1 to 600 mV.
 ```
-This function queries or sets the amplitude of the specified channels (in mV). If there is one argument the function will return the amplitude of the specified channel. If there are two arguments the specified amplitude (in mV) will be set for specified channel. The channel should be one of the following: ['CH0','CH1']. The minimum available amplitude is 80 mV. The maximum available amplitude is 2500 mV. Default amplitudes are 600 and 533 mV for 'CH0' and 'CH1', respectively.<br/>
+This function queries or sets the amplitude of the specified channels (in mV). If there is one argument the function will return the amplitude of the specified channel. If there is an argument the specified amplitude (in mV) will be set for specified channel. The channel should be one of the following: ['CH0','CH1']. The minimum available amplitude is 80 mV. The maximum available amplitude is 2500 mV. Default amplitudes are 600 and 533 mV for 'CH0' and 'CH1', respectively.<br/>
 ### awg_visualize()
 ```python3
 awg_visualize()

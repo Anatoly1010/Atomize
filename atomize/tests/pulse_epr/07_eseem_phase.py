@@ -15,6 +15,17 @@ STEP = 10                  # in NS; delta_start = str(STEP) + ' ns' -> delta_sta
 FIELD = 3507
 AVERAGES = 5
 
+# PULSES
+REP_RATE = '200 Hz'
+PULSE_1_LENGTH = '16 ns'
+PULSE_2_LENGTH = '16 ns'
+PULSE_3_LENGTH = '16 ns'
+PULSE_1_START = '100 ns'
+PULSE_2_START = '400 ns'
+PULSE_3_START = '456 ns'
+PULSE_SIGNAL_START = '756 ns'
+
+#
 cycle_data_x = []
 cycle_data_y = []
 data_x = np.zeros(POINTS)
@@ -39,14 +50,14 @@ t3034.oscilloscope_acquisition_type('Average')
 t3034.oscilloscope_number_of_averages(AVERAGES)
 t3034.oscilloscope_stop()
 
-pb.pulser_pulse(name = 'P0', channel = 'MW', start = '100 ns', length = '16 ns', phase_list = ['+x', '-x', '+x', '-x'])
+pb.pulser_pulse(name = 'P0', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH, phase_list = ['+x', '-x', '+x', '-x'])
 # 208 ns between P0 and P1 is set according to modulation deep in ESEEM. Can be adjust using different delays;
 # thin acquisition window
-pb.pulser_pulse(name = 'P1', channel = 'MW', start = '400 ns', length = '16 ns', phase_list = ['+x', '+x', '-x', '-x'])
-pb.pulser_pulse(name = 'P2', channel = 'MW', start = '456 ns', length = '16 ns', delta_start = str(STEP) + ' ns', phase_list = ['+x', '+x', '+x', '+x'])
-pb.pulser_pulse(name = 'P3', channel = 'TRIGGER', start = '756 ns', length = '100 ns', delta_start = str(STEP) + ' ns')
+pb.pulser_pulse(name = 'P1', channel = 'MW', start = PULSE_2_START, length = PULSE_2_LENGTH, phase_list = ['+x', '+x', '-x', '-x'])
+pb.pulser_pulse(name = 'P2', channel = 'MW', start = PULSE_3_START, length = PULSE_3_LENGTH, delta_start = str(STEP) + ' ns', phase_list = ['+x', '+x', '+x', '+x'])
+pb.pulser_pulse(name = 'P3', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str(STEP) + ' ns')
 
-pb.pulser_repetition_rate('200 Hz')
+pb.pulser_repetition_rate( REP_RATE )
 
 for i in range(POINTS):
 
@@ -79,6 +90,8 @@ for i in range(POINTS):
     cycle_data_x = []
     cycle_data_y = []
 
+pb.pulser_stop()
+
 # Data saving
 header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + 'ESEEM\n' + \
             'Field: ' + str(FIELD) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + \
@@ -89,6 +102,4 @@ header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) +
            'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Time (trig. delta_start), X (V*s), Y (V*s) '
 
 file_handler.save_1D_dialog( (x_axis, data_x, data_y), header = header )
-
-pb.pulser_stop()
 

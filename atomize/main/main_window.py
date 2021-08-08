@@ -12,8 +12,8 @@ import socket
 import threading
 import configparser
 import platform
-from tkinter import filedialog#, ttk
-import tkinter
+#from tkinter import filedialog#, ttk
+#import tkinter
 import numpy as np
 from . import widgets
 import pyqtgraph as pg
@@ -94,6 +94,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.textEdit.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); }\
          QScrollBar:vertical {background-color: rgb(42, 42, 64);}")
         self.textEdit.textChanged.connect(self.save_edited_text)
+
+        # show spaces
+        option = QtGui.QTextOption()
+        option.setFlags( QtGui.QTextOption.ShowTabsAndSpaces ) # | QtGui.QTextOption.ShowLineAndParagraphSeparators
+        self.textEdit.document().setDefaultTextOption(option)
+        self.textEdit.textChanged.connect(self.save_edited_text)
+
+        # set tab distance
+        self.textEdit.setTabStopDistance( QtGui.QFontMetricsF(self.textEdit.font()).horizontalAdvance(' ') * 4 )
+        
+        self.text_errors.top_margin  = 2
         self.text_errors.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); }")
         self.text_errors.setCenterOnScroll(True)
         self.text_errors.ensureCursorVisible()
@@ -643,18 +654,24 @@ class NameList(QDockWidget):
         self.namelist_view.addAction(pause_action)
 
         open_action = QAction('Open 1D Data', self)
-        open_action.triggered.connect(self.open_file_dialog)
+        open_action.triggered.connect(self.file_dialog) #self.open_file_dialog_1
         self.namelist_view.addAction(open_action)
 
         open_action_2 = QAction('Open 2D Data', self)
-        open_action_2.triggered.connect(self.open_file_dialog_2)
+        open_action_2.triggered.connect(self.file_dialog_2d) #self.open_file_dialog_2
         self.namelist_view.addAction(open_action_2)
 
-    def open_file_dialog(self, directory = '', header = 0):
-        file_path = self.file_dialog(directory = directory)
+    def open_file(self, filename):
+        """
+        A function to open 1d data.
+        :param filename: string
+        """
+        file_path = filename
 
-        header_array = [];
-        file_to_read = open(file_path, 'r')
+        header_array = []
+        header = 0
+
+        file_to_read = open(filename, 'r')
         for i, line in enumerate(file_to_read):
             if i is header: break
             temp = line.split("#")
@@ -675,10 +692,17 @@ class NameList(QDockWidget):
             pw.plot(data[0], data[2], parametric = True, name = file_path + '_2', xname = 'X', xscale = 'Arb. U.',\
                 yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
 
-    def open_file_dialog_2(self, directory = '', header = 0):
-        file_path = self.file_dialog(directory = directory)
+    def open_file_2d(self, filename):
+        """
+        A function to open 2d data
+        :param filename: string
+        """
+        file_path = filename
 
-        header_array = [];
+        header_array = []
+        header = 0
+
+        header_array = []
         file_to_read = open(file_path, 'r')
         for i, line in enumerate(file_to_read):
             if i is header: break
@@ -695,18 +719,94 @@ class NameList(QDockWidget):
             zname = 'X', zscale = 'Arb. U.')
         pw.setImage(data, axes = {'y': 0, 'x': 1})
 
-    def file_dialog(self, directory = ''):
-        root = tkinter.Tk()
-        #s = ttk.Style().theme_use('alt')
-        root.withdraw()
+    # unused
+    def open_file_dialog(self, directory = '', header = 0):
+        pass
+        # For Tkinter Open 1D; Unused
+        # file_path = self.file_dialog(directory = directory)
 
-        file_path = filedialog.askopenfilename(**dict(
-            initialdir = self.open_dir,
-            filetypes = [("CSV", "*.csv"), ("TXT", "*.txt"),\
-            ("DAT", "*.dat"), ("all", "*.*")],
-            title = 'Select file to open')
-            )
-        return file_path
+        #header_array = [];
+        #file_to_read = open(file_path, 'r')
+        #for i, line in enumerate(file_to_read):
+        #    if i is header: break
+        #    temp = line.split("#")
+        #    header_array.append(temp)
+        #file_to_read.close()
+
+        #temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 0) 
+        #data = np.transpose(temp)
+
+        #name_plot = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+        #pw = self.window.add_new_plot(1, name_plot)
+        #if len(data) == 2:
+        #    pw.plot(data[0], data[1], parametric = True, name = file_path, xname = 'X', xscale = 'Arb. U.',\
+        #            yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+        #elif len(data) == 3:
+        #    pw.plot(data[0], data[1], parametric = True, name = file_path + '_1', xname = 'X', xscale = 'Arb. U.',\
+        #            yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+        #    pw.plot(data[0], data[2], parametric = True, name = file_path + '_2', xname = 'X', xscale = 'Arb. U.',\
+        #            yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
+
+    # unused
+    def open_file_dialog_2(self, directory = '', header = 0):
+        pass
+        # For Tkinter Open 1D; Unused
+        #file_path = self.file_dialog(directory = directory)
+
+        #header_array = []
+        #file_to_read = open(file_path, 'r')
+        #for i, line in enumerate(file_to_read):
+        #    if i is header: break
+        #    temp = line.split("#")
+        #    header_array.append(temp)
+        #file_to_read.close()
+
+        #temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 0) 
+        #data = temp
+
+        #name_plot = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+        #pw = self.window.add_new_plot(2, name_plot)
+        #pw.setAxisLabels(xname = 'X', xscale = 'Arb. U.',yname = 'X', yscale = 'Arb. U.',\
+        #    zname = 'X', zscale = 'Arb. U.')
+        #pw.setImage(data, axes = {'y': 0, 'x': 1})
+
+    def file_dialog(self, directory = ''):
+        """
+        A function to open a new window for choosing 1d data
+        """
+        filedialog = QFileDialog(self, 'Open File', directory = self.open_dir, filter = "CSV (*.csv)", \
+                                    options = QtWidgets.QFileDialog.DontUseNativeDialog )
+        # options = QtWidgets.QFileDialog.DontUseNativeDialog
+        # use QFileDialog.DontUseNativeDialog to change directory
+        filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
+        filedialog.setFileMode(QtWidgets.QFileDialog.AnyFile)
+        filedialog.fileSelected.connect(self.open_file)
+        filedialog.show()
+
+        # Tkinter Open 1D data
+        #root = tkinter.Tk()
+        #s = ttk.Style().theme_use('alt')
+        #root.withdraw()
+
+        #file_path = filedialog.askopenfilename(**dict(
+        #    initialdir = self.open_dir,
+        #    filetypes = [("CSV", "*.csv"), ("TXT", "*.txt"),\
+        #    ("DAT", "*.dat"), ("all", "*.*")],
+        #    title = 'Select file to open')
+        #    )
+        #return file_path
+
+    def file_dialog_2d(self, directory = ''):
+        """
+        A function to open a new window for choosing 2D data
+        """
+        filedialog = QFileDialog(self, 'Open File', directory = self.open_dir, filter = "CSV (*.csv)")
+        #options = QtWidgets.QFileDialog.DontUseNativeDialog
+        # use QFileDialog.DontUseNativeDialog to change directory
+        filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
+        filedialog.setFileMode(QtWidgets.QFileDialog.AnyFile)
+        filedialog.fileSelected.connect(self.open_file_2d)
+        filedialog.show()
 
     def activate_item(self, index):
         item = self.namelist_model.itemFromIndex(index)

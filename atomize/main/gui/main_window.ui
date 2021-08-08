@@ -247,8 +247,8 @@ QTabBar::tab:selected {
              <font>
               <family>Arial</family>
               <pointsize>11</pointsize>
-              <weight>75</weight>
-              <bold>true</bold>
+              <weight>50</weight>
+              <bold>false</bold>
              </font>
             </property>
             <property name="focusPolicy">
@@ -287,6 +287,9 @@ QTabBar::tab:selected {
             <property name="readOnly">
              <bool>false</bool>
             </property>
+            <property name="tabStopWidth">
+             <number>10</number>
+            </property>
            </widget>
           </item>
           <item row="0" column="1">
@@ -317,8 +320,8 @@ QTabBar::tab:selected {
              <font>
               <family>Arial</family>
               <pointsize>9</pointsize>
-              <weight>75</weight>
-              <bold>true</bold>
+              <weight>50</weight>
+              <bold>false</bold>
              </font>
             </property>
             <property name="mouseTracking">
@@ -508,7 +511,7 @@ QTabBar::tab:selected {
      <x>0</x>
      <y>0</y>
      <width>981</width>
-     <height>21</height>
+     <height>22</height>
     </rect>
    </property>
   </widget>

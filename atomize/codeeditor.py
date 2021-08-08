@@ -22,8 +22,11 @@ class LineNumberArea(QWidget):
         self.codeEditor.lineNumberAreaPaintEvent(event)
 
 class CodeEditor(QPlainTextEdit):
+    
     def __init__(self, parent=None):
         QPlainTextEdit.__init__(self, parent)
+        
+        self.top_margin = 0
         self.setTabStopDistance(30)                 # set the tab width
         self.lineNumberArea = LineNumberArea(self)
         self.blockCountChanged.connect(self.updateLineNumberAreaWidth)
@@ -31,7 +34,7 @@ class CodeEditor(QPlainTextEdit):
         self.cursorPositionChanged.connect(self.highlightCurrentLine)
         self.updateLineNumberAreaWidth(0)
         self.highlightCurrentLine()
-
+        
     def lineNumberAreaPaintEvent(self, event):
         painter = QPainter(self.lineNumberArea)
         painter.fillRect(event.rect(), QColor(63, 63, 97))   # color of the line column 
@@ -45,13 +48,13 @@ class CodeEditor(QPlainTextEdit):
             if block.isVisible() and bottom >= event.rect().top():
                 number = str(blockNumber + 1)
                 painter.setPen(QColor(192, 202, 227))
-                painter.setFont(QFont("Ubuntu", 9.5, weight=QtGui.QFont.Bold))
+                painter.setFont(QFont("Ubuntu", 9.0, weight = QtGui.QFont.Bold))
                 painter.drawText(-4, top + 1, self.lineNumberArea.width(), 
                     self.fontMetrics().height(),
                     Qt.AlignRight, number)
             block = block.next()
             top = bottom
-            bottom = top + self.blockBoundingRect(block).height()
+            bottom = top + self.blockBoundingRect(block).height() + 0.1
             blockNumber += 1
 
     def lineNumberAreaWidth(self):
@@ -66,7 +69,7 @@ class CodeEditor(QPlainTextEdit):
 
     @pyqtSlot(int)
     def updateLineNumberAreaWidth(self, newBlockCount):
-        self.setViewportMargins(self.lineNumberAreaWidth(), 0, 0, 0);
+        self.setViewportMargins(self.lineNumberAreaWidth() + 2, self.top_margin, 0, 0);
 
     @pyqtSlot()
     def highlightCurrentLine(self):

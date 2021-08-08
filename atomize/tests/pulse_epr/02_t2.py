@@ -15,6 +15,15 @@ STEP = 4                  # in NS; delta_start = str(STEP) + ' ns' -> delta_star
 FIELD = 3472
 AVERAGES = 500
 
+# PULSES
+REP_RATE = '600 Hz'
+PULSE_1_LENGTH = '16 ns'
+PULSE_2_LENGTH = '32 ns'
+PULSE_1_START = '100 ns'
+PULSE_2_START = '400 ns'
+PULSE_SIGNAL_START = '700 ns'
+
+#
 data_x = np.zeros(POINTS)
 data_y = np.zeros(POINTS)
 x_axis = np.arange(0, POINTS*STEP, STEP)
@@ -40,11 +49,11 @@ t3034.oscilloscope_number_of_averages(AVERAGES)
 t3034.oscilloscope_stop()
 
 # Setting pulses
-pb.pulser_pulse(name = 'P0', channel = 'MW', start = '100 ns', length = '16 ns')
-pb.pulser_pulse(name = 'P1', channel = 'MW', start = '400 ns', length = '32 ns', delta_start = str(int(STEP/2)) + ' ns')
-pb.pulser_pulse(name = 'P2', channel = 'TRIGGER', start = '700 ns', length = '100 ns', delta_start = str(STEP) + ' ns')
+pb.pulser_pulse(name = 'P0', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH)
+pb.pulser_pulse(name = 'P1', channel = 'MW', start = PULSE_2_START, length = PULSE_2_LENGTH, delta_start = str(int(STEP/2)) + ' ns')
+pb.pulser_pulse(name = 'P2', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str(STEP) + ' ns')
 
-pb.pulser_repetition_rate('2000 Hz')
+pb.pulser_repetition_rate( REP_RATE )
 
 # Data acquisition
 for i in range(POINTS):
@@ -65,6 +74,8 @@ for i in range(POINTS):
 
     pb.pulser_shift()
    
+pb.pulser_stop()
+
 # Data saving
 header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + \
          'T2 Measurement\n' + 'Field: ' + str(FIELD) + ' G \n' + \
@@ -75,6 +86,3 @@ header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) +
           'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Time (trig. delta_start), X (V*s), Y (V*s) '
 
 file_handler.save_1D_dialog( (x_axis, data_x, data_y), header = header )
-
-pb.pulser_stop()
-

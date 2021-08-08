@@ -56,7 +56,7 @@ class Saver_Opener():
     def open_1D_dialog(self, directory = '', fmt = '', header = 0):
         if test_flag != 'test':
             self.app = QtWidgets.QApplication([])
-            file_path = self.FileDialog(directory = directory, mode = 'Open', fmt = 'csv, txt, dat')
+            file_path = self.FileDialog(directory = directory, mode = 'Open', fmt = 'csv')
             QTimer.singleShot(100, self.app.quit)
             self.app.exec_()
 
@@ -78,7 +78,7 @@ class Saver_Opener():
     def save_1D_dialog(self, data, directory = '', fmt = '', header = ''):
         if test_flag != 'test':
             self.app = QtWidgets.QApplication(sys.argv)
-            file_path = self.FileDialog(directory = directory, mode = 'Save', fmt = 'csv, txt, dat')
+            file_path = self.FileDialog(directory = directory, mode = 'Save', fmt = 'csv')
             QTimer.singleShot(50, self.app.quit)
             self.app.exec_()
 
@@ -108,7 +108,7 @@ class Saver_Opener():
     def open_2D_dialog(self, directory = '', fmt = '', header = 0):
         if test_flag != 'test':
             self.app = QtWidgets.QApplication(sys.argv)
-            file_path = self.FileDialog(directory = directory, mode = 'Open', fmt = 'csv, txt, dat')
+            file_path = self.FileDialog(directory = directory, mode = 'Open', fmt = 'csv')
             QTimer.singleShot(50, self.app.quit)
             self.app.exec_()
 
@@ -147,7 +147,7 @@ class Saver_Opener():
     def open_2D_appended_dialog(self, directory = '', header = 0, chunk_size = 1):
         if test_flag != 'test':
             self.app = QtWidgets.QApplication(sys.argv)
-            file_path = self.FileDialog(directory = directory, mode = 'Open', fmt = 'csv, txt, dat')
+            file_path = self.FileDialog(directory = directory, mode = 'Open', fmt = 'csv')
 
             QTimer.singleShot(50, self.app.quit)
             self.app.exec_()
@@ -170,7 +170,7 @@ class Saver_Opener():
     def save_2D_dialog(self, data, directory = '', header = ''):
         if test_flag != 'test':
             self.app = QtWidgets.QApplication(sys.argv)
-            file_path = self.FileDialog(directory = directory, mode = 'Save', fmt = 'csv, txt, dat')
+            file_path = self.FileDialog(directory = directory, mode = 'Save', fmt = 'csv')
             QTimer.singleShot(50, self.app.quit)
             self.app.exec_()
 
@@ -182,7 +182,7 @@ class Saver_Opener():
     def create_file_dialog(self,  directory = ''):
         if test_flag != 'test':
             self.app = QtWidgets.QApplication(sys.argv)
-            file_path = self.FileDialog(directory = directory, mode = 'Save', fmt = 'csv, txt, dat')
+            file_path = self.FileDialog(directory = directory, mode = 'Save', fmt = 'csv')
             open(file_path, "w").close()
             QTimer.singleShot(50, self.app.quit)
             self.app.exec_() # run mainloop which runs all time and makes all job in GUI.
@@ -196,7 +196,7 @@ class Saver_Opener():
 
     def FileDialog(self, directory = '', mode = 'Open', fmt = ''):
 
-        self.dialog = QFileDialog() # options = QtWidgets.QFileDialog.DontUseNativeDialog
+        self.dialog = QFileDialog( options = QtWidgets.QFileDialog.DontUseNativeDialog ) # options = QtWidgets.QFileDialog.DontUseNativeDialog
         self.dialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
         self.dialog.setFileMode(QtWidgets.QFileDialog.AnyFile)
         # both open and save dialog

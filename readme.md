@@ -23,6 +23,7 @@ At the moment, Atomize has been tested and is currently used for controlling sev
     - [Temperature Controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/temperature_controller_functions.md)<br/>
     - [Lock-in Amplifiers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/lock_in_amplifier_functions.md)<br/>
     - [Oscilloscopes](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/oscilloscope_functions.md)<br/>
+    - [Digitizers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/digitizer_functions.md)<br/>
     - [Oscilloscope Wave Generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/oscilloscope_wave_generator_functions.md)<br/>
     - [Arbitrary Wave Generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/awg_functions.md)<br/>
     - [Pulse Programmers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/pulse_programmers_functions.md)<br/>
@@ -161,6 +162,10 @@ On Windows 10 one should use:
 	- Keysight InfiniiVision 4000 X-Series (Ethernet); Untested
 	- Tektronix 4000 Series (Ethernet); Tested 01/2021
 
+#### [Digitizers](#digitizers-1)
+	- Spectrum M4I 4450 X8; Tested 08/2021
+The original [library](https://spectrum-instrumentation.com/en/m4i4450-x8) was written by Spectrum.
+
 #### [Oscilloscope Wave Generators](#oscilloscope-wave-generators-1)
 	- Wave Generator of Keysight InfiniiVision 2000 X-Series (Ethernet)
 	Available via corresponding oscilloscope module.
@@ -279,6 +284,31 @@ oscilloscope_trigger_channel(*channel)
 oscilloscope_trigger_low_level(*level)
 oscilloscope_command(command)
 oscilloscope_query(command)
+```
+### [Digitizers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/digitizer_functions.md)
+```python3
+digitizer_name()
+digitizer_setup()
+digitizer_get_curve()
+digitizer_close()
+digitizer_stop()
+digitizer_number_of_points(*points)
+digitizer_posttrigger(*post_points)
+digitizer_number_of_segments(*segments)
+digitizer_channel(*channel)
+digitizer_sample_rate(*s_rate)
+digitizer_clock_mode(*mode)
+digitizer_reference_clock(*ref_clock)
+digitizer_card_mode(*mode)
+digitizer_trigger_channel(*ch)
+digitizer_trigger_mode(*mode)
+digitizer_number_of_averages(*averages)
+digitizer_trigger_delay(*delay)
+digitizer_input_mode(*mode)
+digitizer_amplitude(*ampl)
+digitizer_offset(*offset)
+digitizer_coupling(*coupling)
+digitizer_impedance(*impedance)
 ```
 ### [Oscilloscope wave generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/oscilloscope_wave_generator_functions.md)
 ```python3
