@@ -4,8 +4,8 @@
 import os
 import sys
 ###AWG
-#sys.path.append('/home/anatoly/AWG/spcm_examples/python')
-sys.path.append('/home/anatoly/awg_files/python')
+sys.path.append('/home/anatoly/AWG/spcm_examples/python')
+#sys.path.append('/home/anatoly/awg_files/python')
 #sys.path.append('C:/Users/User/Desktop/Examples/python')
 import numpy as np
 import atomize.device_modules.config.config_utils as cutil
@@ -311,7 +311,12 @@ class Spectrum_M4I_4450_X8:
             spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_START | M2CMD_CARD_ENABLETRIGGER | M2CMD_DATA_STARTDMA)
             # wait for acquisition
             # dwError = 
-            spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WAITREADY | M2CMD_DATA_WAITDMA)
+            dwError = spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WAITREADY | M2CMD_DATA_WAITDMA)
+
+            # timeout Error
+            if dwError == 263:
+                general.message('A timeout occurred while waiting. Probably the digitizer is not triggered')
+                self.digitizer_stop()
 
             # this is the point to do anything with the data
             lBitsPerSample = int32 (0)
@@ -395,7 +400,8 @@ class Spectrum_M4I_4450_X8:
         """
         if test_flag != 'test':
             # clean up
-            spcm_vClose (self.hCard)
+            spcm_vClose ( self.hCard )
+            self.state == 0
 
         elif test_flag == 'test':
             pass

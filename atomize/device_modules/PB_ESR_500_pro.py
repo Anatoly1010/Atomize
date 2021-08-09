@@ -1527,7 +1527,7 @@ class PB_ESR_500_Pro:
                 else:
                     pass
 
-            return np_array
+            return sorted_np_array
 
     def check_problem_pulses_phase(self, np_array):
         """

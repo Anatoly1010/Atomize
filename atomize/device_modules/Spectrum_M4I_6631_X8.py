@@ -5,8 +5,8 @@ import os
 import sys
 import random
 ###AWG
-#sys.path.append('/home/anatoly/AWG/spcm_examples/python')
-sys.path.append('/home/anatoly/awg_files/python')
+sys.path.append('/home/anatoly/AWG/spcm_examples/python')
+#sys.path.append('/home/anatoly/awg_files/python')
 #sys.path.append('C:/Users/User/Desktop/Examples/python')
 from math import sin, pi, exp, log2
 from itertools import groupby, chain
@@ -3062,65 +3062,65 @@ class Spectrum_M4I_6631_X8:
                 if element == 0: # 'SINE'
                     for i in range(pulse_start_smp[index], self.memsize):
 
-                            if i < (pulse_start_smp[index] ):
-                                pass
-                            elif ( i >= ( pulse_start_smp[index] ) and \
-                                   i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
-                                
-                                #if pulse_phase_np[index] != 1000:
-                                pnBuffer[i] = int( maxCAD * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+                        if i < (pulse_start_smp[index] ):
+                            pass
+                        elif ( i >= ( pulse_start_smp[index] ) and \
+                               i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
+                            
+                            #if pulse_phase_np[index] != 1000:
+                            pnBuffer[i] = int( maxCAD * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
 
-                                #else:
-                                    #self.full_buffer[point, i] 
-                                #    pnBuffer[i] = int( maxCAD * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + rnd_phase) )
-                            else:
-                                break
+                            #else:
+                                #self.full_buffer[point, i] 
+                            #    pnBuffer[i] = int( maxCAD * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + rnd_phase) )
+                        else:
+                            break
 
                 elif element == 1: # GAUSS
                     # mid_point for GAUSS and SINC
                     mid_point = int( pulse_start_smp[index] + ( pulse_length_smp[index] )/2 )
 
                     for i in range(pulse_start_smp[index], self.memsize):
-                            if i < (pulse_start_smp[index] ):
-                                pass
-                            elif ( i >= ( pulse_start_smp[index] ) and \
-                                   i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
-                                
-                                #if pulse_phase_np[index] != 1000:
-                                    #self.full_buffer[point, i] 
-                                pnBuffer[i] = int( maxCAD * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                                            sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+                        if i < (pulse_start_smp[index] ):
+                            pass
+                        elif ( i >= ( pulse_start_smp[index] ) and \
+                               i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
+                            
+                            #if pulse_phase_np[index] != 1000:
+                                #self.full_buffer[point, i] 
+                            pnBuffer[i] = int( maxCAD * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                        sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
 
-                                #else:
-                                    #self.full_buffer[point, i] 
-                                #    pnBuffer[i] = int( maxCAD * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                #                            sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
-                                #                            rnd_phase) )
-                            else:
-                                break
+                            #else:
+                                #self.full_buffer[point, i] 
+                            #    pnBuffer[i] = int( maxCAD * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                            #                            sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                            #                            rnd_phase) )
+                        else:
+                            break
 
                 elif element == 2: # 'SINC'
                     # mid_point for GAUSS and SINC
                     mid_point = int( pulse_start_smp[index] + ( pulse_length_smp[index] )/2 )
 
                     for i in range(pulse_start_smp[index], self.memsize):
-                            if i < (pulse_start_smp[index]):
-                                pass
-                            elif ( i >= ( pulse_start_smp[index] ) and \
-                                   i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
-                                
-                                #if pulse_phase_np[index] != 1000:
-                                    #self.full_buffer[point, i] 
-                                pnBuffer[i] = int( maxCAD * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                                            sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+                        if i < (pulse_start_smp[index]):
+                            pass
+                        elif ( i >= ( pulse_start_smp[index] ) and \
+                               i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
+                            
+                            #if pulse_phase_np[index] != 1000:
+                                #self.full_buffer[point, i] 
+                            pnBuffer[i] = int( maxCAD * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                        sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
 
-                                #else:
-                                    #self.full_buffer[point, i]
-                                #    pnBuffer[i] = int( maxCAD * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                #                            sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
-                                #                            rnd_phase) )
-                            else:
-                                break
+                            #else:
+                                #self.full_buffer[point, i]
+                            #    pnBuffer[i] = int( maxCAD * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                            #                            sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                            #                            rnd_phase) )
+                        else:
+                            break
 
                 elif element == 3: # BLANK
                     pass
@@ -3143,28 +3143,28 @@ class Spectrum_M4I_6631_X8:
 
                 if element == 0: #'SINE'
                     for i in range(2 * (pulse_start_smp[index] ), 2*self.memsize, 2):
-                            if i < 2 * (pulse_start_smp[index] ):
-                                pass
-                            elif ( i >= 2 * ( pulse_start_smp[index] ) and \
-                                   i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] ) ):
-                                
-                                #if pulse_phase_np[index] != 1000:
-                                    #self.full_buffer[point, i] 
-                                # ch0
-                                pnBuffer[i] = int( maxCAD * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
-                                #ch1
-                                pnBuffer[i + 1] = int( maxCAD * sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
-                                                             phase_shift_ch1_seq_mode) )
+                        if i < 2 * (pulse_start_smp[index] ):
+                            pass
+                        elif ( i >= 2 * ( pulse_start_smp[index] ) and \
+                               i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] ) ):
+                            
+                            #if pulse_phase_np[index] != 1000:
+                                #self.full_buffer[point, i] 
+                            # ch0
+                            pnBuffer[i] = int( maxCAD * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+                            #ch1
+                            pnBuffer[i + 1] = int( maxCAD * sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                                         phase_shift_ch1_seq_mode) )
 
-                                #else:
-                                    #self.full_buffer[point, i]
-                                    # ch0
-                                    #pnBuffer[i] = int( maxCAD * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase) )
-                                    #ch1
-                                    #pnBuffer[i + 1] = int( maxCAD * sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase + \
-                                    #                         phase_shift_ch1_seq_mode) )
-                            else:
-                                break
+                            #else:
+                                #self.full_buffer[point, i]
+                                # ch0
+                                #pnBuffer[i] = int( maxCAD * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase) )
+                                #ch1
+                                #pnBuffer[i + 1] = int( maxCAD * sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase + \
+                                #                         phase_shift_ch1_seq_mode) )
+                        else:
+                            break
 
                 elif element == 1: #'GAUSS'
                     # mid_point for GAUSS and SINC
@@ -3172,33 +3172,33 @@ class Spectrum_M4I_6631_X8:
 
                     for i in range(2 * (pulse_start_smp[index] ), 2*self.memsize, 2):
 
-                            if i < 2 * (pulse_start_smp[index] ):
-                                pass
-                            elif ( i >= 2 * ( pulse_start_smp[index] ) and \
-                                   i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] ) ):
-                                
-                                #if pulse_phase_np[index] != 1000:
-                                    #self.full_buffer[point, i]
+                        if i < 2 * (pulse_start_smp[index] ):
+                            pass
+                        elif ( i >= 2 * ( pulse_start_smp[index] ) and \
+                               i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] ) ):
+                            
+                            #if pulse_phase_np[index] != 1000:
+                                #self.full_buffer[point, i]
+                            # ch0
+                            pnBuffer[i] = int( maxCAD * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                        sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+                            #ch1
+                            pnBuffer[i + 1] = int( maxCAD * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                        sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                                        phase_shift_ch1_seq_mode) )
+
+                            #else:
+                                #self.full_buffer[point, i]
                                 # ch0
-                                pnBuffer[i] = int( maxCAD * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                                            sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+                            #    pnBuffer[i] = int( maxCAD * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                            #                            sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase ) )
                                 #ch1
-                                pnBuffer[i + 1] = int( maxCAD * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                                            sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
-                                                            phase_shift_ch1_seq_mode) )
+                            #    pnBuffer[i + 1] = int( maxCAD * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                            #                            sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase +\
+                            #                            phase_shift_ch1_seq_mode) )                                    
 
-                                #else:
-                                    #self.full_buffer[point, i]
-                                    # ch0
-                                #    pnBuffer[i] = int( maxCAD * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                #                            sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase ) )
-                                    #ch1
-                                #    pnBuffer[i + 1] = int( maxCAD * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                #                            sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase +\
-                                #                            phase_shift_ch1_seq_mode) )                                    
-
-                            else:
-                                break
+                        else:
+                            break
                     
                 elif element == 2: #'SINC'
                     # mid_point for GAUSS and SINC
@@ -3206,30 +3206,30 @@ class Spectrum_M4I_6631_X8:
 
                     for i in range(2 * (pulse_start_smp[index] ), 2*self.memsize, 2):
 
-                            if i < 2 * (pulse_start_smp[index] ):
-                                pass
-                            elif ( i >= 2 * ( pulse_start_smp[index] ) and \
-                                   i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] ) ):
-                                
-                                #if pulse_phase_np[index] != 1000:
-                                    #self.full_buffer[point, i]
+                        if i < 2 * (pulse_start_smp[index] ):
+                            pass
+                        elif ( i >= 2 * ( pulse_start_smp[index] ) and \
+                               i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] ) ):
+                            
+                            #if pulse_phase_np[index] != 1000:
+                                #self.full_buffer[point, i]
+                            # ch0
+                            pnBuffer[i] = int( maxCAD * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                         sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+                            #ch1
+                            pnBuffer[i + 1] = int( maxCAD * np.sinc(2*(( ( i  )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                         sin(2*pi*(( ( i  )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                                         phase_shift_ch1_seq_mode) )
+                            #else:
+                                #self.full_buffer[point, i]
                                 # ch0
-                                pnBuffer[i] = int( maxCAD * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                                             sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
-                                #ch1
-                                pnBuffer[i + 1] = int( maxCAD * np.sinc(2*(( ( i  )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                                             sin(2*pi*(( ( i  )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
-                                                             phase_shift_ch1_seq_mode) )
-                                #else:
-                                    #self.full_buffer[point, i]
-                                    # ch0
-                                #    pnBuffer[i] = int( maxCAD * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                #                             sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase) )
-                                #    pnBuffer[i + 1] = int( maxCAD * np.sinc(2*(( ( i )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                #                             sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
-                                #                             phase_shift_ch1_seq_mode + rnd_phase) )
-                            else:
-                                break
+                            #    pnBuffer[i] = int( maxCAD * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                            #                             sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase) )
+                            #    pnBuffer[i + 1] = int( maxCAD * np.sinc(2*(( ( i )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                            #                             sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                            #                             phase_shift_ch1_seq_mode + rnd_phase) )
+                        else:
+                            break
                 
                 elif element == 3: # BLANK
                     pass
