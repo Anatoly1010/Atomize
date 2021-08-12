@@ -14,9 +14,9 @@ import atomize.device_modules.Spectrum_M4I_6631_X8 as spectrum
 # A possible use in an experimental script
 awg = spectrum.Spectrum_M4I_6631_X8()
 
-awg.awg_pulse(name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = pi/2, length = '80 ns', sigma = '16 ns')
-awg.awg_pulse(name = 'P1', channel = 'CH0', func = 'GAUSS', frequency = '200 MHz', phase = 0, length = '64 ns', sigma = '16 ns', start = '300 ns', delta_start = '100 ns')
-awg.awg_pulse(name = 'P2', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, length = '80 ns', sigma = '16 ns', start = '7000 ns', delta_start = '200 ns')
+awg.awg_pulse(name = 'P0', channel = 'CH0', func = 'SINE', frequency = '100 MHz', phase = 0, delta_phase = pi/2, length = '80 ns', sigma = '16 ns', d_coef = 1.25)
+awg.awg_pulse(name = 'P1', channel = 'CH0', func = 'GAUSS', frequency = '200 MHz', phase = 0, length = '96 ns', sigma = '16 ns', start = '300 ns', delta_start = '100 ns')
+awg.awg_pulse(name = 'P2', channel = 'CH0', func = 'SINC', frequency = '50 MHz', phase = 0, length = '120 ns', sigma = '20 ns', start = '1500 ns', delta_start = '0 ns')
 
 awg.awg_channel('CH0', 'CH1')
 #awg.awg_trigger_mode('Negative')
