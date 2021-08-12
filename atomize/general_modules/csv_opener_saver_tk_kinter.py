@@ -22,10 +22,12 @@ test_file_path = os.path.abspath(os.getcwd())
 class Saver_Opener:
     def __init__(self):
         # for open directory specified in the config file
-        path_to_main = os.path.abspath(os.getcwd())
+        #path_to_main = os.path.abspath(os.getcwd())
+        path_to_main = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
         #os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'templates'))
         # configuration data
-        path_config_file = os.path.join(path_to_main,'atomize/config.ini')
+        #path_config_file = os.path.join(path_to_main,'atomize/config.ini')
+        path_config_file = os.path.join(path_to_main,'config.ini')
         config = configparser.ConfigParser()
         config.read(path_config_file)
         # directories
