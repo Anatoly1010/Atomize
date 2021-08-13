@@ -10,10 +10,11 @@ import atomize.device_modules.SR_PTC_10 as sr
 import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 
 ### Experimental parameters
-POINTS = 400
+POINTS = 401
 STEP = 10                  # in NS; delta_start = str(STEP) + ' ns' -> delta_start = '10 ns'
 FIELD = 3507
 AVERAGES = 5
+SCANS = 1
 
 # PULSES
 REP_RATE = '200 Hz'
@@ -30,7 +31,7 @@ cycle_data_x = []
 cycle_data_y = []
 data_x = np.zeros(POINTS)
 data_y = np.zeros(POINTS)
-x_axis = np.arange(0, POINTS*STEP, STEP)
+x_axis = np.linspace(0, POINTS*STEP, num = POINTS) 
 ###
 
 # initialization of the devices
@@ -59,36 +60,44 @@ pb.pulser_pulse(name = 'P3', channel = 'TRIGGER', start = PULSE_SIGNAL_START, le
 
 pb.pulser_repetition_rate( REP_RATE )
 
-for i in range(POINTS):
+j = 1
+while j <= SCANS:
 
-    # phase cycle
-    j = 0
-    while j < 4:
+    for i in range(POINTS):
 
-        pb.pulser_next_phase()
+        # phase cycle
+        k = 0
+        while k < 4:
 
-        t3034.oscilloscope_start_acquisition()
-        area_x = t3034.oscilloscope_area('CH4')
-        area_y = t3034.oscilloscope_area('CH3')
+            pb.pulser_next_phase()
 
-        cycle_data_x.append(area_x)
-        cycle_data_y.append(area_y)
+            t3034.oscilloscope_start_acquisition()
+            area_x = t3034.oscilloscope_area('CH4')
+            area_y = t3034.oscilloscope_area('CH3')
 
-        j += 1
-    
-    # acquisition cycle [+, -, -, +]
-    data_x[i] = (cycle_data_x[0] - cycle_data_x[1] - cycle_data_x[2] + cycle_data_x[3])/4
-    data_y[i] = (cycle_data_y[0] - cycle_data_y[1] - cycle_data_y[2] + cycle_data_y[3])/4
+            cycle_data_x.append(area_x)
+            cycle_data_y.append(area_y)
 
-    general.plot_1d('ESEEM', x_axis, data_x, xname = 'Delay',\
-        xscale = 'ns', yname = 'Area', yscale = 'V*s', timeaxis = 'False', label = 'X')
-    general.plot_1d('ESEEM', x_axis, data_y, xname = 'Delay',\
-        xscale = 'ns', yname = 'Area', yscale = 'V*s', timeaxis = 'False', label = 'Y')
+            k += 1
+        
+        # acquisition cycle [+, -, -, +]
+        data_x[i] = ( data_x[i] * (j - 1) + (cycle_data_x[0] - cycle_data_x[1] - cycle_data_x[2] + cycle_data_x[3]) / 4 ) / j
+        data_y[i] = ( data_y[i] * (j - 1) + (cycle_data_y[0] - cycle_data_y[1] - cycle_data_y[2] + cycle_data_y[3]) / 4 ) / j
 
-    pb.pulser_shift()
+        general.plot_1d('ESEEM', x_axis, data_x, xname = 'Delay',\
+            xscale = 'ns', yname = 'Area', yscale = 'V*s', timeaxis = 'False', label = 'X')
+        general.plot_1d('ESEEM', x_axis, data_y, xname = 'Delay',\
+            xscale = 'ns', yname = 'Area', yscale = 'V*s', timeaxis = 'False', label = 'Y')
+        general.text_label( 'ESEEM', "Scan / Time: ", str(j) + ' / '+ str(i*STEP) )
 
-    cycle_data_x = []
-    cycle_data_y = []
+        pb.pulser_shift()
+
+        cycle_data_x = []
+        cycle_data_y = []
+
+    j += 1
+    pb.pulser_pulse_reset()
+
 
 pb.pulser_stop()
 
@@ -96,7 +105,7 @@ pb.pulser_stop()
 header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + 'ESEEM\n' + \
             'Field: ' + str(FIELD) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + \
             str(mw.mw_bridge_synthesizer()) + '\n' + \
-           'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' +\
+           'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' + 'Number of Scans: ' + str(SCANS) + '\n' +\
            'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + ' ns\n' + \
            'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
            'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Time (trig. delta_start), X (V*s), Y (V*s) '

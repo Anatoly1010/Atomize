@@ -14,6 +14,7 @@ START_FIELD = 3470
 END_FIELD = 3610
 FIELD_STEP = 0.25
 AVERAGES = 5
+SCANS = 1
 
 # PULSES
 REP_RATE = '600 Hz'
@@ -24,10 +25,10 @@ PULSE_2_START = '400 ns'
 PULSE_SIGNAL_START = '700 ns'
 
 #
-points = int( (END_FIELD - START_FIELD)/FIELD_STEP )
+points = int( (END_FIELD - START_FIELD) / FIELD_STEP ) + 1
 data_x = np.zeros(points)
 data_y = np.zeros(points)
-x_axis = np.arange(START_FIELD, END_FIELD, FIELD_STEP)
+x_axis = np.linspace(START_FIELD, END_FIELD, num = points) 
 ###
 
 file_handler = openfile.Saver_Opener()
@@ -53,29 +54,35 @@ pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = PULSE_SIGNAL_START, len
 pb.pulser_repetition_rate( REP_RATE )
 pb.pulser_update()
 
-i = 0
-field = START_FIELD
-while field < END_FIELD:
+j = 1
+while j <= SCANS:
 
-    bh15.magnet_field(field)
-    general.message( str(field) )
+    i = 0
+    field = START_FIELD
 
-    t3034.oscilloscope_start_acquisition()
-    area_x = t3034.oscilloscope_area('CH4')
-    area_y = t3034.oscilloscope_area('CH3')
-    
-    data_x[i] = area_x
-    data_y[i] = area_y
+    while field <= END_FIELD:
 
-    general.plot_1d('Echo Detected Spectrum', x_axis, data_x, xname = 'Field',\
-        xscale = 'T.', yname = 'Area', yscale = 'V*s', label = 'X')
-    general.plot_1d('Echo Detected Spectrum', x_axis, data_y, xname = 'Field',\
-        xscale = 'T.', yname = 'Area', yscale = 'V*s', label = 'Y')
+        bh15.magnet_field(field)
 
-    field = round( (FIELD_STEP + field), 3 )
-    i += 1
+        t3034.oscilloscope_start_acquisition()
+        area_x = t3034.oscilloscope_area('CH4')
+        area_y = t3034.oscilloscope_area('CH3')
 
-bh15.magnet_field(START_FIELD)
+        data_x[i] = ( data_x[i] * (j - 1) + area_x ) / j
+        data_y[i] = ( data_y[i] * (j - 1) + area_y ) / j
+
+        general.plot_1d('Echo Detected Spectrum', x_axis, data_x, xname = 'Field',\
+            xscale = 'T.', yname = 'Area', yscale = 'V*s', label = 'X')
+        general.plot_1d('Echo Detected Spectrum', x_axis, data_y, xname = 'Field',\
+            xscale = 'T.', yname = 'Area', yscale = 'V*s', label = 'Y')
+        general.text_label( 'Echo Detected Spectrum', "Scan / Field: ", str(j) + ' / '+ str(field) )
+
+        field = round( (FIELD_STEP + field), 3 )
+        i += 1
+
+    bh15.magnet_field(START_FIELD)
+
+    j += 1
 
 pb.pulser_stop()
 
@@ -84,7 +91,7 @@ header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) +
             'Start Field: ' + str(START_FIELD) + ' G \n' + 'End Field: ' + str(END_FIELD) + ' G \n' + \
             'Field Step: ' + str(FIELD_STEP) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + \
             str(mw.mw_bridge_synthesizer()) + '\n' + \
-           'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' +\
+           'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' + 'Number of Scans: ' + str(SCANS) + '\n' +\
            'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + ' ns\n' + \
            'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
            'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Field (G), X (V*s), Y (V*s) '
