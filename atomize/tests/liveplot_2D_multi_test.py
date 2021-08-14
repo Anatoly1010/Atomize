@@ -6,7 +6,8 @@ import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 #start_time = time.time()
 #open1d = openfile.Saver_Opener()
 
-data = np.zeros( (10000, 10) )
+data = np.zeros( (4, 10000, 10) )
+#data = np.zeros( (10, 10000) )
 step = 10
 i = 0
 #general.message('Test of 2D experiment')
@@ -19,17 +20,18 @@ while i < 10:
 
     axis_x = np.arange(10000)
     ch_time = np.random.randint(250, 500, 1)
-    zs = 1 + 100*np.exp(-axis_x/ch_time) + 7*np.random.normal(size = (10000))
+    zs1 = 1 + 100*np.exp(-axis_x/ch_time) + 7*np.random.normal(size = (10000))
+    zs2 = 1 + 100*np.exp(-axis_x/ch_time) + 7*np.random.normal(size = (10000))
 
-    data[:, i] = zs
+    data[0, :, i] = zs1
+    data[1, :, i] = zs2
 
+    #general.wait('100 ms')
     #np.savetxt(f, zs, fmt='%.10f', delimiter=' ', newline='\n', header='field: %d' % i, footer='', comments='#', encoding=None)
-    
     start_time = time.time()
     # Plot_z Test
     general.plot_2d('Plot Z Test', data,  xname='Time', start_step=( (0, 1), (0.3, 0.001) ),\
         xscale='s', yname='Magnetic Field', yscale='T', zname='Intensity', zscale='V')
-    
     general.message(str(time.time() - start_time))
     #start_step=( (0, 1), (0.3, 0.001) ),
     # Append_z Test

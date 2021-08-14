@@ -19,12 +19,12 @@ from . import widgets
 import pyqtgraph as pg
 from datetime import datetime
 #import OpenGL
-from PyQt5.QtCore import QSharedMemory, QSize
-from PyQt5.QtGui import QColor, QIcon, QStandardItem, QStandardItemModel
-from PyQt5.QtWidgets import QFileDialog, QMessageBox, QListView, QDockWidget, QVBoxLayout, QAction
-from PyQt5.QtNetwork import QLocalServer
-from PyQt5 import QtWidgets, uic, QtCore, QtGui
-from PyQt5.Qt import Qt as QtConst
+from PyQt6.QtCore import QSharedMemory, QSize
+from PyQt6.QtGui import QColor, QIcon, QStandardItem, QStandardItemModel, QAction
+from PyQt6.QtWidgets import QFileDialog, QMessageBox, QListView, QDockWidget, QVBoxLayout
+from PyQt6.QtNetwork import QLocalServer
+from PyQt6 import QtWidgets, uic, QtCore, QtGui
+#from PyQt6.Qt import Qt as QtConst
 from pyqtgraph.dockarea import DockArea
 import atomize.main.messenger_socket_server as socket_server
 ###AWG
@@ -60,69 +60,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.test_flag = 0 # flag for not running script if test is failed
         self.flag_opened_script_changed = 0 # flag for saving changes in the opened script
         self.path = os.path.join(path_to_main,'atomize/tests')
-        # Connection of different action to different Menus and Buttons
-        self.tabwidget.tabBar().setTabTextColor(0, QColor(193, 202, 227))
-        self.tabwidget.tabBar().setTabTextColor(1, QColor(193, 202, 227))
-        self.button_open.clicked.connect(self.open_file_dialog)
-        self.button_open.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
-         border-style: outset; color: rgb(193, 202, 227);}\
-          QPushButton:pressed {background-color: rgb(211, 194, 78); ; border-style: inset}")
-        self.button_edit.clicked.connect(self.edit_file)
-        self.button_edit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
-         border-style: outset; color: rgb(193, 202, 227);}\
-          QPushButton:pressed {background-color: rgb(211, 194, 78); ; border-style: inset}")
-        self.button_test.clicked.connect(self.test)
-        self.button_test.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
-         border-style: outset; color: rgb(193, 202, 227);}\
-          QPushButton:pressed {background-color: rgb(211, 194, 78); ; border-style: inset}")
-        self.button_reload.clicked.connect(self.reload)
-        self.button_reload.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
-         border-style: outset; color: rgb(193, 202, 227); }\
-          QPushButton:pressed {background-color: rgb(211, 194, 78); ; border-style: inset}")
-        self.button_start.clicked.connect(self.start_experiment)
-        self.button_start.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
-         border-style: outset; color: rgb(193, 202, 227);}\
-          QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset}")
-        self.button_help.clicked.connect(self.help)
-        self.button_help.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
-         border-style: outset; color: rgb(193, 202, 227);}\
-          QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset}")
-        self.button_quit.clicked.connect(lambda: self.quit())
-        self.button_quit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
-         border-style: outset; color: rgb(193, 202, 227);}\
-          QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset}")
-        self.textEdit.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); }\
-         QScrollBar:vertical {background-color: rgb(42, 42, 64);}")
-        self.textEdit.textChanged.connect(self.save_edited_text)
 
-        # show spaces
-        option = QtGui.QTextOption()
-        option.setFlags( QtGui.QTextOption.ShowTabsAndSpaces ) # | QtGui.QTextOption.ShowLineAndParagraphSeparators
-        self.textEdit.document().setDefaultTextOption(option)
-        self.textEdit.textChanged.connect(self.save_edited_text)
-
-        # set tab distance
-        self.textEdit.setTabStopDistance( QtGui.QFontMetricsF(self.textEdit.font()).horizontalAdvance(' ') * 4 )
-        
-        self.text_errors.top_margin  = 2
-        self.text_errors.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); }")
-        self.text_errors.setCenterOnScroll(True)
-        self.text_errors.ensureCursorVisible()
-
-        # Liveplot tab setting
-        self.dockarea = DockArea()
-        self.namelist = NameList(self)
-        self.tab_liveplot.setStyleSheet("background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); ")
-        self.gridLayout_tab_liveplot.setColumnMinimumWidth(0, 200)
-        self.gridLayout_tab_liveplot.setColumnStretch(1, 2000)
-        self.gridLayout_tab_liveplot.addWidget(self.namelist, 0, 0)
-        self.gridLayout_tab_liveplot.setAlignment(self.namelist, QtConst.AlignLeft)
-        self.gridLayout_tab_liveplot.addWidget(self.dockarea, 0, 1)
-        #self.gridLayout_tab_liveplot.setAlignment(self.dockarea, QtConst.AlignRight)
-        self.namelist.setStyleSheet("background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); border: 2px solid rgb(40, 30, 45)")
-        self.namelist.namelist_view.setStyleSheet("QListView::item:selected:active {background-color: rgb(63, 63, 97);\
-            color: rgb(211, 194, 78); } QListView::item:hover {background-color: rgb(48, 48, 75); }")
-        self.namelist.namelist_view.setStyleSheet("QMenu::item:selected {background-color: rgb(48, 48, 75);  }")
+        self.design_setting()
 
         # Liveplot server settings
         self.server = QLocalServer()
@@ -214,6 +153,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 arr = None
         else:
             arr = None
+
         self.do_operation(arr)
         if conn.bytesAvailable():
             self.read_from(conn, memory)
@@ -297,11 +237,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 (x0, dx), (y0, dy) = start_step
                 pw.setAxisLabels(xname=xnam, xscale =xscal, yname=ynam, yscale =yscal,\
                 zname=znam, zscale =zscal)
-                pw.setImage(arr, pos=(x0, y0), scale=(dx, dy), axes={'y':0, 'x':1})
+                pw.setImage(arr, pos=(x0, y0), scale=(dx, dy) ) # , axes={'y':0, 'x':1}
             else:
                 pw.setAxisLabels(xname=xnam, xscale =xscal, yname=ynam, yscale =yscal,\
                  zname=znam, zscale =zscal)
-                pw.setImage(arr, axes={'y':0, 'x':1})
+                pw.setImage(arr) #, axes={'y':0, 'x':1}
 
 
         elif operation == 'append_y':
@@ -382,6 +322,71 @@ class MainWindow(QtWidgets.QMainWindow):
 
     #####################################################
 
+    def design_setting(self):
+        # Connection of different action to different Menus and Buttons
+        self.tabwidget.tabBar().setTabTextColor(0, QColor(193, 202, 227))
+        self.tabwidget.tabBar().setTabTextColor(1, QColor(193, 202, 227))
+        self.tabwidget.tabBar().setStyleSheet(" font-weight: bold ")
+        self.button_open.clicked.connect(self.open_file_dialog)
+        self.button_open.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
+         border-style: outset; color: rgb(193, 202, 227); font-weight: bold;}\
+          QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset; font-weight: bold; }")
+        self.button_edit.clicked.connect(self.edit_file)
+        self.button_edit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
+         border-style: outset; color: rgb(193, 202, 227); font-weight: bold; }\
+          QPushButton:pressed {background-color: rgb(211, 194, 78); ; border-style: inset; font-weight: bold; }")
+        self.button_test.clicked.connect(self.test)
+        self.button_test.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
+         border-style: outset; color: rgb(193, 202, 227); font-weight: bold; }\
+          QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset; font-weight: bold; }")
+        self.button_reload.clicked.connect(self.reload)
+        self.button_reload.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
+         border-style: outset; color: rgb(193, 202, 227); font-weight: bold; }\
+          QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset; font-weight: bold; }")
+        self.button_start.clicked.connect(self.start_experiment)
+        self.button_start.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
+         border-style: outset; color: rgb(193, 202, 227); font-weight: bold; }\
+          QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset; font-weight: bold; }")
+        self.button_help.clicked.connect(self.help)
+        self.button_help.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
+         border-style: outset; color: rgb(193, 202, 227); font-weight: bold; }\
+          QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset; font-weight: bold; }")
+        self.button_quit.clicked.connect(lambda: self.quit())
+        self.button_quit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
+         border-style: outset; color: rgb(193, 202, 227); font-weight: bold; }\
+          QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset; font-weight: bold; }")
+        self.textEdit.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); }\
+         QScrollBar:vertical {background-color: rgb(42, 42, 64);}")
+        self.textEdit.textChanged.connect(self.save_edited_text)
+
+        # show spaces
+        option = QtGui.QTextOption()
+        option.setFlags( QtGui.QTextOption.Flag.ShowTabsAndSpaces ) # | QtGui.QTextOption.ShowLineAndParagraphSeparators
+        self.textEdit.document().setDefaultTextOption(option)
+
+        # set tab distance
+        self.textEdit.setTabStopDistance( QtGui.QFontMetricsF(self.textEdit.font()).horizontalAdvance(' ') * 4 )
+        
+        self.text_errors.top_margin  = 2
+        self.text_errors.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); }")
+        self.text_errors.setCenterOnScroll(True)
+        self.text_errors.ensureCursorVisible()
+
+        # Liveplot tab setting
+        self.dockarea = DockArea()
+        self.namelist = NameList(self)
+        self.tab_liveplot.setStyleSheet("background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); ")
+        self.gridLayout_tab_liveplot.setColumnMinimumWidth(0, 200)
+        self.gridLayout_tab_liveplot.setColumnStretch(1, 2000)
+        self.gridLayout_tab_liveplot.addWidget(self.namelist, 0, 0)
+        self.gridLayout_tab_liveplot.setAlignment(self.namelist, QtCore.Qt.AlignmentFlag.AlignLeft)
+        self.gridLayout_tab_liveplot.addWidget(self.dockarea, 0, 1)
+        #self.gridLayout_tab_liveplot.setAlignment(self.dockarea, QtConst.AlignRight)
+        self.namelist.setStyleSheet("background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); border: 2px solid rgb(40, 30, 45)")
+        self.namelist.namelist_view.setStyleSheet("QListView::item:selected:active {background-color: rgb(63, 63, 97);\
+            color: rgb(211, 194, 78); } QListView::item:hover {background-color: rgb(48, 48, 75); }")
+        self.namelist.namelist_view.setStyleSheet("QMenu::item:selected {background-color: rgb(48, 48, 75);  }")
+
     def _on_destroyed(self):
         """
         A function to do some actions when the main window is closing.
@@ -445,8 +450,8 @@ class MainWindow(QtWidgets.QMainWindow):
             message = QMessageBox(self);  # Message Box for warning of updated file
             message.setWindowTitle("Your script has been changed!")
             message.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78); }")
-            message.addButton(QtWidgets.QPushButton('Discrad and Run Experiment'), QtWidgets.QMessageBox.YesRole)
-            message.addButton(QtWidgets.QPushButton('Update Script'), QtWidgets.QMessageBox.NoRole)
+            message.addButton(QtWidgets.QPushButton('Discrad and Run Experiment'), QtWidgets.QMessageBox.ButtonRole.YesRole)
+            message.addButton(QtWidgets.QPushButton('Update Script'), QtWidgets.QMessageBox.ButtonRole.NoRole)
             message.setText("Your experimental script has been changed   ");
             message.show();
             message.buttonClicked.connect(self.message_box_clicked)   # connect function clicked to button; get the button name
@@ -551,10 +556,10 @@ class MainWindow(QtWidgets.QMainWindow):
         A function to open a new window for choosing an experimental script.
         """
         filedialog = QFileDialog(self, 'Open File', directory = self.path, filter = "python (*.py)",\
-            options = QtWidgets.QFileDialog.DontUseNativeDialog)
-        # use QFileDialog.DontUseNativeDialog to change directory
+            options = QtWidgets.QFileDialog.Option.DontUseNativeDialog)
+        # use QFileDialog.Option.DontUseNativeDialog to change directory
         filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
-        filedialog.setFileMode(QtWidgets.QFileDialog.AnyFile)
+        filedialog.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
         filedialog.fileSelected.connect(self.open_file)
         filedialog.show()
 
@@ -563,11 +568,11 @@ class MainWindow(QtWidgets.QMainWindow):
         A function to open a new window for choosing a name for a new experimental script.
         """
         filedialog = QFileDialog(self, 'Save File', directory = self.path, filter = "python (*.py)",\
-            options = QtWidgets.QFileDialog.DontUseNativeDialog)
-        filedialog.setAcceptMode(QFileDialog.AcceptSave)
-        # use QFileDialog.DontUseNativeDialog to change directory
+            options = QtWidgets.QFileDialog.Option.DontUseNativeDialog)
+        filedialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+        # use QFileDialog.Option.DontUseNativeDialog to change directory
         filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
-        filedialog.setFileMode(QtWidgets.QFileDialog.AnyFile)
+        filedialog.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
         filedialog.fileSelected.connect(self.save_file)
         filedialog.show()
 
@@ -625,7 +630,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 class NameList(QDockWidget):
     def __init__(self, window):
-        super(NameList, self).__init__('Current Plots')
+        super(NameList, self).__init__('Current Plots:')
 
         #directories
         path_to_main = os.path.abspath(os.getcwd())
@@ -644,7 +649,7 @@ class NameList(QDockWidget):
         self.plot_dict = {}
 
         self.namelist_view.doubleClicked.connect(self.activate_item)
-        self.namelist_view.setContextMenuPolicy(QtConst.ActionsContextMenu)
+        self.namelist_view.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
         delete_action = QAction("Delete Selected", self.namelist_view)
         ###
         pause_action = QAction("Stop Script", self.namelist_view)
@@ -775,11 +780,11 @@ class NameList(QDockWidget):
         A function to open a new window for choosing 1d data
         """
         filedialog = QFileDialog(self, 'Open File', directory = self.open_dir, filter = "CSV (*.csv)", \
-                                    options = QtWidgets.QFileDialog.DontUseNativeDialog )
-        # options = QtWidgets.QFileDialog.DontUseNativeDialog
-        # use QFileDialog.DontUseNativeDialog to change directory
+                                    options = QtWidgets.QFileDialog.Option.DontUseNativeDialog )
+        # options = QtWidgets.QFileDialog.Option.DontUseNativeDialog
+        # use QFileDialog.Option.DontUseNativeDialog to change directory
         filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
-        filedialog.setFileMode(QtWidgets.QFileDialog.AnyFile)
+        filedialog.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
         filedialog.fileSelected.connect(self.open_file)
         filedialog.show()
 
@@ -801,10 +806,10 @@ class NameList(QDockWidget):
         A function to open a new window for choosing 2D data
         """
         filedialog = QFileDialog(self, 'Open File', directory = self.open_dir, filter = "CSV (*.csv)")
-        #options = QtWidgets.QFileDialog.DontUseNativeDialog
-        # use QFileDialog.DontUseNativeDialog to change directory
+        #options = QtWidgets.QFileDialog.Option.DontUseNativeDialog
+        # use QFileDialog.Option.DontUseNativeDialog to change directory
         filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
-        filedialog.setFileMode(QtWidgets.QFileDialog.AnyFile)
+        filedialog.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
         filedialog.fileSelected.connect(self.open_file_2d)
         filedialog.show()
 
@@ -856,10 +861,10 @@ def main():
     helper = socket_server.Helper()
     server = socket_server.Socket_server()
     # to connect a function add_error_message when the signal from the helper will be emitted.
-    helper.changedSignal.connect(main.add_error_message, QtCore.Qt.QueuedConnection)
-    threading.Thread(target = server.start_messenger_server, args=(helper,), daemon = True).start()
+    helper.changedSignal.connect(main.add_error_message, QtCore.Qt.ConnectionType.QueuedConnection)
+    threading.Thread(target = server.start_messenger_server, args = (helper, ), daemon = True).start()
     main.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 if __name__ == '__main__':
     main()

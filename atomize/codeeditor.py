@@ -5,14 +5,14 @@
 # mainly from https://gist.github.com/eyllanesc/e614ea9689e025c16b10fc92b68f0afd
 # with a little bit of appearance changes
 
-from PyQt5 import QtGui
-from PyQt5.QtCore import QRect, pyqtSlot, Qt, QSize
-from PyQt5.QtGui import QColor, QTextFormat, QPainter, QFont
-from PyQt5.QtWidgets import QWidget, QPlainTextEdit, QApplication, QTextEdit
+from PyQt6 import QtGui
+from PyQt6.QtCore import QRect, pyqtSlot, Qt, QSize
+from PyQt6.QtGui import QColor, QTextFormat, QPainter, QFont
+from PyQt6.QtWidgets import QWidget, QPlainTextEdit, QApplication, QTextEdit
 
 class LineNumberArea(QWidget):
     def __init__(self, editor):
-        QWidget.__init__(self, parent=editor)
+        QWidget.__init__(self, parent = editor)
         self.codeEditor = editor
 
     def sizeHint(self):
@@ -48,10 +48,10 @@ class CodeEditor(QPlainTextEdit):
             if block.isVisible() and bottom >= event.rect().top():
                 number = str(blockNumber + 1)
                 painter.setPen(QColor(192, 202, 227))
-                painter.setFont(QFont("Ubuntu", 9.0, weight = QtGui.QFont.Bold))
+                painter.setFont(QFont("Ubuntu", 9.0, weight = QtGui.QFont.Weight.Bold))
                 painter.drawText(-4, top + 1, self.lineNumberArea.width(), 
                     self.fontMetrics().height(),
-                    Qt.AlignRight, number)
+                    Qt.AlignmentFlag.AlignRight, number)
             block = block.next()
             top = bottom
             bottom = top + self.blockBoundingRect(block).height() + 0.1
@@ -59,7 +59,7 @@ class CodeEditor(QPlainTextEdit):
 
     def lineNumberAreaWidth(self):
         digits = len(str(self.blockCount()))
-        space = 8 + self.fontMetrics().width('9')*digits
+        space = 8 + self.fontMetrics().horizontalAdvance('9')*digits
         return space
 
     def resizeEvent(self, event):
@@ -78,7 +78,7 @@ class CodeEditor(QPlainTextEdit):
             selection = QTextEdit.ExtraSelection()
             lineColor = QColor(48, 48, 75)           #color of the line highlighter QColor(136, 138, 133)  
             selection.format.setBackground(lineColor)
-            selection.format.setProperty(QTextFormat.FullWidthSelection, True)
+            selection.format.setProperty( 24576, True)
             selection.cursor = self.textCursor()
             selection.cursor.clearSelection()
             extraSelections.append(selection)

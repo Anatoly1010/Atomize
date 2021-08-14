@@ -44,10 +44,10 @@ At the moment, Atomize has been tested and is currently used for controlling sev
 - [Protocol settings](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md)<br/>
 
 ## Requirements
-- [Python (tested with 3.6+)](https://www.python.org/)
+- [Python (3.8+)](https://www.python.org/)
 - [Numpy](https://numpy.org/)
-- [PyQt5; 5.15+](http://www.riverbankcomputing.com/software/pyqt/download)
-- [pyqtgraph 0.11](http://www.pyqtgraph.org)
+- [PyQt6; 6.1.0+](http://www.riverbankcomputing.com/software/pyqt/download)
+- [pyqtgraph 0.12.2](http://www.pyqtgraph.org)
 - [PyVisa](https://pyvisa.readthedocs.io/en/latest/)
 - [PyVisa-py](https://github.com/pyvisa/pyvisa-py)<br/>
 Optional:

@@ -31,11 +31,11 @@ for i in range(50):
     #general.message(xs)
     ys = np.append(ys, np.random.randint(0, 10 + 1));
     #ys[i] = np.random.randint(0, 10 + 1);
-    general.plot_1d('Plot XY Test', xs, ys, label='test data', timeaxis = 'False')
+    general.plot_1d('Plot XY Test', xs, ys, label='test data2', timeaxis = 'False')
     #general.plot_1d('Plot XY Test', xs, ys2, label='test data2')
     #general.plot_1d('Plot XY Test', xs, ys3, label='test data3')
     #general.plot_1d('Plot XY Test', xs, ys4, label='test data4')
-    general.wait('10 ms')
+    general.wait('20 ms')
     general.message(str(time.time() - start_time))
     
 file_handler.save_1D_dialog( (xs, ys), header = 'TEST' )
@@ -51,6 +51,6 @@ file_handler.save_1D_dialog( (xs, ys), header = 'TEST' )
 #   start_time = time.time()
 #    val = np.random.randint(0,10+1)
     #general.append_1d('Append Y Test', val, start_step=(xs[0], xs[1]-xs[0]), label='test data')
-#    general.append_1d('Append Y Test', val, start_step=(xs, xs2 - xs), label='test data', timeaxis = 'True')
+#    general.append_1d('Append Y Test', val, start_step=(xs, xs2 - xs), label='test data2', timeaxis = 'True')
 #    general.wait('100 ms')
 #   general.message(str(time.time() - start_time))

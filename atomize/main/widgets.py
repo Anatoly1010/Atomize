@@ -7,13 +7,15 @@ import numpy as np
 #import tkinter
 from datetime import datetime
 from pyqtgraph.dockarea import Dock
-from PyQt5 import QtWidgets, QtCore, QtGui
-from PyQt5.QtWidgets import QFileDialog
+from PyQt6 import QtWidgets, QtCore, QtGui
+from PyQt6.QtWidgets import QFileDialog
 #import OpenGL
 
 pg.setConfigOption('background', (63,63,97))
 pg.setConfigOption('leftButtonPan', False)
 pg.setConfigOption('foreground', (192, 202, 227))
+#pg.setConfigOptions(imageAxisOrder='row-major')
+
 #pg.setConfigOption('useOpenGL', True)
 #pg.setConfigOption('enableExperimental', True)
 LastExportDirectory = None
@@ -29,14 +31,14 @@ class CloseableDock(Dock):
     def __init__(self, *args, **kwargs):
         super(CloseableDock, self).__init__(*args, **kwargs)
         style = QtWidgets.QStyleFactory().create("windows")
-        close_icon = style.standardIcon(QtWidgets.QStyle.SP_TitleBarCloseButton)
+        close_icon = style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_TitleBarCloseButton)
         close_button = QtWidgets.QPushButton(close_icon, "", self)
         close_button.clicked.connect(self.close)
         close_button.setGeometry(0, 0, 15, 15)
         close_button.raise_()
         self.closeClicked = close_button.clicked
 
-        max_icon = style.standardIcon(QtWidgets.QStyle.SP_TitleBarMaxButton)
+        max_icon = style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_TitleBarMaxButton)
         max_button = QtWidgets.QPushButton(max_icon, "", self)
         max_button.clicked.connect(self.maximize)
         max_button.setGeometry(15, 0, 15, 15)
@@ -147,8 +149,12 @@ class CrosshairDock(CloseableDock):
         self.del_menu = QtWidgets.QMenu()
         self.del_menu.setTitle('Delete Plot')
         self.menu.addMenu(self.del_menu)
+        
+        self.shift_menu = QtWidgets.QMenu()
+        self.shift_menu.setTitle('Shift Plot')
+        self.menu.addMenu(self.shift_menu)
 
-        open_action = QtWidgets.QAction('Open 1D Data', self)
+        open_action = QtGui.QAction('Open 1D Data', self)
         open_action.triggered.connect(self.file_dialog) # self.open_file_dialog
         self.menu.addAction(open_action)
 
@@ -166,6 +172,11 @@ class CrosshairDock(CloseableDock):
         self.curves = {}
         self.del_dict = {}
         self.name_dict = {}
+        self.shifter_dict = {}
+        self.shifter_action_dict = {}
+        self.index_shift = 0
+        self.adaptive_scale = 1
+        self.value_prev = 0
 
     def plot(self, *args, **kwargs):
         self.plot_widget.parametric = kwargs.pop('parametric', False)
@@ -179,7 +190,7 @@ class CrosshairDock(CloseableDock):
         self.plot_widget.setLabel("left", text=kwargs.get('yname', ''), units=kwargs.get('yscale', ''))
         name = kwargs.get('name', '')
 
-        if name in self.curves: 
+        if name in self.curves:
             if kwargs.get('scatter', '') == 'True':
                 kwargs['pen'] = None;
                 kwargs['symbol'] = self.used_symbols[name]
@@ -202,19 +213,68 @@ class CrosshairDock(CloseableDock):
                 kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
                 self.curves[name] = self.plot_widget.plot(*args, **kwargs)
 
-            del_action = QtWidgets.QAction(str(name), self)
+            del_action = QtGui.QAction(str(name), self)
             self.del_dict[del_action] = self.plot_widget.listDataItems()[-1]
             self.name_dict[del_action] = name
             del_action.triggered.connect(lambda: self.del_item(self.del_dict[del_action]))
             self.del_menu.addAction(del_action)
 
+            shifter = QtWidgets.QDoubleSpinBox()
+            shifter.setDecimals(3)
+            shifter.setRange(-1, 1)
+            shifter.setSingleStep(0.001)
+            shifter.setKeyboardTracking(0)
+            self.shifter_dict[shifter] = self.plot_widget.listDataItems()[-1]
+            #shifter.valueChanged.connect( self.shift_curve )
+            shifter.valueChanged.connect( lambda: self.shift_curve(self.shifter_dict[shifter]) )
+            shiftAction = QtWidgets.QWidgetAction(self)
+            shiftAction.setDefaultWidget(shifter)
+            self.shift_menu.addAction(shiftAction)
+            self.shifter_action_dict[shiftAction] = self.plot_widget.listDataItems()[-1]
+            self.index_shift = 0
+
+    def shift_curve(self, item):
+
+        qboxname = list(self.shifter_dict.keys())[list(self.shifter_dict.values()).index(item)]
+        key_name = list(self.curves.keys())[list(self.curves.values()).index(item)]
+
+        value = float( qboxname.value() )
+        data = self.get_data( key_name )
+
+        # percentage shifting:
+        if self.index_shift == 0:
+            self.adaptive_scale = np.sum( data[1][0:4] ) / 5
+            self.index_shift = 1
+            self.plot( data[0], data[1] + abs( value ) * self.adaptive_scale, \
+                name = str( key_name ), scatter = 'False', xname = 'X', xscale = 'arb. u.', yname = 'Y', yscale = 'arb. u.' )
+        else:
+            if value > self.value_prev:
+                if value > 0:
+                    self.plot( data[0], data[1] + abs( value ) * self.adaptive_scale, \
+                        name = str( key_name ), scatter = 'False', xname = 'X', xscale = 'arb. u.', yname = 'Y', yscale = 'arb. u.' )
+                else:
+                    self.plot( data[0], data[1] + abs( value - 0.001 ) * self.adaptive_scale, \
+                        name = str( key_name ), scatter = 'False', xname = 'X', xscale = 'arb. u.', yname = 'Y', yscale = 'arb. u.' )
+            else:
+                if value < 0:
+                    self.plot( data[0], data[1] - abs( value ) * self.adaptive_scale, \
+                        name = str( key_name ), scatter = 'False', xname = 'X', xscale = 'arb. u.', yname = 'Y', yscale = 'arb. u.' )
+                else:
+                    self.plot( data[0], data[1] - ( abs( value ) + 0.001 ) * self.adaptive_scale, \
+                        name = str( key_name ), scatter = 'False', xname = 'X', xscale = 'arb. u.', yname = 'Y', yscale = 'arb. u.' )
+
+        self.value_prev = value
+
     def del_item(self, item):
         self.plot_widget.removeItem(item)
         key_action = list(self.del_dict.keys())[list(self.del_dict.values()).index(item)]
         key_name = list(self.curves.keys())[list(self.curves.values()).index(item)]
+        qbox_action_name = list(self.shifter_action_dict.keys())[list(self.shifter_action_dict.values()).index(item)]
         self.del_dict.pop(key_action, None)
         self.del_menu.removeAction(key_action)
         self.curves.pop(key_name, None)
+        self.shifter_dict.pop(key_name, None)
+        self.shift_menu.removeAction(qbox_action_name)
         self.avail_colors.append(self.used_colors[self.name_dict[key_action]])
         #TO DO the same for scatter plot
 
@@ -318,8 +378,8 @@ class CrosshairDock(CloseableDock):
 
 class CrossSectionDock(CloseableDock):
     def __init__(self, trace_size = 80, **kwargs):
-        self.plot_item = view = pg.PlotItem(labels=kwargs.pop('labels', None))
-        self.img_view = kwargs['widget'] = pg.ImageView(view=view)
+        self.plot_item = view = pg.PlotItem(labels = kwargs.pop('labels', None))
+        self.img_view = kwargs['widget'] = pg.ImageView(view = view)
         # plot options menu
         #view.ctrlMenu.setStyleSheet("QMenu::item:selected {background-color: rgb(40, 40, 40); }")
         view.setAspectLocked(lock=False)
@@ -332,22 +392,22 @@ class CrossSectionDock(CloseableDock):
         self.signals_connected = False
         self.set_histogram(False)
 
-        save_action = QtWidgets.QAction('Save Data', self)
+        save_action = QtGui.QAction('Save Data', self)
         save_action.triggered.connect(self.fileSaveDialog)
         self.img_view.scene.contextMenu.append(save_action)
 
-        histogram_action = QtWidgets.QAction('Histogram', self)
+        histogram_action = QtGui.QAction('Histogram', self)
         histogram_action.setCheckable(True)
         histogram_action.triggered.connect(self.set_histogram)
         self.img_view.scene.contextMenu.append(histogram_action)
         
-        self.autolevels_action = QtWidgets.QAction('Autoscale Levels', self)
+        self.autolevels_action = QtGui.QAction('Autoscale Levels', self)
         self.autolevels_action.setCheckable(True)
         self.autolevels_action.setChecked(True)
         self.autolevels_action.triggered.connect(self.redraw)
         self.ui.histogram.item.sigLevelChangeFinished.connect(lambda: self.autolevels_action.setChecked(False))
         self.img_view.scene.contextMenu.append(self.autolevels_action)
-        self.clear_action = QtWidgets.QAction('Clear Contents', self)
+        self.clear_action = QtGui.QAction('Clear Contents', self)
         self.clear_action.triggered.connect(self.clear)
         self.img_view.scene.contextMenu.append(self.clear_action)
 
@@ -372,7 +432,6 @@ class CrossSectionDock(CloseableDock):
         self.v_cross_section_widget_data = self.v_cross_section_widget.plot([0,0])
 
     def setLabels(self, xlabel = "X", ylabel = "Y", zlabel = "Z"):
-        print(self.h_cross_dock.label)
         self.plot_item.setLabels(bottom=(xlabel,), left=(ylabel,))
         self.h_cross_section_widget.plotItem.setLabels(bottom=xlabel, left=zlabel)
         self.v_cross_section_widget.plotItem.setLabels(bottom=ylabel, left=zlabel)
@@ -400,8 +459,8 @@ class CrossSectionDock(CloseableDock):
 
         autorange = self.img_view.getView().vb.autoRangeEnabled()[0]
         kwargs['autoRange'] = autorange
-        self.img_view.setImage(*args, **kwargs)
-        self.img_view.getView().vb.enableAutoRange(enable=autorange)
+        self.img_view.setImage(*args, **kwargs )
+        self.img_view.getView().vb.enableAutoRange(enable = autorange)
         self.update_cross_section()
 
     def setTitle(self, text):

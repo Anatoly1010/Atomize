@@ -35,9 +35,6 @@
   <property name="styleSheet">
    <string notr="true">background-color: rgb(42,42,64);</string>
   </property>
-  <property name="dockOptions">
-   <set>QMainWindow::AllowTabbedDocks|QMainWindow::AnimatedDocks</set>
-  </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
     <item row="0" column="0">
@@ -286,9 +283,6 @@ QTabBar::tab:selected {
             </property>
             <property name="readOnly">
              <bool>false</bool>
-            </property>
-            <property name="tabStopWidth">
-             <number>10</number>
             </property>
            </widget>
           </item>
