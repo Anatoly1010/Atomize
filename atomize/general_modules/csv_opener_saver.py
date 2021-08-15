@@ -198,7 +198,8 @@ class Saver_Opener():
 
     def FileDialog(self, directory = '', mode = 'Open', fmt = ''):
 
-        self.dialog = QFileDialog( options = QtWidgets.QFileDialog.Option.DontUseNativeDialog ) # options = QtWidgets.QFileDialog.DontUseNativeDialog
+        self.dialog = QFileDialog( options = QtWidgets.QFileDialog.Option.DontUseNativeDialog ) 
+        # options = QtWidgets.QFileDialog.Option.DontUseNativeDialog
         self.dialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
         self.dialog.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
         # both open and save dialog

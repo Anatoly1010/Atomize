@@ -329,7 +329,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabwidget.tabBar().setStyleSheet(" font-weight: bold ")
         self.button_open.clicked.connect(self.open_file_dialog)
         self.button_open.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\
-         border-style: outset; color: rgb(193, 202, 227); font-weight: bold;}\
+         border-style: outset; color: rgb(193, 202, 227); font-weight: bold; }\
           QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset; font-weight: bold; }")
         self.button_edit.clicked.connect(self.edit_file)
         self.button_edit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97);\

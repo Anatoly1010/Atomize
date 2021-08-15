@@ -336,11 +336,11 @@ class CrosshairDock(CloseableDock):
         A function to open a new window for choosing 1d data
         """
         filedialog = QFileDialog(self, 'Open File', directory = self.open_dir, filter = "CSV (*.csv)", \
-                                    options = QtWidgets.QFileDialog.DontUseNativeDialog ) 
-        # options = QtWidgets.QFileDialog.DontUseNativeDialog
-        # use QFileDialog.DontUseNativeDialog to change directory
+                                    options = QtWidgets.QFileDialog.Option.DontUseNativeDialog ) 
+        # options = QtWidgets.QFileDialog.Option.DontUseNativeDialog
+        # use QFileDialog.Option.DontUseNativeDialog to change directory
         filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
-        filedialog.setFileMode(QtWidgets.QFileDialog.AnyFile)
+        filedialog.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
         filedialog.fileSelected.connect(self.open_file)
         filedialog.show()
 
@@ -497,16 +497,23 @@ class CrossSectionDock(CloseableDock):
         LastExportDirectory = os.path.split(fileName)[0]
 
         data = self.img_view.getProcessedImage()
-        np.savetxt(fileName,\
-         data, fmt = '%.4e', delimiter = ',', newline = '\n',\
-         header = str(datetime.now().strftime("%d-%m-%Y_%H-%M-%S")),\
-          footer = '', comments = '#', encoding = None)
+        try:
+            np.savetxt(fileName,\
+             data, fmt = '%.4e', delimiter = ',', newline = '\n',\
+             header = str(datetime.now().strftime("%d-%m-%Y_%H-%M-%S")),\
+              footer = '', comments = '#', encoding = None)
+        except ValueError:
+            for i in range( len(data) ):
+                np.savetxt(fileName + str(i),\
+                 data[i], fmt = '%.4e', delimiter = ',', newline = '\n',\
+                 header = str(datetime.now().strftime("%d-%m-%Y_%H-%M-%S")),\
+                  footer = '', comments = '#', encoding = None)
 
     def fileSaveDialog(self):
         self.fileDialog = QFileDialog()
-        #self.fileDialog.setOption(QtGui.QFileDialog.DontUseNativeDialog)
+        #self.fileDialog.setOption(QtGui.QFileDialog.Option.DontUseNativeDialog)
         self.fileDialog.setNameFilters(['*.csv','*.txt','*.dat'])
-        self.fileDialog.setAcceptMode(QtGui.QFileDialog.AcceptSave)
+        self.fileDialog.setAcceptMode(QtWidgets.QFileDialog.AcceptMode.AcceptSave)
         global LastExportDirectory
         exportDir = LastExportDirectory
         if exportDir is not None:
