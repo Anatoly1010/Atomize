@@ -13,7 +13,7 @@ import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 POINTS = 501
 STEP = 4                  # in NS; delta_start = str(STEP) + ' ns' -> delta_start = '4 ns'
 FIELD = 3472
-AVERAGES = 500
+AVERAGES = 400
 SCANS = 1
 
 # PULSES
@@ -27,7 +27,7 @@ PULSE_SIGNAL_START = '700 ns'
 #
 data_x = np.zeros(POINTS)
 data_y = np.zeros(POINTS)
-x_axis = np.linspace(0, POINTS*STEP, num = POINTS) 
+x_axis = np.linspace(0, (POINTS - 1)*STEP, num = POINTS) 
 ###
 
 # initialization of the devices
@@ -56,6 +56,31 @@ pb.pulser_pulse(name = 'P2', channel = 'TRIGGER', start = PULSE_SIGNAL_START, le
 
 pb.pulser_repetition_rate( REP_RATE )
 
+# Data saving
+header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + \
+         'T2 Measurement\n' + 'Field: ' + str(FIELD) + ' G \n' + \
+          str(mw.mw_bridge_att_prm()) + '\n' + str(mw.mw_bridge_synthesizer()) + '\n' + \
+          'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' + 'Number of Scans: ' + str(SCANS) + '\n' +\
+          'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + ' ns\n' \
+          + 'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
+          'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Time (trig. delta_start), X (V*s), Y (V*s) '
+
+try:
+    file_name = file_handler.create_file_dialog()
+    file_save_param = open(file_name.split('.csv')[0] + str('.param'), 'w')
+# pressed cancel Tk_kinter
+except TypeError:
+    file_name = 'temp.csv'
+    file_save_param = open(file_name.split('.csv')[0] + str('.param'), 'w')
+# pressed cancel PyQt
+except FileNotFoundError:
+    file_name = 'temp.csv'
+    file_save_param = open(file_name.split('.csv')[0] + str('.param'), 'w')
+
+np.savetxt(file_save_param, [], fmt='%.4e', delimiter=',', \
+                            newline='\n', header=header, footer='', comments='# ', encoding=None)
+file_save_param.close()
+
 # Data acquisition
 j = 1
 while j <= SCANS:
@@ -81,16 +106,12 @@ while j <= SCANS:
 
     j += 1
     pb.pulser_pulse_reset()
-   
+
 pb.pulser_stop()
 
-# Data saving
-header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + \
-         'T2 Measurement\n' + 'Field: ' + str(FIELD) + ' G \n' + \
-          str(mw.mw_bridge_att_prm()) + '\n' + str(mw.mw_bridge_synthesizer()) + '\n' + \
-          'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' + 'Number of Scans: ' + str(SCANS) + '\n' +\
-          'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + ' ns\n' \
-          + 'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
-          'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Time (trig. delta_start), X (V*s), Y (V*s) '
+file_save = open(file_name, 'w')
+np.savetxt(file_save, np.c_[x_axis, data_x, data_y], fmt='%.4e', delimiter=',', \
+                        newline='\n', header=header, footer='', comments='# ', encoding=None)
+file_save.close()
 
-file_handler.save_1D_dialog( (x_axis, data_x, data_y), header = header )
+#file_handler.save_1D_dialog( (x_axis, data_x, data_y), header = header )

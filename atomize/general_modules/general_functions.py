@@ -10,8 +10,6 @@ import configparser
 from atomize.main.client import LivePlotClient
 #from liveplot import LivePlotClient
 
-time_dict = {'ks': 0.001, 's': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000, 'ps': 1000000000000, }
-
 # Test run parameters
 if len(sys.argv) > 1:
     test_flag = sys.argv[1]
@@ -33,7 +31,10 @@ def message(*text):
         pass
 
 def wait(interval):
+    time_dict = {'ks': 0.001, 's': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000, 'ps': 1000000000000, }
+
     if test_flag != 'test':
+
         temp = interval.split(' ')
         tm = float(temp[0])
         scal = temp[1]
@@ -43,7 +44,10 @@ def wait(interval):
         else:
             message("Incorrect dimension of time to wait")
     elif test_flag == 'test':
-        pass
+        temp = interval.split(' ')
+        tm = float(temp[0])
+        scal = temp[1]
+        assert (scal in time_dict), "Incorrect dimension of time to wait"
 
 def to_infinity():
     if test_flag != 'test':
@@ -99,7 +103,7 @@ def append_2d(strname, data, start_step=None,\
 
 def text_label(strlabel, text, value):
     if test_flag != 'test':
-        plotter.label(strlabel, str(str(text) + ' %d' %value))
+        plotter.label(strlabel, str(str(text) + str(value)) )
 
     elif test_flag == 'test':
         pass

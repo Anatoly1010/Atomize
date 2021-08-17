@@ -34,7 +34,7 @@ start_time = time.time()
 #j = 0
 #while j < 10:
     #rep_rate = str(j + 1) + ' Hz'
-    #pb.pulser_repetitoin_rate( rep_rate )
+    #pb.pulser_repetition_rate( rep_rate )
     #pb.pulser_update()
     #pb.pulser_shift()
     #pb.pulser_visualize()
@@ -43,7 +43,7 @@ start_time = time.time()
 
 
 
-###pb.pulser_repetitoin_rate()
+###pb.pulser_repetition_rate()
 
 #general.message(str(time.time() - start_time))
 

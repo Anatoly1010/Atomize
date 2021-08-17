@@ -9,38 +9,36 @@ from pyvisa.constants import StopBits, Parity
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
-#### Inizialization
-# setting path to *.ini file
-path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','CPWplus_150_config.ini')
-
-# configuration data
-config = cutil.read_conf_util(path_config_file)
-specific_parameters = cutil.read_specific_parameters(path_config_file)
-
-# Test run parameters
-# These values are returned by the modules in the test run 
-if len(sys.argv) > 1:
-    test_flag = sys.argv[1]
-else:
-    test_flag = 'None'
-
-test_sign = '+'
-test_weight = 1
-test_dimension = 'kg'
-
 class CPWplus_150:
+    
     #### Basic interaction functions
     def __init__(self):
-        if test_flag != 'test':
-            if config['interface'] == 'rs232':
+
+        #### Inizialization
+        # setting path to *.ini file
+        self.path_current_directory = os.path.dirname(__file__)
+        self.path_config_file = os.path.join(self.path_current_directory, 'config','CPWplus_150_config.ini')
+
+        # configuration data
+        self.config = cutil.read_conf_util(self.path_config_file)
+        self.specific_parameters = cutil.read_specific_parameters(self.path_config_file)
+
+        # Test run parameters
+        # These values are returned by the modules in the test run 
+        if len(sys.argv) > 1:
+            self.test_flag = sys.argv[1]
+        else:
+            self.test_flag = 'None'
+
+        if self.test_flag != 'test':
+            if self.config['interface'] == 'rs232':
                 try:
                     self.status_flag = 1
                     rm = pyvisa.ResourceManager()
-                    self.device = rm.open_resource(config['serial_address'],
-                    write_termination=config['write_termination'], baud_rate=config['baudrate'],
-                    data_bits=config['databits'], parity=config['parity'], stop_bits=config['stopbits'])
-                    self.device.timeout = config['timeout'] # in ms
+                    self.device = rm.open_resource(self.config['serial_address'],
+                    write_termination=self.config['write_termination'], baud_rate=self.config['baudrate'],
+                    data_bits=self.config['databits'], parity=self.config['parity'], stop_bits=self.config['stopbits'])
+                    self.device.timeout = self.config['timeout'] # in ms
 
                     try:
                         # test should be here
@@ -61,14 +59,16 @@ class CPWplus_150:
                     self.status_flag = 0
                     sys.exit()
 
-        elif test_flag == 'test':
-            pass
+        elif self.test_flag == 'test': 
+            self.test_sign = '+'
+            self.test_weight = 1
+            self.test_dimension = 'kg'
 
     def close_connection(self):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.status_flag = 0;
             gc.collect()
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             pass
 
     def device_write(self, command):
@@ -90,7 +90,7 @@ class CPWplus_150:
             sys.exit()
 
     def balance_weight(self):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             raw_answer = self.device_query('G')
             if raw_answer.split(" ")[1] == '':
                 try:
@@ -104,8 +104,8 @@ class CPWplus_150:
                     weight = -0.5
             return weight
 
-        elif test_flag == 'test':
-            return test_weight
+        elif self.test_flag == 'test':
+            return self.test_weight
 
 def main():
     pass

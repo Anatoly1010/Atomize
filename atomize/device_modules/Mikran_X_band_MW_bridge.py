@@ -9,45 +9,44 @@ import socket
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
-#### Inizialization
-# setting path to *.ini file
-path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','Mikran_x_band_mw_bridge_config.ini')
-
-# configuration data
-#config = cutil.read_conf_util(path_config_file)
-specific_parameters = cutil.read_specific_parameters(path_config_file)
-
-# auxilary dictionaries
-
-# Ranges and limits
-UDP_IP = str(specific_parameters['udp_ip'])
-UDP_PORT = int(specific_parameters['udp_port'])
-TCP_IP = str(specific_parameters['tcp_ip'])
-TCP_PORT = int(specific_parameters['tcp_port'])
-synthesizer_min = int(specific_parameters['synthesizer_min'])
-synthesizer_max = int(specific_parameters['synthesizer_max'])
-
-# Test run parameters
-# These values are returned by the modules in the test run 
-if len(sys.argv) > 1:
-    test_flag = sys.argv[1]
-else:
-    test_flag = 'None'
-
-test_freq_str = 'Power: ON; Frequency: 9750'
-test_telemetry = 'Temperature: 28; State: INIT'
-test_attenuation = '0 dB'
-test_phase = '0 deg'
-test_cut_off = '300 MHz'
-
 class Mikran_X_band_MW_bridge:
     #### Basic interaction functions
     def __init__(self):
-        if test_flag != 'test':
+
+        #### Inizialization
+        # setting path to *.ini file
+        self.path_current_directory = os.path.dirname(__file__)
+        self.path_config_file = os.path.join(self.path_current_directory, 'config','Mikran_x_band_mw_bridge_config.ini')
+
+        # configuration data
+        #config = cutil.read_conf_util(self.path_config_file)
+        self.specific_parameters = cutil.read_specific_parameters(self.path_config_file)
+
+        # auxilary dictionaries
+
+        # Ranges and limits
+        self.UDP_IP = str(self.specific_parameters['udp_ip'])
+        self.UDP_PORT = int(self.specific_parameters['udp_port'])
+        self.TCP_IP = str(self.specific_parameters['tcp_ip'])
+        self.TCP_PORT = int(self.specific_parameters['tcp_port'])
+        self.synthesizer_min = int(self.specific_parameters['synthesizer_min'])
+        self.synthesizer_max = int(self.specific_parameters['synthesizer_max'])
+
+        # Test run parameters
+        # These values are returned by the modules in the test run 
+        if len(sys.argv) > 1:
+            self.test_flag = sys.argv[1]
+        else:
+            self.test_flag = 'None'
+
+        if self.test_flag != 'test':
             pass
-        elif test_flag == 'test':
-            pass
+        elif self.test_flag == 'test':
+            self.test_freq_str = 'Power: ON; Frequency: 9750'
+            self.test_telemetry = 'Temperature: 28; State: INIT'
+            self.test_attenuation = '0 dB'
+            self.test_phase = '0 deg'
+            self.test_cut_off = '300 MHz'
 
     def device_query(self, command, bytes_to_recieve):
         # MW bridge answers every command
@@ -55,9 +54,9 @@ class Mikran_X_band_MW_bridge:
             self.sock = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
             # timeout
             self.sock.settimeout(10) 
-            self.sock.connect( (TCP_IP, TCP_PORT) )
+            self.sock.connect( (self.TCP_IP, self.TCP_PORT) )
 
-            self.sock.sendto( command, (TCP_IP, TCP_PORT) )
+            self.sock.sendto( command, (self.TCP_IP, self.TCP_PORT) )
             data_raw, addr = self.sock.recvfrom( int(bytes_to_recieve) )
 
             self.sock.shutdown(socket.SHUT_RDWR)
@@ -70,15 +69,15 @@ class Mikran_X_band_MW_bridge:
 
     #### device specific functions
     def mw_bridge_name(self):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             answer = 'Mikran X-band MW bridge'
             return answer
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             answer = 'Mikran X-band MW bridge'
             return answer
 
     def mw_bridge_synthesizer(self, *freq):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             if len(freq) == 1:
 
                 temp = str(freq[0])
@@ -114,18 +113,18 @@ class Mikran_X_band_MW_bridge:
 
                 return answer
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             if len(freq) == 1:
 
                 temp = int(freq[0])
-                assert(temp >= synthesizer_min and temp < synthesizer_max), 'Incorrect frequency; Too low / high'
+                assert(temp >= self.synthesizer_min and temp < self.synthesizer_max), 'Incorrect frequency; Too low / high'
 
             elif len(freq) == 0:
 
-                return test_freq_str
+                return self.test_freq_str
 
     def mw_bridge_att1_prd(self, *atten):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             if len(atten) == 1:
 
                 temp = 2*float(atten[0])
@@ -147,7 +146,7 @@ class Mikran_X_band_MW_bridge:
 
                 return answer
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             if len(atten) == 1:
 
                 temp = float(atten[0])
@@ -155,10 +154,10 @@ class Mikran_X_band_MW_bridge:
 
             elif len(atten) == 0:
 
-                return test_attenuation
+                return self.test_attenuation
 
     def mw_bridge_att2_prd(self, *atten):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             if len(atten) == 1:
 
                 temp = 2*float(atten[0])
@@ -179,7 +178,7 @@ class Mikran_X_band_MW_bridge:
 
                 return answer
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             if len(atten) == 1:
 
                 temp = float(atten[0])
@@ -187,10 +186,10 @@ class Mikran_X_band_MW_bridge:
 
             elif len(atten) == 0:
 
-                return test_attenuation
+                return self.test_attenuation
 
     def mw_bridge_fv_ctrl(self, *phase):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             if len(phase) == 1:
 
                 temp = float(phase[0])/5.625
@@ -211,7 +210,7 @@ class Mikran_X_band_MW_bridge:
 
                 return answer
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             if len(phase) == 1:
 
                 temp = float(phase[0])
@@ -219,10 +218,10 @@ class Mikran_X_band_MW_bridge:
 
             elif len(phase) == 0:
 
-                return test_phase
+                return self.test_phase
 
     def mw_bridge_fv_prm(self, *phase):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             if len(phase) == 1:
 
                 temp = float(phase[0])/5.625
@@ -243,7 +242,7 @@ class Mikran_X_band_MW_bridge:
 
                 return answer
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             if len(phase) == 1:
 
                 temp = float(phase[0])
@@ -251,10 +250,10 @@ class Mikran_X_band_MW_bridge:
 
             elif len(phase) == 0:
 
-                return test_phase
+                return self.test_phase
 
     def mw_bridge_att_prm(self, *atten):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             if len(atten) == 1:
 
                 temp = float(atten[0])/2
@@ -275,7 +274,7 @@ class Mikran_X_band_MW_bridge:
 
                 return answer
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             if len(atten) == 1:
 
                 temp = float(atten[0])
@@ -283,10 +282,10 @@ class Mikran_X_band_MW_bridge:
 
             elif len(atten) == 0:
 
-                return test_attenuation
+                return self.test_attenuation
 
     def mw_bridge_k_prm(self, *amplif):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             if len(amplif) == 1:
 
                 temp = float(amplif[0])/22
@@ -307,7 +306,7 @@ class Mikran_X_band_MW_bridge:
 
                 return answer
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             if len(amplif) == 1:
 
                 temp = float(amplif[0])
@@ -315,10 +314,10 @@ class Mikran_X_band_MW_bridge:
 
             elif len(amplif) == 0:
 
-                return test_attenuation
+                return self.test_attenuation
 
     def mw_bridge_cut_off(self, *cutoff):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             if len(cutoff) == 1:
                 temp = str(cutoff[0])
 
@@ -351,17 +350,17 @@ class Mikran_X_band_MW_bridge:
 
                 return answer
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             if len(cutoff) == 1:
                 temp = str(cutoff[0])
                 assert(temp == '30' or temp == '105' or temp == '300'), 'Incorrect cut-off frequency should be 30, 105 or 300'
 
             elif len(cutoff) == 0:
 
-                return test_cut_off
+                return self.test_cut_off
 
     def mw_bridge_telemetry(self):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
 
             MESSAGE = b'\x0d' + b'\x08' + (0).to_bytes(8, byteorder = 'big')
             # 10 bytes to recieve
@@ -379,12 +378,12 @@ class Mikran_X_band_MW_bridge:
 
             return answer
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
 
-            return test_telemetry
+            return self.test_telemetry
 
     def mw_bridge_initialize(self):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
 
             MESSAGE = b'\x27' + b'\x01' + b'\x00'
             # 3 bytes to recieve
@@ -392,7 +391,7 @@ class Mikran_X_band_MW_bridge:
 
             general.message('Initialization done')
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             pass
 
 

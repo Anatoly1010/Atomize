@@ -32,6 +32,7 @@ class Socket_server():
         data = client.recv(1024).decode()
         helper.changedSignal.emit(data)
         #print(data)
+
 class Helper(QtCore.QObject):
     """
     A helper class to connect an event in another thread to a function in the main thread.

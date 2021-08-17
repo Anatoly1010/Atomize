@@ -25,30 +25,30 @@ import ctypes
 from ctypes import cdll
 import atomize.general_modules.general_functions as general
 
-# Defines for different pb_instr instruction types
-CONTINUE = 0
-STOP = 1
-LOOP = 2
-END_LOOP = 3
-JSR = 4
-RTS = 5
-BRANCH = 6
-LONG_DELAY = 7
-WAIT = 8
-
-# Defines for using different units of time
-ns = 1.0
-us = 1000.0
-ms = 1000000.0
-s  = 1000000000.0
-
-# Defines for start_programming
-PULSE_PROGRAM  = 0
-
-
 class SpinAPI():
 
     def __init__(self):
+
+        # Defines for different pb_instr instruction types
+        #self.CONTINUE = 0
+        #self.STOP = 1
+        #self.LOOP = 2
+        #self.END_LOOP = 3
+        #self.JSR = 4
+        #self.RTS = 5
+        #self.BRANCH = 6
+        #self.LONG_DELAY = 7
+        #self.WAIT = 8
+
+        # Defines for using different units of time
+        #self.ns = 1.0
+        #self.us = 1000.0
+        #self.ms = 1000000.0
+        #self.s  = 1000000000.0
+
+        # Defines for start_programming
+        #self.PULSE_PROGRAM  = 0
+
         self.path_to_file = os.path.abspath(os.path.realpath(os.path.dirname(__file__)))
         # Whether or not to tell the spincore library to write debug logfiles.
         self.debug = False

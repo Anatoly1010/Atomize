@@ -10,19 +10,15 @@ from PyQt6.QtWidgets import QFileDialog, QDialog
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtCore import QTimer
 
-# Test run parameters
-if len(sys.argv) > 1:
-    test_flag = sys.argv[1]
-else:
-    test_flag = 'None'
-
-test_header_array = np.array(['header1', 'header2'])
-test_data = np.arange(1000, 2)
-test_data_2d = np.meshgrid(test_data, test_data)
-test_file_path = os.path.abspath(os.getcwd())
-
 class Saver_Opener():
     def __init__(self):
+
+        # Test run parameters
+        if len(sys.argv) > 1:
+            self.test_flag = sys.argv[1]
+        else:
+            self.test_flag = 'None'
+
         # for open directory specified in the config file
         #path_to_main = os.path.abspath(os.getcwd())
         path_to_main = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
@@ -36,8 +32,14 @@ class Saver_Opener():
         self.open_dir = str(config['DEFAULT']['open_dir'])
         self.script_dir = str(config['DEFAULT']['script_dir'])
 
+        if self.test_flag == 'test':
+            self.test_header_array = np.array(['header1', 'header2'])
+            self.test_data = np.arange(1000, 2)
+            self.test_data_2d = np.meshgrid(self.test_data, self.test_data)
+            self.test_file_path = os.path.join(os.path.abspath(os.getcwd()), 'test')
+
     def open_1D(self, path, header = 0):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             header_array = []
 
             file_to_read = open(str(path), 'r')
@@ -52,11 +54,11 @@ class Saver_Opener():
 
             return header_array, data
 
-        elif test_flag == 'test':
-            return test_header_array, test_data
+        elif self.test_flag == 'test':
+            return self.test_header_array, self.test_data
 
     def open_1D_dialog(self, directory = '', fmt = '', header = 0):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.app = QtWidgets.QApplication([])
             file_path = self.FileDialog(directory = directory, mode = 'Open', fmt = 'csv')
             QTimer.singleShot(100, self.app.quit)
@@ -74,11 +76,11 @@ class Saver_Opener():
             data = np.transpose(temp)
             return header_array, data
 
-        elif test_flag == 'test':
-            return test_header_array, test_data
+        elif self.test_flag == 'test':
+            return self.test_header_array, self.test_data
 
     def save_1D_dialog(self, data, directory = '', fmt = '', header = ''):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.app = QtWidgets.QApplication(sys.argv)
             file_path = self.FileDialog(directory = directory, mode = 'Save', fmt = 'csv')
             QTimer.singleShot(50, self.app.quit)
@@ -86,11 +88,11 @@ class Saver_Opener():
 
             np.savetxt(file_path, np.transpose(data), fmt = '%.4e', delimiter = ',', newline = '\n', header = header, footer = '', comments = '#', encoding = None)
         
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             pass
 
     def open_2D(self, path, header = 0):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             header_array = []
             file_to_read = open(str(path), 'r')
             for i, line in enumerate(file_to_read):
@@ -104,11 +106,11 @@ class Saver_Opener():
 
             return header_array, data
 
-        elif test_flag == 'test':
-            return header_array, test_data_2d
+        elif self.test_flag == 'test':
+            return header_array, self.test_data_2d
 
     def open_2D_dialog(self, directory = '', fmt = '', header = 0):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.app = QtWidgets.QApplication(sys.argv)
             file_path = self.FileDialog(directory = directory, mode = 'Open', fmt = 'csv')
             QTimer.singleShot(50, self.app.quit)
@@ -126,11 +128,11 @@ class Saver_Opener():
             data = temp
             return header_array, data
 
-        elif test_flag == 'test':
-            return test_header_array, test_data_2d
+        elif self.test_flag == 'test':
+            return self.test_header_array, self.test_data_2d
 
     def open_2D_appended(self, path, header = 0, chunk_size = 1):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             header_array = []
             file_to_read = open(str(path), 'r')
             for i, line in enumerate(file_to_read):
@@ -143,11 +145,11 @@ class Saver_Opener():
             data = np.array_split(temp, chunk_size)
             return header_array, data
 
-        elif test_flag == 'test':
-            return test_header_array, test_data_2d
+        elif self.test_flag == 'test':
+            return self.test_header_array, self.test_data_2d
 
     def open_2D_appended_dialog(self, directory = '', header = 0, chunk_size = 1):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.app = QtWidgets.QApplication(sys.argv)
             file_path = self.FileDialog(directory = directory, mode = 'Open', fmt = 'csv')
 
@@ -166,11 +168,11 @@ class Saver_Opener():
             data = np.array_split(temp, chunk_size)
             return header_array, data
 
-        elif test_flag == 'test':
-            return test_header_array, test_data_2d
+        elif self.test_flag == 'test':
+            return self.test_header_array, self.test_data_2d
 
     def save_2D_dialog(self, data, directory = '', header = ''):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.app = QtWidgets.QApplication(sys.argv)
             file_path = self.FileDialog(directory = directory, mode = 'Save', fmt = 'csv')
             QTimer.singleShot(50, self.app.quit)
@@ -178,11 +180,11 @@ class Saver_Opener():
 
             np.savetxt(file_path, data, fmt = '%.4e', delimiter = ',', newline = '\n', header = header, footer = '', comments = '#', encoding = None)
         
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             pass
 
     def create_file_dialog(self,  directory = ''):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.app = QtWidgets.QApplication(sys.argv)
             file_path = self.FileDialog(directory = directory, mode = 'Save', fmt = 'csv')
             open(file_path, "w").close()
@@ -193,8 +195,8 @@ class Saver_Opener():
                              # it after it will be started.
             return file_path
 
-        elif test_flag == 'test':
-            return test_file_path
+        elif self.test_flag == 'test':
+            return self.test_file_path
 
     def FileDialog(self, directory = '', mode = 'Open', fmt = ''):
 

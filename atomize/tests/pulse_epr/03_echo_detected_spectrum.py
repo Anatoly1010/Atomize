@@ -54,6 +54,32 @@ pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = PULSE_SIGNAL_START, len
 pb.pulser_repetition_rate( REP_RATE )
 pb.pulser_update()
 
+# Data saving
+header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + 'Echo Detected Spectrum\n' + \
+            'Start Field: ' + str(START_FIELD) + ' G \n' + 'End Field: ' + str(END_FIELD) + ' G \n' + \
+            'Field Step: ' + str(FIELD_STEP) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + \
+            str(mw.mw_bridge_synthesizer()) + '\n' + \
+           'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' + 'Number of Scans: ' + str(SCANS) + '\n' +\
+           'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + ' ns\n' + \
+           'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
+           'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Field (G), X (V*s), Y (V*s) '
+
+try:
+    file_name = file_handler.create_file_dialog()
+    file_save_param = open(file_name.split('.csv')[0] + str('.param'), 'w')
+# pressed cancel Tk_kinter
+except TypeError:
+    file_name = 'temp.csv'
+    file_save_param = open(file_name.split('.csv')[0] + str('.param'), 'w')
+# pressed cancel PyQt
+except FileNotFoundError:
+    file_name = 'temp.csv'
+    file_save_param = open(file_name.split('.csv')[0] + str('.param'), 'w')
+
+np.savetxt(file_save_param, [], fmt='%.4e', delimiter=',', \
+                            newline='\n', header=header, footer='', comments='# ', encoding=None)
+file_save_param.close()
+
 j = 1
 while j <= SCANS:
 
@@ -72,9 +98,9 @@ while j <= SCANS:
         data_y[i] = ( data_y[i] * (j - 1) + area_y ) / j
 
         general.plot_1d('Echo Detected Spectrum', x_axis, data_x, xname = 'Field',\
-            xscale = 'T.', yname = 'Area', yscale = 'V*s', label = 'X')
+            xscale = 'G', yname = 'Area', yscale = 'V*s', label = 'X')
         general.plot_1d('Echo Detected Spectrum', x_axis, data_y, xname = 'Field',\
-            xscale = 'T.', yname = 'Area', yscale = 'V*s', label = 'Y')
+            xscale = 'G', yname = 'Area', yscale = 'V*s', label = 'Y')
         general.text_label( 'Echo Detected Spectrum', "Scan / Field: ", str(j) + ' / '+ str(field) )
 
         field = round( (FIELD_STEP + field), 3 )
@@ -86,14 +112,9 @@ while j <= SCANS:
 
 pb.pulser_stop()
 
-# Data saving
-header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + 'Echo Detected Spectrum\n' + \
-            'Start Field: ' + str(START_FIELD) + ' G \n' + 'End Field: ' + str(END_FIELD) + ' G \n' + \
-            'Field Step: ' + str(FIELD_STEP) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + \
-            str(mw.mw_bridge_synthesizer()) + '\n' + \
-           'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' + 'Number of Scans: ' + str(SCANS) + '\n' +\
-           'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + ' ns\n' + \
-           'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
-           'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Field (G), X (V*s), Y (V*s) '
+file_save = open(file_name, 'w')
+np.savetxt(file_save, np.c_[x_axis, data_x, data_y], fmt='%.4e', delimiter=',', \
+                        newline='\n', header=header, footer='', comments='# ', encoding=None)
+file_save.close()
 
-file_handler.save_1D_dialog( (x_axis, data_x, data_y), header = header )
+#file_handler.save_1D_dialog( (x_axis, data_x, data_y), header = header )

@@ -26,69 +26,68 @@ number of conditions to be taken into consideration:
    mode the currently set field isn't kept but is set back to zero.
 """
 
-#### Inizialization
-# setting path to *.ini file
-path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','BH_15_config.ini')
-
-# configuration data
-config = cutil.read_conf_util(path_config_file)
-specific_parameters = cutil.read_specific_parameters(path_config_file)
-
-# Ramges and limits
-min_swa = 0
-center_swa = 2048
-max_swa = 4095
-"""
-The maximum field resolution: this is, according to the manual the best
-result that can be achieved when repeatedly setting the center field and
-it doesn't seem to make too much sense to set a new field when the
-difference from the current field is below this resolution.
-"""
-fc_resolution = 0.005
-# Maximum resolution that can be used for sweep ranges
-fc_sw_resolution = 0.1
-"""
-As Mr. Antoine Wolff from Bruker pointed out to me the center field
-can only be set with a resolution of 50 mG (at least for the ER032M,
-but I guess that also holds for the BH15).
-"""
-fc_cf_resolution = 0.05
-# Define the maximum number of retries before giving up if the
-# overload LED is on.
-max_retries = 300
-"""
-To make sure the new setting for a center field or sweep width setting
-does arrive at the device we general it BH15_FC_MAX_SET_RETRIES times.
-Remember, this is a device by Bruker...
-"""
-max_set_retries = 3
-
-max_sweep_width = 16000.0
-min_field = -50.0
-max_field = 23000.0
-min_field_step = 0.001
-max_recursion = 20
-max_add_steps = 100
-
-# Test run parameters
-# These values are returned by the modules in the test run 
-if len(sys.argv) > 1:
-    test_flag = sys.argv[1]
-else:
-    test_flag = 'None'
-
-test_field = 3500
-
 class BH_15:
     #### Device specific functions
     def __init__(self):
-        if test_flag != 'test':
-            if config['interface'] == 'gpib':
+
+        #### Inizialization
+        # setting path to *.ini file
+        self.path_current_directory = os.path.dirname(__file__)
+        self.path_config_file = os.path.join(self.path_current_directory, 'config','BH_15_config.ini')
+
+        # configuration data
+        self.config = cutil.read_conf_util(self.path_config_file)
+        self.specific_parameters = cutil.read_specific_parameters(self.path_config_file)
+
+        # Ramges and limits
+        self.min_swa = 0
+        self.center_swa = 2048
+        self.max_swa = 4095
+        """
+        The maximum field resolution: this is, according to the manual the best
+        result that can be achieved when repeatedly setting the center field and
+        it doesn't seem to make too much sense to set a new field when the
+        difference from the current field is below this resolution.
+        """
+        self.fc_resolution = 0.005
+        # Maximum resolution that can be used for sweep ranges
+        self.fc_sw_resolution = 0.1
+        """
+        As Mr. Antoine Wolff from Bruker pointed out to me the center field
+        can only be set with a resolution of 50 mG (at least for the ER032M,
+        but I guess that also holds for the BH15).
+        """
+        self.fc_cf_resolution = 0.05
+        # Define the maximum number of retries before giving up if the
+        # overload LED is on.
+        self.max_retries = 300
+        """
+        To make sure the new setting for a center field or sweep width setting
+        does arrive at the device we general it BH15_FC_MAX_SET_RETRIES times.
+        Remember, this is a device by Bruker...
+        """
+        self.max_set_retries = 3
+
+        self.max_sweep_width = 16000.0
+        self.min_field = -50.0
+        self.max_field = 23000.0
+        self.min_field_step = 0.001
+        self.max_recursion = 20
+        self.max_add_steps = 100
+
+        # Test run parameters
+        # These values are returned by the modules in the test run 
+        if len(sys.argv) > 1:
+            self.test_flag = sys.argv[1]
+        else:
+            self.test_flag = 'None'
+
+        if self.test_flag != 'test':
+            if self.config['interface'] == 'gpib':
                 try:
                     import Gpib
                     self.status_flag = 1
-                    self.device = Gpib.Gpib(config['board_address'], config['gpib_address'])
+                    self.device = Gpib.Gpib(self.config['board_address'], self.config['gpib_address'])
                     try:
                         #test should be here
                         self.status_flag = 1
@@ -111,8 +110,8 @@ class BH_15:
                         self.status_flag = 0
                         sys.exit()
 
-        elif test_flag == 'test':
-            pass
+        elif self.test_flag == 'test':
+            self.test_field = 3500
 
         self.act_field = None       # the real current field
         self.is_act_field = False   # set if current field is known
@@ -128,16 +127,16 @@ class BH_15:
         self.is_init = False        # flag, set if magnet_setup() has been called
         self.max_field_dev = 0.     # maximum field deviation (in test run)
 
-        self.max_sw = max_sweep_width
-        if self.max_sw > max_field - min_field:
-            self.max_sw = max_field - min_field
+        self.max_sw = self.max_sweep_width
+        if self.max_sw > self.max_field - self.min_field:
+            self.max_sw = self.max_field - self.min_field
 
     def magnet_name(self):
-        if test_flag != 'test':
-            answer = config['name']
+        if self.test_flag != 'test':
+            answer = self.config['name']
             return answer
-        elif test_flag == 'test':
-            answer = config['name']
+        elif self.test_flag == 'test':
+            answer = self.config['name']
             return answer
 
     def magnet_setup(self, start_field, field_step):
@@ -147,18 +146,18 @@ class BH_15:
         """
         # Check that both the variables, i.e. the start field and the field step 
         # size are reasonable.
-        start_field = round(start_field/min_field_step)*min_field_step
+        start_field = round(start_field/self.min_field_step)*self.min_field_step
         self.field_check(start_field)
         #  Get the field step size and round it to the next allowed value
         # (resulting in a sweep step resolution of about 25 uG with the
         # given setting for the sweep width resolution of 0.1 G)
 
-        if field_step < min_field_step:
+        if field_step < self.min_field_step:
             general.message(f"Field sweep step size {field_step} G too small \
-                , minimum is {min_field_step} G.")
+                , minimum is {self.min_field_step} G.")
             sys.exit()
 
-        field_step = round(max_swa*field_step/fc_sw_resolution)*fc_sw_resolution/max_swa;
+        field_step = round(self.max_swa*field_step/self.fc_sw_resolution)*self.fc_sw_resolution/self.max_swa;
         """
         We would get into problems with setting the field exactly for start
         fields not being multiples of the center field resolution and field
@@ -166,11 +165,11 @@ class BH_15:
         to shift the center field during a longer sweep. Thus we readjust
         the start field in these cases.
         """
-        rem = round(start_field/min_field_step) %\
-         round(fc_cf_resolution/min_field_step)
+        rem = round(start_field/self.min_field_step) %\
+         round(self.fc_cf_resolution/self.min_field_step)
 
-        if rem > 0 & (round(field_step/min_field_step) % round(fc_cf_resolution/min_field_step)) == 0:
-            start_field = round(start_field/fc_cf_resolution)*fc_cf_resolution;
+        if rem > 0 & (round(field_step/self.min_field_step) % round(self.fc_cf_resolution/self.min_field_step)) == 0:
+            start_field = round(start_field/self.fc_cf_resolution)*self.fc_cf_resolution;
             general.message(f"Readjusting start field to {start_field} G.")
 
         self.start_field = start_field
@@ -178,11 +177,16 @@ class BH_15:
         self.is_init = True
 
         if self.is_init == True:
-            self.fc_start_field()
+            # self.fc_start_field()
+            # 16-08-2021; NIOCH First initialization problem
+            try:
+                self.fc_start_field()
+            except BrokenPipeError:
+                pass
 
         #?
         if (self.is_init and self.max_field_dev/self.field_step >= 0.01) or (self.is_init == False \
-        and self.is_act_field and math.floor(self.max_field_dev/fc_resolution) >= 1):
+        and self.is_act_field and math.floor(self.max_field_dev/self.fc_resolution) >= 1):
             general.message(f"Maximum field error during experiment was {self.max_field_dev*1000} mG.")
             self.max_field_dev = 0.0
             self.is_act_field = False
@@ -200,14 +204,14 @@ class BH_15:
         the maximum allowed field move the center field only as far as
         possible.
         """
-        if (self.swa + self.step_incr <= max_swa):
+        if (self.swa + self.step_incr <= self.max_swa):
             self.swa = self.swa + self.step_incr
             self.fc_set_swa(self.swa)
         else:
-            if (self.cf + 0.75*self.sw < max_field):
-                steps = max_swa/4
+            if (self.cf + 0.75*self.sw < self.max_field):
+                steps = self.max_swa/4
             else:
-                steps = round(math.floor((max_field - self.cf)/self.swa_step)) - center_swa
+                steps = round(math.floor((self.max_field - self.cf)/self.swa_step)) - self.center_swa
             """
             We also need the center field to be a multiple of the center field
             resolution. If necessary shift the center field by as many swep
@@ -217,20 +221,20 @@ class BH_15:
             expecting.
             """
             new_swa = self.swa - steps + self.step_incr;
-            diff = self.cf + (self.swa - center_swa)*self.swa_step - self.act_field
+            diff = self.cf + (self.swa - self.center_swa)*self.swa_step - self.act_field
             new_cf = self.cf - diff + steps*self.swa_step
 
             """
             When we're extremely near to the maximum field it may happen that
             the field can't be set with a useful combination of CF and SWA.
             """
-            if new_swa > max_swa or new_cf + 0.5*self.sw > max_field:
+            if new_swa > self.max_swa or new_cf + 0.5*self.sw > self.max_field:
                 general.message(f"Cannot set field of {self.act_field + self.field_step} G.")
             
             self.fc_best_fit_search(new_cf, new_swa, True, 2)
 
-            assert(new_swa >= min_swa and new_swa <= max_swa and (new_cf - 0.5*self.sw) >= min_field\
-                and (new_cf + 0.5*self.sw) <= max_field), "Incorrect parameters. Probably field is out of range."
+            assert(new_swa >= self.min_swa and new_swa <= self.max_swa and (new_cf - 0.5*self.sw) >= self.min_field\
+                and (new_cf + 0.5*self.sw) <= self.max_field), "Incorrect parameters. Probably field is out of range."
 
             self.swa = new_swa
             self.fc_set_swa(self.swa)
@@ -240,7 +244,7 @@ class BH_15:
         self.fc_test_leds()
 
         self.fc_deviation(self.act_field + self.field_step)
-        self.act_field = self.cf + (self.swa - center_swa )*self.swa_step
+        self.act_field = self.cf + (self.swa - self.center_swa )*self.swa_step
         
         return self.act_field
 
@@ -258,14 +262,14 @@ class BH_15:
         the minimum allowed field move the center field only as far as
         possible.
         """
-        if (self.swa - self.step_incr >= min_swa):
+        if (self.swa - self.step_incr >= self.min_swa):
             self.swa = self.swa - self.step_incr
             self.fc_set_swa(self.swa)
         else:
-            if (self.cf - 0.75*self.sw > min_field):
-                steps = max_swa/4
+            if (self.cf - 0.75*self.sw > self.min_field):
+                steps = self.max_swa/4
             else:
-                steps = round(math.floor((self.cf - min_field)/self.swa_step)) - center_swa
+                steps = round(math.floor((self.cf - self.min_field)/self.swa_step)) - self.center_swa
             """
             We also need the center field to be a multiple of the center field
             resolution. If necessary shift the center field by as many swep
@@ -273,18 +277,18 @@ class BH_15:
             more than 2 mG)
             """
             new_swa = self.swa + steps - self.step_incr;
-            diff = self.cf + (self.swa - center_swa)*self.swa_step - self.act_field
+            diff = self.cf + (self.swa - self.center_swa)*self.swa_step - self.act_field
             new_cf = self.cf - diff - steps*self.swa_step
 
             # When we're extremely near to the minimum field it may happen that
             # the field can't be set with a useful combination of CF and SWA
-            if new_swa < min_swa or new_cf - 0.5*self.sw < min_field:
+            if new_swa < self.min_swa or new_cf - 0.5*self.sw < self.min_field:
                 general.message(f"Can't set field of {self.act_field + self.field_step} G.")
             
             self.fc_best_fit_search(new_cf, new_swa, False, 2);
 
-            assert(new_swa >= min_swa and new_swa <= max_swa and (new_cf - 0.5*self.sw) >= min_field\
-                and (new_cf + 0.5*self.sw) <= max_field), "Incorrect parameters. Probably field is out of range."
+            assert(new_swa >= self.min_swa and new_swa <= self.max_swa and (new_cf - 0.5*self.sw) >= self.min_field\
+                and (new_cf + 0.5*self.sw) <= self.max_field), "Incorrect parameters. Probably field is out of range."
 
             self.swa = new_swa
             self.fc_set_swa(self.swa)
@@ -293,7 +297,7 @@ class BH_15:
         self.fc_test_leds()
 
         self.fc_deviation(self.act_field - self.field_step)
-        self.act_field = self.cf + (self.swa - center_swa )*self.swa_step
+        self.act_field = self.cf + (self.swa - self.center_swa )*self.swa_step
         
         return self.act_field
 
@@ -306,7 +310,7 @@ class BH_15:
         return self.act_field   
 
     def magnet_field(self, *field):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             if len(field) == 1:
                 self.set_field(field[0])
                 return self.get_field()
@@ -316,7 +320,7 @@ class BH_15:
                 general.message("Incorrect argument")
                 sys.exit()
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             if len(field) == 1:
                 self.set_field(field[0])
                 return self.get_field()
@@ -331,45 +335,45 @@ class BH_15:
         an argument and the possible field step size nearest to the
         argument.
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             if len(step) == 0:
-                return fc_resolution
+                return self.fc_resolution
             elif len(step) == 1:
                 field_step = float(step[0])
                 if field_step < 0.:
                     general.message("Invalid negative field step size.")
                     sys.exit()
-                steps = round(field_step/fc_resolution)
+                steps = round(field_step/self.fc_resolution)
                 if steps == 0:
                     steps += 1
 
-                return steps*fc_resolution
+                return steps*self.fc_resolution
             else:
                 general.message("Invalid argument")
                 sys.exit()
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             if len(step) == 0:
-                return fc_resolution
+                return self.fc_resolution
             elif len(step) == 1:
                 field_step = float(step[0])
                 assert(field_step >= 0), "Invalid negative field step size."
-                steps = round(field_step/fc_resolution)
+                steps = round(field_step/self.fc_resolution)
                 if steps == 0:
                     steps += 1
-                return steps*fc_resolution
+                return steps*self.fc_resolution
 
     # Auxiliary functions
     def get_field(self):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             if self.is_act_field != True:
                 general.message("Field hasn't been set yet and is thus still unknown.")
                 sys.exit()
 
             return self.act_field
 
-        elif test_flag == 'test':
-            #self.act_field = test_field
+        elif self.test_flag == 'test':
+            #self.act_field = self.test_field
             return self.act_field
 
     def set_field(self, field):
@@ -390,25 +394,25 @@ class BH_15:
         self.act_field = float(field)
         self.is_act_field = True
 
-        rem = (round(self.act_field/min_field_step) % round(fc_cf_resolution/min_field_step))\
-         * min_field_step
+        rem = (round(self.act_field/self.min_field_step) % round(self.fc_cf_resolution/self.min_field_step))\
+         * self.min_field_step
 
-        if rem <= 2*min_field_step:
-            self.swa = self.fc_set_swa(center_swa)
+        if rem <= 2*self.min_field_step:
+            self.swa = self.fc_set_swa(self.center_swa)
             self.sw = self.fc_set_sw(0.)
             self.cf = self.fc_set_cf(self.act_field)
         else:
             self.fc_set_sw(0.)
             self.cf = self.fc_set_cf(self.act_field - rem)
-            self.swa = center_swa + 1
+            self.swa = self.center_swa + 1
             self.fc_set_swa(self.swa)
-            self.sw = self.fc_set_sw(max_swa*rem)
+            self.sw = self.fc_set_sw(self.max_swa*rem)
 
         self.fc_test_leds()
 
         self.fc_deviation(self.act_field)
 
-        self.act_field = self.cf + (self.swa - center_swa)*self.swa_step
+        self.act_field = self.cf + (self.swa - self.center_swa)*self.swa_step
         return self.act_field
 
     def fc_set_field(self, field):
@@ -434,7 +438,7 @@ class BH_15:
            the center field is used.
         """
         field = float(field)
-        assert(field >= min_field and field <= max_field), "Incorrect parameters"
+        assert(field >= self.min_field and field <= self.max_field), "Incorrect parameters"
 
         # If no field has been set before (and thus the module doesn't even
         # know what's the current field) do the initialization now
@@ -455,7 +459,7 @@ class BH_15:
 
         self.fc_deviation(field)
         
-        self.act_field = self.cf + (self.swa - center_swa)*self.swa_step
+        self.act_field = self.cf + (self.swa - self.center_swa)*self.swa_step
 
         return self.act_field
 
@@ -469,8 +473,8 @@ class BH_15:
         sweeps can be done without changing the center field.   
         """
         self.cf = self.start_field
-        self.sw = max_swa*self.field_step
-        self.swa = center_swa
+        self.sw = self.max_swa*self.field_step
+        self.swa = self.center_swa
         self.swa_step = self.field_step
         self.step_incr = 1
 
@@ -490,8 +494,8 @@ class BH_15:
         it silently to fit this requirement - hopefully, this isn't going to
         lead to any real field precision problems.
         """
-        self.sw = fc_sw_resolution*round(self.sw/fc_sw_resolution)
-        self.swa_step = self.sw / max_swa
+        self.sw = self.fc_sw_resolution*round(self.sw/self.fc_sw_resolution)
+        self.swa_step = self.sw / self.max_swa
         self.field_step = self.step_incr * self.swa_step
 
         """
@@ -500,17 +504,17 @@ class BH_15:
         in this case. When the start field is extremely near to the limits
         it can happen that it's not possible to set the start field.
         """
-        if (self.cf + 0.5*self.sw) > max_field:
-            shift = round(math.ceil((self.cf + 0.5*self.sw - max_field)/self.swa_step))
+        if (self.cf + 0.5*self.sw) > self.max_field:
+            shift = round(math.ceil((self.cf + 0.5*self.sw - self.max_field)/self.swa_step))
             self.swa += shift
             self.cf -= shift*self.swa_step
-        elif (self.cf - 0.5*self.sw) < min_field:
-            shift = round(math.ceil((min_field-(self.cf - 0.5*self.sw))/self.swa_step))
+        elif (self.cf - 0.5*self.sw) < self.min_field:
+            shift = round(math.ceil((self.min_field-(self.cf - 0.5*self.sw))/self.swa_step))
             self.swa -= shift
             self.cf += shift*self.swa_step
 
-        if (self.swa > max_swa) or (self.swa < min_swa) or ((self.cf + 0.5*self.sw)\
-         > max_field) or ((self.cf - 0.5*self.sw) < min_field):
+        if (self.swa > self.max_swa) or (self.swa < self.min_swa) or ((self.cf + 0.5*self.sw)\
+         > self.max_field) or ((self.cf - 0.5*self.sw) < self.min_field):
             print(f'Cannot set field of {self.start_field} G.')
 
         """
@@ -522,10 +526,10 @@ class BH_15:
         with a combination of a slightly shifted CF plus not too large a number
         of SWA steps (typically not more than 100).
         """
-        self.fc_best_fit_search(self.cf, self.swa, self.cf >= 0.5*(max_field - min_field), 2)
+        self.fc_best_fit_search(self.cf, self.swa, self.cf >= 0.5*(self.max_field - self.min_field), 2)
 
-        assert(self.swa >= min_swa and self.swa <= max_swa and (self.cf - 0.5*self.sw) >= min_field\
-            and (self.cf + 0.5*self.sw) <= max_field), "Incorrect parameters"
+        assert(self.swa >= self.min_swa and self.swa <= self.max_swa and (self.cf - 0.5*self.sw) >= self.min_field\
+            and (self.cf + 0.5*self.sw) <= self.max_field), "Incorrect parameters"
 
         """
         Set the new field, sweep width and sweep address - in order to avoid
@@ -542,7 +546,7 @@ class BH_15:
 
         self.is_sw = True
         self.fc_deviation(self.start_field)
-        self.act_field = self.cf + (self.swa - center_swa )*self.swa_step
+        self.act_field = self.cf + (self.swa - self.center_swa )*self.swa_step
         self.is_act_field = True
 
     def fc_best_fit_search(self, cf, swa, dire, fac):
@@ -553,34 +557,34 @@ class BH_15:
         recursion_count = 0
         dir_change = False
 
-        assert(new_swa >= min_swa and new_swa <= max_swa and (new_cf - 0.5*self.swa_step) >= min_field\
-            and (new_cf + 0.5*self.swa_step) <= max_field), "Incorrect parameters. Probably field is out of range."
+        assert(new_swa >= self.min_swa and new_swa <= self.max_swa and (new_cf - 0.5*self.swa_step) >= self.min_field\
+            and (new_cf + 0.5*self.swa_step) <= self.max_field), "Incorrect parameters. Probably field is out of range."
 
         if  dire == True:
-            if new_swa == max_swa:
-                return max_add_steps
+            if new_swa == self.max_swa:
+                return self.max_add_steps
 
-            while new_swa < max_swa and (new_cf - 0.5*self.swa_step) > min_field:
-                rem = round(abs(new_cf)/min_field_step) % round(fc_cf_resolution/min_field_step)
-                if rem <= fac or (add_steps + 1) >= max_add_steps:
+            while new_swa < self.max_swa and (new_cf - 0.5*self.swa_step) > self.min_field:
+                rem = round(abs(new_cf)/self.min_field_step) % round(self.fc_cf_resolution/self.min_field_step)
+                if rem <= fac or (add_steps + 1) >= self.max_add_steps:
                     break
                 new_swa += 1
                 new_cf -= self.swa_step
         else:
-            if new_swa == min_swa:
-                return max_add_steps
+            if new_swa == self.min_swa:
+                return self.max_add_steps
 
-            while new_swa > min_swa and (new_cf + 0.5*self.swa_step < max_field):
-                rem = round(abs(new_cf)/min_field_step) % round(fc_cf_resolution/min_field_step)
-                if rem <= fac or (add_steps + 1) >= max_add_steps:
+            while new_swa > self.min_swa and (new_cf + 0.5*self.swa_step < self.max_field):
+                rem = round(abs(new_cf)/self.min_field_step) % round(self.fc_cf_resolution/self.min_field_step)
+                if rem <= fac or (add_steps + 1) >= self.max_add_steps:
                     break
                 new_swa -= 1
                 new_cf += self.swa_step
 
         if dir_change == False:
-            if new_swa <= min_swa or new_swa >= max_swa or\
-            new_cf - 0.5*self.sw < min_field or new_cf + 0.5*self.sw > max_field or\
-            add_steps >= max_add_steps:
+            if new_swa <= self.min_swa or new_swa >= self.max_swa or\
+            new_cf - 0.5*self.sw < self.min_field or new_cf + 0.5*self.sw > self.max_field or\
+            add_steps >= self.max_add_steps:
                 new_cf = cf
                 new_swa = swa
 
@@ -588,11 +592,11 @@ class BH_15:
                 add_steps = self.fc_best_fit_search(new_cf, new_swa, not dire, fac)
                 dir_change = False
 
-            if new_swa <= min_swa or new_swa >= max_swa or\
-            new_cf - 0.5*self.sw < min_field or new_cf + 0.5*self.sw > max_field or\
-            add_steps >= max_add_steps:
-                if recursion_count >= max_recursion:
-                    return max_add_steps
+            if new_swa <= self.min_swa or new_swa >= self.max_swa or\
+            new_cf - 0.5*self.sw < self.min_field or new_cf + 0.5*self.sw > self.max_field or\
+            add_steps >= self.max_add_steps:
+                if recursion_count >= self.max_recursion:
+                    return self.max_add_steps
                 new_cf = cf
                 new_swa = swa
 
@@ -600,7 +604,7 @@ class BH_15:
                 self.fc_best_fit_search(new_cf, new_swa, dire, fac + 1)
                 recursion_count -= 1
 
-        cf = round(new_cf/fc_cf_resolution)*fc_cf_resolution
+        cf = round(new_cf/self.fc_cf_resolution)*self.fc_cf_resolution
         swa = new_swa
 
         return add_steps
@@ -608,34 +612,34 @@ class BH_15:
     def fc_set_sw(self, sweep_width):
         assert(sweep_width >= 0. and sweep_width <= self.max_sw), "Incorrect sweep width"
 
-        sweep_width = fc_sw_resolution*round(sweep_width/fc_sw_resolution)
-        if round(sweep_width/fc_sw_resolution) != 0:
-            self.swa_step = sweep_width/max_swa
+        sweep_width = self.fc_sw_resolution*round(sweep_width/self.fc_sw_resolution)
+        if round(sweep_width/self.fc_sw_resolution) != 0:
+            self.swa_step = sweep_width/self.max_swa
             self.is_sw = True
         else:
             self.swa_step = 0.
             self.is_sw = False
 
-        if test_flag != 'test':
-            i = max_set_retries
+        if self.test_flag != 'test':
+            i = self.max_set_retries
             while i > 0:
                 i -= 1
                 self.device_write(f'SW{sweep_width:.3f}')
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             pass
 
         return sweep_width
 
     def fc_set_cf(self, center_field):
-        center_field = fc_cf_resolution*round(center_field/fc_cf_resolution)
-        assert(center_field >= min_field and center_field <= max_field), "Incorrect center field"
+        center_field = self.fc_cf_resolution*round(center_field/self.fc_cf_resolution)
+        assert(center_field >= self.min_field and center_field <= self.max_field), "Incorrect center field"
 
-        if test_flag != 'test':
-            i = max_set_retries
+        if self.test_flag != 'test':
+            i = self.max_set_retries
             while i > 0:
                 i -= 1
                 self.device_write(f'CF{center_field:.3f}')
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             pass
 
         return center_field
@@ -644,14 +648,14 @@ class BH_15:
         """
         Function for setting sweep address.
         """
-        assert(sweep_address >= min_swa and sweep_address <= max_swa), "Incorrect sweep address"
+        assert(sweep_address >= self.min_swa and sweep_address <= self.max_swa), "Incorrect sweep address"
 
-        if test_flag != 'test':
-            i = max_set_retries
+        if self.test_flag != 'test':
+            i = self.max_set_retries
             while i > 0:
                 i -= 1
                 self.device_write(f'SS{sweep_address:.3f}')
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             pass
 
         return sweep_address
@@ -665,30 +669,30 @@ class BH_15:
         # If this fails we have to change the center field, otherwise we use the
         # newly calculated sweep width.
         if self.is_sw != True:
-            rem = (round(field/min_field_step) % round( fc_cf_resolution/min_field_step))\
-            *min_field_step
-            if rem > min_field_step:
+            rem = (round(field/self.min_field_step) % round( self.fc_cf_resolution/self.min_field_step))\
+            *self.min_field_step
+            if rem > self.min_field_step:
                 self.cf = self.fc_set_cf(field - rem)
-                self.swa = center_swa + 1
+                self.swa = self.center_swa + 1
                 self.fc_set_swa(self.swa)
-                self.sw = self.fc_set_sw(max_swa*rem)
+                self.sw = self.fc_set_sw(self.max_swa*rem)
             else:
                 self.sw = self.fc_set_sw(0.)
                 self.cf = self.fc_set_cf(field)
 
         else:
             self.swa += round((field - self.cf)/self.swa_step)
-            self.fc_best_fit_search(self.cf, self.swa, self.cf >= 0.5*(max_field - min_field), 2)
+            self.fc_best_fit_search(self.cf, self.swa, self.cf >= 0.5*(self.max_field - self.min_field), 2)
 
-            if self.swa < min_swa or self.swa > max_swa or (self.cf - 0.5*self.sw) < min_field or \
-            (self.cf + 0.5*self.sw) > max_field or (field - (self.cf + (self.swa - center_swa)*self.swa_step)) > \
-            fc_resolution:
-                rem = (round(field/min_field_step) % round(fc_cf_resolution/min_field_step))*min_field_step
+            if self.swa < self.min_swa or self.swa > self.max_swa or (self.cf - 0.5*self.sw) < self.min_field or \
+            (self.cf + 0.5*self.sw) > self.max_field or (field - (self.cf + (self.swa - self.center_swa)*self.swa_step)) > \
+            self.fc_resolution:
+                rem = (round(field/self.min_field_step) % round(self.fc_cf_resolution/self.min_field_step))*self.min_field_step
                 self.fc_set_sw(0.)
                 self.cf = self.fc_set_cf(field - rem)
-                self.swa = center_swa + 1 
+                self.swa = self.center_swa + 1 
                 self.fc_set_swa(self.swa)
-                self.sw = self.fc_set_sw(max_swa*rem)
+                self.sw = self.fc_set_sw(self.max_swa*rem)
 
             else:
                 self.fc_set_sw(0.)
@@ -703,7 +707,7 @@ class BH_15:
         steps = round((field - self.act_field)/self.swa_step)
 
         if abs(abs(field - self.act_field) - self.swa_step*abs(steps)) < 0.01*self.swa_step and \
-        (self.swa + steps) <= max_swa and (self.swa + steps) >= min_swa:
+        (self.swa + steps) <= self.max_swa and (self.swa + steps) >= self.min_swa:
             self.swa = self.swa + steps
             self.fc_set_swa(self.swa)
             return
@@ -727,38 +731,38 @@ class BH_15:
         steps = round((field - self.act_field )/self.swa_step)
 
         if abs(abs(field - self.act_field) - self.swa_step*abs(steps)) < 0.01*self.swa_step and \
-        (self.swa + steps) <= max_swa and (self.swa + steps) >= min_swa:
+        (self.swa + steps) <= self.max_swa and (self.swa + steps) >= self.min_swa:
             self.swa += steps
             self.fc_set_swa(self.swa)
             return
 
         # Otherwise we start of with the center field set to the requested
         # field
-        self.swa = center_swa
+        self.swa = self.center_swa
         self.cf = field
 
         # Make sure we don't get over the field limits (including halve the
         # sweep range)
-        if (self.cf + 0.5*self.sw) > max_field:
-            steps = round(math.ceil((self.cf + 0.5*self.sw - max_field)/self.swa_step))
+        if (self.cf + 0.5*self.sw) > self.max_field:
+            steps = round(math.ceil((self.cf + 0.5*self.sw - self.max_field)/self.swa_step))
             self.swa += steps
             self.cf  -= steps*self.swa_step
-        elif (self.cf - 0.5*self.sw) < min_field:
-            steps = round(math.ceil((min_field + 0.5*self.sw - self.cf)/self.swa_step))
+        elif (self.cf - 0.5*self.sw) < self.min_field:
+            steps = round(math.ceil((self.min_field + 0.5*self.sw - self.cf)/self.swa_step))
             self.cf  += steps*self.swa_step   
             self.swa -= steps
 
         # When we're extremely near to the limits it's possible that there is
         # no combination of CF and SWA that can be used
-        if self.swa > max_swa or self.swa < min_swa or (self.cf + 0.5*self.sw) > \
-            max_field or (self.cf - 0.5*self.sw) < min_field:
+        if self.swa > self.max_swa or self.swa < self.min_swa or (self.cf + 0.5*self.sw) > \
+            self.max_field or (self.cf - 0.5*self.sw) < self.min_field:
 
             general.message(f"Can't set field of {field} G.")
             sys.exit()
 
         # Now we again got to deal with cases where the resulting center field
         # isn't a multiple of the CF resoultion...
-        rem = round(self.cf/min_field_step) % round(fc_cf_resolution/min_field_step)
+        rem = round(self.cf/self.min_field_step) % round(self.fc_cf_resolution/self.min_field_step)
 
         if rem > 0:
             """
@@ -766,15 +770,15 @@ class BH_15:
             step size is we can't adjust the field to the required value and
             must use the nearest possible field instead.
             """
-            if round(self.swa_step/min_field_step) % round(fc_cf_resolution/min_field_step) == 0:
-                self.cf = round(self.cf/fc_cf_resolution)*fc_cf_resolution
+            if round(self.swa_step/self.min_field_step) % round(self.fc_cf_resolution/self.min_field_step) == 0:
+                self.cf = round(self.cf/self.fc_cf_resolution)*self.fc_cf_resolution
             else:
                 # Otherwise try to adjust the field by a few additional SWA
                 # steps in the right direction
-                self.fc_best_fit_search(self.cf, self.swa, self.cf >= 0.5*(max_field - min_field), 2)
+                self.fc_best_fit_search(self.cf, self.swa, self.cf >= 0.5*(self.max_field - self.min_field), 2)
 
-                assert(self.swa >= min_swa and self.swa <= max_swa and self.cf - 0.5*self.sw >= \
-                min_field and self.cf + 0.5*self.sw <= max_field), "Incorrect parameters"
+                assert(self.swa >= self.min_swa and self.swa <= self.max_swa and self.cf - 0.5*self.sw >= \
+                self.min_field and self.cf + 0.5*self.sw <= self.max_field), "Incorrect parameters"
 
         self.cf = self.fc_set_cf(self.cf)
         self.fc_set_swa(self.swa)
@@ -789,16 +793,16 @@ class BH_15:
         """
 
         # For very small or huge changes we can't deduce a sweep range.
-        if (field_diff*max_swa) < fc_sw_resolution or field_diff > self.max_sw/2:
+        if (field_diff*self.max_swa) < self.fc_sw_resolution or field_diff > self.max_sw/2:
             return False
         # This also doesn't work if the center field is nearer to one of the
         # limits than to the new field value.
-        if (max_field - self.cf) < field_diff or (self.cf - min_field) < field_diff:
+        if (self.max_field - self.cf) < field_diff or (self.cf - self.min_field) < field_diff:
             return False
 
         # Now start with the step size set to the field difference
         swa_step = field_diff
-        sw = max_swa*field_diff
+        sw = self.max_swa*field_diff
 
         # The following reduces the sweep width to the maximum possible sweep
         # width and will always happen for field changes above 3.90625 G.
@@ -809,7 +813,7 @@ class BH_15:
 
         # If with this corrected SWA step size the field change can't be achieved
         # give up.
-        if swa_step*(center_swa-1) < field_diff:
+        if swa_step*(self.center_swa-1) < field_diff:
             return False
 
         """
@@ -818,26 +822,26 @@ class BH_15:
         far as necessary
         """
         i = 1
-        while (self.cf + 0.5*sw/i) > max_field:
+        while (self.cf + 0.5*sw/i) > self.max_field:
             sw = sw/i
             swa_step = swa_step/i
             i += 1
 
         i = 1
-        while (self.cf - 0.5*sw/i) < min_field:
+        while (self.cf - 0.5*sw/i) < self.min_field:
             sw = sw/i
             swa_step = swa_step/i
             i += 1
 
-        sw = fc_sw_resolution*round(sw/fc_sw_resolution)
-        swa_step = sw/max_swa
+        sw = self.fc_sw_resolution*round(sw/self.fc_sw_resolution)
+        swa_step = sw/self.max_swa
 
-        if swa_step*(center_swa-1) < field_diff:
+        if swa_step*(self.center_swa-1) < field_diff:
             return False
 
         self.sw = sw
         self.swa_step = swa_step
-        self.swa = center_swa
+        self.swa = self.center_swa
 
         return True
 
@@ -845,7 +849,7 @@ class BH_15:
         """
         Function for testing LED indicators.
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             while True:
                 is_overload = is_remote = False
                 answer = self.device_query('LE')
@@ -868,20 +872,22 @@ class BH_15:
                 # If remote LED isn't on we're out of luck...
                 if is_remote == False:
                     general.message("Device isn't in remote state.")
-                    sys.exit()
+                    # 16-08-2021; NIOCH First initialization problem
+                    raise BrokenPipeError
+                    #sys.exit()
                 
                 # If there's no overload we're done, otherwise we retry several
                 # times before giving up.
                 if is_overload == False:
                     break
 
-                if (max_retries - 1) > 0:
+                if (self.max_retries - 1) > 0:
                     general.wait('1 s')
                 else:
                     general.message("Field regulation loop not balanced.")
                     sys.exit()
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             pass
 
     def fc_deviation(self, field):
@@ -889,27 +895,27 @@ class BH_15:
         Function for calculating the new maximum value for the deviation
         between a requested and an achieved field.
         """
-        d = abs(field - self.cf - (self.swa - center_swa)*self.swa_step)
+        d = abs(field - self.cf - (self.swa - self.center_swa)*self.swa_step)
 
         if d > self.max_field_dev:
             self.max_field_dev = d
 
     def field_check(self, field):
         field = float(field)
-        if test_flag != 'test':
-            if field > max_field:
-                general.message(f"Field of {field} G is too high, maximum field is {max_field} G.")
+        if self.test_flag != 'test':
+            if field > self.max_field:
+                general.message(f"Field of {field} G is too high, maximum field is {self.max_field} G.")
                 sys.exit()
-            if field < min_field:
-                general.message(f"Field of {field} G is too low, minimum field is {min_field} G.")
+            if field < self.min_field:
+                general.message(f"Field of {field} G is too low, minimum field is {self.min_field} G.")
                 sys.exit()
-        if test_flag == 'test':
-            assert(field <= max_field and field >= min_field), f"Field of {field} G is unavailable"
+        if self.test_flag == 'test':
+            assert(field <= self.max_field and field >= self.min_field), f"Field of {field} G is unavailable"
 
     def device_write(self, command):
         if self.status_flag == 1:
             try:
-                command = str(str(command) + str(config['write_termination']))
+                command = str(str(command) + str(self.config['write_termination']))
                 #print(command)
                 self.device.write(command)
             except gpib.GpibError:
@@ -920,9 +926,9 @@ class BH_15:
             sys.exit()
 
     def device_query(self, command):
-        if config['interface'] == 'gpib':
+        if self.config['interface'] == 'gpib':
             try:
-                command = str(str(command) + str(config['read_termination']))
+                command = str(str(command) + str(self.config['read_termination']))
                 #print(command)
                 self.device.write(command)
                 general.wait('50 ms')

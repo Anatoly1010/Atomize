@@ -9,40 +9,39 @@ from pyvisa.constants import StopBits, Parity
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
-#### Inizialization
-# setting path to *.ini file
-path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','ER_031M_config.ini')
-
-# configuration data
-config = cutil.read_conf_util(path_config_file)
-specific_parameters = cutil.read_specific_parameters(path_config_file)
-
-# Ramges and limits
-min_field = -50
-max_field = 6000
-
-# Test run parameters
-# These values are returned by the modules in the test run 
-if len(sys.argv) > 1:
-    test_flag = sys.argv[1]
-else:
-    test_flag = 'None'
-
-test_field = 3500
-
 class ER_031M:
     #### Basic interaction functions
     def __init__(self):
-        if test_flag != 'test':
-            if config['interface'] == 'rs232':
+
+        #### Inizialization
+        # setting path to *.ini file
+        self.path_current_directory = os.path.dirname(__file__)
+        self.path_config_file = os.path.join(self.path_current_directory, 'config','ER_031M_config.ini')
+
+        # configuration data
+        self.config = cutil.read_conf_util(self.path_config_file)
+        self.specific_parameters = cutil.read_specific_parameters(self.path_config_file)
+
+        # Ramges and limits
+        self.min_field = -50
+        self.max_field = 6000
+
+        # Test run parameters
+        # These values are returned by the modules in the test run 
+        if len(sys.argv) > 1:
+            self.test_flag = sys.argv[1]
+        else:
+            self.test_flag = 'None'
+
+        if self.test_flag != 'test':
+            if self.config['interface'] == 'rs232':
                 try:
                     self.status_flag = 1
                     rm = pyvisa.ResourceManager()
-                    self.device = rm.open_resource(config['serial_address'],
-                    write_termination=config['write_termination'], baud_rate=config['baudrate'],
-                    data_bits=config['databits'], parity=config['parity'], stop_bits=config['stopbits'])
-                    self.device.timeout = config['timeout'] # in ms
+                    self.device = rm.open_resource(self.config['serial_address'],
+                    write_termination=self.config['write_termination'], baud_rate=self.config['baudrate'],
+                    data_bits=self.config['databits'], parity=self.config['parity'], stop_bits=self.config['stopbits'])
+                    self.device.timeout = self.config['timeout'] # in ms
 
                     self.field = 0.
                     self.field_step = 0.
@@ -66,14 +65,14 @@ class ER_031M:
                     self.status_flag = 0
                     sys.exit()
 
-        elif test_flag == 'test':
-            pass
+        elif self.test_flag == 'test':
+            self.test_field = 3500
 
     def close_connection(self):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.status_flag = 0;
             gc.collect()
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             pass
 
     def device_write(self, command):
@@ -88,30 +87,30 @@ class ER_031M:
 
     #### device specific functions
     def magnet_name(self):
-        if test_flag != 'test':
-            answer = config['name']
+        if self.test_flag != 'test':
+            answer = self.config['name']
             return answer
-        elif test_flag == 'test':
-            answer = config['name']
+        elif self.test_flag == 'test':
+            answer = self.config['name']
             return answer
 
     def magnet_setup(self, start_field, field_step):
-        if test_flag != 'test':
-            if start_field <= max_field and start_field >= min_field:
+        if self.test_flag != 'test':
+            if start_field <= self.max_field and start_field >= self.min_field:
                 self.field = start_field
                 self.field_step = field_step
             else:
                 general.message('Incorrect field range')
                 sys.exit()
-        elif test_flag == 'test':
-            assert(start_field <= max_field and start_field >= min_field), 'Incorrect field range'
+        elif self.test_flag == 'test':
+            assert(start_field <= self.max_field and start_field >= self.min_field), 'Incorrect field range'
             self.field = start_field
             self.field_step = field_step
 
     def magnet_field(self, *field):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             if len(field) == 1:
-                if field <= max_field and field >= min_field:
+                if field <= self.max_field and field >= self.min_field:
                     #field_controller_write('cf'+str(field)+'\r')
                     self.device_write('cf' + str(field))
                     self.field = field
@@ -125,23 +124,23 @@ class ER_031M:
                 send.message("Invalid argument")
                 sys.exit()
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             if len(field) == 1:
-                assert(field <= max_field and field >= min_field), 'Incorrect field range'
+                assert(field <= self.max_field and field >= self.min_field), 'Incorrect field range'
                 self.field = field
             elif len(field) == 0:
-                answer = test_field
+                answer = self.test_field
                 return answer
             else:
                 assert(1 == 2), 'Invalid argument'
 
     def magnet_command(self, command):
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             command = str(command)
             self.device_write(command)
             # field_controller_write(command+'\r')
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             pass
 
 def main():

@@ -4,6 +4,7 @@
 import os
 import sys
 ###AWG
+#sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
 sys.path.append('/home/anatoly/AWG/spcm_examples/python')
 #sys.path.append('/home/anatoly/awg_files/python')
 #sys.path.append('C:/Users/User/Desktop/Examples/python')
@@ -14,78 +15,59 @@ import atomize.general_modules.general_functions as general
 from pyspcm import *
 from spcm_tools import *
 
-#### Inizialization
-# setting path to *.ini file
-path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','Spectrum_M4I_4450_X8_config.ini')
-
-# configuration data
-#config = cutil.read_conf_util(path_config_file)
-specific_parameters = cutil.read_specific_parameters(path_config_file)
-
-# Channel assignments
-#ch0 = specific_parameters['ch0'] # TRIGGER
-
-timebase_dict = {'ms': 1000000, 'us': 1000, 'ns': 1, }
-channel_dict = {'CH0': 0, 'CH1': 1, }
-coupling_dict = {'DC': 0, 'AC': 1, }
-impedance_dict = {'1 M': 0, '50': 1, }
-sample_rate_list = [1907, 3814, 7629, 15258, 30517, 61035, 122070, 244140, 488281, 976562, \
-                    1953125, 3906250, 7812500, 15625000, 31250000, 62500000, 125000000, \
-                    250000000, 500000000]
-hf_mode_range_list = [500, 1000, 2500, 5000]
-buffered_mode_range_list = [200, 500, 1000, 2000, 5000, 10000]
-
-# Limits and Ranges (depends on the exact model):
-#clock = float(specific_parameters['clock'])
-
-# Delays and restrictions
-# MaxDACValue corresponds to the amplitude of the output signal; MaxDACValue - Amplitude and so on
-# lMaxDACValue = int32 (0)
-# spcm_dwGetParam_i32 (hCard, SPC_MIINST_MAXADCVALUE, byref(lMaxDACValue))
-# lMaxDACValue.value = lMaxDACValue.value - 1
-#maxCAD = 8191 # MaxCADValue of the AWG card - 1
-#minCAD = -8192
-amplitude_max = 2500 # mV
-amplitude_min = 80 # mV
-sample_rate_max = 500 # MHz
-sample_rate_min = 0.001907 # MHz
-sample_ref_clock_max = 100 # MHz
-sample_ref_clock_min = 10 # MHz
-averages_max = 100000
-delay_max = 8589934576
-delay_min = 0 
-
-# Test run parameters
-# These values are returned by the modules in the test run 
-if len(sys.argv) > 1:
-    test_flag = sys.argv[1]
-else:
-    test_flag = 'None'
-
-test_amplitude = 600
-test_channel = 1
-test_sample_rate = '500 MHz'
-test_clock_mode = 'Internal'
-test_ref_clock = 100
-test_card_mode = 'Single'
-test_trigger_ch = 'External'
-test_trigger_mode = 'Positive'
-test_averages = 10
-test_delay = 0
-test_channel = 'CH0'
-test_amplitude = 'CH0: 500 mV; CH1: 500 mV'
-test_num_segments = 1
-test_points = 128
-test_posttrig_points = 64
-test_input_mode = 'HF'
-test_offset = 'CH0: 10'
-test_coupling = 'CH0: DC'
-test_impedance = 'CH0: 50'
-
 class Spectrum_M4I_4450_X8:
     def __init__(self):
-        if test_flag != 'test':
+
+        #### Inizialization
+        # setting path to *.ini file
+        self.path_current_directory = os.path.dirname(__file__)
+        self.path_config_file = os.path.join(self.path_current_directory, 'config','Spectrum_M4I_4450_X8_config.ini')
+
+        # configuration data
+        #config = cutil.read_conf_util(self.path_config_file)
+        self.specific_parameters = cutil.read_specific_parameters(self.path_config_file)
+
+        # Channel assignments
+        #ch0 = self.specific_parameters['ch0'] # TRIGGER
+
+        self.timebase_dict = {'ms': 1000000, 'us': 1000, 'ns': 1, }
+        self.channel_dict = {'CH0': 0, 'CH1': 1, }
+        self.coupling_dict = {'DC': 0, 'AC': 1, }
+        self.impedance_dict = {'1 M': 0, '50': 1, }
+        self.sample_rate_list = [1907, 3814, 7629, 15258, 30517, 61035, 122070, 244140, 488281, 976562, \
+                            1953125, 3906250, 7812500, 15625000, 31250000, 62500000, 125000000, \
+                            250000000, 500000000]
+        self.hf_mode_range_list = [500, 1000, 2500, 5000]
+        self.buffered_mode_range_list = [200, 500, 1000, 2000, 5000, 10000]
+
+        # Limits and Ranges (depends on the exact model):
+        #clock = float(self.specific_parameters['clock'])
+
+        # Delays and restrictions
+        # MaxDACValue corresponds to the amplitude of the output signal; MaxDACValue - Amplitude and so on
+        # lMaxDACValue = int32 (0)
+        # spcm_dwGetParam_i32 (hCard, SPC_MIINST_MAXADCVALUE, byref(lMaxDACValue))
+        # lMaxDACValue.value = lMaxDACValue.value - 1
+        #maxCAD = 8191 # MaxCADValue of the AWG card - 1
+        #minCAD = -8192
+        self.amplitude_max = 2500 # mV
+        self.amplitude_min = 80 # mV
+        self.sample_rate_max = 500 # MHz
+        self.sample_rate_min = 0.001907 # MHz
+        self.sample_ref_clock_max = 100 # MHz
+        self.sample_ref_clock_min = 10 # MHz
+        self.averages_max = 100000
+        self.delay_max = 8589934576
+        self.delay_min = 0 
+
+        # Test run parameters
+        # These values are returned by the modules in the test run 
+        if len(sys.argv) > 1:
+            self.test_flag = sys.argv[1]
+        else:
+            self.test_flag = 'None'
+
+        if self.test_flag != 'test':
 
             # Collect all parameters for digitizer settings
             self.sample_rate = 500 # MHz
@@ -118,7 +100,25 @@ class Spectrum_M4I_4450_X8:
             # state counter
             self.state = 0
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':        
+            self.test_sample_rate = '500 MHz'
+            self.test_clock_mode = 'Internal'
+            self.test_ref_clock = 100
+            self.test_card_mode = 'Single'
+            self.test_trigger_ch = 'External'
+            self.test_trigger_mode = 'Positive'
+            self.test_averages = 10
+            self.test_delay = 0
+            self.test_channel = 'CH0'
+            self.test_amplitude = 'CH0: 500 mV; CH1: 500 mV'
+            self.test_num_segments = 1
+            self.test_points = 128
+            self.test_posttrig_points = 64
+            self.test_input_mode = 'HF'
+            self.test_offset = 'CH0: 10'
+            self.test_coupling = 'CH0: DC'
+            self.test_impedance = 'CH0: 50'
+
             # Collect all parameters for digitizer settings
             self.sample_rate = 500 
             self.clock_mode = 1
@@ -162,7 +162,7 @@ class Spectrum_M4I_4450_X8:
 
         This function should be called after all functions that change settings are called
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             
             if self.state == 0:
                 # open card
@@ -273,7 +273,7 @@ class Spectrum_M4I_4450_X8:
 
             spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             # to run several important checks
             #if self.setting_change_count == 1:
             #    if self.card_mode == 32768 and self.sequence_mode == 0:
@@ -296,7 +296,7 @@ class Spectrum_M4I_4450_X8:
         Input mode if 'HF'; Coupling of CH0 and CH1 are 'DC'; Impedance of CH0 and CH1 are '50';
         Horizontal offset of CH0 and CH1 are 0%; 
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
 
             #spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
 
@@ -384,7 +384,7 @@ class Spectrum_M4I_4450_X8:
             # clean up
             #spcm_vClose (hCard)
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
 
             # CHECK FOR AVERAGE MODE
             dummy = np.zeros( self.points )
@@ -398,19 +398,19 @@ class Spectrum_M4I_4450_X8:
         """
         Close the digitizer. No argument; No output
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             # clean up
             spcm_vClose ( self.hCard )
             self.state == 0
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             pass
 
     def digitizer_stop(self):
         """
         Stop the digitizer. No argument; No output
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
 
             # open card
             #hCard = spcm_hOpen( create_string_buffer (b'/dev/spcm0') )
@@ -420,7 +420,7 @@ class Spectrum_M4I_4450_X8:
             spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_STOP)
             #general.message('Digitizer stopped')
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             pass
 
     def digitizer_number_of_points(self, *points):
@@ -430,7 +430,7 @@ class Spectrum_M4I_4450_X8:
         Default: 128;
         Output: '128'
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.setting_change_count = 1
 
             if len(points) == 1:
@@ -483,7 +483,7 @@ class Spectrum_M4I_4450_X8:
             elif len(points) == 0:
                 return self.points
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(points) == 1:
@@ -497,7 +497,7 @@ class Spectrum_M4I_4450_X8:
                     self.points = pnts
 
             elif len(points) == 0:
-                return test_points    
+                return self.test_points    
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
 
@@ -508,7 +508,7 @@ class Spectrum_M4I_4450_X8:
         Default: 64;
         Output: '64'
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.setting_change_count = 1
 
             if len(post_points) == 1:
@@ -537,7 +537,7 @@ class Spectrum_M4I_4450_X8:
             elif len(post_points) == 0:
                 return self.posttrig_points
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(post_points) == 1:
@@ -554,7 +554,7 @@ class Spectrum_M4I_4450_X8:
                     self.posttrig_points = self.points                
 
             elif len(post_points) == 0:
-                return test_posttrig_points    
+                return self.test_posttrig_points    
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
     
@@ -566,7 +566,7 @@ class Spectrum_M4I_4450_X8:
         Default: 1;
         Output: '2'
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.setting_change_count = 1
 
             if len(segments) == 1:
@@ -579,7 +579,7 @@ class Spectrum_M4I_4450_X8:
             elif len(segments) == 0:
                 return self.num_segments
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(segments) == 1:
@@ -590,7 +590,7 @@ class Spectrum_M4I_4450_X8:
                 self.num_segments = seg
 
             elif len(segments) == 0:
-                return test_num_segments
+                return self.test_num_segments
             else:
                 assert( 1 == 2 ), 'Incorrect argumnet'
 
@@ -601,7 +601,7 @@ class Spectrum_M4I_4450_X8:
         Default: both channels are enabled
         Output: 'CH0'
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.setting_change_count = 1
 
             if len(channel) == 1:
@@ -633,7 +633,7 @@ class Spectrum_M4I_4450_X8:
                 general.message('Incorrect argument; Channel should be CH0 or CH1')
                 sys.exit()
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(channel) == 1:
@@ -650,7 +650,7 @@ class Spectrum_M4I_4450_X8:
                 if (ch1 == 'CH0' and ch2 == 'CH1') or (ch1 == 'CH1' and ch2 == 'CH0'):
                     self.channel = 3
             elif len(channel) == 0:
-                return test_channel
+                return self.test_channel
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
 
@@ -661,13 +661,13 @@ class Spectrum_M4I_4450_X8:
         Default: '500';
         Output: '500 MHz'
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.setting_change_count = 1
 
             if len(s_rate) == 1:
                 rate = 1000000 * int(s_rate[0])
-                if rate <= 1000000 * sample_rate_max and rate >= 1000000 * sample_rate_min:
-                    closest_available = min(sample_rate_list, key = lambda x: abs(x - rate))
+                if rate <= 1000000 * self.sample_rate_max and rate >= 1000000 * self.sample_rate_min:
+                    closest_available = min(self.sample_rate_list, key = lambda x: abs(x - rate))
                     if int(closest_available) != rate:
                         general.message("Desired sample rate cannot be set, the nearest available value " + str(closest_available) + " is used")
                     self.sample_rate = closest_available / 1000000
@@ -687,17 +687,17 @@ class Spectrum_M4I_4450_X8:
                 spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
 
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(s_rate) == 1:
                 rate = 1000000 * int(s_rate[0])
-                closest_available = min(sample_rate_list, key = lambda x: abs(x - rate))
-                assert(rate <= 1000000 * sample_rate_max and rate >= 1000000 * sample_rate_min), "Incorrect sample rate; Should be 500 MHz <= Rate <= 0.001907 MHz"
+                closest_available = min(self.sample_rate_list, key = lambda x: abs(x - rate))
+                assert(rate <= 1000000 * self.sample_rate_max and rate >= 1000000 * self.sample_rate_min), "Incorrect sample rate; Should be 500 MHz <= Rate <= 0.001907 MHz"
                 self.sample_rate = closest_available / 1000000
 
             elif len(s_rate) == 0:
-                return test_sample_rate
+                return self.test_sample_rate
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
 
@@ -708,7 +708,7 @@ class Spectrum_M4I_4450_X8:
         Default: 'Internal';
         Output: 'Internal'
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.setting_change_count = 1
 
             if len(mode) == 1:
@@ -727,7 +727,7 @@ class Spectrum_M4I_4450_X8:
                 elif self.clock_mode == 32:
                     return 'External'
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(mode) == 1:
@@ -739,7 +739,7 @@ class Spectrum_M4I_4450_X8:
                     self.clock_mode = 32
 
             elif len(mode) == 0:
-                return test_clock_mode
+                return self.test_clock_mode
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
 
@@ -750,12 +750,12 @@ class Spectrum_M4I_4450_X8:
         Default: '100';
         Output: '200 MHz'
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.setting_change_count = 1
 
             if len(ref_clock) == 1:
                 rate = int(ref_clock[0])
-                if rate <= sample_ref_clock_max and rate >= sample_ref_clock_min:
+                if rate <= self.sample_ref_clock_max and rate >= self.sample_ref_clock_min:
                     self.reference_clock = rate
                 else:
                     general.message('Incorrect reference clock; Should be 100 MHz <= Clock <= 10 MHz')
@@ -764,16 +764,16 @@ class Spectrum_M4I_4450_X8:
             elif len(ref_clock) == 0:
                 return str(self.reference_clock) + ' MHz'
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(ref_clock) == 1:
                 rate = int(ref_clock[0])
-                assert(rate <= sample_ref_clock_max and rate >= sample_ref_clock_min), "Incorrect reference clock; Should be 100 MHz <= Clock <= 10 MHz"
+                assert(rate <= self.sample_ref_clock_max and rate >= self.sample_ref_clock_min), "Incorrect reference clock; Should be 100 MHz <= Clock <= 10 MHz"
                 self.reference_clock = rate
 
             elif len(ref_clock) == 0:
-                return test_ref_clock
+                return self.test_ref_clock
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
 
@@ -789,7 +789,7 @@ class Spectrum_M4I_4450_X8:
         Default: 'Single';
         Output: 'Single'
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.setting_change_count = 1
 
             if len(mode) == 1:
@@ -808,7 +808,7 @@ class Spectrum_M4I_4450_X8:
                 elif self.card_mode == 131072:
                     return 'Average'
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(mode) == 1:
@@ -820,7 +820,7 @@ class Spectrum_M4I_4450_X8:
                     self.card_mode = 131072
               
             elif len(mode) == 0:
-                return test_card_mode        
+                return self.test_card_mode        
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
 
@@ -831,7 +831,7 @@ class Spectrum_M4I_4450_X8:
         Default: 'External';
         Output: 'Software'
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.setting_change_count = 1
 
             if len(ch) == 1:
@@ -850,7 +850,7 @@ class Spectrum_M4I_4450_X8:
                 elif self.trigger_ch == 2:
                     return 'External'
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(ch) == 1:
@@ -862,7 +862,7 @@ class Spectrum_M4I_4450_X8:
                     self.trigger_ch = 2
 
             elif len(ch) == 0:
-                return test_trigger_ch
+                return self.test_trigger_ch
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
 
@@ -873,7 +873,7 @@ class Spectrum_M4I_4450_X8:
         Default: 'Positive';
         Output: 'Positive'
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.setting_change_count = 1
 
             if len(mode) == 1:
@@ -900,7 +900,7 @@ class Spectrum_M4I_4450_X8:
                 elif self.trigger_mode == 10:
                     return 'Low'
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(mode) == 1:
@@ -917,7 +917,7 @@ class Spectrum_M4I_4450_X8:
                     self.trigger_mode = 10
 
             elif len(mode) == 0:
-                return test_trigger_mode        
+                return self.test_trigger_mode        
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
 
@@ -928,7 +928,7 @@ class Spectrum_M4I_4450_X8:
         Default: 2;
         Output: '100'
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.setting_change_count = 1
 
             if len(averages) == 1:
@@ -938,16 +938,16 @@ class Spectrum_M4I_4450_X8:
             elif len(averages) == 0:
                 return self.aver
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(averages) == 1:
                 ave = int(averages[0])
-                assert( ave >= 0 and ave <= averages_max ), "Incorrect number of averages; Should be 0 <= Averages <= 100000"
+                assert( ave >= 0 and ave <= self.averages_max ), "Incorrect number of averages; Should be 0 <= Averages <= 100000"
                 self.aver = ave
 
             elif len(aver) == 0:
-                return test_averages     
+                return self.test_averages     
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
 
@@ -959,7 +959,7 @@ class Spectrum_M4I_4450_X8:
         Default: 0 ns;
         Output: '100 ns'
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.setting_change_count = 1
 
             if len(delay) == 1:
@@ -967,8 +967,8 @@ class Spectrum_M4I_4450_X8:
                 delay_num = int(temp[0])
                 dimen = str(temp[1])
 
-                if dimen in timebase_dict:
-                    flag = timebase_dict[dimen]
+                if dimen in self.timebase_dict:
+                    flag = self.timebase_dict[dimen]
                     # trigger delay in samples; maximum is 8589934576, step is 16
                     del_in_sample = int( delay_num*flag*self.sample_rate / 1000 )
                     if del_in_sample % 16 != 0:
@@ -985,7 +985,7 @@ class Spectrum_M4I_4450_X8:
             elif len(delay) == 0:
                 return str(self.delay / self.sample_rate * 1000) + ' ns'
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(delay) == 1:
@@ -993,8 +993,8 @@ class Spectrum_M4I_4450_X8:
                 delay_num = int(temp[0])
                 dimen = str(temp[1])
 
-                assert( dimen in timebase_dict), 'Incorrect delay dimension; Should be ns, us or ms'
-                flag = timebase_dict[dimen]
+                assert( dimen in self.timebase_dict), 'Incorrect delay dimension; Should be ns, us or ms'
+                flag = self.timebase_dict[dimen]
                 # trigger delay in samples; maximum is 8589934576, step is 16
                 del_in_sample = int( delay_num*flag*self.sample_rate / 1000 )
                 if del_in_sample % 16 != 0:
@@ -1003,11 +1003,11 @@ class Spectrum_M4I_4450_X8:
                 else:
                     self.delay = del_in_sample
 
-                assert(self.delay >= delay_min and self.delay <= delay_max), 'Incorrect delay; Should be 0 <= Delay <= 8589934560 samples'
+                assert(self.delay >= self.delay_min and self.delay <= self.delay_max), 'Incorrect delay; Should be 0 <= Delay <= 8589934560 samples'
 
 
             elif len(delay) == 0:
-                return test_delay
+                return self.test_delay
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
 
@@ -1021,7 +1021,7 @@ class Spectrum_M4I_4450_X8:
         Default: 'HF';
         Output: 'Buffered'
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.setting_change_count = 1
 
             if len(mode) == 1:
@@ -1040,7 +1040,7 @@ class Spectrum_M4I_4450_X8:
                 elif self.input_mode == 1:
                     return 'HF'
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(mode) == 1:
@@ -1052,7 +1052,7 @@ class Spectrum_M4I_4450_X8:
                     self.input_mode = 1
 
             elif len(mode) == 0:
-                return test_input_mode        
+                return self.test_input_mode        
             else:
                 assert( 1 == 2 ), 'Incorrect argument'        
 
@@ -1066,19 +1066,19 @@ class Spectrum_M4I_4450_X8:
         Default: '500';
         Output: 'CH0: 500 mV; CH1: 500 mV'
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.setting_change_count = 1
 
             if len(ampl) == 1:
                 amp = int(ampl[0])
                 if self.input_mode == 0: # Buffered
-                    closest_available = min(buffered_mode_range_list, key = lambda x: abs(x - amp))
+                    closest_available = min(self.buffered_mode_range_list, key = lambda x: abs(x - amp))
                     if closest_available != amp:
                         general.message("Desired amplitude cannot be set, the nearest available value " + str(closest_available) + " mV is used")
                     self.amplitude_0 = closest_available
                     self.amplitude_1 = closest_available
                 elif self.input_mode == 1: # HF
-                    closest_available = min(hf_mode_range_list, key = lambda x: abs(x - amp))
+                    closest_available = min(self.hf_mode_range_list, key = lambda x: abs(x - amp))
                     if closest_available != amp:
                         general.message("Desired amplitude cannot be set, the nearest available value " + str(closest_available) + " mV is used")
                     self.amplitude_0 = closest_available
@@ -1102,19 +1102,19 @@ class Spectrum_M4I_4450_X8:
                 spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
 
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(ampl) == 1:
                 amp = int(ampl[0])
                 if self.input_mode == 0: # Buffered
-                    closest_available = min(buffered_mode_range_list, key = lambda x: abs(x - amp))
+                    closest_available = min(self.buffered_mode_range_list, key = lambda x: abs(x - amp))
                     if closest_available != amp:
                         general.message("Desired amplitude cannot be set, the nearest available value " + str(closest_available) + " mV is used")
                     self.amplitude_0 = closest_available
                     self.amplitude_1 = closest_available
                 elif self.input_mode == 1: # HF
-                    closest_available = min(hf_mode_range_list, key = lambda x: abs(x - amp))
+                    closest_available = min(self.hf_mode_range_list, key = lambda x: abs(x - amp))
                     if closest_available != amp:
                         general.message("Desired amplitude cannot be set, the nearest available value " + str(closest_available) + " mV is used")
                     self.amplitude_0 = closest_available
@@ -1124,7 +1124,7 @@ class Spectrum_M4I_4450_X8:
                     assert( 1 == 2), 'Incorrect amplitude or input mode'
 
             elif len(ampl) == 0:
-                return test_amplitude
+                return self.test_amplitude
 
     def digitizer_offset(self, *offset):
         """
@@ -1135,7 +1135,7 @@ class Spectrum_M4I_4450_X8:
         Default: '0'; '0'
         Output: 'CH0: 10'
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.setting_change_count = 1
 
             if self.input_mode == 0:
@@ -1192,7 +1192,7 @@ class Spectrum_M4I_4450_X8:
 
 
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if self.input_mode == 0:
@@ -1232,7 +1232,7 @@ class Spectrum_M4I_4450_X8:
             elif len(offset) == 1:
                 ch1 = str(offset[0])
                 assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
-                return test_offset
+                return self.test_offset
 
             else:
                 assert( 1 == 2 ), 'Incorrect arguments'
@@ -1244,13 +1244,13 @@ class Spectrum_M4I_4450_X8:
         Default: 'DC'; 'DC'
         Output: 'CH0: AC'
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.setting_change_count = 1
             
             if len(coupling) == 2:
                 ch = str(coupling[0])
                 cplng = str(coupling[1])
-                flag = coupling_dict[cplng]
+                flag = self.coupling_dict[cplng]
                 if ch == 'CH0':
                     self.coupling_0 = flag
                 elif ch == 'CH1':
@@ -1259,10 +1259,10 @@ class Spectrum_M4I_4450_X8:
             elif len(coupling) == 4:
                 ch1 = str(coupling[0])
                 cplng1 = str(coupling[1])
-                flag1 = coupling_dict[cplng1]
+                flag1 = self.coupling_dict[cplng1]
                 ch2 = str(coupling[2])
                 cplng2 = str(coupling[3])
-                flag2 = coupling_dict[cplng2]
+                flag2 = self.coupling_dict[cplng2]
                 if ch1 == 'CH0':
                     self.coupling_0 = flag1
                 elif ch1 == 'CH1':
@@ -1279,15 +1279,15 @@ class Spectrum_M4I_4450_X8:
                 elif ch == 'CH1':
                     return 'CH1: ' + str(self.coupling_1)
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(coupling) == 2:
                 ch = str(coupling[0])
                 cplng = str(coupling[1])
                 assert(ch == 'CH0' or ch == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
-                assert( cplng in coupling_dict ), "Incorrect coupling; Only DC and AC are available"
-                flag = coupling_dict[cplng]
+                assert( cplng in self.coupling_dict ), "Incorrect coupling; Only DC and AC are available"
+                flag = self.coupling_dict[cplng]
                 if ch == 'CH0':
                     self.coupling_0 = flag
                 elif ch == 'CH1':
@@ -1299,11 +1299,11 @@ class Spectrum_M4I_4450_X8:
                 ch2 = str(coupling[2])
                 cplng2 = str(coupling[3])
                 assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel 1; Should be CH0 or CH1"
-                assert( cplng1 in coupling_dict ), "Incorrect coupling 1; Only DC and AC are available"
-                flag1 = coupling_dict[cplng1]
+                assert( cplng1 in self.coupling_dict ), "Incorrect coupling 1; Only DC and AC are available"
+                flag1 = self.coupling_dict[cplng1]
                 assert(ch2 == 'CH0' or ch2 == 'CH1'), "Incorrect channel 2; Should be CH0 or CH1"
-                assert( cplng2 in coupling_dict ), "Incorrect coupling 2; Only DC and AC are available"
-                flag2 = coupling_dict[cplng2]
+                assert( cplng2 in self.coupling_dict ), "Incorrect coupling 2; Only DC and AC are available"
+                flag2 = self.coupling_dict[cplng2]
                 if ch1 == 'CH0':
                     self.coupling_0 = flag1
                 elif ch1 == 'CH1':
@@ -1316,7 +1316,7 @@ class Spectrum_M4I_4450_X8:
             elif len(coupling) == 1:
                 ch1 = str(coupling[0])
                 assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
-                return test_coupling
+                return self.test_coupling
 
             else:
                 assert( 1 == 2 ), 'Incorrect arguments'
@@ -1329,7 +1329,7 @@ class Spectrum_M4I_4450_X8:
         Default: '50'; '50'
         Output: 'CH0: 50'
         """
-        if test_flag != 'test':
+        if self.test_flag != 'test':
             self.setting_change_count = 1
             
             if self.input_mode == 1:
@@ -1339,7 +1339,7 @@ class Spectrum_M4I_4450_X8:
             if len(impedance) == 2:
                 ch = str(impedance[0])
                 imp = str(impedance[1])
-                flag = impedance_dict[imp]
+                flag = self.impedance_dict[imp]
                 if ch == 'CH0':
                     self.impedance_0 = flag
                 elif ch == 'CH1':
@@ -1348,10 +1348,10 @@ class Spectrum_M4I_4450_X8:
             elif len(impedance) == 4:
                 ch1 = str(impedance[0])
                 imp1 = str(impedance[1])
-                flag1 = impedance_dict[imp1]
+                flag1 = self.impedance_dict[imp1]
                 ch2 = str(impedance[2])
                 imp2 = str(impedance[3])
-                flag2 = impedance_dict[imp2]
+                flag2 = self.impedance_dict[imp2]
 
                 if ch1 == 'CH0':
                     self.impedance_0 = flag1
@@ -1369,7 +1369,7 @@ class Spectrum_M4I_4450_X8:
                 elif ch == 'CH1':
                     return 'CH1: ' + str(self.impedance_1)
 
-        elif test_flag == 'test':
+        elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if self.input_mode == 1:
@@ -1380,8 +1380,8 @@ class Spectrum_M4I_4450_X8:
                 ch = str(impedance[0])
                 imp = str(impedance[1])
                 assert(ch == 'CH0' or ch == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
-                assert( imp in impedance_dict ), "Incorrect impedance; Only 1 M and 50 are available"
-                flag = impedance_dict[imp]
+                assert( imp in self.impedance_dict ), "Incorrect impedance; Only 1 M and 50 are available"
+                flag = self.impedance_dict[imp]
                 if ch == 'CH0':
                     self.impedance_0 = flag
                 elif ch == 'CH1':
@@ -1393,11 +1393,11 @@ class Spectrum_M4I_4450_X8:
                 ch2 = str(impedance[2])
                 imp2 = str(impedance[3])
                 assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel 1; Should be CH0 or CH1"
-                assert( imp1 in impedance_dict ), "Incorrect impedance 1; Only 1 M and 50 are available"
-                flag1 = impedance_dict[imp1]
+                assert( imp1 in self.impedance_dict ), "Incorrect impedance 1; Only 1 M and 50 are available"
+                flag1 = self.impedance_dict[imp1]
                 assert(ch2 == 'CH0' or ch2 == 'CH1'), "Incorrect channel 2; Should be CH0 or CH1"
-                assert( imp2 in impedance_dict ), "Incorrect impedance 2; Only 1 M and 50 are available"
-                flag2 = impedance_dict[imp2]
+                assert( imp2 in self.impedance_dict ), "Incorrect impedance 2; Only 1 M and 50 are available"
+                flag2 = self.impedance_dict[imp2]
                 if ch1 == 'CH0':
                     self.impedance_0 = flag1
                 elif ch1 == 'CH1':
@@ -1410,7 +1410,7 @@ class Spectrum_M4I_4450_X8:
             elif len(impedance) == 1:
                 ch1 = str(impedance[0])
                 assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
-                return test_impedance
+                return self.test_impedance
 
             else:
                 assert( 1 == 2 ), 'Incorrect arguments'
