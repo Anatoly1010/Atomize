@@ -198,6 +198,45 @@ class Saver_Opener():
         elif self.test_flag == 'test':
             return self.test_file_path
 
+    def create_file_parameters(self, add_name, directory = ''):
+        if self.test_flag != 'test':
+            try:
+                file_name = self.create_file_dialog()
+                file_save_param = file_name.split('.csv')[0] + '.' + str(add_name)
+            # pressed cancel Tk_kinter
+            except TypeError:
+                file_name = os.path.join(self.path_to_main, 'temp.csv')
+                file_save_param = file_name.split('.csv')[0] + '.' + str(add_name)
+            # pressed cancel PyQt
+            except FileNotFoundError:
+                file_name = os.path.join(self.path_to_main, 'temp.csv')
+                file_save_param = file_name.split('.csv')[0] + '.' + str(add_name)
+
+            return file_name, file_save_param
+
+        elif self.test_flag == 'test':
+            return self.test_file_path, self.test_file_param_path
+
+    def save_header(self, filename, header = '', mode = 'w'):
+        if self.test_flag != 'test':
+            file_for_save = open(filename, mode)
+            np.savetxt(file_for_save, [], fmt='%.4e', delimiter=',', \
+                                        newline='\n', header=header, footer='', comments='# ', encoding=None)
+            file_for_save.close()
+        elif self.test_flag == 'test':
+            file_for_save = open(filename, mode)
+            file_for_save.close()
+
+    def save_data(self, filename, data, header = '', mode = 'w'):
+        if self.test_flag != 'test':
+            file_for_save = open(filename, mode)
+            np.savetxt(file_for_save, data, fmt='%.4e', delimiter=',', \
+                                        newline='\n', header=header, footer='', comments='# ', encoding=None)
+            file_for_save.close()
+        elif self.test_flag == 'test':
+            file_for_save = open(filename, mode)
+            file_for_save.close()
+
     def FileDialog(self, directory = '', mode = 'Open', fmt = ''):
 
         self.dialog = QFileDialog( options = QtWidgets.QFileDialog.Option.DontUseNativeDialog ) 

@@ -65,17 +65,8 @@ header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) +
            'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
            'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Time (pulse length_increment), X (V*s), Y (V*s) '
 
-try:
-    file_name = file_handler.create_file_dialog()
-    file_save_param = open(file_name.split('.csv')[0] + str('.param'), 'w')
-# pressed cancel Tk_kinter
-except TypeError:
-    file_name = 'temp.csv'
-    file_save_param = open(file_name.split('.csv')[0] + str('.param'), 'w')
-# pressed cancel PyQt
-except FileNotFoundError:
-    file_name = 'temp.csv'
-    file_save_param = open(file_name.split('.csv')[0] + str('.param'), 'w')
+file_data, file_param = file_handler.create_file_parameters('.param')
+file_handler.save_header(file_param, header = header, mode = 'w')
 
 j = 1
 while j <= SCANS:
@@ -104,10 +95,6 @@ while j <= SCANS:
 
 pb.pulser_stop()
 
-file_save = open(file_name, 'w')
-np.savetxt(file_save, np.c_[x_axis, data_x, data_y], fmt='%.4e', delimiter=',', \
-                        newline='\n', header=header, footer='', comments='# ', encoding=None)
-file_save.close()
-
+file_handler.save_data(file_data, np.c_[x_axis, data_x, data_y], header = header, mode = 'w')
 #file_handler.save_1D_dialog( (x_axis, data_x, data_y), header = header )
 

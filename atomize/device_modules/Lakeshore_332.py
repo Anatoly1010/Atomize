@@ -364,7 +364,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-l = Lakeshore_332()
-print(l.tc_sensor())
