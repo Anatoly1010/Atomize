@@ -73,7 +73,7 @@ class Spectrum_M4I_4450_X8:
             self.sample_rate = 500 # MHz
             self.clock_mode = 1 # 1 is Internal; 32 is External
             self.reference_clock = 100 # MHz
-            self.card_mode = 1 # 1 is Single; 131072 is Average;
+            self.card_mode = 1 # 1 is Single; 2 is Average (Multi);
             self.trigger_ch = 2 # 1 is Software; 2 is External
             self.trigger_mode = 1 # 1 is Positive; 2 is Negative; 8 is High; 10 is Low
             self.aver = 2 # 0 is infinity
@@ -91,8 +91,6 @@ class Spectrum_M4I_4450_X8:
             self.coupling_1 = 0 # coupling for CH1
             self.impedance_0 = 1 # impedance for CH0; 1 M is 0; 50 is 0
             self.impedance_1 = 1 # impedance for CH1;
-
-            self.num_segments = 1 # number of segments for 'Average mode'
             
             # change of settings
             self.setting_change_count = 0
@@ -142,8 +140,6 @@ class Spectrum_M4I_4450_X8:
             self.impedance_0 = 1
             self.impedance_1 = 1
 
-            self.num_segments = 1
-
             # change of settings
             self.setting_change_count = 0
 
@@ -188,16 +184,12 @@ class Spectrum_M4I_4450_X8:
                 spcm_dwSetParam_i32(self.hCard, SPC_CARDMODE, self.card_mode)
                 spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, self.points)
                 spcm_dwSetParam_i32(self.hCard, SPC_POSTTRIGGER, self.posttrig_points)
-            elif self.card_mode == 131072:
+            elif self.card_mode == 2:
                 spcm_dwSetParam_i32(self.hCard, SPC_CARDMODE, self.card_mode)
-                # TO CHECK:
-                spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, int( self.points * self.num_segments ) )
+                spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, int( self.points * self.aver ) )
                 # segment size should be multiple of memory size
-                spcm_dwSetParam_i32(self.hCard, SPC_SEGMENTSIZE, self.points)
+                spcm_dwSetParam_i32(self.hCard, SPC_SEGMENTSIZE, self.points )
                 spcm_dwSetParam_i32(self.hCard, SPC_POSTTRIGGER, self.posttrig_points)
-                spcm_dwSetParam_i32(self.hCard, SPC_SEGMENTSIZE, self.aver)
-                # SPC_LOOPS ?? page 181
-
 
             # trigger
             spcm_dwSetParam_i32(self.hCard, SPC_TRIG_TERM, 1) # 50 Ohm trigger load
@@ -240,7 +232,6 @@ class Spectrum_M4I_4450_X8:
             #lSetChannels = int32 (0)
             #spcm_dwGetParam_i32 (hCard, SPC_CHCOUNT, byref (lSetChannels))
 
-
             # The Spectrum driver also contains a register that holds the value of the decimal value of the full scale representation of the installed ADC. This
             # value should be used when converting ADC values (in LSB) into real-world voltage values, because this register also automatically takes any
             # specialities into account, such as slightly reduced ADC resolution with reserved codes for gain/offset compensation.
@@ -257,17 +248,15 @@ class Spectrum_M4I_4450_X8:
                 
                 if self.card_mode == 1:
                     self.qwBufferSize = uint64 (self.points * 2 * 1) # in bytes. samples with 2 bytes each, one channel active
-                # MAYBE DIFFERENT FOR AVERAGE MODE
-                elif self.card_mode == 131072:
-                    self.qwBufferSize = uint64 (self.points * sizeof(int32) * 1) # for averaging the number of bytes per sample is fixed to 4 (32 bit samples)
+                elif self.card_mode == 2:
+                    self.qwBufferSize = uint64 (int( self.points * self.aver ) * 2 * 1)
 
             elif self.channel == 3:
 
                 if self.card_mode == 1:
                     self.qwBufferSize = uint64 (self.points * 2 * 2) # in bytes. samples with 2 bytes each
-                # MAYBE DIFFERENT FOR AVERAGE MODE
-                elif self.card_mode == 131072:
-                    self.qwBufferSize = uint64 (self.points * sizeof(int32) * 2) # for averaging the number of bytes per sample is fixed to 4 (32 bit samples)
+                elif self.card_mode == 2:
+                    self.qwBufferSize = uint64 (int( self.points * self.aver ) * 2 * 2)
 
             self.lNotifySize = int32 (0) # driver should notify program after all data has been transfered
 
@@ -335,18 +324,23 @@ class Spectrum_M4I_4450_X8:
 
                     xs = np.arange( len(data) ) / (self.sample_rate * 1000000)
 
-                # SHOULD BE CHECKED
-                elif self.card_mode == 131072:
+                    return xs, data
+
+                elif self.card_mode == 2:
 
                     if self.channel == 1:
-                        data = ( self.amplitude_0 / 1000) * np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 4 ), )) / self.lMaxDACValue.value
+                        data = ( self.amplitude_0 / 1000) * np.ctypeslib.as_array(pnData, \
+                                shape = (int( self.qwBufferSize.value / 4 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
+                        data_ave = np.sum( data, axis = 0 ) / self.aver
 
                     elif self.channel == 2:
-                        data = ( self.amplitude_1 / 1000) * np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 4 ), )) / self.lMaxDACValue.value
+                        data = ( self.amplitude_1 / 1000) * np.ctypeslib.as_array(pnData, \
+                                shape = (int( self.qwBufferSize.value / 4 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
+                        data_ave = np.sum( data, axis = 0 ) / self.aver
 
-                    xs = np.arange( len(data) ) / (self.sample_rate * 1000000)
+                    xs = np.arange( len(data_ave) ) / (self.sample_rate * 1000000)
 
-                return xs, data
+                    return xs, data_ave
 
             elif self.channel == 3:
 
@@ -361,15 +355,15 @@ class Spectrum_M4I_4450_X8:
 
                     xs = np.arange( len(data1) ) / (self.sample_rate * 1000000)
                 
-                # SHOULD BE CHECKED
-                elif self.card_mode == 131072:
-                    
-                    data = np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 4 ), ))
-                    # / 1000 convertion in V
+                elif self.card_mode == 2:
+                    data = np.ctypeslib.as_array(pnData, \
+                            shape = (int( self.qwBufferSize.value / 2 ), )).reshape((self.aver, 2 * self.points))
+                    data_ave = np.sum( data, axis = 0 ) / self.aver
+
                     # CH0
-                    data1 = ( data[0::2] * ( self.amplitude_0 / 1000) ) / self.lMaxDACValue.value
+                    data1 = ( data_ave[0::2] * ( self.amplitude_0 / 1000) ) / self.lMaxDACValue.value
                     # CH1
-                    data2 = ( data[1::2] * ( self.amplitude_1 / 1000) ) / self.lMaxDACValue.value
+                    data2 = ( data_ave[1::2] * ( self.amplitude_1 / 1000) ) / self.lMaxDACValue.value
 
                     xs = np.arange( len(data1) ) / (self.sample_rate * 1000000)
 
@@ -445,7 +439,6 @@ class Spectrum_M4I_4450_X8:
                 else:
                     self.points = pnts
 
-
             # to update on-the-fly
             if self.state == 0:
                 pass
@@ -454,28 +447,24 @@ class Spectrum_M4I_4450_X8:
                 # change card mode and memory
                 if self.card_mode == 1:
                     spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, self.points)
-                elif self.card_mode == 131072:
-                    # TO CHECK:
-                    spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, int( self.points * self.num_segments ) )
-                    # segment size should be multiple of memory size
-                    spcm_dwSetParam_i32(self.hCard, SPC_SEGMENTSIZE, self.points)
+                elif self.card_mode == 2:
+                    spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, int( self.points * self.aver ) )
+                    spcm_dwSetParam_i32(self.hCard, SPC_SEGMENTSIZE, self.points )
 
                 # correct buffer size
                 if self.channel == 1 or self.channel == 2:
                 
                     if self.card_mode == 1:
                         self.qwBufferSize = uint64 (self.points * 2 * 1) # in bytes. samples with 2 bytes each, one channel active
-                    # MAYBE DIFFERENT FOR AVERAGE MODE
-                    elif self.card_mode == 131072:
-                        self.qwBufferSize = uint64 (self.points * sizeof(int32) * 1) # for averaging the number of bytes per sample is fixed to 4 (32 bit samples)
+                    elif self.card_mode == 2:
+                        self.qwBufferSize = uint64 (int( self.points * self.aver ) * 2 * 1)
 
                 elif self.channel == 3:
 
                     if self.card_mode == 1:
                         self.qwBufferSize = uint64 (self.points * 2 * 2) # in bytes. samples with 2 bytes each
-                    # MAYBE DIFFERENT FOR AVERAGE MODE
-                    elif self.card_mode == 131072:
-                        self.qwBufferSize = uint64 (self.points * sizeof(int32) * 2) # for averaging the number of bytes per sample is fixed to 4 (32 bit samples)
+                    elif self.card_mode == 2:
+                        self.qwBufferSize = uint64 (int( self.points * self.aver ) * 2 * 2)
 
                 spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
 
@@ -533,7 +522,6 @@ class Spectrum_M4I_4450_X8:
                 spcm_dwSetParam_i32(self.hCard, SPC_POSTTRIGGER, self.posttrig_points)
                 spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
 
-
             elif len(post_points) == 0:
                 return self.posttrig_points
 
@@ -558,42 +546,6 @@ class Spectrum_M4I_4450_X8:
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
     
-    def digitizer_number_of_segments(self, *segments):
-        """
-        Set or query the number of segments for 'Average' digitizer mode;
-        Digitizer should be in 'Average' mode. Please, refer to digitizer_card_mode() function
-        Input: digitizer_number_of_segments(2); Number of segment is from the range 0-200
-        Default: 1;
-        Output: '2'
-        """
-        if self.test_flag != 'test':
-            self.setting_change_count = 1
-
-            if len(segments) == 1:
-                seg = int(segments[0])
-                if self.card_mode == 131072:
-                    self.num_segments = seg
-                else:
-                    general.message('Digitizer is not in Average mode')
-                    sys.exit()
-            elif len(segments) == 0:
-                return self.num_segments
-
-        elif self.test_flag == 'test':
-            self.setting_change_count = 1
-
-            if len(segments) == 1:
-                seg = int(segments[0])
-                if seg != 1:
-                    assert( self.card_mode == 131072), 'Number of segments higher than one is available only in Average mode. Please, change it using digitizer_card_mode()'
-                assert (seg > 0 and seg <= 200), 'Incorrect number of segments; Should be 0 < segmenets <= 200'
-                self.num_segments = seg
-
-            elif len(segments) == 0:
-                return self.test_num_segments
-            else:
-                assert( 1 == 2 ), 'Incorrect argumnet'
-
     def digitizer_channel(self, *channel):
         """
         Enable the specified channel or query enabled channels;
@@ -797,7 +749,7 @@ class Spectrum_M4I_4450_X8:
                 if md == 'Single':
                     self.card_mode = 1
                 elif md == 'Average':
-                    self.card_mode = 131072
+                    self.card_mode = 2
                 else:
                     general.message('Incorrect card mode; Only Single and Average modes are available')
                     sys.exit()
@@ -805,7 +757,7 @@ class Spectrum_M4I_4450_X8:
             elif len(mode) == 0:
                 if self.card_mode == 1:
                     return 'Single'
-                elif self.card_mode == 131072:
+                elif self.card_mode == 2:
                     return 'Average'
 
         elif self.test_flag == 'test':
@@ -817,7 +769,7 @@ class Spectrum_M4I_4450_X8:
                 if md == 'Single':
                     self.card_mode = 1
                 elif md == 'Average':
-                    self.card_mode = 131072
+                    self.card_mode = 2
               
             elif len(mode) == 0:
                 return self.test_card_mode        
@@ -921,10 +873,11 @@ class Spectrum_M4I_4450_X8:
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
 
+    # RANGE CHANGED DOCUMENTATION; self.aver
     def digitizer_number_of_averages(self, *averages):
         """
         Set or query number of averages;
-        Input: digitizer_number_of_averages(10); Number of averages from 1 to 100000; 0 is infinite averages
+        Input: digitizer_number_of_averages(10); Number of averages from 1 to 10000; 0 is infinite averages
         Default: 2;
         Output: '100'
         """
@@ -935,6 +888,29 @@ class Spectrum_M4I_4450_X8:
                 ave = int(averages[0])
                 self.aver = ave
 
+            # to update on-the-fly
+            if self.state == 0:
+                pass
+            elif self.state == 1:
+
+                # change card mode and memory
+                if self.card_mode == 2:
+                    spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, int( self.points * self.aver ) )
+                    #spcm_dwSetParam_i32(self.hCard, SPC_SEGMENTSIZE, self.points )
+
+                # correct buffer size
+                if self.channel == 1 or self.channel == 2:
+                
+                    if self.card_mode == 2:
+                        self.qwBufferSize = uint64 (int( self.points * self.aver ) * 2 * 1)
+
+                elif self.channel == 3:
+
+                    if self.card_mode == 2:
+                        self.qwBufferSize = uint64 (int( self.points * self.aver ) * 2 * 2)
+
+                spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
+
             elif len(averages) == 0:
                 return self.aver
 
@@ -943,7 +919,7 @@ class Spectrum_M4I_4450_X8:
 
             if len(averages) == 1:
                 ave = int(averages[0])
-                assert( ave >= 0 and ave <= self.averages_max ), "Incorrect number of averages; Should be 0 <= Averages <= 100000"
+                assert( ave >= 1 and ave <= self.averages_max ), "Incorrect number of averages; Should be 1 <= Averages <= 10000"
                 self.aver = ave
 
             elif len(aver) == 0:
