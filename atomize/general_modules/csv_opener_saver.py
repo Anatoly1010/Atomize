@@ -5,9 +5,9 @@ import os
 import sys
 import configparser
 import numpy as np
-from PyQt5.QtWidgets import QFileDialog, QDialog
-from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtCore import QTimer
+from PyQt6.QtWidgets import QFileDialog, QDialog
+from PyQt6 import QtCore, QtWidgets
+from PyQt6.QtCore import QTimer
 
 class Saver_Opener():
     def __init__(self):
@@ -62,7 +62,7 @@ class Saver_Opener():
             self.app = QtWidgets.QApplication([])
             file_path = self.FileDialog(directory = directory, mode = 'Open', fmt = 'csv')
             QTimer.singleShot(100, self.app.quit)
-            self.app.exec_()
+            self.app.exec()
 
             header_array = []
             file_to_read = open(file_path, 'r')
@@ -84,7 +84,7 @@ class Saver_Opener():
             self.app = QtWidgets.QApplication(sys.argv)
             file_path = self.FileDialog(directory = directory, mode = 'Save', fmt = 'csv')
             QTimer.singleShot(50, self.app.quit)
-            self.app.exec_()
+            self.app.exec()
 
             np.savetxt(file_path, np.transpose(data), fmt = '%.4e', delimiter = ',', newline = '\n', header = header, footer = '', comments = '#', encoding = None)
         
@@ -114,7 +114,7 @@ class Saver_Opener():
             self.app = QtWidgets.QApplication(sys.argv)
             file_path = self.FileDialog(directory = directory, mode = 'Open', fmt = 'csv')
             QTimer.singleShot(50, self.app.quit)
-            self.app.exec_()
+            self.app.exec()
 
             header_array = []
             file_to_read = open(file_path, 'r')
@@ -154,7 +154,7 @@ class Saver_Opener():
             file_path = self.FileDialog(directory = directory, mode = 'Open', fmt = 'csv')
 
             QTimer.singleShot(50, self.app.quit)
-            self.app.exec_()
+            self.app.exec()
 
             header_array = []
             file_to_read = open(file_path, 'r')
@@ -176,7 +176,7 @@ class Saver_Opener():
             self.app = QtWidgets.QApplication(sys.argv)
             file_path = self.FileDialog(directory = directory, mode = 'Save', fmt = 'csv')
             QTimer.singleShot(50, self.app.quit)
-            self.app.exec_()
+            self.app.exec()
 
             np.savetxt(file_path, data, fmt = '%.4e', delimiter = ',', newline = '\n', header = header, footer = '', comments = '#', encoding = None)
         
@@ -189,7 +189,7 @@ class Saver_Opener():
             file_path = self.FileDialog(directory = directory, mode = 'Save', fmt = 'csv')
             open(file_path, "w").close()
             QTimer.singleShot(50, self.app.quit)
-            self.app.exec_() # run mainloop which runs all time and makes all job in GUI.
+            self.app.exec() # run mainloop which runs all time and makes all job in GUI.
                              # mainloop will close the dialog, but we will have problems closing loop
                              # we use QTimer with app.quit to inform mainloop to execute 
                              # it after it will be started.
@@ -197,7 +197,7 @@ class Saver_Opener():
 
         elif self.test_flag == 'test':
             return self.test_file_path
-
+    
     def create_file_parameters(self, add_name, directory = ''):
         if self.test_flag != 'test':
             try:
@@ -239,12 +239,13 @@ class Saver_Opener():
 
     def FileDialog(self, directory = '', mode = 'Open', fmt = ''):
 
-        self.dialog = QFileDialog( options = QtWidgets.QFileDialog.DontUseNativeDialog ) # options = QtWidgets.QFileDialog.DontUseNativeDialog
+        self.dialog = QFileDialog( options = QtWidgets.QFileDialog.Option.DontUseNativeDialog ) 
+        # options = QtWidgets.QFileDialog.Option.DontUseNativeDialog
         self.dialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
-        self.dialog.setFileMode(QtWidgets.QFileDialog.AnyFile)
+        self.dialog.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
         # both open and save dialog
-        self.dialog.setAcceptMode(QFileDialog.AcceptOpen)\
-         if mode == 'Open' else self.dialog.setAcceptMode(QFileDialog.AcceptSave)
+        self.dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)\
+         if mode == 'Open' else self.dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
 
         # set format
         if fmt != '':
@@ -257,7 +258,7 @@ class Saver_Opener():
         else:
             self.dialog.setDirectory(str(self.open_dir))
 
-        if self.dialog.exec_() == QDialog.Accepted:
+        if self.dialog.exec() == QDialog.DialogCode.Accepted:
             path = self.dialog.selectedFiles()[0]  # returns a list
             return path
         else:
