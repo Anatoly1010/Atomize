@@ -410,7 +410,7 @@ class PB_ESR_500_Pro:
             elif rep_rate[-3:] == 'MHz':
                 rep_time = int(1000/float(rep_rate[:-4]))
 
-            self.pulser_update(rep_rate)
+            self.pulser_update()
 
         elif self.test_flag == 'test':
 
@@ -489,7 +489,7 @@ class PB_ESR_500_Pro:
             elif rep_rate[-3:] == 'MHz':
                 rep_time = int(1000/float(rep_rate[:-4]))
 
-            self.pulser_update(rep_rate)
+            self.pulser_update()
 
     def pulser_update(self):
         """

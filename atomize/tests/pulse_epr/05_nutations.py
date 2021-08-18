@@ -7,7 +7,7 @@ import atomize.device_modules.Keysight_3000_Xseries as key
 import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.BH_15 as bh
 import atomize.device_modules.SR_PTC_10 as sr
-import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+import atomize.general_modules.csv_opener_saver as openfile
 
 ### Experimental parameters
 POINTS = 195
@@ -25,6 +25,10 @@ PULSE_1_START = '100 ns'
 PULSE_2_START = '600 ns'
 PULSE_3_START = '950 ns'
 PULSE_SIGNAL_START = '1300 ns'
+
+# NAMES
+EXP_NAME = 'Nutation'
+CURVE_NAME = 'exp1'
 
 #
 data_x = np.zeros(POINTS)
@@ -82,11 +86,11 @@ while j <= SCANS:
         data_x[i] = ( data_x[i] * (j - 1) + area_x ) / j
         data_y[i] = ( data_y[i] * (j - 1) + area_y ) / j
 
-        general.plot_1d('Nutation', x_axis, data_x, xname = 'Delay',\
-            xscale = 'ns', yname = 'Area', yscale = 'V*s', label = 'X')
-        general.plot_1d('Nutation', x_axis, data_y, xname = 'Delay',\
-            xscale = 'ns', yname = 'Area', yscale = 'V*s', label = 'Y')
-        general.text_label( 'Nutation', "Scan / Time: ", str(j) + ' / '+ str(i*STEP) )
+        general.plot_1d(EXP_NAME, x_axis, data_x, xname = 'Delay',\
+            xscale = 'ns', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_X')
+        general.plot_1d(EXP_NAME, x_axis, data_y, xname = 'Delay',\
+            xscale = 'ns', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_Y')
+        general.text_label( EXP_NAME, "Scan / Time: ", str(j) + ' / '+ str(i*STEP) )
 
         pb.pulser_increment()
 

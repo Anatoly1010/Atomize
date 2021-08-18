@@ -7,22 +7,26 @@ import atomize.device_modules.Keysight_3000_Xseries as key
 import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.SR_PTC_10 as sr
 import atomize.device_modules.BH_15 as bh
-import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+import atomize.general_modules.csv_opener_saver as openfile
 
 ### Experimental parameters
 POINTS = 501
 STEP = 4                  # in NS; delta_start = str(STEP) + ' ns' -> delta_start = '4 ns'
-FIELD = 3472
-AVERAGES = 400
+FIELD = 3390
+AVERAGES = 100
 SCANS = 1
 
 # PULSES
-REP_RATE = '600 Hz'
+REP_RATE = '1000 Hz'
 PULSE_1_LENGTH = '16 ns'
 PULSE_2_LENGTH = '32 ns'
-PULSE_1_START = '100 ns'
-PULSE_2_START = '400 ns'
-PULSE_SIGNAL_START = '700 ns'
+PULSE_1_START = '0 ns'
+PULSE_2_START = '300 ns'
+PULSE_SIGNAL_START = '632 ns'
+
+# NAMES
+EXP_NAME = 'T2'
+CURVE_NAME = 'exp1'
 
 #
 data_x = np.zeros(POINTS)
@@ -83,11 +87,11 @@ while j <= SCANS:
         data_x[i] = ( data_x[i] * (j - 1) + area_x ) / j
         data_y[i] = ( data_y[i] * (j - 1) + area_y ) / j
 
-        general.plot_1d('T2', x_axis, data_x, xname = 'Delay',\
-            xscale = 'ns', yname = 'Area', yscale = 'V*s', label = 'X')
-        general.plot_1d('T2', x_axis, data_y, xname = 'Delay',\
-            xscale = 'ns', yname = 'Area', yscale = 'V*s', label = 'Y')
-        general.text_label( 'T2', "Scan / Time: ", str(j) + ' / '+ str(i*STEP) )
+        general.plot_1d(EXP_NAME, x_axis, data_x, xname = 'Delay',\
+            xscale = 'ns', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_X')
+        general.plot_1d(EXP_NAME, x_axis, data_y, xname = 'Delay',\
+            xscale = 'ns', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_Y')
+        general.text_label( EXP_NAME, "Scan / Time: ", str(j) + ' / '+ str(i*STEP) )
 
         pb.pulser_shift()
 

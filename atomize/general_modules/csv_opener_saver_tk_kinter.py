@@ -35,6 +35,7 @@ class Saver_Opener:
             self.test_data = np.arange(1000, 2)
             self.test_data_2d = np.meshgrid(self.test_data, self.test_data)
             self.test_file_path = os.path.join(os.path.abspath(os.getcwd()), 'test')
+            self.test_file_param_path = os.path.join(os.path.abspath(os.getcwd()), 'test.param')
 
     def open_1D(self, path, header = 0):
         if self.test_flag != 'test':
@@ -174,7 +175,7 @@ class Saver_Opener:
             
         elif self.test_flag == 'test':
             return self.test_file_path
-    
+
     def create_file_parameters(self, add_name, directory = ''):
         if self.test_flag != 'test':
             try:

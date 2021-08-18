@@ -6,18 +6,30 @@ import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.PB_ESR_500_pro as pb_pro
 #import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 t3034 = t3034.Keysight_3000_Xseries()
+pb = pb_pro.PB_ESR_500_Pro()
+mw = mwBridge.Mikran_X_band_MW_bridge()
 
 ### Experimental parameters
-START_FREQ = 9600
-END_FREQ = 9900
+START_FREQ = 9300
+END_FREQ = 9600
 STEP = 1
 SCANS = 1
-AVERAGES = 400
+AVERAGES = 100
 
 # PULSES
-REP_RATE = '600 Hz'
+REP_RATE = '500 Hz'
 PULSE_1_LENGTH = '100 ns'
-PULSE_1_START = '100 ns'
+PULSE_1_START = '0 ns'
+
+# NAMES
+EXP_NAME = 'Tune Scan'
+
+# setting pulses:
+pb.pulser_pulse(name ='P0', channel = 'TRIGGER', start = '0 ns', length = '100 ns')
+pb.pulser_pulse(name ='P1', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH)
+
+pb.pulser_repetition_rate( REP_RATE )
+pb.pulser_update()
 
 #
 t3034.oscilloscope_record_length( 1000 )
@@ -28,9 +40,6 @@ data = np.zeros( (points, real_length) )
 ###
 
 #open1d = openfile.Saver_Opener()
-pb = pb_pro.PB_ESR_500_Pro()
-mw = mwBridge.Mikran_X_band_MW_bridge()
-
 t3034.oscilloscope_acquisition_type('Average')
 t3034.oscilloscope_trigger_channel('CH1')
 #t3034.oscilloscope_record_length( osc_rec_length )
@@ -38,13 +47,6 @@ t3034.oscilloscope_trigger_channel('CH1')
 t3034.oscilloscope_stop()
 
 t3034.oscilloscope_number_of_averages(AVERAGES)
-
-# setting pulses:
-pb.pulser_pulse(name ='P0', channel = 'TRIGGER', start = '0 ns', length = '100 ns')
-pb.pulser_pulse(name ='P1', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH)
-
-pb.pulser_repetition_rate( REP_RATE )
-pb.pulser_update()
 
 # initialize the power
 mw.mw_bridge_synthesizer( START_FREQ )
@@ -66,9 +68,9 @@ while j <= SCANS:
 
         data[i] = ( data[i] * (j - 1) + y ) / j
 
-        general.plot_2d('Tune Scan 2', data, start_step = ( (0, 1), (START_FREQ*1000000, STEP*1000000) ), xname = 'Time',\
+        general.plot_2d(EXP_NAME, np.transpose( data ), start_step = ( (0, 1), (START_FREQ*1000000, STEP*1000000) ), xname = 'Time',\
             xscale = 's', yname = 'Frequency', yscale = 'Hz', zname = 'Intensity', zscale = 'V')
-        general.text_label( 'Tune Scan 2', "Scan / Frequency: ", str(j) + ' / '+ str(freq) )
+        general.text_label( EXP_NAME, "Scan / Frequency: ", str(j) + ' / '+ str(freq) )
 
         #f = open(path_to_file,'a')
         #np.savetxt(f, y, fmt='%.10f', delimiter=' ', newline='\n', header='frequency: %d' % i, footer='', comments='#', encoding=None)

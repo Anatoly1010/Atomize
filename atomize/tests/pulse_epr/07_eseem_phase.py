@@ -7,24 +7,28 @@ import atomize.device_modules.Keysight_3000_Xseries as key
 import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.BH_15 as bh
 import atomize.device_modules.SR_PTC_10 as sr
-import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+import atomize.general_modules.csv_opener_saver as openfile
 
 ### Experimental parameters
 POINTS = 401
 STEP = 10                  # in NS; delta_start = str(STEP) + ' ns' -> delta_start = '10 ns'
-FIELD = 3507
-AVERAGES = 5
+FIELD = 3389
+AVERAGES = 50
 SCANS = 1
 
 # PULSES
-REP_RATE = '200 Hz'
+REP_RATE = '1000 Hz'
 PULSE_1_LENGTH = '16 ns'
 PULSE_2_LENGTH = '16 ns'
 PULSE_3_LENGTH = '16 ns'
-PULSE_1_START = '100 ns'
-PULSE_2_START = '400 ns'
-PULSE_3_START = '456 ns'
-PULSE_SIGNAL_START = '756 ns'
+PULSE_1_START = '0 ns'
+PULSE_2_START = '300 ns'
+PULSE_3_START = '356 ns'
+PULSE_SIGNAL_START = '656 ns'
+
+# NAMES
+EXP_NAME = 'ESEEM'
+CURVE_NAME = 'exp1'
 
 #
 cycle_data_x = []
@@ -96,11 +100,11 @@ while j <= SCANS:
         data_x[i] = ( data_x[i] * (j - 1) + (cycle_data_x[0] - cycle_data_x[1] - cycle_data_x[2] + cycle_data_x[3]) / 4 ) / j
         data_y[i] = ( data_y[i] * (j - 1) + (cycle_data_y[0] - cycle_data_y[1] - cycle_data_y[2] + cycle_data_y[3]) / 4 ) / j
 
-        general.plot_1d('ESEEM', x_axis, data_x, xname = 'Delay',\
-            xscale = 'ns', yname = 'Area', yscale = 'V*s', timeaxis = 'False', label = 'X')
-        general.plot_1d('ESEEM', x_axis, data_y, xname = 'Delay',\
-            xscale = 'ns', yname = 'Area', yscale = 'V*s', timeaxis = 'False', label = 'Y')
-        general.text_label( 'ESEEM', "Scan / Time: ", str(j) + ' / '+ str(i*STEP) )
+        general.plot_1d(EXP_NAME, x_axis, data_x, xname = 'Delay',\
+            xscale = 'ns', yname = 'Area', yscale = 'V*s', timeaxis = 'False', label = CURVE_NAME + '_X')
+        general.plot_1d(EXP_NAME, x_axis, data_y, xname = 'Delay',\
+            xscale = 'ns', yname = 'Area', yscale = 'V*s', timeaxis = 'False', label = CURVE_NAME + '_Y')
+        general.text_label( EXP_NAME, "Scan / Time: ", str(j) + ' / '+ str(i*STEP) )
 
         pb.pulser_shift()
 
