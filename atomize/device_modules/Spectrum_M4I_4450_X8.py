@@ -116,6 +116,7 @@ class Spectrum_M4I_4450_X8:
             self.test_offset = 'CH0: 10'
             self.test_coupling = 'CH0: DC'
             self.test_impedance = 'CH0: 50'
+            self.test_integral = 10**-9 # in V*s
 
             # Collect all parameters for digitizer settings
             self.sample_rate = 500 
@@ -274,7 +275,7 @@ class Spectrum_M4I_4450_X8:
             #else:
             pass
 
-    def digitizer_get_curve(self):
+    def digitizer_get_curve(self, integral = False):
         """
         Start digitizer. No argument; No output
         Default settings:
@@ -328,19 +329,33 @@ class Spectrum_M4I_4450_X8:
 
                 elif self.card_mode == 2:
 
-                    if self.channel == 1:
-                        data = ( self.amplitude_0 / 1000) * np.ctypeslib.as_array(pnData, \
-                                shape = (int( self.qwBufferSize.value / 4 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
-                        data_ave = np.sum( data, axis = 0 ) / self.aver
+                    if integral == False:
+                        if self.channel == 1:
+                            data = ( self.amplitude_0 / 1000) * np.ctypeslib.as_array(pnData, \
+                                    shape = (int( self.qwBufferSize.value / 4 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
+                            data_ave = np.sum( data, axis = 0 ) / self.aver
 
-                    elif self.channel == 2:
-                        data = ( self.amplitude_1 / 1000) * np.ctypeslib.as_array(pnData, \
-                                shape = (int( self.qwBufferSize.value / 4 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
-                        data_ave = np.sum( data, axis = 0 ) / self.aver
+                        elif self.channel == 2:
+                            data = ( self.amplitude_1 / 1000) * np.ctypeslib.as_array(pnData, \
+                                    shape = (int( self.qwBufferSize.value / 4 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
+                            data_ave = np.sum( data, axis = 0 ) / self.aver
 
-                    xs = np.arange( len(data_ave) ) / (self.sample_rate * 1000000)
+                        xs = np.arange( len(data_ave) ) / (self.sample_rate * 1000000)
 
-                    return xs, data_ave
+                        return xs, data_ave
+
+                    elif integral == True:
+                        if self.channel == 1:
+                            data = ( self.amplitude_0 / 1000) * np.sum( np.ctypeslib.as_array(pnData, \
+                                    shape = (int( self.qwBufferSize.value / 4 ), )) ) * ( 10**(-6) / self.sample_rate ) / ( self.lMaxDACValue.value * self.aver )
+                            # integral in V*s
+
+                        elif self.channel == 2:
+                            data = ( self.amplitude_1 / 1000) * np.sum( np.ctypeslib.as_array(pnData, \
+                                    shape = (int( self.qwBufferSize.value / 4 ), )) ) * ( 10**(-6) / self.sample_rate ) / ( self.lMaxDACValue.value * self.aver )
+                            # integral in V*s
+
+                        return data
 
             elif self.channel == 3:
 
@@ -354,20 +369,33 @@ class Spectrum_M4I_4450_X8:
                     data2 = ( data[1::2] * ( self.amplitude_1 / 1000) ) / self.lMaxDACValue.value
 
                     xs = np.arange( len(data1) ) / (self.sample_rate * 1000000)
-                
+                    
+                    return xs, data1, data2
+
                 elif self.card_mode == 2:
-                    data = np.ctypeslib.as_array(pnData, \
-                            shape = (int( self.qwBufferSize.value / 2 ), )).reshape((self.aver, 2 * self.points))
-                    data_ave = np.sum( data, axis = 0 ) / self.aver
+                    if integral == False:
+                        data = np.ctypeslib.as_array(pnData, \
+                                shape = (int( self.qwBufferSize.value / 2 ), )).reshape((self.aver, 2 * self.points))
+                        data_ave = np.sum( data, axis = 0 ) / self.aver
 
-                    # CH0
-                    data1 = ( data_ave[0::2] * ( self.amplitude_0 / 1000) ) / self.lMaxDACValue.value
-                    # CH1
-                    data2 = ( data_ave[1::2] * ( self.amplitude_1 / 1000) ) / self.lMaxDACValue.value
+                        # CH0
+                        data1 = ( data_ave[0::2] * ( self.amplitude_0 / 1000) ) / self.lMaxDACValue.value
+                        # CH1
+                        data2 = ( data_ave[1::2] * ( self.amplitude_1 / 1000) ) / self.lMaxDACValue.value
 
-                    xs = np.arange( len(data1) ) / (self.sample_rate * 1000000)
+                        xs = np.arange( len(data1) ) / (self.sample_rate * 1000000)
 
-                return xs, data1, data2
+                        return xs, data1, data2
+
+                    elif integral == True:
+                        data = np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 2 ), ))
+
+                        # CH0
+                        data1 = ( np.sum( data[0::2] ) * ( 10**(-6) / self.sample_rate ) * ( self.amplitude_0 / 1000) ) / ( self.lMaxDACValue.value * self.aver )
+                        # CH1
+                        data2 = ( np.sum( data[1::2] ) * ( 10**(-6) / self.sample_rate ) * ( self.amplitude_1 / 1000) ) / ( self.lMaxDACValue.value * self.aver )
+
+                        return data1, data2
 
             #print( len(data) )
             #xs = 2*np.arange( int(qwBufferSize.value / 4) )
@@ -384,9 +412,21 @@ class Spectrum_M4I_4450_X8:
             dummy = np.zeros( self.points )
 
             if self.channel == 1 or self.channel == 2:
-                return dummy, dummy
+                if integral == False:
+                    return dummy, dummy
+                elif integral == True:
+                    if self.card_mode == 1:
+                        return dummy, dummy
+                    elif self.card_mode == 2:
+                        return self.test_integral
             elif self.channel == 3:
-                return dummy, dummy, dummy
+                if integral == False:
+                    return dummy, dummy, dummy
+                elif integral == True:
+                    if self.card_mode == 1:
+                        return dummy, dummy, dummy
+                    elif self.card_mode == 2:
+                        return self.test_integral, self.test_integral
 
     def digitizer_close(self):
         """
@@ -530,16 +570,16 @@ class Spectrum_M4I_4450_X8:
 
             if len(post_points) == 1:
                 pnts = int(post_points[0])
-                assert( pnts >= 16 ), "Number of points must be more than 16"
+                assert( pnts >= 16 ), "Number of postrigger points must be more than 16"
                 if pnts % 16 != 0:
                     #general.message('Number of points should be divisible by 16; The closest avalaibale number is used')
                     #self.posttrig_points = int( 16*(pnts // 16) )
                     self.posttrig_points = self.round_to_closest(pnts, 16)
                 else:
                     self.posttrig_points = pnts
-                if self.posttrig_points > self.points:
-                    #general.message('Number of posttrigger points should be less than number of points; The closest avalaibale number is used')
-                    self.posttrig_points = self.points                
+                if self.posttrig_points >= ( self.points - 16 ):
+                    general.message('Number of posttrigger points should be less than number of points - 16 samlpes; The closest avalaibale number is used')
+                    self.posttrig_points = self.points - 16
 
             elif len(post_points) == 0:
                 return self.test_posttrig_points    
@@ -629,7 +669,7 @@ class Spectrum_M4I_4450_X8:
                     sys.exit()
 
             elif len(s_rate) == 0:
-                return str(self.sample_rate / 1000000) + ' MHz'
+                return str( self.sample_rate ) + ' MHz'
 
             # to update on-the-fly
             if self.state == 0:
@@ -873,7 +913,6 @@ class Spectrum_M4I_4450_X8:
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
 
-    # RANGE CHANGED DOCUMENTATION; self.aver
     def digitizer_number_of_averages(self, *averages):
         """
         Set or query number of averages;

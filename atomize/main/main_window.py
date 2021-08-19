@@ -368,9 +368,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.textEdit.setTabStopDistance( QtGui.QFontMetricsF(self.textEdit.font()).horizontalAdvance(' ') * 4 )
         
         self.text_errors.top_margin  = 2
-        self.text_errors.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); }")
         self.text_errors.setCenterOnScroll(True)
         self.text_errors.ensureCursorVisible()
+
+        self.text_errors.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
+        self.text_errors.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); } \
+                                    QMenu::item { color: rgb(211, 194, 78); } QMenu::item:selected {color: rgb(193, 202, 227); }")
+        clear_action = QAction('Clear', self.text_errors)
+        clear_action.triggered.connect(self.clear_errors)
+        self.text_errors.addAction(clear_action)
 
         # Liveplot tab setting
         self.dockarea = DockArea()
@@ -392,6 +398,9 @@ class MainWindow(QtWidgets.QMainWindow):
         A function to do some actions when the main window is closing.
         """
         self.process_python.close()
+    
+    def clear_errors(self):
+        self.text_errors.clear()
 
     def quit(self):
         """

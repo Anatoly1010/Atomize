@@ -13,11 +13,11 @@ Functions:
 - [digitizer_name()](#digitizer_name)<br/>
 - [digitizer_setup()](#digitizer_setup)<br/>
 - [digitizer_get_curve()](#digitizer_get_curve)<br/>
+- [digitizer_get_curve(integral = True)](#digitizer_get_curveintegral-true)<br/>
 - [digitizer_close()](#digitizer_close)<br/>
 - [digitizer_stop()](#digitizer_stop)<br/>
 - [digitizer_number_of_points(*points)](#digitizer_number_of_pointspoints)<br/>
 - [digitizer_posttrigger(*post_points)](#digitizer_posttriggerpost_points)<br/>
-- [digitizer_number_of_segments(*segments)](#digitizer_number_of_segmentssegments)<br/>
 - [digitizer_channel(*channel)](#digitizer_channelchannel)<br/>
 - [digitizer_sample_rate(*s_rate)](#digitizer_sample_rates_rate)<br/>
 - [digitizer_clock_mode(*mode)](#digitizer_clock_modemode)<br/>
@@ -45,14 +45,21 @@ digitizer_setup()
 Arguments: none; Output: none.
 Examples: digitizer_setup() writes all the settings into the digitizer.
 ```
-This function writes all the settings modified by other functions to the digitizer. The function should be called only without arguments. One needs to initialize the settings before calling [digitizer_get_curve()](#digitizer_get_curve). The default settings (if no other function was called) are the following: Sample clock is 500 MHz; Clock mode is 'Internal'; Reference clock is 100 MHz; Card mode is 'Single'; Trigger channel is 'External'; Trigger mode is 'Positive'; Number of averages is 2; Trigger delay is 0; Enabled channels are CH0 and CH1; Input mode is 'HF'; Coupling of CH0 and CH1 is 'DC'; Impedance of CH0 and CH1 is '50'; Horizontal offset of CH0 and CH1 is 0%; Range of CH0 is '500 mV'; Range of CH1 is '500 mV'; Number of segments is 1; Number of points is 128; Posttriger points is 64.<br/>
+This function writes all the settings modified by other functions to the digitizer. The function should be called only without arguments. One needs to initialize the settings before calling [digitizer_get_curve()](#digitizer_get_curve). The default settings (if no other function was called) are the following: Sample clock is 500 MHz; Clock mode is 'Internal'; Reference clock is 100 MHz; Card mode is 'Single'; Trigger channel is 'External'; Trigger mode is 'Positive'; Number of averages is 2; Trigger delay is 0; Enabled channels are CH0 and CH1; Input mode is 'HF'; Coupling of CH0 and CH1 is 'DC'; Impedance of CH0 and CH1 is '50'; Horizontal offset of CH0 and CH1 is 0%; Range of CH0 is '500 mV'; Range of CH1 is '500 mV'; Number of points is 128; Posttriger points is 64.<br/>
 ### digitizer_get_curve()
 ```python3
 digitizer_get_curve()
 Arguments: none; Output: xs, data_ch0 or xs, data_ch0, data_ch1.
 Examples: digitizer_get_curve() runs acquisition and returns the data.
 ```
-This function runs acquisition and returns the data obtained. If two channels are enabled by the function [digitizer_channel()](#digitizer_channelchannel) the output of the function is three numpy arrays (xs, data_ch0, data_ch1). If one channel is enabled the output of the function is two numpy array (xs, data_ch0). The xs array is returned in s, data arrays are returned in V. The function should be called only without arguments. 
+This function runs acquisition and returns the data obtained. If two channels are enabled by the function [digitizer_channel()](#digitizer_channelchannel) the output of the function is three numpy arrays (xs, data_ch0, data_ch1). If one channel is enabled the output of the function is two numpy array (xs, data_ch0). The xs array is returned in s, data arrays are returned in V. The function should be called only without arguments.<br/>
+### digitizer_get_curve(integral = True)
+```python3
+digitizer_get_curve(integral = True)
+Arguments: none; Output: xs, integral_ch0 or xs, integral_ch0, integral_ch1.
+Examples: digitizer_get_curve(integral = True) runs acquisition and returns the integrated data.
+```
+This function runs acquisition and returns the data, integrated over all points in the oscillogram. If two channels are enabled by the function [digitizer_channel()](#digitizer_channelchannel) the output of the function is two numbers (integral_ch0, integral_ch1). If one channel is enabled the output of the function is one number (integral_ch0). The integral is returned in V*s.
 ### digitizer_close()
 ```python3
 digitizer_close()
@@ -80,14 +87,7 @@ digitizer_posttrigger(*post_points)
 Arguments: post_points = integer (divisible by 16); Output: integer.
 Example: digitizer_posttrigger(64) sets the number of posttrigger points to 64.
 ```
-This function queries or sets the number of posttriger (horizontal offset) points in samples in the returned oscillogram. The number of posttriger points should be divisible by 16 samples, the minimum available value is 16 samples. If there is no setting fitting the argument the nearest available value is used and warning is printed. Default value is 64.<br/>
-### digitizer_number_of_segments(*segments)
-```python3
-digitizer_number_of_segments(*segments)
-Arguments: segments = integer (1-200); Output: integer.
-Example: digitizer_number_of_segments(2) sets the number of segments to 2.
-```
-This function queries or sets the number of segments for ['Average'](#digitizer_card_modemode) card mode. In order to set the number of segments higher than 1, the digitizer should be in ['Average'](#digitizer_card_modemode) mode. If there is no argument the function will return the current number of segments. If there is an argument the specified number of segmetns will be set. The maximum available number of segments is 200. Default value is 1.<br/>
+This function queries or sets the number of posttriger (horizontal offset) points in samples in the returned oscillogram. The number of posttriger points should be divisible by 16 samples, the minimum available value is 16 samples. In the ['Average'](#digitizer_card_modemode) card mode, the maximum available value is [the number of points](#digitizer_number_of_pointspoints) in the oscillogram minus 16 samples. If there is no setting fitting the argument the nearest available value is used and warning is printed. Default value is 64.<br/>
 ### digitizer_channel(*channel)
 ```python3
 digitizer_channel(*channel)
@@ -122,7 +122,7 @@ digitizer_card_mode(*mode)
 Arguments: mode = string (['Single','Average']); Output: string.
 Example: digitizer_card_mode('Single') sets the Single mode of the digitizer.
 ```
-This function queries or sets the digitizer mode. If there is no argument the function will return the current digitizer mode. If there is an argument the specified mode will be set. The mode should be one of the following: ['Single','Average']. According to the documentation, in the 'Single' mode data acquisition is carried out to on-board memory for one single trigger event. In 'Average' mode the memory is segmented and with each trigger condition a predefined number of samples, a segment, is acquired. The Block Average option of the digitizer takes a programmable number of these acquired consecutive data segments and averages them sample by sample over one another. The result of one averaging operation is a segment with summed values. Default setting is 'Single'.<br/>
+This function queries or sets the digitizer mode. If there is no argument the function will return the current digitizer mode. If there is an argument the specified mode will be set. The mode should be one of the following: ['Single','Average']. According to the documentation, in the 'Single' mode data acquisition is carried out to on-board memory for one single trigger event. In 'Average' (Multi) mode the memory is segmented and with each trigger condition one segment is acquired. After that the data is transfer to the PC memory and [averaged](#digitizer_get_curve) or [averaged and integrated](#digitizer_get_curveintergal-false). The number of segments to acquire can be set by the [digitizer_number_of_averages()](#digitizer_number_of_averagesaverages) function. Default setting is 'Single'.<br/>
 ### digitizer_trigger_channel(*ch)
 ```python3
 digitizer_trigger_channel(*ch)
@@ -140,10 +140,10 @@ This function queries or sets the digitizer trigger mode. If there is no argumen
 ### digitizer_number_of_averages(*averages)
 ```python3
 digitizer_number_of_averages(*averages)
-Arguments: averages = integer (0-100000); Output: integer.
-Example: digitizer_number_of_averages(0) sets an infinite number of averages.
+Arguments: averages = integer (1-10000); Output: integer.
+Example: digitizer_number_of_averages(2) sets the number of averages to 2.
 ```
-This function queries or sets the number of averages for ['Average'](#digitizer_card_modemode) card mode. If there is no argument the function will return the current number of averages. If there is an argument the specified number of averages will be set. The maximum available number of averages is 100000. A setting '0' means that averaging will continue until the user stops it. Default value is 2.<br/>
+This function queries or sets the number of averages for ['Average'](#digitizer_card_modemode) card mode. If there is no argument the function will return the current number of averages. If there is an argument the specified number of averages will be set. The maximum available number of averages is 10000. If a very large number of [points](#digitizer_number_of_pointspoints) are set, the maximum available number of averages may be limited by the digitizer memory. The limit is 1 Gs. Default value is 2.<br/>
 ### digitizer_trigger_delay(*delay)
 ```python3
 digitizer_trigger_delay(*delay)
