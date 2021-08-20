@@ -13,7 +13,7 @@ Functions:
 - [digitizer_name()](#digitizer_name)<br/>
 - [digitizer_setup()](#digitizer_setup)<br/>
 - [digitizer_get_curve()](#digitizer_get_curve)<br/>
-- [digitizer_get_curve(integral = True)](#digitizer_get_curveintegral-true)<br/>
+- [digitizer_get_curve(integral = True)](#digitizer_get_curveintegral--true)<br/>
 - [digitizer_close()](#digitizer_close)<br/>
 - [digitizer_stop()](#digitizer_stop)<br/>
 - [digitizer_number_of_points(*points)](#digitizer_number_of_pointspoints)<br/>

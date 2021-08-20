@@ -479,6 +479,9 @@ class Spectrum_M4I_4450_X8:
                 else:
                     self.points = pnts
 
+            elif len(points) == 0:
+                return self.points
+
             # to update on-the-fly
             if self.state == 0:
                 pass
@@ -507,10 +510,6 @@ class Spectrum_M4I_4450_X8:
                         self.qwBufferSize = uint64 (int( self.points * self.aver ) * 2 * 2)
 
                 spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
-
-
-            elif len(points) == 0:
-                return self.points
 
         elif self.test_flag == 'test':
             self.setting_change_count = 1
@@ -554,6 +553,9 @@ class Spectrum_M4I_4450_X8:
                 if self.posttrig_points > self.points:
                     general.message('Number of posttrigger points should be less than number of points; The closest avalaibale number is used')
                     self.posttrig_points = self.points
+            
+            elif len(post_points) == 0:
+                return self.posttrig_points
 
             # to update on-the-fly
             if self.state == 0:
@@ -561,9 +563,6 @@ class Spectrum_M4I_4450_X8:
             elif self.state == 1:
                 spcm_dwSetParam_i32(self.hCard, SPC_POSTTRIGGER, self.posttrig_points)
                 spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
-
-            elif len(post_points) == 0:
-                return self.posttrig_points
 
         elif self.test_flag == 'test':
             self.setting_change_count = 1
@@ -926,6 +925,8 @@ class Spectrum_M4I_4450_X8:
             if len(averages) == 1:
                 ave = int(averages[0])
                 self.aver = ave
+            elif len(averages) == 0:
+                return self.aver
 
             # to update on-the-fly
             if self.state == 0:
@@ -949,9 +950,6 @@ class Spectrum_M4I_4450_X8:
                         self.qwBufferSize = uint64 (int( self.points * self.aver ) * 2 * 2)
 
                 spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
-
-            elif len(averages) == 0:
-                return self.aver
 
         elif self.test_flag == 'test':
             self.setting_change_count = 1
@@ -1429,6 +1427,69 @@ class Spectrum_M4I_4450_X8:
 
             else:
                 assert( 1 == 2 ), 'Incorrect arguments'
+
+    def digitizer_read_settings(self):
+        """
+        Special function for reading settings of the digitizer from the special file
+        """
+        if self.test_flag != 'test':
+
+            self.digitizer_card_mode('Average')
+
+            path_to_main = os.path.abspath( os.getcwd() )
+            path_file = os.path.join(path_to_main, 'atomize/control_center/digitizer.param')
+            #path_file = os.path.join(path_to_main, 'digitizer.param')
+            file_to_read = open(path_file, 'r')
+
+            text_from_file = file_to_read.read().split('\n')
+            # ['Points: 224', 'Sample Rate: 250', 'Posstriger: 16', 'Range: 500', 'CH0 Offset: 0', 'CH1 Offset: 0', '']
+
+            self.points = int( text_from_file[0].split(' ')[1] )
+            #self.digitizer_number_of_points( points )
+
+            self.sample_rate = int( text_from_file[1].split(' ')[2] )
+            #self.digitizer_sample_rate( sample_rate )
+
+            self.posttrig_points = int( text_from_file[2].split(' ')[1] )
+            #self.digitizer_posttrigger( posttrigger )
+
+            self.amplitude_0 = int( text_from_file[3].split(' ')[1] )
+            self.amplitude_1 = int( text_from_file[3].split(' ')[1] )
+            #self.digitizer_amplitude( amplitude )
+
+            self.offset_0 = int( text_from_file[4].split(' ')[2] )
+            self.offset_1 = int( text_from_file[5].split(' ')[2] )
+            #self.digitizer_offset('CH0', ch0_offset, 'CH1', ch1_offset)
+
+            self.digitizer_setup()
+
+        elif self.test_flag == 'test':
+            
+            self.digitizer_card_mode('Average')
+
+            path_to_main = os.path.abspath( os.getcwd() )
+            path_file = os.path.join(path_to_main, 'atomize/control_center/digitizer.param')
+            #path_file = os.path.join(path_to_main, 'digitizer.param')
+            file_to_read = open(path_file, 'r')
+
+            text_from_file = file_to_read.read().split('\n')
+            # ['Points: 224', 'Sample Rate: 250', 'Posstriger: 16', 'Range: 500', 'CH0 Offset: 0', 'CH1 Offset: 0', '']
+
+            points = int( text_from_file[0].split(' ')[1] )
+            self.digitizer_number_of_points( points )
+
+            sample_rate = int( text_from_file[1].split(' ')[2] )
+            self.digitizer_sample_rate( sample_rate )
+
+            posttrigger = int( text_from_file[2].split(' ')[1] )
+            self.digitizer_posttrigger( posttrigger )
+
+            amplitude = int( text_from_file[3].split(' ')[1] )
+            self.digitizer_amplitude( amplitude )
+
+            ch0_offset = int( text_from_file[4].split(' ')[2] )
+            ch1_offset = int( text_from_file[5].split(' ')[2] )
+            self.digitizer_offset('CH0', ch0_offset, 'CH1', ch1_offset)
 
     # Auxilary functions
     def round_to_closest(self, x, y):

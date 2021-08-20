@@ -57,7 +57,7 @@ pulser_next_phase()
 Arguments: none; Output: none.
 Example: pulser_next_phase() switches all pulses in the sequence to the next phase.
 ```
-This function switches all pulses to the next phase. The phase sequence is declared in the [pulser_pulse()](#pulser_pulse) in the form of phase_list = ['-y', '+x', '-x', '+x', ...]. By repeatedly calling the function one can run through the complete list of phases for the pulses. The length of all phase lists specified for different MW pulses has to be the same. This function also immediately updates the pulse sequence, as it is done by calling [pulser_update()](#pulser_update).<br/>
+This function switches all pulses to the next phase. The phase sequence is declared in the [pulser_pulse()](#pulser_pulse) in the form of phase_list = ['-y', '+x', '-x', '+x', ...]. By repeatedly calling the function one can run through the complete list of phases for the pulses. The length of all phase lists specified for different MW pulses has to be the same. This function also immediately updates the pulse sequence, as it is done by calling [pulser_update()](#pulser_update). The first call of the function corresponds to the first phase in the phase_list argument of the [pulser_pulse()](#pulser_pulse).
 ### pulser_repetition_rate(*r_rate)
 ```python3
 pulser_repetition_rate(*r_rate)
@@ -71,14 +71,14 @@ pulser_shift(*pulses)
 Arguments: none or string of pulse names; Output: none.
 Example: pulser_shift() shifts all currently active pulses by their respective delta_start.
 ```
-This function can be called with either no argument or with a list of comma separated pulse names (i.e. 'P0', 'P1'). If no argument is given the start time of all pulses that have a nonzero delta_start and are currently active (do not have a length of 0) are shifted by their corresponding delta_start value. If there is one argument or a list of comma separated pulse names only the start time of the listed pulses are changed.
+This function can be called with either no argument or with a list of comma separated pulse names (i.e. 'P0', 'P1'). If no argument is given the start time of all pulses that have a nonzero delta_start and are currently active (do not have a length of 0) are shifted by their corresponding delta_start value. If there is one argument or a list of comma separated pulse names only the start time of the listed pulses are changed. Calling this function also resets the phase (if specified in the argument phase_list of the [pulser_pulse()](#pulser_pulse)) to the first phase in the phase_list.
 ### pulser_increment(*pulses)
 ```python3
 pulser_increment(*pulses)
 Arguments: none or string of pulse names; Output: none.
 Example: pulser_increment('P0') increments the pulse named 'P0' by the corresponding length_increment value.
 ```
-This function can be called with either no argument or with a list of comma separated pulse names (i.e. 'P0', 'P1'). If no argument is given the lengths of all pulses that have a nonzero length_increment and are currently active (do not have a length of 0) are incremented by their corresponding length_increment value. If there is one argument or a list of comma separated pulse names only the lengths of the listed pulses are changed.
+This function can be called with either no argument or with a list of comma separated pulse names (i.e. 'P0', 'P1'). If no argument is given the lengths of all pulses that have a nonzero length_increment and are currently active (do not have a length of 0) are incremented by their corresponding length_increment value. If there is one argument or a list of comma separated pulse names only the lengths of the listed pulses are changed. Calling this function also resets the phase (if specified in the argument phase_list of the [pulser_pulse()](#pulser_pulse)) to the first phase in the phase_list.
 ### pulser_redefine_delta_start(*, name, delta_start)
 ```python3
 pulser_redefine_delta_start(*, name, delta_start)
