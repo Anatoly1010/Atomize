@@ -66,7 +66,7 @@ class BH_15:
         does arrive at the device we general it BH15_FC_MAX_SET_RETRIES times.
         Remember, this is a device by Bruker...
         """
-        self.max_set_retries = 3
+        self.max_set_retries = 2
 
         self.max_sweep_width = 16000.0
         self.min_field = -50.0
@@ -183,6 +183,7 @@ class BH_15:
                 self.fc_start_field()
             except BrokenPipeError:
                 pass
+                #self.fc_start_field()
 
         #?
         if (self.is_init and self.max_field_dev/self.field_step >= 0.01) or (self.is_init == False \
@@ -931,7 +932,7 @@ class BH_15:
                 command = str(str(command) + str(self.config['read_termination']))
                 #print(command)
                 self.device.write(command)
-                general.wait('50 ms')
+                #general.wait('50 ms')
                 answer = self.device.read().decode("utf-8")
                 return answer
             except gpib.GpibError:

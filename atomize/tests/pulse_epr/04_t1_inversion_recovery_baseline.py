@@ -10,24 +10,24 @@ import atomize.device_modules.SR_PTC_10 as sr
 import atomize.general_modules.csv_opener_saver as openfile
 
 ### Experimental parameters
-POINTS = 401
-STEP = 10                  # in NS; delta_start = str(STEP) + ' ns' -> delta_start = '10 ns'
+POINTS = 301
+STEP = 2000               # in NS; delta_start = str(STEP) + ' ns' -> delta_start = '2000 ns'
 FIELD = 3389
-AVERAGES = 50
+AVERAGES = 20
 SCANS = 1
 
 # PULSES
-REP_RATE = '1000 Hz'
-PULSE_1_LENGTH = '16 ns'
+REP_RATE = '400 Hz'
+PULSE_1_LENGTH = '32 ns'
 PULSE_2_LENGTH = '16 ns'
-PULSE_3_LENGTH = '16 ns'
+PULSE_3_LENGTH = '32 ns'
 PULSE_1_START = '0 ns'
 PULSE_2_START = '300 ns'
-PULSE_3_START = '356 ns'
-PULSE_SIGNAL_START = '656 ns'
+PULSE_3_START = '500 ns'
+PULSE_SIGNAL_START = '700 ns'
 
 # NAMES
-EXP_NAME = 'ESEEM'
+EXP_NAME = 'T1'
 CURVE_NAME = 'exp1'
 
 #
@@ -35,7 +35,7 @@ cycle_data_x = []
 cycle_data_y = []
 data_x = np.zeros(POINTS)
 data_y = np.zeros(POINTS)
-x_axis = np.linspace(0, (POINTS - 1)*STEP, num = POINTS) 
+x_axis = np.linspace(0, (POINTS - 1)*STEP, num = POINTS)
 ###
 
 # initialization of the devices
@@ -55,23 +55,22 @@ t3034.oscilloscope_acquisition_type('Average')
 t3034.oscilloscope_number_of_averages(AVERAGES)
 t3034.oscilloscope_stop()
 
-pb.pulser_pulse(name = 'P0', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH, phase_list = ['+x', '-x', '+x', '-x'])
-# 208 ns between P0 and P1 is set according to modulation deep in ESEEM. Can be adjust using different delays;
-# thin acquisition window
-pb.pulser_pulse(name = 'P1', channel = 'MW', start = PULSE_2_START, length = PULSE_2_LENGTH, phase_list = ['+x', '+x', '-x', '-x'])
-pb.pulser_pulse(name = 'P2', channel = 'MW', start = PULSE_3_START, length = PULSE_3_LENGTH, delta_start = str(STEP) + ' ns', phase_list = ['+x', '+x', '+x', '+x'])
-pb.pulser_pulse(name = 'P3', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str(STEP) + ' ns')
+pb.pulser_pulse(name = 'P0', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH, phase_list = ['+x', '+x'])
+pb.pulser_pulse(name = 'P1', channel = 'MW', start = PULSE_2_START, length = PULSE_2_LENGTH, delta_start = str(STEP) + ' ns', phase_list = ['+x', '-x'])
+pb.pulser_pulse(name = 'P2', channel = 'MW', start = PULSE_3_START, length = PULSE_3_LENGTH, delta_start = str(STEP) + ' ns', phase_list = ['+x', '+x'])
+pb.pulser_pulse(name = 'P3', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str(STEP) + ' ns', phase_list = ['+x', '+x'])
 
+# lower in comparison with T2
 pb.pulser_repetition_rate( REP_RATE )
 
 # Data saving
-header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + 'ESEEM\n' + \
-            'Field: ' + str(FIELD) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + \
-            str(mw.mw_bridge_synthesizer()) + '\n' + \
-           'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' + 'Number of Scans: ' + str(SCANS) + '\n' +\
-           'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + ' ns\n' + \
-           'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
-           'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Time (trig. delta_start), X (V*s), Y (V*s) '
+header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' +\
+         'T1 Inversion Recovery Measurement; Phase Cycling\n' + 'Field: ' + str(FIELD) + ' G\n' + \
+         str(mw.mw_bridge_att_prm()) + '\n' + str(mw.mw_bridge_synthesizer()) + '\n' + \
+         'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' + 'Number of Scans: ' + str(SCANS) + '\n' +\
+         'Averages: ' + str(AVERAGES) + '\n' + 'Window: ' + str(t3034.oscilloscope_timebase()*1000) + ' ns\n' +\
+         'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
+         'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Time (trig. delta_start), X (V*s), Y (V*s)'
 
 file_data, file_param = file_handler.create_file_parameters('.param')
 file_handler.save_header(file_param, header = header, mode = 'w')
@@ -83,7 +82,7 @@ while j <= SCANS:
 
         # phase cycle
         k = 0
-        while k < 4:
+        while k < 2:
 
             pb.pulser_next_phase()
 
@@ -95,15 +94,15 @@ while j <= SCANS:
             cycle_data_y.append(area_y)
 
             k += 1
-        
-        # acquisition cycle [+, -, -, +]
-        data_x[i] = ( data_x[i] * (j - 1) + (cycle_data_x[0] - cycle_data_x[1] - cycle_data_x[2] + cycle_data_x[3]) / 4 ) / j
-        data_y[i] = ( data_y[i] * (j - 1) + (cycle_data_y[0] - cycle_data_y[1] - cycle_data_y[2] + cycle_data_y[3]) / 4 ) / j
+
+        # acquisition cycle [+, -]
+        data_x[i] = ( data_x[i] * (j - 1) + (+ cycle_data_x[0] - cycle_data_x[1]) / 2 ) / j
+        data_y[i] = ( data_y[i] * (j - 1) + (+ cycle_data_y[0] - cycle_data_y[1]) / 2 ) / j
 
         general.plot_1d(EXP_NAME, x_axis, data_x, xname = 'Delay',\
-            xscale = 'ns', yname = 'Area', yscale = 'V*s', timeaxis = 'False', label = CURVE_NAME + '_X')
+            xscale = 'us', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_X')
         general.plot_1d(EXP_NAME, x_axis, data_y, xname = 'Delay',\
-            xscale = 'ns', yname = 'Area', yscale = 'V*s', timeaxis = 'False', label = CURVE_NAME + '_Y')
+            xscale = 'us', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_Y')
         general.text_label( EXP_NAME, "Scan / Time: ", str(j) + ' / '+ str(i*STEP) )
 
         pb.pulser_shift()
@@ -112,7 +111,6 @@ while j <= SCANS:
         cycle_data_y = []
 
     j += 1
-    
     pb.pulser_pulse_reset()
 
 pb.pulser_stop()

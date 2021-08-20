@@ -12,12 +12,12 @@ import atomize.general_modules.csv_opener_saver as openfile
 ### Experimental parameters
 START_FIELD = 3336
 END_FIELD = 3536
-FIELD_STEP = 1
-AVERAGES = 2
+FIELD_STEP = 2
+AVERAGES = 10
 SCANS = 1
 
 # PULSES
-REP_RATE = '1000 Hz'
+REP_RATE = '500 Hz'
 PULSE_1_LENGTH = '16 ns'
 PULSE_2_LENGTH = '32 ns'
 PULSE_1_START = '0 ns'
@@ -29,6 +29,8 @@ EXP_NAME = 'Echo Detected Spectrum Scan'
 CURVE_NAME = 'exp1'
 
 #
+cycle_data_x = []
+cycle_data_y = []
 points = int( (END_FIELD - START_FIELD) / FIELD_STEP ) + 1
 data_x = np.zeros(points)
 data_y = np.zeros(points)
@@ -51,15 +53,15 @@ t3034.oscilloscope_acquisition_type('Average')
 t3034.oscilloscope_number_of_averages(AVERAGES)
 t3034.oscilloscope_stop()
 
-pb.pulser_pulse(name ='P0', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH)
-pb.pulser_pulse(name ='P1', channel = 'MW', start = PULSE_2_START, length = PULSE_2_LENGTH)
-pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns')
+pb.pulser_pulse(name ='P0', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH, phase_list = ['+x', '-x'])
+pb.pulser_pulse(name ='P1', channel = 'MW', start = PULSE_2_START, length = PULSE_2_LENGTH, phase_list = ['+x', '+x'])
+pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', phase_list = ['+x', '+x'])
 
 pb.pulser_repetition_rate( REP_RATE )
 pb.pulser_update()
 
 # Data saving
-header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + 'Echo Detected Spectrum\n' + \
+header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + 'Echo Detected Spectrum; Phase Cycling\n' + \
             'Start Field: ' + str(START_FIELD) + ' G \n' + 'End Field: ' + str(END_FIELD) + ' G \n' + \
             'Field Step: ' + str(FIELD_STEP) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + \
             str(mw.mw_bridge_synthesizer()) + '\n' + \
@@ -81,12 +83,24 @@ while j <= SCANS:
 
         bh15.magnet_field(field)
 
-        t3034.oscilloscope_start_acquisition()
-        area_x = t3034.oscilloscope_area('CH4')
-        area_y = t3034.oscilloscope_area('CH3')
+        # phase cycle
+        k = 0
+        while k < 2:
 
-        data_x[i] = ( data_x[i] * (j - 1) + area_x ) / j
-        data_y[i] = ( data_y[i] * (j - 1) + area_y ) / j
+            pb.pulser_next_phase()
+
+            t3034.oscilloscope_start_acquisition()
+            area_x = t3034.oscilloscope_area('CH4')
+            area_y = t3034.oscilloscope_area('CH3')
+
+            cycle_data_x.append(area_x)
+            cycle_data_y.append(area_y)
+
+            k += 1
+
+        # acquisition cycle [+, -]
+        data_x[i] = ( data_x[i] * (j - 1) + (+ cycle_data_x[0] - cycle_data_x[1]) / 2 ) / j
+        data_y[i] = ( data_y[i] * (j - 1) + (+ cycle_data_y[0] - cycle_data_y[1]) / 2 ) / j
 
         general.plot_1d(EXP_NAME, x_axis, data_x, xname = 'Field',\
             xscale = 'G', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_X')
@@ -96,6 +110,11 @@ while j <= SCANS:
 
         field = round( (FIELD_STEP + field), 3 )
         i += 1
+        
+        pb.pulser_pulse_reset()
+        
+        cycle_data_x = []
+        cycle_data_y = []
 
     bh15.magnet_field(START_FIELD)
 
