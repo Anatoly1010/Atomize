@@ -24,9 +24,9 @@
 - [open_2D_appended_dialog(directory = '', header = 0, chunk_size = 1)](#open_2D_appended_dialog)<br/>
 - [save_2D_dialog(data, directory = '', header = '')](#save_2D_dialog)<br/>
 - [create_file_dialog(directory = '')](#create_file_dialog)<br/>
-- [create_file_parameters(add_name, directory = '')](#create_file_parametersadd_name-directory--)<br/>
-- [save_header(filename, header = '', mode = 'w')](#save_headerfilename-header---mode--w)<br/>
-- [save_data(filename, data, header = '', mode = 'w')](#save_datafilename-data-header---mode--w)<br/>
+- [create_file_parameters(add_name, directory = '')](#create_file_parameters)<br/>
+- [save_header(filename, header = '', mode = 'w')](#save_header)<br/>
+- [save_data(filename, data, header = '', mode = 'w')](#save_data)<br/>
 
 ## Print a line in the main window
 To call this function a corresponding general function module should be imported. After that
