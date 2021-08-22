@@ -207,10 +207,27 @@ class Saver_Opener:
 
     def save_data(self, filename, data, header = '', mode = 'w'):
         if self.test_flag != 'test':
-            file_for_save = open(filename, mode)
-            np.savetxt(file_for_save, data, fmt='%.4e', delimiter=',', \
-                                        newline='\n', header=header, footer='', comments='# ', encoding=None)
-            file_for_save.close()
+            if len( data.shape ) == 2:
+                file_for_save = open(filename, mode)
+                np.savetxt(file_for_save, data, fmt='%.4e', delimiter=',', \
+                                            newline='\n', header=header, footer='', comments='# ', encoding=None)
+                file_for_save.close()
+
+            elif len( data.shape ) == 3:
+                for i in range( 0, int( data.shape[0] ) ):
+                    if i == 0:
+                        file_for_save_i = filename
+                        file_for_save = open(file_for_save_i, mode)
+                        np.savetxt(file_for_save, np.transpose( data[i] ), fmt='%.4e', delimiter=',', \
+                                                    newline='\n', header=header, footer='', comments='# ', encoding=None)
+                        file_for_save.close()
+                    else:
+                        file_for_save_i = filename.split('.csv')[0] + '_' + str(i)
+                        file_for_save = open(file_for_save_i, mode)
+                        np.savetxt(file_for_save, np.transpose( data[i] ), fmt='%.4e', delimiter=',', \
+                                                    newline='\n', header=header, footer='', comments='# ', encoding=None)
+                        file_for_save.close()
+
         elif self.test_flag == 'test':
             file_for_save = open(filename, mode)
             file_for_save.close()

@@ -42,29 +42,29 @@ class SR_860:
 The class inizialization function should connect computer to the device. Examples can be found in in atomize/device_modules/ directory. 
 
 ## Limits, Ranges, and Dictionaries
-Specify ranges and limits for the device inside a module and use (if possible) dictionaries for matching device specific syntax and general high-level Atomize function arguments:
+Specify ranges and limits for the device inside an __init()__ function of the device class and use (if possible) dictionaries for matching device specific syntax and general high-level Atomize function arguments:
 ```python3
 # auxilary dictionaries
-current_dict = {'A': 1, 'mA': 1000,}
-ac_type_dic = {'Norm': "NORMal", 'Ave': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
-channel_dict = {'CH1': 1, 'CH2': 2, 'CH3': 3,}
+self.current_dict = {'A': 1, 'mA': 1000,}
+self.ac_type_dic = {'Norm': "NORMal", 'Ave': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
+self.channel_dict = {'CH1': 1, 'CH2': 2, 'CH3': 3,}
 ```
 ```python3
 # Ranges and limits
-ref_freq_min = 0.001
-ref_freq_max = 500000
+self.ref_freq_min = 0.001
+self.ref_freq_max = 500000
 ```
 
 ## Configuration Files
-Each device should have a configuration file. In this file the communication [protocol settings](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md) and device specific parameters (module for a series of the devices) should be specified. Examples can be found in atomize/device_modules/config/ directory. Reading of a configuration file can be done using a special function from the config_utils.py file:
+Each device should have a configuration file. In this file the communication [protocol settings](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md) and device specific parameters (module for a series of the devices) should be specified. Examples can be found in atomize/device_modules/config/ directory. Reading of a configuration file can be done inside an __init()__ function of the device class using a special function from the config_utils.py file:
 ```python3
 import atomize.device_modules.config.config_utils as cutil
 # setting path to *.ini file
-path_current_directory = os.path.dirname(__file__)
-path_config_file = os.path.join(path_current_directory, 'config','SR_860_config.ini')
+self.path_current_directory = os.path.dirname(__file__)
+self.path_config_file = os.path.join(self.path_current_directory, 'config','SR_860_config.ini')
 # configuration data
-config = cutil.read_conf_util(path_config_file)
-specific_parameters = cutil.read_specific_parameters(path_config_file)
+self.config = cutil.read_conf_util(self.path_config_file)
+self.specific_parameters = cutil.read_specific_parameters(self.path_config_file)
 ```
 
 ## Device Specific Configuration Parameters
@@ -78,14 +78,14 @@ analog_channels = 4
 ## Dimensions
 Currently Atomize does not use the dimensions of physical units (current, frequency etc.), instead, special dictionaries are used:
 ```python3
-current_dict = {'A': 1, 'mA': 1000,}
+self.current_dict = {'A': 1, 'mA': 1000,}
 ```
 In order to take into account different scaling factors usually the value and scaling factor are treated independently:
 ```python3
-if scaling in current_dict:
-    coef = current_dict[scaling]
-    if curr/coef >= current_min and curr/coef <= current_max:
-        device_write(':SOURce' + str(flag) + ':CURRent' + str(curr/coef))
+if scaling in self.current_dict:
+    coef = self.current_dict[scaling]
+    if curr / coef >= self.current_min and curr / coef <= self.current_max:
+        device_write(':SOURce' + str(flag) + ':CURRent' + str(curr / coef))
 ```
 Searching of a key can be done using a special function from the config_utils.py file:
 ```python3
@@ -98,17 +98,17 @@ return answer
 There is a test section in Atomize. During the test software checks that an experimental script has appropriate syntax and does not contain logical errors. It means that all the parameters during script execution do not go beyond the device limits. For instance, the test can detect that the field of the magnet is requested to be set to a value that the magnet cannot produce. During the test run the devices are not accessed, calls of the wait() function do not make the program sleep for the requested time, graphics are not drawn etc.<br/>
 In order to be able to run a test, one should specify inside a module appropriate values for all the device parameters (since the devices are not accessed) and describe what the function should do during the test run. Typically, it is just different assertions and checkings:
 ```python3
-elif test_flag == 'test':
+elif self.test_flag == 'test':
     if len(amplitude) == 1:
         ampl = float(amplitude[0]);
-        assert(ampl <= ref_ampl_max and ampl >= ref_ampl_min), "Incorrect amplitude"
+        assert(ampl <= self.ref_ampl_max and ampl >= self.ref_ampl_min), "Incorrect amplitude"
 ```
 The test flag parameter is used to indicate the start of the test:
 ```python3
 if len(sys.argv) > 1:
-    test_flag = sys.argv[1]
+    self.test_flag = sys.argv[1]
 else:
-    test_flag = 'None'
+    self.test_flag = 'None'
 ```
 
 ## To Be Continued...

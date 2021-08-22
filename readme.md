@@ -6,7 +6,7 @@ Remote control of spectrometers is usually carried out using home-written progra
 
 Atomize uses [liveplot library](https://github.com/PhilReinhold/liveplot) based on pyqtgraph as a main graphics library. [Liveplot](https://github.com/PhilReinhold/liveplot) was originally developed by Phil Reinhold. Since several minor improvements have been made to use it in Atomize.
 
-[Python Programming Language](https://www.python.org/) is used inside experimental scripts, which opens up almost unlimited possibilities for raw experimental data treatment. In addition, with PyQt, one can create experimental scripts with a simple graphical interface, allowing users not familiar with Python to use it. Several examples of scripts (with dummy data) are provided in /atomize/tests/ directory, including a GUI script with extended comments inside.<br/>
+[Python Programming Language](https://www.python.org/) is used inside experimental scripts, which opens up almost unlimited possibilities for raw experimental data treatment. In addition, with PyQt, one can create experimental scripts with a simple graphical interface, allowing users not familiar with Python to use it. Several examples of scripts (with dummy data) are provided in /atomize/tests/ directory, including a GUI script with extended comments inside. Also a variant of the Atomize with GUI Control Window extension can be found [here.](https://github.com/Anatoly1010/Atomize_NIOCH)<br/>
 
 Currently there are more than 200 device specific and general functions available for over 25 different devices, including 4 series of devices. If you would like to write a module for the device that is not currently available, please, read this short [instruction.](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/writing_modules.md)
 
@@ -232,15 +232,18 @@ create_file_parameters(add_name, directory = '')
 save_header(filename, header = '', mode = 'w')
 save_data(filename, data, header = '', mode = 'w')
 create_file_dialog(directory = '')
+create_file_parameters(add_name, directory = '')
+save_header(filename, header = '', mode = 'w')
+save_data(filename, data, header = '', mode = 'w')
 ```
 
 ## [Available plotting functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
 ```python3
 plot_1d('name', Xdata, Ydata, **args)
-append_1d('name', value, start_step = (x[0], x[1]-x[0]), label = 'label', **args)
+append_1d('name', value, start_step = (x[0], x[1] - x[0]), label = 'label', **args)
 plot_2d('name', data, start_step = ((Xstart, Xstep), (Ystart, Ystep)), **args)
 append_2d('name', data, start_step = ((Xstart, Xstep), (Ystart, Ystep)), **args)
-text_label('label', 'text', DynamicValue)
+text_label('label', DynamicValue)
 plot_remove('name')
 ```
 ## Available function for devices
@@ -368,6 +371,7 @@ pulser_name()
 pulser_pulse(*kargs)
 pulser_update()
 pulser_next_phase()
+pulse_acquisition_cycle(data1, data2, acq_cycle = [])
 pulser_repetition_rate(*r_rate)
 pulser_shift(*pulses)
 pulser_increment(*pulses)
@@ -494,3 +498,4 @@ discrete_io_output_state(*state)
 ## Screenshots
 ![](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot.png)
 ![](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot2.png)
+![](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot3.png)

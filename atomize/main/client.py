@@ -5,15 +5,15 @@ import warnings
 import numpy as np
 import logging
 import time
-from PyQt5.QtNetwork import QLocalSocket
-from PyQt5.QtCore import QCoreApplication, QSharedMemory
+from PyQt6.QtNetwork import QLocalSocket
+from PyQt6.QtCore import QCoreApplication, QSharedMemory
 import time
 
 logging.root.setLevel(logging.WARNING)
 
 class LivePlotClient(object):
     
-    def __init__(self, timeout=2000, size=2**28):
+    def __init__(self, timeout = 2000, size = 2**28):
         # from 06-08-2021; Freezing GUI when import general module
         
         #self.app = QCoreApplication.instance()

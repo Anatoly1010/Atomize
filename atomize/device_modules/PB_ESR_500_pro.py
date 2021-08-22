@@ -360,7 +360,9 @@ class PB_ESR_500_Pro:
             for index, element in enumerate(self.pulse_array):
                 if len(list(element['phase_list'])) != 0:
                     if element['phase_list'][self.current_phase_index] == '+x':
-                        pass
+                        #pass
+                        # 21-08-2021; Correction of non updating case for ['-x', '+x']
+                        self.reset_count = 0
                     elif element['phase_list'][self.current_phase_index] == '-x':
                         name = element['name'] + '_ph_seq-x'
                         # taking into account delays of phase switching
@@ -1092,7 +1094,7 @@ class PB_ESR_500_Pro:
             visualizer = self.convert_to_bit_pulse_visualizer(self.pulse_array )
 
             #general.plot_1d('Plot XY Test', np.arange(len(to_spinapi)), to_spinapi, label='test data1', timeaxis = 'False')
-            general.plot_2d('Pulses Visualizer', visualizer, \
+            general.plot_2d('Pulses Visualizer', np.transpose( visualizer ), \
                 start_step = ( (0, 1), (0, 1) ), xname = 'Time',\
                 xscale = 'ns', yname = 'Pulse Number', yscale = '', zname = '2**(channel)', zscale = '')
 
@@ -1135,6 +1137,43 @@ class PB_ESR_500_Pro:
         """
         self.test_flag = flag
 
+    def pulse_acquisition_cycle(self, data1, data2, acq_cycle = []):
+        if self.test_flag != 'test':
+            answer = np.zeros( data1.shape ) + 1j*np.zeros( data2.shape )
+
+            for index, element in enumerate(acq_cycle):
+                if element == '+':
+                    answer = answer + data1[index] + 1j*data2[index]
+                elif element == '-':
+                    answer = answer - data1[index] - 1j*data2[index]
+                elif element == '+i':
+                    answer = answer + 1j*data1[index] - data2[index]
+                elif element == '-i':
+                    answer = answer - 1j*data1[index] + data2[index]
+
+            return (answer.real / len(acq_cycle))[0], (answer.imag / len(acq_cycle))[0]
+
+        elif self.test_flag == 'test':
+
+            assert( len(acq_cycle) == len(data1) ), 'Acquisition cycle and Data 1 have incompatible size'
+            assert( len(acq_cycle) == len(data2) ), 'Acquisition cycle and Data 2 have incompatible size'
+
+            answer = np.zeros( data1.shape ) + 1j*np.zeros( data2.shape )
+
+            for index, element in enumerate(acq_cycle):
+                if element == '+':
+                    answer = answer + data1[index] + 1j*data2[index]
+                elif element == '-':
+                    answer = answer - data1[index] - 1j*data2[index]
+                elif element == '+i':
+                    answer = answer + 1j*data1[index] - data2[index]
+                elif element == '-i':
+                    answer = answer - 1j*data1[index] + data2[index]
+                else:
+                    assert (1 == 2), 'Incorrect operation in the acquisition cycle'
+
+            return (answer.real / len(acq_cycle))[0], (answer.imag / len(acq_cycle))[0]
+    
     # Auxilary functions
     def convertion_to_numpy(self, p_array):
         """

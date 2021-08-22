@@ -4,6 +4,7 @@ import numpy as np
 import atomize.general_modules.general_functions as general
 import atomize.device_modules.PB_ESR_500_pro as pb_pro
 import atomize.device_modules.Keysight_3000_Xseries as key
+###import atomize.device_modules.Spectrum_M4I_4450_X8 as spectrum
 import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.BH_15 as bh
 import atomize.device_modules.SR_PTC_10 as sr
@@ -29,8 +30,8 @@ EXP_NAME = 'Echo Detected Spectrum Scan'
 CURVE_NAME = 'exp1'
 
 #
-cycle_data_x = []
-cycle_data_y = []
+cycle_data_x = np.zeros( 2 )
+cycle_data_y = np.zeros( 2 )
 points = int( (END_FIELD - START_FIELD) / FIELD_STEP ) + 1
 data_x = np.zeros(points)
 data_y = np.zeros(points)
@@ -43,6 +44,7 @@ mw = mwBridge.Mikran_X_band_MW_bridge()
 pb = pb_pro.PB_ESR_500_Pro()
 bh15 = bh.BH_15()
 t3034 = key.Keysight_3000_Xseries()
+###dig4450 = spectrum.Spectrum_M4I_4450_X8()
 
 bh15.magnet_setup(START_FIELD, FIELD_STEP)
 
@@ -53,6 +55,10 @@ t3034.oscilloscope_acquisition_type('Average')
 t3034.oscilloscope_number_of_averages(AVERAGES)
 t3034.oscilloscope_stop()
 
+###dig4450.digitizer_read_settings()
+###dig4450.digitizer_number_of_averages(AVERAGES)
+###tb = dig4450.digitizer_number_of_points() * int(  1000 / float( dig4450.digitizer_sample_rate().split(' ')[0] ) )
+
 pb.pulser_pulse(name ='P0', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH, phase_list = ['+x', '-x'])
 pb.pulser_pulse(name ='P1', channel = 'MW', start = PULSE_2_START, length = PULSE_2_LENGTH, phase_list = ['+x', '+x'])
 pb.pulser_pulse(name ='P2', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', phase_list = ['+x', '+x'])
@@ -61,6 +67,7 @@ pb.pulser_repetition_rate( REP_RATE )
 pb.pulser_update()
 
 # Data saving
+#str(tb)
 header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + 'Echo Detected Spectrum; Phase Cycling\n' + \
             'Start Field: ' + str(START_FIELD) + ' G \n' + 'End Field: ' + str(END_FIELD) + ' G \n' + \
             'Field Step: ' + str(FIELD_STEP) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + \
@@ -89,18 +96,17 @@ while j <= SCANS:
 
             pb.pulser_next_phase()
 
+            ###cycle_data_x[k], cycle_data_y[k] = dig4450.digitizer_get_curve( integral = True )
             t3034.oscilloscope_start_acquisition()
-            area_x = t3034.oscilloscope_area('CH4')
-            area_y = t3034.oscilloscope_area('CH3')
-
-            cycle_data_x.append(area_x)
-            cycle_data_y.append(area_y)
+            cycle_data_x[k] = t3034.oscilloscope_area('CH4')
+            cycle_data_y[k] = t3034.oscilloscope_area('CH3')
 
             k += 1
 
         # acquisition cycle [+, -]
-        data_x[i] = ( data_x[i] * (j - 1) + (+ cycle_data_x[0] - cycle_data_x[1]) / 2 ) / j
-        data_y[i] = ( data_y[i] * (j - 1) + (+ cycle_data_y[0] - cycle_data_y[1]) / 2 ) / j
+        x, y = pb.pulse_acquisition_cycle(cycle_data_x, cycle_data_y, acq_cycle = ['+', '-'])
+        data_x[i] = ( data_x[i] * (j - 1) + x ) / j
+        data_y[i] = ( data_y[i] * (j - 1) + y ) / j
 
         general.plot_1d(EXP_NAME, x_axis, data_x, xname = 'Field',\
             xscale = 'G', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_X')
@@ -112,14 +118,13 @@ while j <= SCANS:
         i += 1
         
         pb.pulser_pulse_reset()
-        
-        cycle_data_x = []
-        cycle_data_y = []
-
+    
     bh15.magnet_field(START_FIELD)
 
     j += 1
 
+###dig4450.digitizer_stop()
+###dig4450.digitizer_close()
 pb.pulser_stop()
 
 file_handler.save_data(file_data, np.c_[x_axis, data_x, data_y], header = header, mode = 'w')

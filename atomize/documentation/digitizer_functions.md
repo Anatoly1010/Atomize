@@ -45,7 +45,7 @@ digitizer_setup()
 Arguments: none; Output: none.
 Examples: digitizer_setup() writes all the settings into the digitizer.
 ```
-This function writes all the settings modified by other functions to the digitizer. The function should be called only without arguments. One needs to initialize the settings before calling [digitizer_get_curve()](#digitizer_get_curve). The default settings (if no other function was called) are the following: Sample clock is 500 MHz; Clock mode is 'Internal'; Reference clock is 100 MHz; Card mode is 'Single'; Trigger channel is 'External'; Trigger mode is 'Positive'; Number of averages is 2; Trigger delay is 0; Enabled channels are CH0 and CH1; Input mode is 'HF'; Coupling of CH0 and CH1 is 'DC'; Impedance of CH0 and CH1 is '50'; Horizontal offset of CH0 and CH1 is 0%; Range of CH0 is '500 mV'; Range of CH1 is '500 mV'; Number of points is 128; Posttriger points is 64.<br/>
+This function writes all the settings modified by other functions to the digitizer. The function should be called only without arguments. One must initialize the settings before calling [digitizer_get_curve()](#digitizer_get_curve). The default settings (if no other function was called) are the following: Sample clock is 500 MHz; Clock mode is 'Internal'; Reference clock is 100 MHz; Card mode is 'Single'; Trigger channel is 'External'; Trigger mode is 'Positive'; Number of averages is 2; Trigger delay is 0; Enabled channels are CH0 and CH1; Input mode is 'HF'; Coupling of CH0 and CH1 is 'DC'; Impedance of CH0 and CH1 is '50'; Horizontal offset of CH0 and CH1 is 0%; Range of CH0 is '500 mV'; Range of CH1 is '500 mV'; Number of points is 128; Posttriger points is 64.<br/>
 ### digitizer_get_curve()
 ```python3
 digitizer_get_curve()
@@ -143,7 +143,7 @@ digitizer_number_of_averages(*averages)
 Arguments: averages = integer (1-10000); Output: integer.
 Example: digitizer_number_of_averages(2) sets the number of averages to 2.
 ```
-This function queries or sets the number of averages for ['Average'](#digitizer_card_modemode) card mode. If there is no argument the function will return the current number of averages. If there is an argument the specified number of averages will be set. The maximum available number of averages is 10000. If a very large number of [points](#digitizer_number_of_pointspoints) are set, the maximum available number of averages may be limited by the digitizer memory. The limit is 1 Gs. Default value is 2.<br/>
+This function queries or sets the number of averages for ['Average'](#digitizer_card_modemode) card mode. If there is no argument the function will return the current number of averages. If there is an argument the specified number of averages will be set. The maximum available number of averages is 10000. If a very large number of [points](#digitizer_number_of_pointspoints) are set, the maximum available number of averages may be limited by the digitizer memory. This limit is 1 Gs. Default value is 2.<br/>
 ### digitizer_trigger_delay(*delay)
 ```python3
 digitizer_trigger_delay(*delay)

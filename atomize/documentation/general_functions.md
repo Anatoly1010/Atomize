@@ -24,30 +24,33 @@
 - [open_2D_appended_dialog(directory = '', header = 0, chunk_size = 1)](#open_2D_appended_dialog)<br/>
 - [save_2D_dialog(data, directory = '', header = '')](#save_2D_dialog)<br/>
 - [create_file_dialog(directory = '')](#create_file_dialog)<br/>
+- [create_file_parameters(add_name, directory = '')](#create_file_parametersadd_name-directory--)<br/>
+- [save_header(filename, header = '', mode = 'w')](#save_headerfilename-header---mode--w)<br/>
+- [save_data(filename, data, header = '', mode = 'w')](#save_datafilename-data-header---mode--w)<br/>
 
 ## Print a line in the main window
 To call this function a corresponding general function module should be imported. After that
  the function should be used as follows:
-```python
+```python3
 import atomize.general_modules.general_functions as general
-general.message('A message to print','One more message', ...)
+general.message('A message to print', 'One more message', ...)
 ```
 ## Send a message via Telegram bot
 To call this function Telegram bot token and message chat ID should be specified in the configuration file (/atomize/config.ini). General function module should be imported. After that the function should be used as follows:
-```python
+```python3
 import atomize.general_modules.general_functions as general
-general.bot_message('A message to send','One more message', ...)
+general.bot_message('A message to send', 'One more message', ...)
 ```
 ## Wait for the specified amount of time
 To call this function a corresponding general function module should be imported. Function has
 one argument, which is a string of number and scaling factor (ks, s, ms, us):
-```python
+```python3
 import atomize.general_modules.general_functions as general
 general.wait('10 ms')
 ```
 ## Infinite loop
 Since all experimental scripts are tested before tactually interacting with devices, a standard Python infinite loop like while True will stuck in test mode. Instead, use the special function general.to_infinity(). This function imitates a standard infinite loop for which the first 50 loops will be checked in a test run.
-```python
+```python3
 import atomize.general_modules.general_functions as general
 
 for i in general.to_infinity():
@@ -55,137 +58,140 @@ for i in general.to_infinity():
     general.message(i)
 ```
 It is also possible to interrupt an infinite loop under certain conditions:
-```python
+```python3
 for i in general.to_infinity():
     general.message(i)
     if i > 10:
         break
 ```
 ## File handling
-To open or save raw experimental data one can use a special module based on Tkinter.
-Alternatively, it is possible to use the CSV Exporter embedded into Pyqtgraph for saving 1D data
-and a special option in Liveplot (right click -> Save Data Action) for saving 2D data as
-comma separated two dimensional numpy array.
-To call functions from Tkinter module one should create a corresponding class instance:
-```python
-import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+To open or save raw experimental data one can use a special module based on Tkinter / PyQt.
+Alternatively, it is possible to use the CSV Exporter embedded into Pyqtgraph for saving 1D data and a special option in Liveplot (right click -> Save Data Action) for saving 2D data as comma separated two dimensional numpy array. To call functions from Tkinter module one should create a corresponding class instance:
+```python3
+import atomize.general_modules.csv_opener_saver_tk_kinter as openfile #Tkinter
+import atomize.general_modules.csv_opener_saver as openfile #PyQt
 file_handler = openfile.Saver_Opener()
 ```
 After importing the functions should be used as follows:
 ### open_1D()
-```python	
+```python3
 open_1D(path, header = 0)
 ```
-	Simple function to open a specified file with comma separeted values;
-
-	path is a path to file;
-	header is an integer to specify the number of columns in the file header;
-	This argument is optional, default value is 0.
-
-	Output: header as array of lists; data as numpy array
+Simple function to open a specified file with comma separated values;
+path is a path to file;<br/>
+header is an integer to specify the number of columns in the file header. This argument is optional, default value is 0.<br/>
+Output: header as array of lists; data as numpy array.<br/>
 ### open_1D_dialog()
-```python	
+```python3
 open_1D_dialog(self, directory = '', header = 0)
 ```
-	Function that returns a dialog to open a file with comma separeted values;
-	
-	directory is a path to preopened directory in the dialog window;
-	header is an integer to specify the number of columns in the file header;
-	All these arguments are optional, default values are shown above;
-
-	Output: header as array of lists; data as numpy array
+This function returns a dialog to open a file with comma separated values;<br/>
+directory is a path to preopened directory in the dialog window;<br/>
+header is an integer to specify the number of columns in the file header;<br/>
+All these arguments are optional, default values are shown above;<br/>
+Output: header as array of lists; data as numpy array.<br/>
 ### save_1D_dialog()
-```python
+```python3
 save_1D_dialog(data, directory = '', header = '')
 ```
-	Function that returns a dialog to save data as comma separeted values;
-	
-	data is numpy array of data to save;
-	directory is a path to preopened directory in the dialog window;
-	header is a string to prepend to a file as a header;
-	All these arguments are optional, default values are shown above;
-	The values will be saved in '%.10f' format.
+This function returns a dialog to save data as comma separated values;<br/>
+data is numpy array of data to save;<br/>
+directory is a path to preopened directory in the dialog window;<br/>
+header is a string to prepend to a file as a header;<br/>
+All these arguments are optional, default values are shown above;<br/>
+The values will be saved in '%.4e' format.<br/>
 ### open_2D()
-```python
+```python3
 open_2D(path, header = 0)
 ```
-	Simple function to open a specified file with 2D array of comma separeted values;
-
-	path is a path to file;
-	header is an integer to specify the number of columns in the file header;
-	This argument is optional, default value is 0.
-
-	Output: header as array of lists; data as 2D numpy array
+Simple function to open a specified file with 2D array of comma separated values;<br/>
+path is a path to file;<br/>
+header is an integer to specify the number of columns in the file header. This argument is optional, default value is 0.<br/>
+Output: header as array of lists; data as 2D numpy array.<br/>
 ### open_2D_dialog()
-```python
+```python3
 open_2D_dialog(directory = '', header = 0)
 ```
-	Function that returns a dialog to open a file with 2D array of comma separeted values;
-	
-	directory is a path to preopened directory in the dialog window;
-	header is an integer to specify the number of columns in the file header;
-	All these arguments are optional, default values are shown above;
-
-	Output: header as array of lists; data as 2D numpy array
+This function returns a dialog to open a file with 2D array of comma separated values;<br/>
+directory is a path to preopened directory in the dialog window;<br/>
+header is an integer to specify the number of columns in the file header;<br/>
+All these arguments are optional, default values are shown above;<br/>
+Output: header as array of lists; data as 2D numpy array.<br/>
 ### open_2D_appended()
-```python
+```python3
 open_2D_appended(path, header = 0, chunk_size = 1)
 ```
-	Function that returns a dialog to open a file with a single column array
-	of values from 2D array;
-	
-	path is a path to file;
-	header is an integer to specify the number of columns in the file header;
-	chunk_size is Y axis size of the initial 2D array;
-
-	Output: header as array of lists; data as 2D numpy array
+This function returns a dialog to open a file with a single column array
+of values from 2D array;<br/>
+path is a path to file;<br/>
+header is an integer to specify the number of columns in the file header;
+chunk_size is Y axis size of the initial 2D array;<br/>
+Output: header as array of lists; data as 2D numpy array.<br/>
 ### open_2D_appended_dialog()
-```python
+```python3
 open_2D_appended_dialog(directory = '', header = 0, chunk_size = 1)
 ```
-	Function that returns a dialog to open a file with a single column array
-	of values from 2D array;
-	
-	directory is a path to preopened directory in the dialog window;
-	header is an integer to specify the number of columns in the file header;
-	chunk_size is Y axis size of the initial 2D array;
-	All these arguments are optional, default values are shown above;
-
-	Output: header as array of lists; data as 2D numpy array
+This function returns a dialog to open a file with a single column array
+of values from 2D array;<br/>
+directory is a path to preopened directory in the dialog window;<br/>
+header is an integer to specify the number of columns in the file header;<br/>
+chunk_size is Y axis size of the initial 2D array;<br/>
+All these arguments are optional, default values are shown above;<br/>
+Output: header as array of lists; data as 2D numpy array.<br/>
 ### save_2D_dialog()
-```python
+```python3
 save_2D_dialog(data, directory = '', header = '')
 ```
-	Function that returns a dialog to save a 2D array as comma separeted
-	values;
-	
-	data is numpy 2D array of data to save;
-	directory is a path to preopened directory in the dialog window;
-	header is a string to prepend to a file as a header;
-	All these arguments are optional, default values are shown above;
-	The values will be saved in '%.10f' format.
+This function returns a dialog to save a 2D array as comma separated
+values;<br/>
+data is numpy 2D array of data to save;<br/>
+directory is a path to preopened directory in the dialog window;<br/>
+header is a string to prepend to a file as a header;<br/>
+All these arguments are optional, default values are shown above;<br/>
+The values will be saved in '%.4e' format.<br/>
 ### create_file_dialog()
-```python
+```python3
 create_file_dialog(directory = '')
 ```
-	Function that returns a dialog to enter a name for a file;
-	It can be used to manually saved your data inside the experimental
-	script to specified file;
-
-	directory is a path to preopened directory in the dialog window;
-	The argument is optional, default value is shown above;
-
-For saving inside the script by [create_file_dialog()](#create_file_dialog) a typical numpy
-function should be used:
-```python
-np.savetxt(path_to_file, data_to_save, fmt = '%.10f', delimiter = ' ',
+Function that returns a dialog to enter a name for a file;<br/>
+It can be used to manually saved your data inside the experimental
+script to specified file;<br/>
+directory is a path to preopened directory in the dialog window. This argument is optional, default value is shown above.<br/>
+### create_file_parameters()
+```python3
+create_file_parameters(add_name, directory = '')
+```
+This function has the full functionality of the [create_file_dialog()](#create_file_dialog) function, but also returns a second file for saving parameters / header;<br/>
+add_name argument is a string that will be added to the second file instead of the first file '.csv' extension. For instance, create_file_parameters('.param') will create a second file with .param extension.<br/>
+directory is a path to preopened directory in the dialog window. This argument is optional, default value is shown above.<br/>
+### save_header()
+```python3
+save_header(filename, header = '', mode = 'w')
+```
+This function save the string given by argument header to the file with the path 'filename'. Argument mode allows choosing whether the file will be rewritten (mode = 'w') or the data will be appended to the end of the file (mode = 'a').
+### save_data()
+```python3
+save_data(filename, data, header = '', mode = 'w')
+```
+This function save the numpy array given by the argument data and the string given by argument header to the file with the path 'filename'. Argument mode allows choosing whether the file will be rewritten (mode = 'w') or the data will be appended to the end of the file (mode = 'a'). This function works for 1D, 2D, and 3D data. In case of 3D (an array of 2D arrays) data, a separate file will be created for each 2D array with the additional '_i' string in the filename. The standard combination of function to save the experimental data together with a header is the following:
+```python3
+file_data, file_param = file_handler.create_file_parameters('.param')
+header = 'Test Header'
+file_handler.save_header(file_param, header = header, mode = 'w')
+# Acquiring experimental data
+file_handler.save_data(file_data, data, header = header, mode = 'w')
+```
+### Standard numpy savetxt() function
+For saving inside the script by [create_file_dialog()](#create_file_dialog) a standard numpy function should be used:
+```python3
+np.savetxt(path_to_file, data_to_save, fmt = '%.4e', delimiter = ' ',
 newline = 'n', header = 'field: %d' % i, footer = '', comments = '#',
 encoding = None)
 ```
 
 # Minimal examples of using these functions inside the experimental script
 ## Open file
-```python
+```python3
 import atomize.general_modules.general_functions as general
 import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 
@@ -197,10 +203,10 @@ general.plot_2d('Plot Z Test', dat, start_step = ((0, 1), (0.3, 0.001)), xname =
 	xscale = 's', yname = 'Magnetic Field', yscale = 'T', zname = 'Intensity', zscale = 'V')
 ```
 ## Save file in the end of the script
-```python
+```python3
 import numpy as np
 import atomize.general_modules.general_functions as general
-import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+import atomize.general_modules.csv_opener_saver as openfile
 
 file_handler = openfile.Saver_Opener()
 
@@ -224,16 +230,16 @@ while i <= 10:
 	zscale = 'V')
 
 f = open(path_to_file, 'a')
-np.savetxt(f, data, fmt = '%.10f', delimiter = ',', newline = 'n',
+np.savetxt(f, data, fmt = '%.4e', delimiter = ',', newline = 'n',
 	header = 'field: %d' % i, footer = '', comments = '#', encoding = None)
 f.close()
 ```
 
 ## Save file during the script
-```python
+```python3
 import numpy as np
 import atomize.general_modules.general_functions as general
-import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+import atomize.general_modules.csv_opener_saver as openfile
 
 file_handler = openfile.Saver_Opener()
 
@@ -252,7 +258,7 @@ while i <= 10:
 	zs = 1 + 100*np.exp(-axis_x/ch_time) + 7*np.random.normal(size=(4000))
 	data.append(zs)
 	general.wait('100 ms')
-	np.savetxt(f, zs, fmt = '%.10f', delimiter = ' ', newline = 'n', 
+	np.savetxt(f, zs, fmt = '%.4e', delimiter = ' ', newline = 'n', 
 	header = 'field: %d' % i, footer = '', comments = '#', encoding = None)
 
 	general.plot_2d('Plot Z Test', data, start_step = ((0, 1), (0.3, 0.001)),

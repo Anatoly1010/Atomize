@@ -9,13 +9,10 @@ A. Modules/Connection/Config
 - the same for AWG
 
 B. Liveplot
-- Need a special widget to grab a curve from plot and move it up/down, right/left. We can implement multiaxis approach from pyqtgraph.
+
 
 C. General
 - Windows 10. GUI script. TypeError: cannot pickle 'Worker' object
-- Create saving functions for test option (e.g. np.savetxt())
-- Try to get rid of QProcess in the main window
-- Redo Save/Open dialogs using PyQt
 
 
 

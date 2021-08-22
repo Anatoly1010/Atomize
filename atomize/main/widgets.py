@@ -7,13 +7,15 @@ import numpy as np
 #import tkinter
 from datetime import datetime
 from pyqtgraph.dockarea import Dock
-from PyQt5 import QtWidgets, QtCore, QtGui
-from PyQt5.QtWidgets import QFileDialog
+from PyQt6 import QtWidgets, QtCore, QtGui
+from PyQt6.QtWidgets import QFileDialog
 #import OpenGL
 
 pg.setConfigOption('background', (63,63,97))
 pg.setConfigOption('leftButtonPan', False)
 pg.setConfigOption('foreground', (192, 202, 227))
+#pg.setConfigOptions(imageAxisOrder='row-major')
+
 #pg.setConfigOption('useOpenGL', True)
 #pg.setConfigOption('enableExperimental', True)
 LastExportDirectory = None
@@ -29,14 +31,14 @@ class CloseableDock(Dock):
     def __init__(self, *args, **kwargs):
         super(CloseableDock, self).__init__(*args, **kwargs)
         style = QtWidgets.QStyleFactory().create("windows")
-        close_icon = style.standardIcon(QtWidgets.QStyle.SP_TitleBarCloseButton)
+        close_icon = style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_TitleBarCloseButton)
         close_button = QtWidgets.QPushButton(close_icon, "", self)
         close_button.clicked.connect(self.close)
         close_button.setGeometry(0, 0, 15, 15)
         close_button.raise_()
         self.closeClicked = close_button.clicked
 
-        max_icon = style.standardIcon(QtWidgets.QStyle.SP_TitleBarMaxButton)
+        max_icon = style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_TitleBarMaxButton)
         max_button = QtWidgets.QPushButton(max_icon, "", self)
         max_button.clicked.connect(self.maximize)
         max_button.setGeometry(15, 0, 15, 15)
@@ -158,7 +160,7 @@ class CrosshairDock(CloseableDock):
         self.shift_menu.setTitle('Shift Plot')
         self.menu.addMenu(self.shift_menu)
 
-        open_action = QtWidgets.QAction('Open 1D Data', self)
+        open_action = QtGui.QAction('Open 1D Data', self)
         open_action.triggered.connect(self.file_dialog) # self.open_file_dialog
         self.menu.addAction(open_action)
 
@@ -194,7 +196,7 @@ class CrosshairDock(CloseableDock):
         self.plot_widget.setLabel("left", text=kwargs.get('yname', ''), units=kwargs.get('yscale', ''))
         name = kwargs.get('name', '')
 
-        if name in self.curves: 
+        if name in self.curves:
             if kwargs.get('scatter', '') == 'True':
                 kwargs['pen'] = None;
                 kwargs['symbol'] = self.used_symbols[name]
@@ -217,7 +219,7 @@ class CrosshairDock(CloseableDock):
                 kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
                 self.curves[name] = self.plot_widget.plot(*args, **kwargs)
 
-            del_action = QtWidgets.QAction(str(name), self)
+            del_action = QtGui.QAction(str(name), self)
             self.del_dict[del_action] = self.plot_widget.listDataItems()[-1]
             self.name_dict[del_action] = name
             del_action.triggered.connect(lambda: self.del_item(self.del_dict[del_action]))
@@ -340,11 +342,11 @@ class CrosshairDock(CloseableDock):
         A function to open a new window for choosing 1d data
         """
         filedialog = QFileDialog(self, 'Open File', directory = self.open_dir, filter = "CSV (*.csv)", \
-                                    options = QtWidgets.QFileDialog.DontUseNativeDialog ) 
-        # options = QtWidgets.QFileDialog.DontUseNativeDialog
-        # use QFileDialog.DontUseNativeDialog to change directory
+                                    options = QtWidgets.QFileDialog.Option.DontUseNativeDialog ) 
+        # options = QtWidgets.QFileDialog.Option.DontUseNativeDialog
+        # use QFileDialog.Option.DontUseNativeDialog to change directory
         filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
-        filedialog.setFileMode(QtWidgets.QFileDialog.AnyFile)
+        filedialog.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
         filedialog.fileSelected.connect(self.open_file)
         filedialog.show()
 
@@ -382,8 +384,8 @@ class CrosshairDock(CloseableDock):
 
 class CrossSectionDock(CloseableDock):
     def __init__(self, trace_size = 80, **kwargs):
-        self.plot_item = view = pg.PlotItem(labels=kwargs.pop('labels', None))
-        self.img_view = kwargs['widget'] = pg.ImageView(view=view)
+        self.plot_item = view = pg.PlotItem(labels = kwargs.pop('labels', None))
+        self.img_view = kwargs['widget'] = pg.ImageView(view = view)
         # plot options menu
         #view.ctrlMenu.setStyleSheet("QMenu::item:selected {background-color: rgb(40, 40, 40); }")
         view.setAspectLocked(lock=False)
@@ -396,22 +398,22 @@ class CrossSectionDock(CloseableDock):
         self.signals_connected = False
         self.set_histogram(False)
 
-        save_action = QtWidgets.QAction('Save Data', self)
+        save_action = QtGui.QAction('Save Data', self)
         save_action.triggered.connect(self.fileSaveDialog)
         self.img_view.scene.contextMenu.append(save_action)
 
-        histogram_action = QtWidgets.QAction('Histogram', self)
+        histogram_action = QtGui.QAction('Histogram', self)
         histogram_action.setCheckable(True)
         histogram_action.triggered.connect(self.set_histogram)
         self.img_view.scene.contextMenu.append(histogram_action)
         
-        self.autolevels_action = QtWidgets.QAction('Autoscale Levels', self)
+        self.autolevels_action = QtGui.QAction('Autoscale Levels', self)
         self.autolevels_action.setCheckable(True)
         self.autolevels_action.setChecked(True)
         self.autolevels_action.triggered.connect(self.redraw)
         self.ui.histogram.item.sigLevelChangeFinished.connect(lambda: self.autolevels_action.setChecked(False))
         self.img_view.scene.contextMenu.append(self.autolevels_action)
-        self.clear_action = QtWidgets.QAction('Clear Contents', self)
+        self.clear_action = QtGui.QAction('Clear Contents', self)
         self.clear_action.triggered.connect(self.clear)
         self.img_view.scene.contextMenu.append(self.clear_action)
 
@@ -464,8 +466,8 @@ class CrossSectionDock(CloseableDock):
 
         autorange = self.img_view.getView().vb.autoRangeEnabled()[0]
         kwargs['autoRange'] = autorange
-        self.img_view.setImage(*args, **kwargs)
-        self.img_view.getView().vb.enableAutoRange(enable=autorange)
+        self.img_view.setImage(*args, **kwargs )
+        self.img_view.getView().vb.enableAutoRange(enable = autorange)
         self.update_cross_section()
 
     def setTitle(self, text):
@@ -516,9 +518,9 @@ class CrossSectionDock(CloseableDock):
 
     def fileSaveDialog(self):
         self.fileDialog = QFileDialog()
-        #self.fileDialog.setOption(QtWidgets.QFileDialog.DontUseNativeDialog)
+        #self.fileDialog.setOption(QtGui.QFileDialog.Option.DontUseNativeDialog)
         self.fileDialog.setNameFilters(['*.csv','*.txt','*.dat'])
-        self.fileDialog.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
+        self.fileDialog.setAcceptMode(QtWidgets.QFileDialog.AcceptMode.AcceptSave)
         global LastExportDirectory
         exportDir = LastExportDirectory
         if exportDir is not None:

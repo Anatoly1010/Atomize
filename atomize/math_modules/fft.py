@@ -14,11 +14,13 @@ class Fast_Fourier():
         else:
             self.test_flag = 'None'
 
-
     def fft(self, x_axis, data, baseline_point):
         if self.test_flag != 'test':
-            baseline = ( np.sum(data[0:baseline_point]) + np.sum(data[len(data)-baseline_point:len(data)] ) ) / (2 * baseline_point ) 
-            
+            if baseline_point != 0:
+                baseline = ( np.sum(data[0:baseline_point]) + np.sum(data[len(data)-baseline_point:len(data)] ) ) / (2 * baseline_point ) 
+            else:
+                baseline = 0
+
             sp = np.fft.fft( data - baseline)
             freq = np.fft.fftfreq(x_axis.shape[-1])
             i = np.argsort(freq)
@@ -29,7 +31,10 @@ class Fast_Fourier():
             return np.sort( freq ), sp.real, sp.imag
 
         elif self.test_flag == 'test':
-            baseline = ( np.sum(data[0:baseline_point]) + np.sum(data[len(data)-baseline_point:len(data)] ) ) / (2 * baseline_point )
+            if baseline_point != 0:
+                baseline = ( np.sum(data[0:baseline_point]) + np.sum(data[len(data)-baseline_point:len(data)] ) ) / (2 * baseline_point ) 
+            else:
+                baseline = 0
 
             sp = np.fft.fft( data - baseline )
             freq = np.fft.fftfreq(x_axis.shape[-1])
@@ -39,9 +44,6 @@ class Fast_Fourier():
             sp.imag = sp.imag[i]
 
             return np.sort( freq ), sp.real, sp.imag
-
-            #return x_axis, data, data
-
 
 
 if __name__ == "__main__":

@@ -52,7 +52,6 @@ t3034.oscilloscope_number_of_averages(AVERAGES)
 mw.mw_bridge_synthesizer( START_FREQ )
 #path_to_file = open1d.create_file_dialog(directory = '')
 
-
 j = 1
 while j <= SCANS:
 
