@@ -182,8 +182,8 @@ class BH_15:
             try:
                 self.fc_start_field()
             except BrokenPipeError:
-                pass
-                #self.fc_start_field()
+                #pass
+                self.fc_start_field()
 
         #?
         if (self.is_init and self.max_field_dev/self.field_step >= 0.01) or (self.is_init == False \
@@ -874,7 +874,8 @@ class BH_15:
                 if is_remote == False:
                     general.message("Device isn't in remote state.")
                     # 16-08-2021; NIOCH First initialization problem
-                    raise BrokenPipeError
+                    pass
+                    #raise BrokenPipeError
                     #sys.exit()
                 
                 # If there's no overload we're done, otherwise we retry several

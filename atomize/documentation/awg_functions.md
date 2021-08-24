@@ -73,7 +73,24 @@ awg_close()
 Arguments: none; Output: none.
 Example: awg_close() closes the AWG driver.
 ```
-This function closes the AWG driver and should be called only without arguments. The function should always be called at the end of an experimental script.<br/>
+This function closes the AWG driver and should be called only without arguments. The function should always be called at the end of an experimental script, since the AWG card driver is opened during whole experiment in order to achieve high rate of buffer updating. It is STRONGLY recommended to add a gentle closing of the card to the experimental scripts for the case of an abrupt termination of the process. As a possible option, one can use signal library:<br/>
+```python3
+import signal
+import atomize.device_modules.Spectrum_M4I_6631_X8 as spectrum
+
+awg = spectrum.Spectrum_M4I_6631_X8()
+
+def cleanup(*args):
+    awg.awg_stop()
+    awg.awg_close()
+    sys.exit(0)
+
+signal.singal(signal.SIGTERM, cleanup)
+
+# AWG setup and experimental script
+#
+#
+```
 ### awg_pulse(*kargs)
 ```python3
 awg_pulse(*kagrs)
@@ -221,7 +238,7 @@ awg_sample_rate(*s_rate)
 Arguments: s_rate = integer (50-1250 MHz); Output: integer.
 Example: awg_sample_rate('1250') sets the AWG card sample rate to 1250 MHz.
 ```
-This function queries or sets the AWG card sample rate (in MHz). If there is no argument the function will return the current sample rate. If there is an argument the specified sample rate will be set. The minimum available sample rate is 50 MHz. The maximum available sample rate is 1250 MHz. Default value is 1250 MHz.<br/>
+This function queries or sets the AWG card sample rate (in MHz). If there is no argument the function will return the current sample rate. If there is an argument the specified sample rate will be set. The minimum available sample rate is 50 MHz. The maximum available sample rate is 1250 MHz. Default value is 1250 MHz. Please note that sample rate affects the delay between a trigger event and the AWG card output. The delay is determined in samples and can be found in the documentation.<br/>
 ### awg_clock_mode(*mode)
 ```python3
 awg_clock_mode(*mode)

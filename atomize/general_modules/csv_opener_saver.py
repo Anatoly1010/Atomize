@@ -244,7 +244,7 @@ class Saver_Opener():
                                                     newline='\n', header=header, footer='', comments='# ', encoding=None)
                         file_for_save.close()
                     else:
-                        file_for_save_i = filename.split('.csv')[0] + '_' + str(i)
+                        file_for_save_i = filename.split('.csv')[0] + '_' + str(i) + '.csv'
                         file_for_save = open(file_for_save_i, mode)
                         np.savetxt(file_for_save, np.transpose( data[i] ), fmt='%.4e', delimiter=',', \
                                                     newline='\n', header=header, footer='', comments='# ', encoding=None)

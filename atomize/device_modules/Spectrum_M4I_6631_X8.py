@@ -5,8 +5,8 @@ import os
 import sys
 import random
 ###AWG
-#sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
-sys.path.append('/home/anatoly/AWG/spcm_examples/python')
+sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
+##sys.path.append('/home/anatoly/AWG/spcm_examples/python')
 #sys.path.append('/home/anatoly/awg_files/python')
 #sys.path.append('C:/Users/User/Desktop/Examples/python')
 from math import sin, pi, exp, log2
@@ -1824,10 +1824,12 @@ class Spectrum_M4I_6631_X8:
                 elif self.card_mode == 32768 and self.channel == 3 and self.single_joined == 1:
                     buf = self.define_buffer_single_joined()[1]
                     xs = 0.8*np.arange( int(self.memsize) )
+                    ##sin = self.maxCAD * np.sin(2*np.pi*xs*0.125)
                     general.plot_1d('Buffer_single_joined', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
                     general.plot_1d('Buffer_single_joined', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
                                     label = 'ch1')
+                    ###general.plot_1d('Buffer_single_joined', xs, sin, label = 'sin')
 
                 elif self.card_mode == 512 and (self.channel == 1 or self.channel == 2):
                     buf = self.define_buffer_multi()[1]
@@ -3092,7 +3094,7 @@ class Spectrum_M4I_6631_X8:
                                i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                             
                             #if pulse_phase_np[index] != 1000:
-                            pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+                            pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( i - pulse_start_smp[index] ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
 
                             #else:
                                 #self.full_buffer[point, i] 
@@ -3113,7 +3115,7 @@ class Spectrum_M4I_6631_X8:
                             #if pulse_phase_np[index] != 1000:
                                 #self.full_buffer[point, i] 
                             pnBuffer[i] = int( self.maxCAD / pulse_amp[index]* exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                                        sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+                                                        sin(2*pi*(( i - pulse_start_smp[index] ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
 
                             #else:
                                 #self.full_buffer[point, i] 
@@ -3136,7 +3138,7 @@ class Spectrum_M4I_6631_X8:
                             #if pulse_phase_np[index] != 1000:
                                 #self.full_buffer[point, i] 
                             pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                                        sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+                                                        sin(2*pi*(( i - pulse_start_smp[index] ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
 
                             #else:
                                 #self.full_buffer[point, i]
@@ -3195,11 +3197,12 @@ class Spectrum_M4I_6631_X8:
                     ##        break
 
                     # vectorized version:
+                    # one phase: np.arange(pulse_start_smp[index], pulse_start_smp[index] + pulse_length_smp[index]) )
                     pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
-                                (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(0, 0 + \
                                     pulse_length_smp[index]) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] )).astype(int64)
                     pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
-                                (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(0, 0 + \
                                     pulse_length_smp[index]) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode)).astype(int64)
 
                 elif element == 1: #'GAUSS'
@@ -3235,15 +3238,16 @@ class Spectrum_M4I_6631_X8:
                     ##    else:
                     ##        break
 
+                    # one phase in Sine: np.arange(pulse_start_smp[index], pulse_start_smp[index] + pulse_length_smp[index]) )
                     pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
                                     (self.maxCAD / pulse_amp[index] * np.exp(-((( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                         pulse_length_smp[index]) ) ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                                np.sin(2*np.pi*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                                np.sin(2*np.pi*(( ( np.arange(0, 0 + \
                                         pulse_length_smp[index]) )  ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] )).astype(int64)
                     pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
                                     (self.maxCAD / pulse_amp[index] * np.exp(-((( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                         pulse_length_smp[index]) )  ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                                np.sin(2*np.pi*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                                np.sin(2*np.pi*(( ( np.arange(0, 0 + \
                                         pulse_length_smp[index]) )  ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode )).astype(int64)
 
                 elif element == 2: #'SINC'
@@ -3277,15 +3281,16 @@ class Spectrum_M4I_6631_X8:
                     ##    else:
                     ##        break
 
+                    # one phase in Sine: np.arange(pulse_start_smp[index], pulse_start_smp[index] + pulse_length_smp[index]) )
                     pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
                                     (self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                         pulse_length_smp[index]) ) ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                            np.sin(2*np.pi*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            np.sin(2*np.pi*(( ( np.arange(0, 0 + \
                                                 pulse_length_smp[index]) ) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] )).astype(int64)
                     pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
                                     (self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                         pulse_length_smp[index]) ) ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                            np.sin(2*np.pi*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            np.sin(2*np.pi*(( ( np.arange(0, 0 + \
                                                 pulse_length_smp[index]) ) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode )).astype(int64)
 
                 elif element == 3: # BLANK
