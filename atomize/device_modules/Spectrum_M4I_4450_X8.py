@@ -4,8 +4,8 @@
 import os
 import sys
 ###AWG
-#sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
-sys.path.append('/home/anatoly/AWG/spcm_examples/python')
+sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
+#sys.path.append('/home/anatoly/AWG/spcm_examples/python')
 #sys.path.append('/home/anatoly/awg_files/python')
 #sys.path.append('C:/Users/User/Desktop/Examples/python')
 import numpy as np
@@ -58,7 +58,7 @@ class Spectrum_M4I_4450_X8:
         self.sample_ref_clock_min = 10 # MHz
         self.averages_max = 100000
         self.delay_max = 8589934576
-        self.delay_min = 0 
+        self.delay_min = 0
 
         # Test run parameters
         # These values are returned by the modules in the test run 
@@ -97,6 +97,11 @@ class Spectrum_M4I_4450_X8:
 
             # state counter
             self.state = 0
+            self.read = 0
+
+            # integration window
+            self.win_left = 0
+            self.win_right = 1
 
         elif self.test_flag == 'test':        
             self.test_sample_rate = '500 MHz'
@@ -146,6 +151,11 @@ class Spectrum_M4I_4450_X8:
 
             # state counter
             self.state = 0
+            self.read = 0
+            
+            # integration window
+            self.win_left = 0
+            self.win_right = 1
 
     # Module functions
     def digitizer_name(self):
@@ -333,29 +343,50 @@ class Spectrum_M4I_4450_X8:
                         if self.channel == 1:
                             data = ( self.amplitude_0 / 1000) * np.ctypeslib.as_array(pnData, \
                                     shape = (int( self.qwBufferSize.value / 4 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
-                            data_ave = np.sum( data, axis = 0 ) / self.aver
+                            #data_ave = np.sum( data, axis = 0 ) / self.aver
+                            data_ave = np.average( data, axis = 0 )
 
                         elif self.channel == 2:
                             data = ( self.amplitude_1 / 1000) * np.ctypeslib.as_array(pnData, \
                                     shape = (int( self.qwBufferSize.value / 4 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
-                            data_ave = np.sum( data, axis = 0 ) / self.aver
+                            #data_ave = np.sum( data, axis = 0 ) / self.aver
+                            data_ave = np.average( data, axis = 0 )
 
                         xs = np.arange( len(data_ave) ) / (self.sample_rate * 1000000)
 
                         return xs, data_ave
 
                     elif integral == True:
-                        if self.channel == 1:
-                            data = ( self.amplitude_0 / 1000) * np.sum( np.ctypeslib.as_array(pnData, \
-                                    shape = (int( self.qwBufferSize.value / 4 ), )) ) * ( 10**(-6) / self.sample_rate ) / ( self.lMaxDACValue.value * self.aver )
-                            # integral in V*s
+                        if self.read == 1:
+                            if self.channel == 1:
+                                data = ( self.amplitude_0 / 1000) * np.ctypeslib.as_array(pnData, \
+                                    shape = (int( self.qwBufferSize.value / 4 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
+                                #data_ave = np.sum( data, axis = 0 ) / self.aver
+                                data_ave = np.average( data, axis = 0 )
+                                
+                                integ = np.sum( data_ave[self.win_left:self.win_right] ) * ( 10**(-6) / self.sample_rate )
+                                # integral in V*s
 
-                        elif self.channel == 2:
-                            data = ( self.amplitude_1 / 1000) * np.sum( np.ctypeslib.as_array(pnData, \
-                                    shape = (int( self.qwBufferSize.value / 4 ), )) ) * ( 10**(-6) / self.sample_rate ) / ( self.lMaxDACValue.value * self.aver )
-                            # integral in V*s
+                            elif self.channel == 2:
+                                data = ( self.amplitude_1 / 1000) * np.ctypeslib.as_array(pnData, \
+                                    shape = (int( self.qwBufferSize.value / 4 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
+                                #data_ave = np.sum( data, axis = 0 ) / self.aver
+                                data_ave = np.average( data, axis = 0 )
 
-                        return data
+                                integ = np.sum( data_ave[self.win_left:self.win_right] ) * ( 10**(-6) / self.sample_rate )
+                                # integral in V*s
+                        else:
+                            if self.channel == 1:
+                                integ = ( self.amplitude_0 / 1000) * np.sum( np.ctypeslib.as_array(pnData, \
+                                        shape = (int( self.qwBufferSize.value / 4 ), )) ) * ( 10**(-6) / self.sample_rate ) / ( self.lMaxDACValue.value * self.aver )
+                                # integral in V*s
+
+                            elif self.channel == 2:
+                                integ = ( self.amplitude_1 / 1000) * np.sum( np.ctypeslib.as_array(pnData, \
+                                        shape = (int( self.qwBufferSize.value / 4 ), )) ) * ( 10**(-6) / self.sample_rate ) / ( self.lMaxDACValue.value * self.aver )
+                                # integral in V*s                            
+
+                        return integ
 
             elif self.channel == 3:
 
@@ -376,8 +407,9 @@ class Spectrum_M4I_4450_X8:
                     if integral == False:
                         data = np.ctypeslib.as_array(pnData, \
                                 shape = (int( self.qwBufferSize.value / 2 ), )).reshape((self.aver, 2 * self.points))
-                        data_ave = np.sum( data, axis = 0 ) / self.aver
-
+                        #data_ave = np.sum( data, axis = 0 ) / self.aver
+                        data_ave = np.average( data, axis = 0 )
+                        
                         # CH0
                         data1 = ( data_ave[0::2] * ( self.amplitude_0 / 1000) ) / self.lMaxDACValue.value
                         # CH1
@@ -388,14 +420,27 @@ class Spectrum_M4I_4450_X8:
                         return xs, data1, data2
 
                     elif integral == True:
-                        data = np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 2 ), ))
+                        if self.read == 1:
+                            data = np.ctypeslib.as_array(pnData, \
+                                shape = (int( self.qwBufferSize.value / 2 ), )).reshape((self.aver, 2 * self.points))
+                            #data_ave = np.sum( data, axis = 0 ) / self.aver
+                            data_ave = np.average( data, axis = 0 )
 
-                        # CH0
-                        data1 = ( np.sum( data[0::2] ) * ( 10**(-6) / self.sample_rate ) * ( self.amplitude_0 / 1000) ) / ( self.lMaxDACValue.value * self.aver )
-                        # CH1
-                        data2 = ( np.sum( data[1::2] ) * ( 10**(-6) / self.sample_rate ) * ( self.amplitude_1 / 1000) ) / ( self.lMaxDACValue.value * self.aver )
+                            # CH0
+                            data1 = ( np.sum( data_ave[0::2][self.win_left:self.win_right] ) * ( 10**(-6) / self.sample_rate ) * ( self.amplitude_0 / 1000) ) / ( self.lMaxDACValue.value )
+                            # CH1
+                            data2 = ( np.sum( data_ave[1::2][self.win_left:self.win_right] ) * ( 10**(-6) / self.sample_rate ) * ( self.amplitude_1 / 1000) ) / ( self.lMaxDACValue.value )
 
-                        return data1, data2
+                            return data1, data2
+                        else:
+                            data = np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 2 ), ))
+
+                            # CH0
+                            data1 = ( np.sum( data[0::2] ) * ( 10**(-6) / self.sample_rate ) * ( self.amplitude_0 / 1000) ) / ( self.lMaxDACValue.value * self.aver )
+                            # CH1
+                            data2 = ( np.sum( data[1::2] ) * ( 10**(-6) / self.sample_rate ) * ( self.amplitude_1 / 1000) ) / ( self.lMaxDACValue.value * self.aver )
+
+                            return data1, data2
 
             #print( len(data) )
             #xs = 2*np.arange( int(qwBufferSize.value / 4) )
@@ -1434,6 +1479,7 @@ class Spectrum_M4I_4450_X8:
         """
         if self.test_flag != 'test':
 
+            self.read = 1
             self.digitizer_card_mode('Average')
 
             path_to_main = os.path.abspath( os.getcwd() )
@@ -1442,7 +1488,8 @@ class Spectrum_M4I_4450_X8:
             file_to_read = open(path_file, 'r')
 
             text_from_file = file_to_read.read().split('\n')
-            # ['Points: 224', 'Sample Rate: 250', 'Posstriger: 16', 'Range: 500', 'CH0 Offset: 0', 'CH1 Offset: 0', '']
+            # ['Points: 224', 'Sample Rate: 250', 'Posstriger: 16', 'Range: 500', 'CH0 Offset: 0', 'CH1 Offset: 0', 
+            # 'Window Left: 0', 'Window Right: 0', '']
 
             self.points = int( text_from_file[0].split(' ')[1] )
             #self.digitizer_number_of_points( points )
@@ -1461,10 +1508,14 @@ class Spectrum_M4I_4450_X8:
             self.offset_1 = int( text_from_file[5].split(' ')[2] )
             #self.digitizer_offset('CH0', ch0_offset, 'CH1', ch1_offset)
 
+            self.win_left = int( text_from_file[6].split(' ')[2] )
+            self.win_right = 1 + int( text_from_file[7].split(' ')[2] )
+
             self.digitizer_setup()
 
         elif self.test_flag == 'test':
             
+            self.read = 1
             self.digitizer_card_mode('Average')
 
             path_to_main = os.path.abspath( os.getcwd() )
@@ -1473,7 +1524,8 @@ class Spectrum_M4I_4450_X8:
             file_to_read = open(path_file, 'r')
 
             text_from_file = file_to_read.read().split('\n')
-            # ['Points: 224', 'Sample Rate: 250', 'Posstriger: 16', 'Range: 500', 'CH0 Offset: 0', 'CH1 Offset: 0', '']
+            # ['Points: 224', 'Sample Rate: 250', 'Posstriger: 16', 'Range: 500', 'CH0 Offset: 0', 'CH1 Offset: 0', 
+            # 'Window Left: 0', 'Window Right: 0', '']
 
             points = int( text_from_file[0].split(' ')[1] )
             self.digitizer_number_of_points( points )
@@ -1490,6 +1542,9 @@ class Spectrum_M4I_4450_X8:
             ch0_offset = int( text_from_file[4].split(' ')[2] )
             ch1_offset = int( text_from_file[5].split(' ')[2] )
             self.digitizer_offset('CH0', ch0_offset, 'CH1', ch1_offset)
+
+            self.win_left = int( text_from_file[6].split(' ')[2] )
+            self.win_right = 1 + int( text_from_file[7].split(' ')[2] )
 
     # Auxilary functions
     def round_to_closest(self, x, y):

@@ -6,7 +6,7 @@ import sys
 import random
 ###AWG
 sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
-##sys.path.append('/home/anatoly/AWG/spcm_examples/python')
+#sys.path.append('/home/anatoly/AWG/spcm_examples/python')
 #sys.path.append('/home/anatoly/awg_files/python')
 #sys.path.append('C:/Users/User/Desktop/Examples/python')
 from math import sin, pi, exp, log2
@@ -108,6 +108,10 @@ class Spectrum_M4I_6631_X8:
             self.pulse_name_array = []
             self.pulse_ch0_array = []
             self.pulse_ch1_array = []
+            # phase list
+            self.current_phase_index = 0
+            self.phase_array_length_0 = []
+            self.phase_array_length_1 = []
 
             # state counter
             self.state = 0
@@ -162,6 +166,10 @@ class Spectrum_M4I_6631_X8:
             self.pulse_name_array = []
             self.pulse_ch0_array = []
             self.pulse_ch1_array = []
+            # phase list
+            self.current_phase_index = 0
+            self.phase_array_length_0 = []
+            self.phase_array_length_1 = []
 
             # state counter
             self.state = 0
@@ -450,25 +458,26 @@ class Spectrum_M4I_6631_X8:
             pass
 
     def awg_pulse(self, name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0,\
-     delta_phase = 0, length = '16 ns', sigma = '16 ns', increment = '0 ns', start = '0 ns', delta_start = '0 ns', d_coef = 1):
+     delta_phase = 0, phase_list = [], length = '16 ns', sigma = '16 ns', increment = '0 ns', start = '0 ns', delta_start = '0 ns', d_coef = 1):
         """
         A function for awg pulse creation;
         The possible arguments:
         NAME, CHANNEL (CHO, CH1), FUNC (SINE, GAUSS, SINC, BLANK), FREQUENCY (1 - 280 MHz),
-        PHASE (in rad), DELTA_PHASE (in rad), 
+        PHASE (in rad), DELTA_PHASE (in rad),
+        PHASE_LIST in ['+x', '-x', '+y', '-y'] 
         LENGTH (in ns, us; should be longer than sigma; minimun is 10 ns; maximum is 1900 ns), 
         SIGMA (sigma for gauss; sinc (length = 32 ns, sigma = 16 ns means +-2pi); sine for uniformity )
         INCREMENT (in ns, us, ms; for incrementing both sigma and length)
         START (in ns, us, ms; for joined pulses in 'Single mode')
         DELTA_START (in ns, us, ms; for joined pulses in 'Single mode')
-        AMP (is arb u; additional coefficient to adjust pulse amplitudes)
+        D_COEF (is arb u; additional coefficient to adjust pulse amplitudes)
 
         Buffer according to arguments will be filled after
         """
         if self.test_flag != 'test':
             pulse = {'name': name, 'channel': channel, 'function': func, 'frequency': frequency, 'phase' : phase,\
              'delta_phase': delta_phase, 'length': length, 'sigma': sigma, 'increment': increment, 'start': start,\
-              'delta_start': delta_start, 'amp': d_coef }
+              'delta_start': delta_start, 'amp': d_coef, 'phase_list': phase_list }
 
             self.pulse_array.append( pulse )
             # for saving the initial pulse_array without increments
@@ -482,13 +491,23 @@ class Spectrum_M4I_6631_X8:
             # Number of segments equals to number of pulses for each channel
             if channel == 'CH0':
                 self.pulse_ch0_array.append( pulse['name'] )
+                # phase_list's length
+                self.phase_array_length_0.append(len(list(phase_list)))
             elif channel == 'CH1':
                 self.pulse_ch1_array.append( pulse['name'] )
+                self.phase_array_length_1.append(len(list(phase_list)))
+
             
         elif self.test_flag == 'test':
             pulse = {'name': name, 'channel': channel, 'function': func, 'frequency': frequency, 'phase' : phase,\
              'delta_phase' : delta_phase, 'length': length, 'sigma': sigma, 'increment': increment, 'start': start,\
-              'delta_start': delta_start, 'amp': d_coef }
+              'delta_start': delta_start, 'amp': d_coef, 'phase_list': phase_list }
+
+            if channel == 'CH0':
+                # phase_list's length
+                self.phase_array_length_0.append(len(list(phase_list)))
+            elif channel == 'CH1':
+                self.phase_array_length_1.append(len(list(phase_list)))
 
             # Checks
             # two equal names
@@ -580,6 +599,75 @@ class Spectrum_M4I_6631_X8:
 
             self.pulse_array.append( pulse )
             self.pulse_array_init = deepcopy(self.pulse_array)
+
+    def awg_next_phase(self):
+        """
+        A function for phase cycling. It works using phase_list decleared in awg_pulse():
+        phase_list = ['-y', '+x', '-x', '+x']
+        self.current_phase_index is an iterator of the current phase
+        functions awg_shift() and awg_increment() reset the iterator
+
+        after calling awg_next_phase() the next phase is taken from phase_list
+
+        the length of all phase lists specified for different pulses has to be the same
+        
+        the function also immediately sends a new buffer to awg card as
+        a function awg_update() does. 
+        """
+        if self.test_flag != 'test':
+            for index, element in enumerate(self.pulse_array):
+                if len(list(element['phase_list'])) != 0:
+                    if element['phase_list'][self.current_phase_index] == '+x':
+                        element['phase'] = self.pulse_array_init[index]['phase']
+                        self.reset_count = 0
+                    elif element['phase_list'][self.current_phase_index] == '-x':
+                        element['phase'] = self.pulse_array_init[index]['phase'] + np.pi
+                        self.reset_count = 0
+
+                    elif element['phase_list'][self.current_phase_index] == '+y':
+                        element['phase'] = self.pulse_array_init[index]['phase'] + np.pi / 2
+                        self.reset_count = 0
+
+                    elif element['phase_list'][self.current_phase_index] == '-y':
+                        element['phase'] = self.pulse_array_init[index]['phase'] + 3 * np.pi / 2
+                        self.reset_count = 0
+
+            self.current_phase_index += 1
+
+            self.awg_update()
+
+        elif self.test_flag == 'test':
+            # check that the length is equal (compare all elements in self.phase_array_length)
+            gr = groupby(self.phase_array_length_0)
+            if (next(gr, True) and not next(gr, False)) == False:
+                assert(1 == 2), 'Phase sequence for CH0 does not have equal length'
+
+            gr = groupby(self.phase_array_length_1)
+            if (next(gr, True) and not next(gr, False)) == False:
+                assert(1 == 2), 'Phase sequence for CH1 does not have equal length'
+
+            for index, element in enumerate(self.pulse_array):
+                if len(list(element['phase_list'])) != 0:
+                    if element['phase_list'][self.current_phase_index] == '+x':
+                        element['phase'] = self.pulse_array_init[index]['phase']
+                        self.reset_count = 0
+                    elif element['phase_list'][self.current_phase_index] == '-x':
+                        element['phase'] = self.pulse_array_init[index]['phase'] + np.pi
+                        self.reset_count = 0
+
+                    elif element['phase_list'][self.current_phase_index] == '+y':
+                        element['phase'] = self.pulse_array_init[index]['phase'] + np.pi / 2
+                        self.reset_count = 0
+
+                    elif element['phase_list'][self.current_phase_index] == '-y':
+                        element['phase'] = self.pulse_array_init[index]['phase'] + 3 * np.pi / 2
+                        self.reset_count = 0
+                    else:
+                        assert( 1 == 2 ), 'Incorrect phase name (+x, -x, +y, -y)'
+
+            self.current_phase_index += 1
+
+            self.awg_update()
 
     def awg_redefine_delta_start(self, *, name, delta_start):
         """
@@ -698,7 +786,7 @@ class Spectrum_M4I_6631_X8:
         """
         A function for adding a constant phase to the specified pulse.
         awg_add_phase(name = 'P0', add_phase = pi/2) changes the current phase of the 'P0' pulse 
-        to the value ofcurrent_phase + pi/2.
+        to the value of current_phase + pi/2.
         The main purpose of the function is phase cycling.
 
         def func(*, name1, name2): defines a function without default values of key arguments
@@ -787,6 +875,7 @@ class Spectrum_M4I_6631_X8:
         """
         if self.test_flag != 'test':
             self.shift_count = 1
+            self.current_phase_index = 0
 
             if len(pulses) == 0:
                 i = 0
@@ -871,6 +960,7 @@ class Spectrum_M4I_6631_X8:
 
         elif self.test_flag == 'test':
             self.shift_count = 1
+            self.current_phase_index = 0
 
             if len(pulses) == 0:
                 i = 0
@@ -1005,6 +1095,7 @@ class Spectrum_M4I_6631_X8:
                     i += 1
 
                 self.increment_count = 1
+                self.current_phase_index = 0
 
             else:
                 set_from_list = set(pulses)
@@ -1046,6 +1137,7 @@ class Spectrum_M4I_6631_X8:
                                 self.pulse_array[i]['sigma'] = str( sigm + d_length ) + ' ns'
 
                         self.increment_count = 1
+                        self.current_phase_index = 0
 
         elif self.test_flag == 'test':
 
@@ -1086,6 +1178,7 @@ class Spectrum_M4I_6631_X8:
                     i += 1
 
                 self.increment_count = 1
+                self.current_phase_index = 0
 
             else:
                 set_from_list = set(pulses)
@@ -1125,6 +1218,7 @@ class Spectrum_M4I_6631_X8:
                                 assert(1 == 2), 'Exceeded maximum pulse length (1900 ns) when increment the pulse'
 
                         self.increment_count = 1
+                        self.current_phase_index = 0
 
                     else:
                         assert(1 == 2), "There is no pulse with the specified name"
@@ -1169,6 +1263,7 @@ class Spectrum_M4I_6631_X8:
                 self.reset_count = 0
                 self.increment_count = 0
                 self.shift_count = 0
+                self.current_phase_index = 0
             else:
                 set_from_list = set(pulses)
                 for element in set_from_list:
@@ -1189,6 +1284,7 @@ class Spectrum_M4I_6631_X8:
                 self.reset_count = 0
                 self.increment_count = 0
                 self.shift_count = 0
+                self.current_phase_index = 0
             else:
                 set_from_list = set(pulses)
                 for element in set_from_list:

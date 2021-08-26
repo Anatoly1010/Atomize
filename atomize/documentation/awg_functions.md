@@ -19,6 +19,7 @@ Functions:
 - [awg_pulse_sequence(kargs)](#awg_pulse_sequencekargs)<br/>
 - [awg_shift(*pulses)](#awg_shiftpulses)<br/>
 - [awg_increment(*pulses)](#awg_incrementpulses)<br/>
+- [awg_next_phase()](#awg_next_phase)<br/>
 - [awg_redefine_delta_phase(*, name, delta_phase)](#awg_redefine_delta_phase-name-delta_phase)<br/>
 - [awg_redefine_phase(*, name, phase)](#awg_redefine_phase-name-phase)<br/>
 - [awg_redefine_delta_start(*, name, delta_start)](#awg_redefine_delta_start-name-delta_start)<br/>
@@ -73,7 +74,7 @@ awg_close()
 Arguments: none; Output: none.
 Example: awg_close() closes the AWG driver.
 ```
-This function closes the AWG driver and should be called only without arguments. The function should always be called at the end of an experimental script, since the AWG card driver is opened during whole experiment in order to achieve high rate of buffer updating. It is STRONGLY recommended to add a gentle closing of the card to the experimental scripts for the case of an abrupt termination of the process. As a possible option, one can use signal library:<br/>
+This function closes the AWG driver and should be called only without arguments. The function should always be called at the end of an experimental script, since the AWG card driver is opened during whole experiment in order to achieve high rate of buffer updating. It is STRONGLY recommended to add a graceful closing of the card to the experimental scripts for the case of an abrupt termination of the process. As a possible option, one can use signal library:<br/>
 ```python3
 import signal
 import atomize.device_modules.Spectrum_M4I_6631_X8 as spectrum
@@ -154,7 +155,7 @@ Example: awg_shift() shifts the phase of all currently active pulses by their re
 ```
 This function can be called with either no argument or with a list of comma separated pulse names (i.e. 'P0', 'P1'). In the 'Single' or 'Multi' card mode, if no argument is given the phase of all pulses that have a nonzero delta_phase and are currently active (do not have a length of 0) are shifted by their corresponding delta_phase value. If there is one argument or a list of comma separated pulse names only the phase of the listed pulses are changed.<br/>
 In the 'Single Joined' card mode, the start values of the specified pulses are shifted by the defined delta_start values. Phases of the pulses are not changed, since they are calculated from the pulse positions automatically.<br/>
-For the 'Sequence' card mode, the function has no meaning.
+For the 'Sequence' card mode, the function has no meaning. Calling this function also resets the phase (if specified in the argument phase_list of the [awg_pulse()](#awg_pulse)) to the first phase in the phase_list.
 ### awg_increment(*pulses)
 ```python3
 awg_increment(*pulses)
@@ -163,7 +164,14 @@ Example: awg_increment('P0') increments the length and sigma of the pulse named 
 ```
 This function can be called with either no argument or with a list of comma separated pulse names (i.e. 'P0', 'P1'). In the 'Single', 'Multi' or 'Single Joined' card mode, if no argument is given the lengths and sigmas of all pulses that have a nonzero increment and are currently active (do not have a length of 0) are incremented by their corresponding increment value. If there is one argument or a list of comma separated pulse names only the lengths and sigmas of the listed pulses are changed.<br/>
 Please, note that the function always keeps the ratio length/sigma for GAUSS and SINC pulses. For instance, if length = '64 ns', sigma = '16 ns', and increment = '10 ns' after calling awg_increment() once, the parameters will be length = '104 ns', sigma = '26 ns', and increment = '10 ns'.<br/>
-For the 'Sequence' card mode, the function has no meaning.
+For the 'Sequence' card mode, the function has no meaning. Calling this function also resets the phase (if specified in the argument phase_list of the [awg_pulse()](#awg_pulse)) to the first phase in the phase_list.
+### awg_next_phase()
+```python3
+awg_next_phase()
+Arguments: none; Output: none.
+Example: awg_next_phase() switches all declared pulses to the next phase.
+```
+This function switches all pulses to the next phase. The phase sequence is declared in the [awg_pulse()](#awg_pulse) in the form of phase_list = ['-y', '+x', '-x', '+x', ...]. Argument '+x' means that the phase of the pulse will be equal to 'phase' declared in the [awg_pulse()](#awg_pulse). Argument '-x' corresponds to the phase shifted by pi radians in comparison with the 'phase' declared in the [awg_pulse()](#awg_pulse). Argument '+y' corresponds to pi/2 radians shift. Argument '-y' - 3pi/2 radians. By repeatedly calling the function one can run through the complete list of phases for the pulses. The length of all phase lists specified for different pulses has to be the same. This function also immediately updates the AWG card buffer, as it is done by calling [awg_update()](#awg_update). The first call of the function corresponds to the first phase in the phase_list argument of the [awg_pulse()](#awg_pulse).
 ### awg_redefine_delta_phase(*, name, delta_phase)
 ```python3
 awg_redefine_delta_phase(*, name, delta_phase)
@@ -217,7 +225,7 @@ awg_pulse_reset(*pulses)
 Arguments: none or string of pulse names; Output: none.
 Example: awg_pulse_reset('P1') resets the pulse named 'P1' to its initial state.
 ```
-The function switches the AWG card back to the initial state in which it was in at the start of the experiment. This function can be called with either no argument or with a list of comma separated pulse names. If no argument is given all pulses are reset to their initial states. If there is one argument or a list of comma separated pulse names only the listed pulses are returned back to the initial state. The function does not update the AWG card, if you want to reset all pulses and and also update the AWG card use the function [awg_reset()](#awg_reset) instead. The function has no meaning for the 'Sequence' card mode. One should redefine all the sequence instead.
+The function switches the AWG card back to the initial state in which it was in at the start of the experiment. This function can be called with either no argument or with a list of comma separated pulse names. If no argument is given all pulses are reset to their initial states (including phases). If there is one argument or a list of comma separated pulse names only the listed pulses are returned back to the initial state. The function does not update the AWG card, if you want to reset all pulses and and also update the AWG card use the function [awg_reset()](#awg_reset) instead. The function has no meaning for the 'Sequence' card mode. One should redefine all the sequence instead.
 ### awg_number_of_segments(*segments)
 ```python3
 awg_number_of_segments(*segments)

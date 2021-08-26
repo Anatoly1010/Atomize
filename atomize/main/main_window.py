@@ -221,8 +221,9 @@ class MainWindow(QtWidgets.QMainWindow):
             yscal = meta['Y']
             scat = meta['Scatter']
             taxis = meta['TimeAxis']
+            verline = meta['Vline']
             pw.plot(arr[0], arr[1], parametric=True, name=label, xname=xnam, xscale =xscal,\
-             yname=ynam, yscale =yscal, scatter=scat, timeaxis=taxis)
+             yname=ynam, yscale =yscal, scatter=scat, timeaxis=taxis, vline=verline)
 
 
         elif operation == 'plot_z':
@@ -252,6 +253,7 @@ class MainWindow(QtWidgets.QMainWindow):
             yscal = meta['Y']
             scat = meta['Scatter']
             taxis = meta['TimeAxis']
+            verline = meta['Vline']
             
             xs, ys = pw.get_data(label)
             new_ys = list(ys)
@@ -262,10 +264,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 nx = len(new_ys)
                 xs = np.linspace(x0, x0 + (nx - 1)*dx, nx)
                 pw.plot(xs, new_ys, name=label, xname=xnam, xscale =xscal, yname=ynam,\
-                 yscale =yscal, scatter=scat, timeaxis=taxis)
+                 yscale =yscal, scatter=scat, timeaxis=taxis, vline=verline)
             else:
                 pw.plot(new_ys, name=label, xname=xnam, xscale =xscal, yname=ynam,\
-                 yscale =yscal, scatter=scat, timeaxis=taxis)
+                 yscale =yscal, scatter=scat, timeaxis=taxis, vline=verline)
 
 
         elif operation == 'append_xy':

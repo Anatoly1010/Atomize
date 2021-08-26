@@ -122,7 +122,7 @@ class LivePlotClient(object):
         self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
 
     def plot_xy(self, name, xs, ys, label='', xname='X axis', xscale='arb. u.',\
-     yname='Y axis', yscale='arb. u.', scatter='False', timeaxis='False'):
+     yname='Y axis', yscale='arb. u.', scatter='False', timeaxis='False', vline='False'):
         arr = np.array([xs, ys])
         meta = {
             'name': name,
@@ -134,13 +134,14 @@ class LivePlotClient(object):
             'Xname': xname,
             'Yname': yname,
             'Scatter': scatter,
-            'TimeAxis': timeaxis
+            'TimeAxis': timeaxis,
+            'Vline': vline
         }
         self.send_to_plotter(meta, np.array([xs, ys]).astype('float64')) 
         self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
 
     def append_y(self, name, point, start_step=(0, 1), label='', xname='X axis',\
-     xscale='arb. u.', yname='Y axis', yscale='arb. u.',scatter='False', timeaxis='False'):
+     xscale='arb. u.', yname='Y axis', yscale='arb. u.',scatter='False', timeaxis='False', vline='False'):
         self.send_to_plotter({
             'name': name,
             'operation': 'append_y',
@@ -153,7 +154,8 @@ class LivePlotClient(object):
             'Xname': xname,
             'Yname': yname,
             'Scatter': scatter,
-            'TimeAxis': timeaxis
+            'TimeAxis': timeaxis,
+            'Vline': vline
         })
         self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
 

@@ -14,13 +14,16 @@ import atomize.device_modules.Spectrum_M4I_6631_X8 as spectrum
 # A possible use in an experimental script
 awg = spectrum.Spectrum_M4I_6631_X8()
 
-awg.awg_pulse(name = 'P0', channel = 'CH0', func = 'SINE', frequency = '100 MHz', phase = 0, delta_phase = pi/2, length = '80 ns', sigma = '16 ns', d_coef = 1.25)
-awg.awg_pulse(name = 'P1', channel = 'CH0', func = 'GAUSS', frequency = '200 MHz', phase = 0, length = '96 ns', sigma = '16 ns', start = '300 ns', delta_start = '100 ns')
-awg.awg_pulse(name = 'P2', channel = 'CH0', func = 'SINC', frequency = '50 MHz', phase = 0, length = '120 ns', sigma = '20 ns', start = '1500 ns', delta_start = '0 ns')
+#awg.awg_pulse(name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = pi/2, length = '80 ns', sigma = '16 ns')
+#awg.awg_pulse(name = 'P1', channel = 'CH0', func = 'GAUSS', frequency = '200 MHz', phase = 0, length = '64 ns', sigma = '16 ns', start = '300 ns', delta_start = '100 ns')
+#awg.awg_pulse(name = 'P2', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, length = '80 ns', sigma = '16 ns', start = '7000 ns', delta_start = '200 ns')
+
+awg.awg_pulse(name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, phase_list = ['+x', '+x', '+x', '+x'], length = '16 ns', sigma = '16 ns')
+awg.awg_pulse(name = 'P1', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, phase_list = ['+x', '+y', '-x', '-y'], length = '32 ns', sigma = '32 ns', start = '300 ns', delta_start = '8 ns')
 
 awg.awg_channel('CH0', 'CH1')
 #awg.awg_trigger_mode('Negative')
-#awg.awg_trigger_channel('Software')
+awg.awg_trigger_channel('External')
 #awg.awg_loop(10)
 #awg.awg_trigger_delay('5000 ns')
 #awg.awg_amplitude('CH0', 100, 'CH1', 100)
@@ -33,21 +36,25 @@ awg.awg_card_mode('Single Joined')
 awg.awg_setup()
 
 ######### Genereal tests
-for i in range(5):
-    start_time = time.time()
+for i in range(4):
 
-    awg.awg_update()
+    #awg.awg_update()
+    k = 0
+    while k < 4:
+        awg.awg_next_phase()
+        awg.awg_stop()
+        
+        #awg.awg_visualize()
+        #general.wait('1000 ms')
 
-    general.message(str(time.time() - start_time))
-#    awg.awg_visualize()
-#    general.message(str(start_time2 - start_time))
-    general.wait('200 ms')
-    
+        k += 1
+
     awg.awg_stop()
     awg.awg_shift()
 
-    if i == 1:
-        awg.awg_redefine_delta_start(name = 'P1', delta_start = '300 ns')
+
+    #if i == 1:
+    #    awg.awg_redefine_delta_start(name = 'P1', delta_start = '300 ns')
         
 #    awg.awg_increment()
     
@@ -66,6 +73,5 @@ for i in range(5):
 #########
 
 
-test = awg.awg_pulse_list()
-
-general.message( test )
+awg.awg_stop()
+awg.awg_close()

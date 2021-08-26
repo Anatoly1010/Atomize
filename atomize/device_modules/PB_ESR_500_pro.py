@@ -517,7 +517,7 @@ class PB_ESR_500_Pro:
                 
                 #to_spinapi = self.instruction_pulse( temp, rep_time )
                 to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
-                general.message(to_spinapi)
+                #general.message(to_spinapi)
                 for element in to_spinapi:
                     if element[2] < 10:
                         general.message('Incorrect instruction are found')

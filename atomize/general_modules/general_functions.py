@@ -62,21 +62,21 @@ def to_infinity():
             index += 1
 
 def plot_1d(strname, xd, yd, label='label', xname='X',\
- xscale='arb. u.', yname='Y', yscale='arb. u.', scatter='False', timeaxis='False'):
+ xscale='arb. u.', yname='Y', yscale='arb. u.', scatter='False', timeaxis='False', vline='False'):
 
     if test_flag != 'test':
         plotter.plot_xy(strname, xd, yd, label=label, xname=xname,\
-            xscale=xscale, yname=yname, yscale=yscale, scatter=scatter, timeaxis=timeaxis)
+            xscale=xscale, yname=yname, yscale=yscale, scatter=scatter, timeaxis=timeaxis, vline=vline)
 
     elif test_flag == 'test':
         pass
 
 def append_1d(strname, value, start_step=(0, 1), label='label', xname='X',\
- xscale='arb. u.', yname='Y', yscale='arb. u.', scatter='False', timeaxis='False'):
+ xscale='arb. u.', yname='Y', yscale='arb. u.', scatter='False', timeaxis='False', vline='False'):
 
     if test_flag != 'test':
         plotter.append_y(strname, value, start_step=start_step, label=label, xname=xname,\
-            xscale=xscale, yname=yname, yscale=yscale, timeaxis=timeaxis)
+            xscale=xscale, yname=yname, yscale=yscale, timeaxis=timeaxis, vline=vline)
 
     elif test_flag == 'test':
         pass

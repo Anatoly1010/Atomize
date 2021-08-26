@@ -270,7 +270,7 @@ class Mikran_X_band_MW_bridge:
                 # 3 bytes to recieve
                 data_raw = self.device_query( MESSAGE, 3)
 
-                answer = 'Video Gain: ' + str(data_raw[2]*2) + ' dB'
+                answer = 'Video Attenuation: ' + str(data_raw[2]*2) + ' dB'
 
                 return answer
 

@@ -27,7 +27,7 @@ signal.signal(signal.SIGTERM, cleanup)
 
 
 FIELD = 3388
-STEP = 12
+STEP = 4
 
 # PULSES
 REP_RATE = '500 Hz'
@@ -39,6 +39,13 @@ PULSE_2_START = '698 ns'
 PULSE_SIGNAL_START = '998 ns'
 PULSE_AWG_1_START = '0 ns'
 PULSE_AWG_2_START = '300 ns'
+
+#strange
+#PULSE_1_START = '398 ns'
+#PULSE_2_START = '1440 ns'
+#PULSE_SIGNAL_START = '2482 ns'
+#PULSE_AWG_1_START = '0 ns'
+#PULSE_AWG_2_START = '1042 ns'
 
 # Setting pulses
 # trigger awg is always 412 ns before the actual AWG pulse
@@ -74,21 +81,21 @@ for i in general.to_infinity():
     ##pb.pulser_update()
     general.wait('1000 ms')
     
-    awg.awg_stop()
-    awg.awg_shift()
-    pb.pulser_shift()
-    pb.pulser_update()
+    ##awg.awg_stop()
+    ##awg.awg_shift()
+    ##pb.pulser_shift()
+    ##pb.pulser_update()
     
-    awg.awg_update()
+    ##awg.awg_update()
     
-    ##awg.awg_visualize()
+    #awg.awg_visualize()
     ##t3034.oscilloscope_start_acquisition()  
     ##x = t3034.oscilloscope_get_curve('CH2')
     ##y = t3034.oscilloscope_get_curve('CH3')
     ##general.plot_1d('EXP_NAME', np.arange(len(x)), x )
     ##general.plot_1d('ECHO', np.arange(len(x)), y )
 
-    if i > 20:
+    if i > 30:
         break
         awg.awg_stop()
         awg.awg_close()

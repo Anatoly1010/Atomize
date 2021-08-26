@@ -31,7 +31,7 @@ for i in range(50):
     #general.message(xs)
     ys = np.append(ys, np.random.randint(0, 10 + 1));
     #ys[i] = np.random.randint(0, 10 + 1);
-    general.plot_1d('Plot XY Test', xs, ys, label='test data2', timeaxis = 'False')
+    general.plot_1d('Plot XY Test', xs, ys, label='test data2', timeaxis = 'False', vline = (0, i-1))
     #general.plot_1d('Plot XY Test', xs, ys2, label='test data2')
     #general.plot_1d('Plot XY Test', xs, ys3, label='test data3')
     #general.plot_1d('Plot XY Test', xs, ys4, label='test data4')

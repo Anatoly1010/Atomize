@@ -32,7 +32,7 @@ def cleanup(*args):
 signal.signal(signal.SIGTERM, cleanup)
 
 ### Experimental parameters
-POINTS = 501
+POINTS = 1001
 STEP = 8                  # in NS; delta_start = str(STEP) + ' ns' -> delta_start = '4 ns'
 FIELD = 3388
 AVERAGES = 10
@@ -61,9 +61,9 @@ pb.pulser_pulse(name = 'P1', channel = 'AWG', start = PULSE_1_START, length = '1
 pb.pulser_pulse(name = 'P2', channel = 'AWG', start = PULSE_2_START, length = '32 ns', delta_start = str(int(STEP/2)) + ' ns')
 
 pb.pulser_pulse(name = 'P3', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str(STEP) + ' ns')
-awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'SINE', frequency = '155 MHz', phase = 0, \
+awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'SINE', frequency = '125 MHz', phase = 0, \
             length = PULSE_1_LENGTH, sigma = PULSE_1_LENGTH, start = PULSE_AWG_1_START)
-awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '155 MHz', phase = 0, \
+awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '125 MHz', phase = 0, \
             length = PULSE_2_LENGTH, sigma = PULSE_2_LENGTH, start = PULSE_AWG_2_START, delta_start = str(int(STEP/2)) + ' ns')
 
 
@@ -71,7 +71,7 @@ pb.pulser_repetition_rate( REP_RATE )
 pb.pulser_update()
 
 #
-t3034.oscilloscope_record_length( 1000 )
+t3034.oscilloscope_record_length( 2500 )
 real_length = t3034.oscilloscope_record_length( )
 tb = t3034.oscilloscope_timebase() * 1000
 #x_axis = np.linspace(0, (POINTS - 1)*STEP, num = POINTS)
@@ -122,7 +122,7 @@ while j <= SCANS:
 
     for i in range(POINTS):
 
-    	pb.pulser_update()
+        pb.pulser_update()
         awg.awg_update()
         
         ###x_axis, x, y = dig4450.digitizer_get_curve( )
