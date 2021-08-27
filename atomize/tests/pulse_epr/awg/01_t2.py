@@ -1,5 +1,4 @@
 import sys
-import time
 import signal
 import datetime
 import numpy as np
@@ -24,9 +23,12 @@ t3034 = key.Keysight_3000_Xseries()
 awg = spectrum.Spectrum_M4I_6631_X8()
 
 def cleanup(*args):
+    ###dig4450.digitizer_stop()
+    ###dig4450.digitizer_close()
     awg.awg_stop()
     awg.awg_close()
     pb.pulser_stop()
+    file_handler.save_data(file_data, data, header = header, mode = 'w')
     sys.exit(0)
 
 signal.signal(signal.SIGTERM, cleanup)
@@ -34,7 +36,7 @@ signal.signal(signal.SIGTERM, cleanup)
 ### Experimental parameters
 POINTS = 1001
 STEP = 8                  # in NS; delta_start = str(STEP) + ' ns' -> delta_start = '4 ns'
-FIELD = 3388
+FIELD = 3378
 AVERAGES = 10
 SCANS = 1
 

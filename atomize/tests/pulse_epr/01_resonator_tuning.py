@@ -1,4 +1,5 @@
 import sys
+import signal
 import numpy as np
 import atomize.general_modules.general_functions as general
 import atomize.device_modules.Keysight_3000_Xseries as t3034
@@ -8,6 +9,15 @@ import atomize.device_modules.PB_ESR_500_pro as pb_pro
 t3034 = t3034.Keysight_3000_Xseries()
 pb = pb_pro.PB_ESR_500_Pro()
 mw = mwBridge.Mikran_X_band_MW_bridge()
+
+freq_before = int(str( mw.mw_bridge_synthesizer() ).split(' ')[1])
+
+def cleanup(*args):
+    mw.mw_bridge_synthesizer( freq_before )
+    pb.pulser_stop()
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, cleanup)
 
 ### Experimental parameters
 START_FREQ = 9300
@@ -81,6 +91,6 @@ while j <= SCANS:
     mw.mw_bridge_synthesizer( START_FREQ )
     j += 1
 
-mw.mw_bridge_synthesizer( START_FREQ )
+mw.mw_bridge_synthesizer( freq_before )
 
 pb.pulser_stop()

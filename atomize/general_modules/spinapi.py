@@ -135,6 +135,10 @@ class SpinAPI():
         if result != 0: raise RuntimeError(self.pb_get_error())
         return result
 
+    def pb_bypass_FF_fix(self, flag):
+        self._checkloaded()
+        self.spinapi.pb_bypass_FF_fix( ctypes.c_int(flag) )
+
     def pb_core_clock(self, clock_freq):
         self._checkloaded()
         self.spinapi.pb_core_clock.restype = ctypes.c_void_p

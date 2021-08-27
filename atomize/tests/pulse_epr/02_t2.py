@@ -1,4 +1,4 @@
-import time
+import sys
 import signal
 import datetime
 import numpy as np
@@ -24,6 +24,7 @@ def cleanup(*args):
     dig4450.digitizer_stop()
     dig4450.digitizer_close()
     pb.pulser_stop()
+    file_handler.save_data(file_data, np.c_[x_axis, data_x, data_y], header = header, mode = 'w')
     sys.exit(0)
 
 signal.signal(signal.SIGTERM, cleanup)
@@ -121,4 +122,3 @@ dig4450.digitizer_close()
 pb.pulser_stop()
 
 file_handler.save_data(file_data, np.c_[x_axis, data_x, data_y], header = header, mode = 'w')
-#file_handler.save_1D_dialog( (x_axis, data_x, data_y), header = header )

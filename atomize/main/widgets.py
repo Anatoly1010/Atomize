@@ -214,15 +214,17 @@ class CrosshairDock(CloseableDock):
                 self.curves[name].setData(*args, **kwargs)
                 # vertical lines
                 if vline_arg != 'False':
-                    if self.ver_line_1 != float(vline_arg[0]):
-                        self.plot_widget.removeItem(self.vl1)
-                        self.ver_line_1 = float(vline_arg[0])
-                        self.vl1 = self.plot_widget.addLine( x = self.ver_line_1 )
-                    if self.ver_line_2 != float(vline_arg[1]):
-                        self.plot_widget.removeItem(self.vl2)
-                        self.ver_line_2 = float(vline_arg[1])
-                        self.vl2 = self.plot_widget.addLine( x = self.ver_line_2 )
-
+                    try:
+                        if self.ver_line_1 != float(vline_arg[0]):
+                            self.plot_widget.removeItem(self.vl1)
+                            self.ver_line_1 = float(vline_arg[0])
+                            self.vl1 = self.plot_widget.addLine( x = self.ver_line_1 )
+                        if self.ver_line_2 != float(vline_arg[1]):
+                            self.plot_widget.removeItem(self.vl2)
+                            self.ver_line_2 = float(vline_arg[1])
+                            self.vl2 = self.plot_widget.addLine( x = self.ver_line_2 )
+                    except IndexError:
+                        pass
         else:
             if kwargs.get('scatter', '') == 'True':
                 kwargs['pen'] = None;
@@ -236,10 +238,13 @@ class CrosshairDock(CloseableDock):
                 self.curves[name] = self.plot_widget.plot(*args, **kwargs)
                 # vertical lines
                 if vline_arg != 'False':
-                    # , pen = pg.mkPen(color=(230, 0, 126), width = 1)
-                    self.vl1 = self.plot_widget.addLine( x = float(vline_arg[0]) )
-                    self.vl2 = self.plot_widget.addLine( x = float(vline_arg[1]) )
-                
+                    try:
+                        # , pen = pg.mkPen(color=(230, 0, 126), width = 1)
+                        self.vl1 = self.plot_widget.addLine( x = float(vline_arg[0]) )
+                        self.vl2 = self.plot_widget.addLine( x = float(vline_arg[1]) )
+                    except IndexError:
+                        pass
+            
             del_action = QtGui.QAction(str(name), self)
             self.del_dict[del_action] = self.plot_widget.listDataItems()[-1]
             self.name_dict[del_action] = name

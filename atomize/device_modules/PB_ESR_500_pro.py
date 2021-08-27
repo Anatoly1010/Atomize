@@ -534,6 +534,8 @@ class PB_ESR_500_Pro:
 
                 #pb_start_programming(PULSE_PROGRAM)
                 self.sp.pb_start_programming(0)
+                self.sp.pb_bypass_FF_fix(1)
+
                 i = 0
                 while i < len( to_spinapi) - 1:
                     if i == 0: 

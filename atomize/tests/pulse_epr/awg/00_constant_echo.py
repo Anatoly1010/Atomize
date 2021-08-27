@@ -18,6 +18,8 @@ bh15 = bh.BH_15()
 awg = spectrum.Spectrum_M4I_6631_X8()
 
 def cleanup(*args):
+    ###dig4450.digitizer_stop()
+    ###dig4450.digitizer_close()
     awg.awg_stop()
     awg.awg_close()
     pb.pulser_stop()
@@ -26,7 +28,7 @@ def cleanup(*args):
 signal.signal(signal.SIGTERM, cleanup)
 
 
-FIELD = 3388
+FIELD = 3378
 STEP = 4
 
 # PULSES
@@ -95,7 +97,7 @@ for i in general.to_infinity():
     ##general.plot_1d('EXP_NAME', np.arange(len(x)), x )
     ##general.plot_1d('ECHO', np.arange(len(x)), y )
 
-    if i > 30:
+    if i > 60:
         break
         awg.awg_stop()
         awg.awg_close()
