@@ -1473,6 +1473,13 @@ class Spectrum_M4I_4450_X8:
             else:
                 assert( 1 == 2 ), 'Incorrect arguments'
 
+    # UNDOCUMENTED
+    def digitizer_window(self):
+        """
+        Special function for reading integration window
+        """
+        return ( self.win_right - self.win_left ) * 1000 / self.sample_rate
+
     def digitizer_read_settings(self):
         """
         Special function for reading settings of the digitizer from the special file

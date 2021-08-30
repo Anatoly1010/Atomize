@@ -100,6 +100,7 @@ t3034.oscilloscope_number_of_averages(AVERAGES)
 ###dig4450.digitizer_number_of_averages(AVERAGES)
 ###real_length = int (dig4450.digitizer_number_of_points( ) )
 ###tb = dig4450.digitizer_number_of_points() * int(  1000 / float( dig4450.digitizer_sample_rate().split(' ')[0] ) )
+###tb = dig4450.digitizer_window()
 
 # Data saving
 #str(tb)

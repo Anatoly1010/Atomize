@@ -67,7 +67,8 @@ bh15.magnet_field(FIELD)
 
 dig4450.digitizer_read_settings()
 dig4450.digitizer_number_of_averages(AVERAGES)
-tb = dig4450.digitizer_number_of_points() * int(  1000 / float( dig4450.digitizer_sample_rate().split(' ')[0] ) )
+#tb = dig4450.digitizer_number_of_points() * int(  1000 / float( dig4450.digitizer_sample_rate().split(' ')[0] ) )
+tb = dig4450.digitizer_window()
 
 # Setting pulses
 pb.pulser_pulse(name = 'P0', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH)
