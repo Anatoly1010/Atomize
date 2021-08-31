@@ -6,7 +6,7 @@ import sys
 import random
 ###AWG
 sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
-#sys.path.append('/home/anatoly/AWG/spcm_examples/python')
+##sys.path.append('/home/anatoly/AWG/spcm_examples/python')
 #sys.path.append('/home/anatoly/awg_files/python')
 #sys.path.append('C:/Users/User/Desktop/Examples/python')
 from math import sin, pi, exp, log2
@@ -1727,7 +1727,7 @@ class Spectrum_M4I_6631_X8:
 
             if len(delay) == 1:
                 temp = delay[0].split(' ')
-                delay_num = int(temp[0])
+                delay_num = float(temp[0])
                 dimen = str(temp[1])
 
                 if dimen in self.timebase_dict:
@@ -1754,7 +1754,7 @@ class Spectrum_M4I_6631_X8:
 
             if len(delay) == 1:
                 temp = delay[0].split(' ')
-                delay_num = int(temp[0])
+                delay_num = float(temp[0])
                 dimen = str(temp[1])
 
                 assert( dimen in self.timebase_dict), 'Incorrect delay dimension; Should be ns, us or ms'
@@ -1853,6 +1853,33 @@ class Spectrum_M4I_6631_X8:
 
             else:
                 assert( 1 == 2 ), 'Incorrect arguments'
+
+    # UNDOCUMENTED
+    def awg_clear(self):
+        """
+        A special function for AWG Control module
+        It clear self.pulse_array and other status flags
+        """
+        self.pulse_array = []
+        self.phase_array_length = []
+        self.pulse_name_array = []
+        self.pulse_array_init = []
+        self.pulse_ch0_array = []
+        self.pulse_ch1_array = []
+        
+        self.reset_count = 0
+        self.shift_count = 0
+        self.increment_count = 0
+        self.setting_change_count = 0
+        self.state = 0
+        self.current_phase_index = 0
+
+    def awg_test_flag(self, flag):
+        """
+        A special function for AWG Control module
+        It runs TEST mode
+        """
+        self.test_flag = flag
 
     #CHECK
     def awg_pulse_list(self):
