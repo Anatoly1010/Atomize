@@ -21,21 +21,21 @@ def cleanup(*args):
 
 signal.signal(signal.SIGTERM, cleanup)
 
-FIELD = 3466
+FIELD = 3449
 
 # PULSES
-REP_RATE = '1000 Hz'
+REP_RATE = '500 Hz'
 
 #PROBE
-pb.pulser_pulse(name = 'P0', channel = 'MW', start = '2100 ns', length = '12 ns')
-pb.pulser_pulse(name = 'P1', channel = 'MW', start = '2440 ns', length = '24 ns')
-pb.pulser_pulse(name = 'P2', channel = 'MW', start = '3780 ns', length = '24 ns')
+pb.pulser_pulse(name = 'P0', channel = 'MW', start = '2100 ns', length = '16 ns')
+pb.pulser_pulse(name = 'P1', channel = 'MW', start = '2440 ns', length = '32 ns')
+pb.pulser_pulse(name = 'P2', channel = 'MW', start = '3780 ns', length = '32 ns')
 
 #PUMP
-pb.pulser_pulse(name = 'P3', channel = 'AWG', start = '2680 ns', length = '30 ns')
-pb.pulser_pulse(name = 'P4', channel = 'TRIGGER_AWG', start = '526 ns', length = '30 ns')
-awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '50 MHz', phase = 0, \
-            length = '24 ns', sigma = '24 ns', start = '1756 ns')
+pb.pulser_pulse(name = 'P3', channel = 'AWG', start = '2680 ns', length = '20 ns')
+pb.pulser_pulse(name = 'P4', channel = 'TRIGGER_AWG', start = '526 ns', length = '50 ns') #526
+awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '70 MHz', phase = 0, \
+              length = '20 ns', sigma = '20 ns', start = '1756 ns')
 # 2680 = 398 (awg_output delay) + 526 (awg trigger) + 1756 (awg position)
 
 #DETECTION
@@ -46,11 +46,11 @@ bh15.magnet_setup(FIELD, 1)
 bh15.magnet_field(FIELD)
 
 
-#awg.awg_clock_mode('External')
-#awg.awg_reference_clock(100)
+awg.awg_clock_mode('External')
+awg.awg_reference_clock(100)
 awg.awg_channel('CH0', 'CH1')
 awg.awg_card_mode('Single Joined')
-###awg.trigger_delay('1792 ns')
+#awg.awg_trigger_delay('1740.8 ns')
 awg.awg_setup()
 
 pb.pulser_repetition_rate( REP_RATE )
@@ -80,9 +80,7 @@ for i in general.to_infinity():
 
     if i > 60:
         break
-        awg.awg_stop()
-        awg.awg_close()
-        pb.pulser_stop()
+
 
 awg.awg_stop()
 awg.awg_close()

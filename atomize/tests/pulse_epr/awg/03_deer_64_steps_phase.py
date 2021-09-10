@@ -28,7 +28,7 @@ def cleanup(*args):
     awg.awg_stop()
     awg.awg_close()
     pb.pulser_stop()
-    file_handler.save_data(file_data, data, header = header, mode = 'w')
+    file_handler.save_data(file_data, np.c_[x_axis, data_x, data_y], header = header, mode = 'w')
     sys.exit(0)
 
 signal.signal(signal.SIGTERM, cleanup)
@@ -36,8 +36,8 @@ signal.signal(signal.SIGTERM, cleanup)
 ### Experimental parameters
 POINTS = 250
 STEP = 4                  # in NS; delta_start for PUMP pulse; # delta_start = str(STEP) + ' ns' -> delta_start = '4 ns'
-FIELD = 3466
-AVERAGES = 1
+FIELD = 3449
+AVERAGES = 20
 SCANS = 1
 
 # PULSES
@@ -56,27 +56,27 @@ x_axis = np.linspace(0, (POINTS - 1)*STEP, num = POINTS)
 ###
 
 #PROBE
-pb.pulser_pulse(name = 'P0', channel = 'MW', start = '2100 ns', length = '12 ns', \
+pb.pulser_pulse(name = 'P0', channel = 'MW', start = '2100 ns', length = '16 ns', \
     phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x',\
                   '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y',\
                   '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x',\
                   '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y'])
-pb.pulser_pulse(name = 'P1', channel = 'MW', start = '2440 ns', length = '24 ns', \
+pb.pulser_pulse(name = 'P1', channel = 'MW', start = '2440 ns', length = '32 ns', \
     phase_list = ['+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
                   '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
                   '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
                   '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y'])
-pb.pulser_pulse(name = 'P2', channel = 'MW', start = '3780 ns', length = '24 ns', \
+pb.pulser_pulse(name = 'P2', channel = 'MW', start = '3780 ns', length = '32 ns', \
     phase_list = ['+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
                   '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
                   '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
                   '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y'])
 
 #PUMP
-pb.pulser_pulse(name = 'P3', channel = 'AWG', start = '2680 ns', length = '30 ns', delta_start = str(STEP) + ' ns')
-pb.pulser_pulse(name = 'P4', channel = 'TRIGGER_AWG', start = '526 ns', length = '30 ns', delta_start = str(STEP) + ' ns')
-awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '50 MHz', phase = 0, \
-            length = '24 ns', sigma = '24 ns', start = '1756 ns')                           #, delta_start = str(STEP) + ' ns'
+pb.pulser_pulse(name = 'P3', channel = 'AWG', start = '2680 ns', length = '20 ns', delta_start = str(STEP) + ' ns')
+pb.pulser_pulse(name = 'P4', channel = 'TRIGGER_AWG', start = '526 ns', length = '20 ns', delta_start = str(STEP) + ' ns')
+awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '70 MHz', phase = 0, \
+            length = '20 ns', sigma = '20 ns', start = '1756 ns')                           #, delta_start = str(STEP) + ' ns'
 # 2680 = 398 (awg_output delay) + 526 (awg trigger) + 1756 (awg position)
 
 #DETECTION
@@ -98,8 +98,8 @@ tb = dig4450.digitizer_window()
 
 pb.pulser_repetition_rate( REP_RATE )
 
-#awg.awg_clock_mode('External')
-#awg.awg_reference_clock(100)
+awg.awg_clock_mode('External')
+awg.awg_reference_clock(100)
 awg.awg_channel('CH0', 'CH1')
 awg.awg_card_mode('Single Joined')
 ###awg.trigger_delay('1792 ns')
@@ -115,7 +115,8 @@ header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) +
           'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' + 'Number of Scans: ' + str(SCANS) + '\n' +\
           'Averages: ' + str(AVERAGES) + '\n' + 'Points: ' + str(POINTS) + '\n' + 'Window: ' + str(tb) + ' ns\n' \
           + 'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
-          'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'Time (awg delta_start), X (V*s), Y (V*s) '
+          'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'AWG Pulse List: ' + '\n' +\
+          str(awg.awg_pulse_list()) + 'Time (awg delta_start), X (V*s), Y (V*s) '
 
 file_data, file_param = file_handler.create_file_parameters('.param')
 file_handler.save_header(file_param, header = header, mode = 'w')
@@ -142,7 +143,7 @@ while j <= SCANS:
 
             k += 1
         
-        # acquisition cycle [+, -]
+        # acquisition cycle
         x, y = pb.pulse_acquisition_cycle(cycle_data_x, cycle_data_y, \
             acq_cycle = ['+', '-', '+', '-', '-', '+', '-', '+', '+', '-', '+', '-', '-', '+', '-', '+',
                          '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i', '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i',

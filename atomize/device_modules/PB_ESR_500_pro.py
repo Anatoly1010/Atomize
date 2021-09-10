@@ -65,14 +65,14 @@ class PB_ESR_500_Pro:
 
         # a constant that use to overcome short instruction for our diagonal amp_on and mw pulses
         # see also add_amp_on_pulses() function; looking for pulses with +-overlap_amp_lna_mw overlap
-        self.overlap_amp_lna_mw = 5 # in clock
+        self.overlap_amp_lna_mw = 6 # in clock ### it was 5; 10.09.2021
 
         # after all manupulations with diagonal amp_on pulses there is a variant
         # when we use several mw pulses with app. 40 ns distance and with the phase different from
         # +x. In this case two phase pulses start to be at the distance less than current minimal distance
         # in 40 ns. That is why a different minimal distance (10 ns) is added for phase pulses
         # see also preparing_to_bit_pulse() function
-        self.minimal_distance_phase = 5 # in clock
+        self.minimal_distance_phase = 6 # in clock ### it was 5; 10.09.2021
 
         # minimal distance for joining AMP_ON and LNA_PROTECT pulses
         # decided to keep it as 12 ns, while for MW pulses the limit is 40 ns
@@ -122,6 +122,7 @@ class PB_ESR_500_Pro:
             self.reset_count = 0
             self.current_phase_index = 0
             self.awg_pulses = 0
+            self.phase_pulses = 0
         
         elif self.test_flag == 'test':
             self.test_rep_rate = '2 Hz'
@@ -137,6 +138,7 @@ class PB_ESR_500_Pro:
             self.reset_count = 0
             self.current_phase_index = 0
             self.awg_pulses = 0
+            self.phase_pulses = 0
 
     # Module functions
     def pulser_name(self):
@@ -347,15 +349,13 @@ class PB_ESR_500_Pro:
         if self.test_flag != 'test':
             # deleting old phase switch pulses from self.pulse_array
             # before adding new ones
-            for index, element in enumerate(self.pulse_array):
-                if element['channel'] == '-X' or element['channel'] == '+Y' or element['channel'] == '-Y':
-                    del self.pulse_array[index]
+            for i in range(self.phase_pulses):
+                for index, element in enumerate(self.pulse_array):
+                    if element['channel'] == '-X' or element['channel'] == '+Y':
+                        del self.pulse_array[index]
+                        break
 
-            # we should check the list twice since -Y phase adds two pulses
-            for index, element in enumerate(self.pulse_array):
-                if element['channel'] == '-X' or element['channel'] == '+Y' or element['channel'] == '-Y':
-                    del self.pulse_array[index]
-
+            self.phase_pulses = 0
             # adding phase switch pulses
             for index, element in enumerate(self.pulse_array):
                 if len(list(element['phase_list'])) != 0:
@@ -373,6 +373,7 @@ class PB_ESR_500_Pro:
                             'length': length, 'delta_start' : '0 ns', 'length_increment': '0 ns', 'phase_list': []})
 
                         self.reset_count = 0
+                        self.phase_pulses += 1
 
                     elif element['phase_list'][self.current_phase_index] == '+y':
                         name = element['name'] + '_ph_seq+y'
@@ -384,6 +385,7 @@ class PB_ESR_500_Pro:
                             'length': length, 'delta_start' : '0 ns', 'length_increment': '0 ns', 'phase_list': []})
 
                         self.reset_count = 0
+                        self.phase_pulses += 1
 
                     elif element['phase_list'][self.current_phase_index] == '-y':
                         name = element['name'] + '_ph_seq-y'
@@ -399,6 +401,7 @@ class PB_ESR_500_Pro:
                             'length': length, 'delta_start' : '0 ns', 'length_increment': '0 ns', 'phase_list': []})
 
                         self.reset_count = 0
+                        self.phase_pulses += 2
 
             self.current_phase_index += 1
 
@@ -421,19 +424,19 @@ class PB_ESR_500_Pro:
             if (next(gr, True) and not next(gr, False)) == False:
                 assert(1 == 2), 'Phase sequence does not have equal length'
 
-            for index, element in enumerate(self.pulse_array):
-                if element['channel'] == '-X' or element['channel'] == '+Y' or element['channel'] == '-Y':
-                    del self.pulse_array[index]
+            for i in range(self.phase_pulses):
+                for index, element in enumerate(self.pulse_array):
+                    if element['channel'] == '-X' or element['channel'] == '+Y':
+                        del self.pulse_array[index]
+                        break
 
-            # we should check the list twice since -Y phase adds two pulses
-            for index, element in enumerate(self.pulse_array):
-                if element['channel'] == '-X' or element['channel'] == '+Y' or element['channel'] == '-Y':
-                    del self.pulse_array[index]
-
+            self.phase_pulses = 0
             for index, element in enumerate(self.pulse_array):
                 if len(list(element['phase_list'])) != 0:
                     if element['phase_list'][self.current_phase_index] == '+x':
-                        pass
+                        #pass
+                        # 21-08-2021; Correction of non updating case for ['-x', '+x']
+                        self.reset_count = 0
                     elif element['phase_list'][self.current_phase_index] == '-x':
                         name = element['name'] + '_ph_seq-x'
                         # taking into account delays
@@ -445,6 +448,7 @@ class PB_ESR_500_Pro:
 
                         # check that we still have a next phase to switch
                         self.reset_count = 0
+                        self.phase_pulses += 1
 
                     elif element['phase_list'][self.current_phase_index] == '+y':
                         name = element['name'] + '_ph_seq+y'
@@ -457,6 +461,7 @@ class PB_ESR_500_Pro:
 
                         # check that we still have a next phase to switch
                         self.reset_count = 0
+                        self.phase_pulses += 1
 
                     elif element['phase_list'][self.current_phase_index] == '-y':
                         name = element['name'] + '_ph_seq-y'
@@ -473,6 +478,7 @@ class PB_ESR_500_Pro:
 
                         # check that we still have a next phase to switch
                         self.reset_count = 0
+                        self.phase_pulses += 2
 
                     else:
                         assert( 1 == 2 ), 'Incorrect phase name (+x, -x, +y, -y)'
@@ -519,7 +525,7 @@ class PB_ESR_500_Pro:
                 to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
                 #general.message(to_spinapi)
                 for element in to_spinapi:
-                    if element[2] < 10:
+                    if element[2] < 12: # it was 10; 10.09.2021
                         general.message('Incorrect instruction are found')
                         ###general.message('ALARM')
                         self.pulser_stop()
@@ -599,7 +605,7 @@ class PB_ESR_500_Pro:
                 #to_spinapi = self.instruction_pulse( self.convert_to_bit_pulse( self.pulse_array ) )
                 to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
                 for element in to_spinapi:
-                    if element[2] < 10:
+                    if element[2] < 12:  # it was 10; 10.09.2021
                         assert( 1 == 2), 'Incorrect instruction are found. Probably Trigger pulses are overlap with other'
 
                 self.reset_count = 1
@@ -990,6 +996,7 @@ class PB_ESR_500_Pro:
                 self.increment_count = 0
                 self.shift_count = 0
                 self.current_phase_index = 0
+
             else:
                 set_from_list = set(pulses)
                 for element in set_from_list:
@@ -1002,6 +1009,7 @@ class PB_ESR_500_Pro:
                         self.reset_count = 0
                         self.increment_count = 0
                         self.shift_count = 0
+                        self.current_phase_index = 0
 
         elif self.test_flag == 'test':
             if len(pulses) == 0:
@@ -1022,6 +1030,7 @@ class PB_ESR_500_Pro:
                         self.reset_count = 0
                         self.increment_count = 0
                         self.shift_count = 0
+                        self.current_phase_index = 0
 
     def pulser_stop(self):
         """
@@ -1131,6 +1140,7 @@ class PB_ESR_500_Pro:
         self.reset_count = 0
         self.current_phase_index = 0
         self.awg_pulses = 0
+        self.phase_pulses = 0
 
     def pulser_test_flag(self, flag):
         """

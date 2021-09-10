@@ -142,7 +142,7 @@ pulser_pulse_reset(*pulses)
 Arguments: none or string of pulse names; Output: none.
 Example: pulser_pulse_reset('P1') resets the pulse named 'P1' to its initial state.
 ```
-The function switches the pulse programmer back to the initial state in which it was in at the start of the experiment. This function can be called with either no argument or with a list of comma separated pulse names. If no argument is given all pulses are reset to their initial states (including phases). For a list of comma separated pulse names a current position in the phase sequence will be saved. The function does not update the pulser, if you want to reset all pulses and and also update the pulser use the function [pulser_reset()](#pulser_reset) instead.
+The function switches the pulse programmer back to the initial state in which it was in at the start of the experiment. This function can be called with either no argument or with a list of comma separated pulse names. If no argument is given all pulses are reset to their initial states (including phases). The function does not update the pulser, if you want to reset all pulses and and also update the pulser use the function [pulser_reset()](#pulser_reset) instead.
 ### pulser_stop()
 ```python3
 pulser_stop()
