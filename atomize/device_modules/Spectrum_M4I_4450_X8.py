@@ -5,7 +5,7 @@ import os
 import sys
 ###AWG
 sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
-#sys.path.append('/home/anatoly/AWG/spcm_examples/python')
+###sys.path.append('/home/anatoly/AWG/spcm_examples/python')
 #sys.path.append('/home/anatoly/awg_files/python')
 #sys.path.append('C:/Users/User/Desktop/Examples/python')
 import numpy as np
@@ -454,7 +454,10 @@ class Spectrum_M4I_4450_X8:
         elif self.test_flag == 'test':
 
             # CHECK FOR AVERAGE MODE
-            dummy = np.zeros( self.points )
+            if self.card_mode == 1:
+                dummy = np.zeros( self.points )
+            elif self.card_mode == 2:
+                dummy = np.zeros( int( self.digitizer_window() ) )
 
             if self.channel == 1 or self.channel == 2:
                 if integral == False:
