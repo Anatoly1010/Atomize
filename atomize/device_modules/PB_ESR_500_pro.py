@@ -363,6 +363,7 @@ class PB_ESR_500_Pro:
                         #pass
                         # 21-08-2021; Correction of non updating case for ['-x', '+x']
                         self.reset_count = 0
+
                     elif element['phase_list'][self.current_phase_index] == '-x':
                         name = element['name'] + '_ph_seq-x'
                         # taking into account delays of phase switching
@@ -437,6 +438,7 @@ class PB_ESR_500_Pro:
                         #pass
                         # 21-08-2021; Correction of non updating case for ['-x', '+x']
                         self.reset_count = 0
+
                     elif element['phase_list'][self.current_phase_index] == '-x':
                         name = element['name'] + '_ph_seq-x'
                         # taking into account delays
@@ -484,9 +486,9 @@ class PB_ESR_500_Pro:
                         assert( 1 == 2 ), 'Incorrect phase name (+x, -x, +y, -y)'
                 else:
                     pass
-
+            
             self.current_phase_index += 1
-
+    
             # update pulses
             # get repetition rate
             rep_rate = self.rep_rate[0]
@@ -524,11 +526,12 @@ class PB_ESR_500_Pro:
                 #to_spinapi = self.instruction_pulse( temp, rep_time )
                 to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
                 #general.message(to_spinapi)
-                for element in to_spinapi:
-                    if element[2] < 12: # it was 10; 10.09.2021
-                        general.message('Incorrect instruction are found')
-                        ###general.message('ALARM')
-                        self.pulser_stop()
+                
+                ##for element in to_spinapi:
+                ##    if element[2] < 12: # it was 10; 10.09.2021
+                ##        general.message('Incorrect instruction are found')
+                ##        ###general.message('ALARM')
+                ##        self.pulser_stop()
 
                 #general.message( to_spinapi )
                 #self.pulser_stop()
@@ -1172,17 +1175,17 @@ class PB_ESR_500_Pro:
 
             answer = np.zeros( data1.shape ) + 1j*np.zeros( data2.shape )
 
-            for index, element in enumerate(acq_cycle):
-                if element == '+':
-                    answer = answer + data1[index] + 1j*data2[index]
-                elif element == '-':
-                    answer = answer - data1[index] - 1j*data2[index]
-                elif element == '+i':
-                    answer = answer + 1j*data1[index] - data2[index]
-                elif element == '-i':
-                    answer = answer - 1j*data1[index] + data2[index]
-                else:
-                    assert (1 == 2), 'Incorrect operation in the acquisition cycle'
+            ##for index, element in enumerate(acq_cycle):
+            ##    if element == '+':
+            ##        answer = answer + data1[index] + 1j*data2[index]
+            ##    elif element == '-':
+            ##        answer = answer - data1[index] - 1j*data2[index]
+            ##    elif element == '+i':
+            ##        answer = answer + 1j*data1[index] - data2[index]
+            ##    elif element == '-i':
+            ##        answer = answer - 1j*data1[index] + data2[index]
+            ##    else:
+            ##        assert (1 == 2), 'Incorrect operation in the acquisition cycle'
 
             return (answer.real / len(acq_cycle))[0], (answer.imag / len(acq_cycle))[0]
     
@@ -1558,13 +1561,16 @@ class PB_ESR_500_Pro:
             # the definition in the experimental script
             sorted_np_array = np.asarray(sorted(np_array, key = lambda x: int(x[1])), dtype = np.int64)
 
-            # compare the end time with the start time for each couple of pulses
-            for index, element in enumerate(sorted_np_array[:-1]):
-                # minimal_distance is 40 ns now
-                if sorted_np_array[index + 1][1] - element[2] < self.min_pulse_length:
-                    assert(1 == 2), 'Overlapping pulses or two pulses with less than ' + str(self.min_pulse_length*2) + ' ns distance'
-                else:
-                    pass
+            ## 16-09-2021; An attempt to optimize the speed; all pulses should be already checked in the TEST RUN
+            ## Uncomment everything starting with ## if needed
+
+            ### compare the end time with the start time for each couple of pulses
+            ##for index, element in enumerate(sorted_np_array[:-1]):
+            ##    # minimal_distance is 40 ns now
+            ##    if sorted_np_array[index + 1][1] - element[2] < self.min_pulse_length:
+            ##        assert(1 == 2), 'Overlapping pulses or two pulses with less than ' + str(self.min_pulse_length*2) + ' ns distance'
+            ##    else:
+            ##        pass
 
             return sorted_np_array
 
@@ -1584,7 +1590,7 @@ class PB_ESR_500_Pro:
     def check_problem_pulses_phase(self, np_array):
         """
         A function for checking whether there is a two
-        close to each other pulses (less than 10 ns)
+        close to each other pulses (less than 12 ns)
         In Auto_defense = True by this function we checked only 
         -X +Y -Y pulses since they have different minimal distance
         """
@@ -1593,13 +1599,16 @@ class PB_ESR_500_Pro:
             # the definition in the experimental script
             sorted_np_array = np.asarray(sorted(np_array, key = lambda x: int(x[1])), dtype = np.int64)
 
-            # compare the end time with the start time for each couple of pulses
-            for index, element in enumerate(sorted_np_array[:-1]):
-                # minimal_distance is 10 ns now
-                if sorted_np_array[index + 1][1] - element[2] < self.minimal_distance_phase:
-                    assert(1 == 2), 'Overlapping pulses or two pulses with less than ' + str(self.minimal_distance_phase*2) + ' ns distance'
-                else:
-                    pass
+            ## 16-09-2021; An attempt to optimize the speed; all pulses should be already checked in the TEST RUN
+            ## Uncomment everything starting with ## if needed
+
+            ### compare the end time with the start time for each couple of pulses
+            ##for index, element in enumerate(sorted_np_array[:-1]):
+            ##    # minimal_distance is 10 ns now
+            ##    if sorted_np_array[index + 1][1] - element[2] < self.minimal_distance_phase:
+            ##        assert(1 == 2), 'Overlapping pulses or two pulses with less than ' + str(self.minimal_distance_phase*2) + ' ns distance'
+            ##    else:
+            ##        pass
 
             return sorted_np_array
 
@@ -1852,7 +1861,7 @@ class PB_ESR_500_Pro:
 
     def split_into_parts(self, np_array, rep_time):
         """
-        When we have situatuin with a big distance (> 2000 ns) between
+        When we have situation with a big distance (> 2000 ns) between
         two pulses it is time and memory efficient to treat this areas separately.
         To do it we:
         - Sort pulses using start time
@@ -2743,7 +2752,7 @@ class PB_ESR_500_Pro:
     def check_short_pulses(self, np_array, channel):
         """
         A function for checking whether there is two pulses with
-        the distance between them shorther than 40 ns
+        the distance between them shorter than 40 ns
 
         If there are such pulses on MW channel an error will be raised
         LNA_PROTECT and AMP_ON pulsess will be combined in one pulse
@@ -2753,15 +2762,19 @@ class PB_ESR_500_Pro:
             # checking where the pulses are
             one_indexes = np.argwhere(np_array == 1).flatten()
             difference = np.diff(one_indexes)
+            
+            ## 16-09-2021; An attempt to optimize the speed; all pulses should be already checked in the TEST RUN
+            ## Uncomment everything starting with ## if needed
+            if channel == self.channel_dict['LNA_PROTECT'] or channel == self.channel_dict['AMP_ON']:
+            ##if channel != self.channel_dict['LNA_PROTECT'] and channel != self.channel_dict['AMP_ON']:
 
-            if channel != self.channel_dict['LNA_PROTECT'] and channel != self.channel_dict['AMP_ON']:
-                # (min_pulse_length + 1) is 13 now
-                if any(1 < element < (self.min_pulse_length + 1) for element in difference) == False:
-                    pass
-                else:
-                    general.message('There are two pulses with shorter than ' + str(self.min_pulse_length*2) + ' ns distance between them')
-                    sys.exit()
-            else:
+            ##    # (min_pulse_length + 1) is 13 now
+            ##    if any(1 < element < (self.min_pulse_length + 1) for element in difference) == False:
+            ##        pass
+            ##    else:
+            ##        general.message('There are two pulses with shorter than ' + str(self.min_pulse_length*2) + ' ns distance between them')
+            ##        sys.exit()
+            ##else:
                 if any(1 < element < (self.min_pulse_length + 1) for element in difference) == False:
                     return np_array
                 else:

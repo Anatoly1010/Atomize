@@ -463,14 +463,14 @@ class Spectrum_M4I_6631_X8:
         A function for awg pulse creation;
         The possible arguments:
         NAME, CHANNEL (CHO, CH1), FUNC (SINE, GAUSS, SINC, BLANK), FREQUENCY (1 - 280 MHz),
-        PHASE (in rad), DELTA_PHASE (in rad),
+        PHASE (in rad), DELTA_PHASE (in rad), phase 1000 means random phase
         PHASE_LIST in ['+x', '-x', '+y', '-y'] 
         LENGTH (in ns, us; should be longer than sigma; minimun is 10 ns; maximum is 1900 ns), 
         SIGMA (sigma for gauss; sinc (length = 32 ns, sigma = 16 ns means +-2pi); sine for uniformity )
         INCREMENT (in ns, us, ms; for incrementing both sigma and length)
         START (in ns, us, ms; for joined pulses in 'Single mode')
         DELTA_START (in ns, us, ms; for joined pulses in 'Single mode')
-        D_COEF (is arb u; additional coefficient to adjust pulse amplitudes)
+        D_COEF (in arb u; additional coefficient to adjust pulse amplitudes)
 
         Buffer according to arguments will be filled after
         """
@@ -593,9 +593,10 @@ class Spectrum_M4I_6631_X8:
             else:
                 assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
 
-            # amp
+            # d_coef
             temp_amp = float( d_coef )
-            assert(temp_amp != 0), 'Amplification coefficient should not be zero'
+            #assert(temp_amp != 0), 'Amplification coefficient should not be zero'
+            assert(temp_amp >= 1), 'Amplification coefficient should be more or equal to 1'
 
             self.pulse_array.append( pulse )
             self.pulse_array_init = deepcopy(self.pulse_array)
@@ -2579,7 +2580,7 @@ class Spectrum_M4I_6631_X8:
                 i += 1
 
             # should be sorted according to channel number for corecct splitting into subarrays
-            return np.asarray(sorted(pulse_temp_array, key = lambda x: int(x[0])) ) #, dtype = np.int64 
+            return np.asarray(sorted(pulse_temp_array, key = lambda x: ( int(x[0]), int(x[6]) ) )) #, dtype = np.int64 
 
         elif self.test_flag == 'test':
             i = 0
@@ -2660,7 +2661,7 @@ class Spectrum_M4I_6631_X8:
                 i += 1
 
             # should be sorted according to channel number for corecct splitting into subarrays
-            return np.asarray(sorted(pulse_temp_array, key = lambda x: int(x[0])), dtype = np.int64) 
+            return np.asarray(sorted(pulse_temp_array, key = lambda x: ( int(x[0]), int(x[6]) ) )) #, dtype = np.int64
 
     def splitting_acc_to_channel(self, np_array):
         """
@@ -3216,13 +3217,15 @@ class Spectrum_M4I_6631_X8:
                         elif ( i >= ( pulse_start_smp[index] ) and \
                                i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                             
-                            #if pulse_phase_np[index] != 1000:
-                            # ( i - pulse_start_smp[index] ) for always zero phase
-                            pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+                            if pulse_phase_np[index] != 1000:
+                                # ( i - pulse_start_smp[index] ) for always zero phase
+                                pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
 
-                            #else:
-                                #self.full_buffer[point, i] 
-                            #    pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + rnd_phase) )
+                            else:
+                                # for DEER pulse with random phase
+                                rnd_phase = 2*pi*random.random()
+                                pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + \
+                                                    pulse_phase_np[index] ) + rnd_phase )
                         else:
                             break
 
@@ -3236,17 +3239,18 @@ class Spectrum_M4I_6631_X8:
                         elif ( i >= ( pulse_start_smp[index] ) and \
                                i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                             
-                            #if pulse_phase_np[index] != 1000:
+                            if pulse_phase_np[index] != 1000:
                                 #self.full_buffer[point, i] 
-                            # ( i - pulse_start_smp[index] ) in Sine for always zero phase
-                            pnBuffer[i] = int( self.maxCAD / pulse_amp[index]* exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                # ( i - pulse_start_smp[index] ) in Sine for always zero phase
+                                pnBuffer[i] = int( self.maxCAD / pulse_amp[index]* exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                                                         sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
 
-                            #else:
-                                #self.full_buffer[point, i] 
-                            #    pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                            #                            sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
-                            #                            rnd_phase) )
+                            else:
+                                # for DEER pulse with random phase
+                                rnd_phase = 2*pi*random.random()
+                                pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                        sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                                        rnd_phase) )
                         else:
                             break
 
@@ -3260,17 +3264,18 @@ class Spectrum_M4I_6631_X8:
                         elif ( i >= ( pulse_start_smp[index] ) and \
                                i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                             
-                            #if pulse_phase_np[index] != 1000:
-                                #self.full_buffer[point, i] 
-                            # ( i - pulse_start_smp[index] ) in Sine for always zero phase
-                            pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                                        sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+                            if pulse_phase_np[index] != 1000:
+                                self.full_buffer[point, i] 
+                                # ( i - pulse_start_smp[index] ) in Sine for always zero phase
+                                pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                           sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
 
-                            #else:
-                                #self.full_buffer[point, i]
-                            #    pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                            #                            sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
-                            #                            rnd_phase) )
+                            else:
+                                # for DEER pulse with random phase
+                                rnd_phase = 2*pi*random.random()
+                                pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                        sin(2*pi*(( i ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                                        rnd_phase) )
                         else:
                             break
 
@@ -3325,12 +3330,22 @@ class Spectrum_M4I_6631_X8:
                     # vectorized version:
                     # always zero phase: np.arange(0, 0 + pulse_length_smp[index]) )
                     # one phase: np.arange(pulse_start_smp[index], pulse_start_smp[index] + pulse_length_smp[index]) )
-                    pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
-                                (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                    pulse_length_smp[index]) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] )).astype(int64)
-                    pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
-                                (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                    pulse_length_smp[index]) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode)).astype(int64)
+                    if pulse_phase_np[index] != 1000:
+                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
+                                    (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                        pulse_length_smp[index]) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] )).astype(int64)
+                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
+                                    (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                        pulse_length_smp[index]) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode)).astype(int64)
+                    else:
+                        # DEER pulse
+                        rnd_phase = 2*pi*random.random()
+                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
+                                    (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                        pulse_length_smp[index]) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase)).astype(int64)
+                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
+                                    (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                        pulse_length_smp[index]) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode + rnd_phase)).astype(int64)
 
                 elif element == 1: #'GAUSS'
                     # mid_point for GAUSS and SINC
@@ -3367,16 +3382,30 @@ class Spectrum_M4I_6631_X8:
 
                     # always zero phase in Sine: np.arange(0, 0 + pulse_length_smp[index]) )
                     # one phase in Sine: np.arange(pulse_start_smp[index], pulse_start_smp[index] + pulse_length_smp[index]) )
-                    pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
-                                    (self.maxCAD / pulse_amp[index] * np.exp(-((( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                        pulse_length_smp[index]) ) ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                                np.sin(2*np.pi*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                        pulse_length_smp[index]) )  ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] )).astype(int64)
-                    pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
-                                    (self.maxCAD / pulse_amp[index] * np.exp(-((( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                        pulse_length_smp[index]) )  ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                                np.sin(2*np.pi*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                        pulse_length_smp[index]) )  ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode )).astype(int64)
+                    if pulse_phase_np[index] != 1000:
+                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
+                                        (self.maxCAD / pulse_amp[index] * np.exp(-((( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            pulse_length_smp[index]) ) ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                    np.sin(2*np.pi*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            pulse_length_smp[index]) )  ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] )).astype(int64)
+                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
+                                        (self.maxCAD / pulse_amp[index] * np.exp(-((( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            pulse_length_smp[index]) )  ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                    np.sin(2*np.pi*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            pulse_length_smp[index]) )  ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode )).astype(int64)
+                    else:
+                        # DEER pulse
+                        rnd_phase = 2*pi*random.random()
+                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
+                                        (self.maxCAD / pulse_amp[index] * np.exp(-((( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            pulse_length_smp[index]) ) ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                    np.sin(2*np.pi*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            pulse_length_smp[index]) )  ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase)).astype(int64)
+                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
+                                        (self.maxCAD / pulse_amp[index] * np.exp(-((( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            pulse_length_smp[index]) )  ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                                    np.sin(2*np.pi*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            pulse_length_smp[index]) )  ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode + rnd_phase)).astype(int64)
 
                 elif element == 2: #'SINC'
                     # mid_point for GAUSS and SINC
@@ -3411,16 +3440,31 @@ class Spectrum_M4I_6631_X8:
 
                     # always zero phase in Sine: np.arange(0, 0 + pulse_length_smp[index]) )
                     # one phase in Sine: np.arange(pulse_start_smp[index], pulse_start_smp[index] + pulse_length_smp[index]) )
-                    pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
-                                    (self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                        pulse_length_smp[index]) ) ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                            np.sin(2*np.pi*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                                pulse_length_smp[index]) ) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] )).astype(int64)
-                    pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
-                                    (self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                        pulse_length_smp[index]) ) ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                            np.sin(2*np.pi*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                                pulse_length_smp[index]) ) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode )).astype(int64)
+                    if pulse_phase_np[index] != 1000:
+                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
+                                        (self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            pulse_length_smp[index]) ) ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                np.sin(2*np.pi*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                                    pulse_length_smp[index]) ) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] )).astype(int64)
+                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
+                                        (self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            pulse_length_smp[index]) ) ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                np.sin(2*np.pi*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                                    pulse_length_smp[index]) ) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode )).astype(int64)
+                    else:
+                        # DEER pulse
+                        rnd_phase = 2*pi*random.random()
+                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
+                                        (self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            pulse_length_smp[index]) ) ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                np.sin(2*np.pi*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                                    pulse_length_smp[index]) ) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase)).astype(int64)
+                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
+                                        (self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            pulse_length_smp[index]) ) ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                                np.sin(2*np.pi*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                                    pulse_length_smp[index]) ) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + \
+                                                        self.phase_shift_ch1_seq_mode + rnd_phase )).astype(int64)
 
                 elif element == 3: # BLANK
                     pass

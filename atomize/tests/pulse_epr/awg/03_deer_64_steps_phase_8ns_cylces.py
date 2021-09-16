@@ -123,8 +123,9 @@ file_handler.save_header(file_param, header = header, mode = 'w')
 
 
 # Data acquisition
-j = 1
-while j <= SCANS:
+#j = 1
+for j in general.scans(SCANS):
+#while j <= SCANS:
 
     cycle_8 = 1 
     while cycle_8 <= 8:
@@ -178,7 +179,7 @@ while j <= SCANS:
         pb.pulser_reset()
         cycle_8 += 1
     
-    j += 1
+    #j += 1
     ###awg.awg_pulse_reset()
     pb.pulser_reset()
 

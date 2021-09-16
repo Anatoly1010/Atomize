@@ -84,6 +84,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.open_dir = str(config['DEFAULT']['open_dir'])
         self.script_dir = str(config['DEFAULT']['script_dir'])
         self.path = self.script_dir
+        self.test_timeout = int(config['DEFAULT']['test_timeout']) * 1000 # in ms
 
         # for running different processes using QProcess
         self.process = QtCore.QProcess(self)
@@ -425,10 +426,11 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         self.test()
-        exec_code = self.process.waitForFinished()
+        exec_code = self.process.waitForFinished( msecs = self.test_timeout ) # timeout in msec
 
         if self.test_flag == 1:
-            self.text_errors.appendPlainText("Experiment cannot be started, since test is not passed")
+            self.text_errors.appendPlainText("Experiment cannot be started, since test is not passed. Test execution timeout is " +\
+                                str( self.test_timeout / 60000 ) + " minutes")
             return        # stop current function
         elif self.test_flag == 0 and exec_code == True:
             self.process_python.setArguments([self.script])

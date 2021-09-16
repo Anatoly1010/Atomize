@@ -92,8 +92,9 @@ header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) +
 file_data, file_param = file_handler.create_file_parameters('.param')
 file_handler.save_header(file_param, header = header, mode = 'w')
 
-j = 1
-while j <= SCANS:
+#j = 1
+for j in general.scans(SCANS):
+#while j <= SCANS:
 
     i = 0
     field = START_FIELD
@@ -133,7 +134,7 @@ while j <= SCANS:
     
     bh15.magnet_field(START_FIELD)
 
-    j += 1
+    #j += 1
 
 dig4450.digitizer_stop()
 dig4450.digitizer_close()

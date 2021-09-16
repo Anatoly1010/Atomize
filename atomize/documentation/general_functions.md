@@ -49,7 +49,7 @@ import atomize.general_modules.general_functions as general
 general.wait('10 ms')
 ```
 ## Infinite loop
-Since all experimental scripts are tested before tactually interacting with devices, a standard Python infinite loop like while True will stuck in test mode. Instead, use the special function general.to_infinity(). This function imitates a standard infinite loop for which the first 50 loops will be checked in a test run.
+Since all experimental scripts are tested before actually interacting with devices, a standard Python infinite loop like while True will stuck in the test mode. Instead, one can use a special function general.to_infinity(). This function imitates a standard infinite loop for which the first 50 loops will be checked in the test run.
 ```python3
 import atomize.general_modules.general_functions as general
 
@@ -63,6 +63,17 @@ for i in general.to_infinity():
     general.message(i)
     if i > 10:
         break
+```
+## Repeating scans in an experimental script
+In addition to an infinite loop, a standard Python loop with repeating scans will also waste extra time in the test mode. To tackle it, one can use a special function general.scans( number_of_scans ). This function imitates a standard loop for which only the first loop will be checked in the test run. Please, note that in this case there is no need to declare and iterate a loop iterator, i.e. i. See the example below for more details.
+```python3
+import atomize.general_modules.general_functions as general
+
+# Run 10 scans
+for i in general.scans( 10 ):
+	# DO MEASUREMENTS
+    general.message(i)
+    # the output will be from 1 to 10
 ```
 ## File handling
 To open or save raw experimental data one can use a special module based on Tkinter / PyQt.

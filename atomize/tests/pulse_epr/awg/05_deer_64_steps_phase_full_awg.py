@@ -144,8 +144,9 @@ file_handler.save_header(file_param, header = header, mode = 'w')
 
 
 # Data acquisition
-j = 1
-while j <= SCANS:
+#j = 1
+for j in general.scans(SCANS):
+#while j <= SCANS:
 
     for i in range(POINTS):
 
@@ -182,7 +183,7 @@ while j <= SCANS:
         awg.awg_shift()
         pb.pulser_shift()
 
-    j += 1
+    #j += 1
     awg.awg_pulse_reset()
     pb.pulser_pulse_reset()
 
