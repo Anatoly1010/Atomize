@@ -142,7 +142,7 @@ class Mikran_X_band_MW_bridge:
                 # 3 bytes to recieve
                 data_raw = self.device_query( MESSAGE, 3)
 
-                answer = 'Attenuator 1 PRD: ' + str(data_raw[2]/2) + ' dB'
+                answer = 'Attenuator PRD1: ' + str(data_raw[2]/2) + ' dB'
 
                 return answer
 
@@ -174,7 +174,7 @@ class Mikran_X_band_MW_bridge:
                 # 3 bytes to recieve
                 data_raw = self.device_query( MESSAGE, 3)
 
-                answer = 'Attenuator 2 PRD: ' + str(data_raw[2]/2) + ' dB'
+                answer = 'Attenuator PRD2: ' + str(data_raw[2]/2) + ' dB'
 
                 return answer
 

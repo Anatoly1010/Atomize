@@ -131,8 +131,8 @@ awg.awg_setup()
 #str(t3034.oscilloscope_timebase()*1000)
 #str(tb)
 header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + \
-         'DEER Measurement; 64 Step Phase Cycling; Full AWG\n' + 'Field: ' + str(FIELD) + ' G \n' + \
-          str(mw.mw_bridge_att_prm()) + '\n' + str(mw.mw_bridge_synthesizer()) + '\n' + \
+         'DEER Measurement; 64 Step Phase Cycling; Full AWG\n' + 'Field: ' + str(FIELD) + ' G \n' + str(mw.mw_bridge_att1_prd()) + '\n' + \
+           str(mw.mw_bridge_att2_prd()) + '\n' + str(mw.mw_bridge_att_prm()) + '\n' + str(mw.mw_bridge_synthesizer()) + '\n' + \
           'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' + 'Number of Scans: ' + str(SCANS) + '\n' +\
           'Averages: ' + str(AVERAGES) + '\n' + 'Points: ' + str(POINTS) + '\n' + 'Window: ' + str(tb) + ' ns\n' \
           + 'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
