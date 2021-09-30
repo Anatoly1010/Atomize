@@ -62,8 +62,9 @@ t3034.oscilloscope_number_of_averages(AVERAGES)
 mw.mw_bridge_synthesizer( START_FREQ )
 #path_to_file = open1d.create_file_dialog(directory = '')
 
-j = 1
-while j <= SCANS:
+#j = 1
+for j in general.scans(SCANS):
+#while j <= SCANS:
 
     i = 0
     freq = START_FREQ
@@ -89,7 +90,7 @@ while j <= SCANS:
         i += 1
 
     mw.mw_bridge_synthesizer( START_FREQ )
-    j += 1
+    #j += 1
 
 mw.mw_bridge_synthesizer( freq_before )
 

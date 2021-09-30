@@ -14,37 +14,46 @@ class Fast_Fourier():
         else:
             self.test_flag = 'None'
 
-    def fft(self, x_axis, data, baseline_point):
+    def fft(self, x_axis, data_i, data_q): #, baseline_point
         if self.test_flag != 'test':
-            if baseline_point != 0:
-                baseline = ( np.sum(data[0:baseline_point]) + np.sum(data[len(data)-baseline_point:len(data)] ) ) / (2 * baseline_point ) 
-            else:
-                baseline = 0
+            #if baseline_point != 0:
+            #    baseline = ( np.sum(data[0:baseline_point]) + np.sum(data[len(data) - baseline_point:len(data)] ) ) / (2 * baseline_point ) 
+            #else:
+            #    baseline = 0
 
-            sp = np.fft.fft( data - baseline)
+            x_axis = x_axis * 10**(+6) # to us
+            data = data_i + 1j*data_q
+            sp = np.fft.fft( data )
+
+            #sp = np.fft.fft( data - baseline)
             freq = np.fft.fftfreq(x_axis.shape[-1])
             i = np.argsort(freq)
 
-            sp.real = sp.real[i]
-            sp.imag = sp.imag[i]
+            #sp.real = sp.real[i]
+            #sp.imag = sp.imag[i]
 
-            return np.sort( freq ), sp.real, sp.imag
+            #return np.sort( freq ), sp.real, sp.imag
+            return freq[i], np.abs( sp[i] )
 
         elif self.test_flag == 'test':
-            if baseline_point != 0:
-                baseline = ( np.sum(data[0:baseline_point]) + np.sum(data[len(data)-baseline_point:len(data)] ) ) / (2 * baseline_point ) 
-            else:
-                baseline = 0
+            #if baseline_point != 0:
+            #    baseline = ( np.sum(data[0:baseline_point]) + np.sum(data[len(data) - baseline_point:len(data)] ) ) / (2 * baseline_point ) 
+            #else:
+            #    baseline = 0
 
-            sp = np.fft.fft( data - baseline )
+            x_axis = x_axis * 10**(+6) # to us
+            data = data_i + 1j*data_q
+            sp = np.fft.fft( data )
+
+            #sp = np.fft.fft( data - baseline)
             freq = np.fft.fftfreq(x_axis.shape[-1])
             i = np.argsort(freq)
 
-            sp.real = sp.real[i]
-            sp.imag = sp.imag[i]
+            #sp.real = sp.real[i]
+            #sp.imag = sp.imag[i]
 
-            return np.sort( freq ), sp.real, sp.imag
-
+            #return np.sort( freq ), sp.real, sp.imag
+            return freq[i], np.abs( sp[i] )
 
 if __name__ == "__main__":
     main()

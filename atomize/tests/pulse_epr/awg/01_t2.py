@@ -6,7 +6,7 @@ import atomize.general_modules.general_functions as general
 import atomize.device_modules.PB_ESR_500_pro as pb_pro
 import atomize.device_modules.Keysight_3000_Xseries as key
 import atomize.device_modules.Spectrum_M4I_6631_X8 as spectrum
-###import atomize.device_modules.Spectrum_M4I_4450_X8 as spectrum
+###import atomize.device_modules.Spectrum_M4I_4450_X8 as spectrum_dig
 import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.SR_PTC_10 as sr
 import atomize.device_modules.BH_15 as bh
@@ -19,7 +19,7 @@ mw = mwBridge.Mikran_X_band_MW_bridge()
 pb = pb_pro.PB_ESR_500_Pro()
 bh15 = bh.BH_15()
 t3034 = key.Keysight_3000_Xseries()
-###dig4450 = spectrum.Spectrum_M4I_4450_X8()
+###dig4450 = spectrum_dig.Spectrum_M4I_4450_X8()
 awg = spectrum.Spectrum_M4I_6631_X8()
 
 def cleanup(*args):
@@ -120,8 +120,9 @@ file_handler.save_header(file_param, header = header, mode = 'w')
 # awg.awg_redefine_phase(name = 'P0', phase = pi/2)
 
 # Data acquisition
-j = 1
-while j <= SCANS:
+#j = 1
+for j in general.scans(SCANS):
+#while j <= SCANS:
 
     for i in range(POINTS):
 
@@ -144,7 +145,7 @@ while j <= SCANS:
         awg.awg_shift()
         pb.pulser_shift()
 
-    j += 1
+    #j += 1
     awg.awg_pulse_reset()
     pb.pulser_pulse_reset()
 

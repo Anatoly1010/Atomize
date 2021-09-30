@@ -42,13 +42,6 @@ PULSE_SIGNAL_START = '998 ns'
 PULSE_AWG_1_START = '0 ns'
 PULSE_AWG_2_START = '300 ns'
 
-#strange
-#PULSE_1_START = '398 ns'
-#PULSE_2_START = '1440 ns'
-#PULSE_SIGNAL_START = '2482 ns'
-#PULSE_AWG_1_START = '0 ns'
-#PULSE_AWG_2_START = '1042 ns'
-
 # Setting pulses
 # trigger awg is always 412 ns before the actual AWG pulse
 pb.pulser_pulse(name = 'P0', channel = 'TRIGGER_AWG', start = '0 ns', length = '30 ns')

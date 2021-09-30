@@ -94,8 +94,9 @@ header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) +
 file_data, file_param = file_handler.create_file_parameters('.param')
 file_handler.save_header(file_param, header = header, mode = 'w')
 
-j = 1
-while j <= SCANS:
+#j = 1
+for j in general.scans(SCANS):
+#while j <= SCANS:
 
     for i in range(POINTS):
 
@@ -125,7 +126,7 @@ while j <= SCANS:
 
         pb.pulser_shift()
 
-    j += 1
+    #j += 1
     pb.pulser_pulse_reset()
 
 dig4450.digitizer_stop()
