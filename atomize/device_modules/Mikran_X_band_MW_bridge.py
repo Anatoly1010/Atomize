@@ -42,7 +42,7 @@ class Mikran_X_band_MW_bridge:
         if self.test_flag != 'test':
             pass
         elif self.test_flag == 'test':
-            self.test_freq_str = 'Power: ON; Frequency: 9750'
+            self.test_freq_str = 'Frequency: 9750 MHz'
             self.test_telemetry = 'Temperature: 28; State: INIT'
             self.test_attenuation = '0 dB'
             self.test_phase = '0 deg'
