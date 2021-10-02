@@ -7,7 +7,7 @@ import random
 ###AWG
 sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
 ###sys.path.append('/home/anatoly/AWG/spcm_examples/python')
-#sys.path.append('/home/anatoly/awg_files/python')
+###sys.path.append('/home/anatoly/awg_files/python')
 #sys.path.append('C:/Users/User/Desktop/Examples/python')
 from math import sin, pi, exp, log2
 from itertools import groupby, chain
@@ -1900,7 +1900,6 @@ class Spectrum_M4I_6631_X8:
         """
         self.test_flag = flag
 
-    #CHECK
     def awg_pulse_list(self):
         """
         Function for saving a pulse list from 
@@ -2077,7 +2076,7 @@ class Spectrum_M4I_6631_X8:
                 assert( 1 == 2 ), 'No pulse sequence is defined'
 
     def awg_pulse_sequence(self, *, pulse_type, pulse_start, pulse_delta_start,\
-                            pulse_length, pulse_phase, pulse_sigma, pulse_frequency, number_of_points, loop, rep_rate):
+                            pulse_length, pulse_phase, pulse_sigma, pulse_frequency, number_of_points, loop, rep_rate, n_wurst):
         """
         A function for Sequence mode of the AWG card.
         The sequence replay mode is a special firmware mode that allows to program an output sequence by defining one or more sequences each
@@ -2100,16 +2099,17 @@ class Spectrum_M4I_6631_X8:
 
             # collect arguments in special array for further handling
             arguments_array = []
-            arguments_array.append(pulse_type)          #   0   type: SINE, GAUSS, SINC
+            arguments_array.append(pulse_type)          #   0   type: SINE, GAUSS, SINC, WURST
             arguments_array.append(pulse_start)         #   1   start
             arguments_array.append(pulse_delta_start)   #   2   delta start
             arguments_array.append(pulse_length)        #   3   length
             arguments_array.append(pulse_phase)         #   4   phase
             arguments_array.append(pulse_sigma)         #   5   sigma
-            arguments_array.append(pulse_frequency)     #   6   frequency
+            arguments_array.append(pulse_frequency)     #   6   frequency; a tuple for WURST pulse
             arguments_array.append(number_of_points)    #   7   number of points in sequence
             arguments_array.append(loop)                #   8   number of loops
             arguments_array.append(rep_rate)            #   9   repetition rate
+            arguments_array.append(n_wurst)             #  10   n parameter for WURST pulse
 
             # turn on the sequence mode
             self.sequence_mode = 1
@@ -2147,6 +2147,7 @@ class Spectrum_M4I_6631_X8:
             pulse_delta_start_smp = (np.asarray(arguments_array[2])*self.sample_rate/1000).astype('int64')
             pulse_length_smp = (np.asarray(arguments_array[3])*self.sample_rate/1000).astype('int64')
             pulse_sigma_smp = np.asarray(arguments_array[5])*self.sample_rate/1000
+            pulse_n_wurst = np.asarray(arguments_array[10])
 
             # we do not expect that pulses will have drastically different
             # pulse length. It is better to define the same buffer length 
@@ -2202,7 +2203,7 @@ class Spectrum_M4I_6631_X8:
                                         break
 
                         elif element == 'GAUSS':
-                            # mid_point for GAUSS and SINC
+                            # mid_point for GAUSS, SINC, and WURST
                             mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index]*point + \
                                         pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point)/2 )
 
@@ -2226,7 +2227,7 @@ class Spectrum_M4I_6631_X8:
                                         break
 
                         elif element == 'SINC':
-                            # mid_point for GAUSS and SINC
+                            # mid_point for GAUSS, SINC, and WURST
                             mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index]*point + \
                                         pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point)/2 )
 
@@ -2251,6 +2252,33 @@ class Spectrum_M4I_6631_X8:
 
                         elif element == 'BLANK':
                             break
+
+                        elif element == 'WURST':
+                            # mid_point for GAUSS, SINC, and WURST
+                            mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index]*point + \
+                                        pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point)/2 )
+
+                            for i in range(pulse_start_smp[index] + pulse_delta_start_smp[index]*point, segment_length):
+                                    if i < (pulse_start_smp[index] + pulse_delta_start_smp[index]*point):
+                                        pass
+                                    elif ( i >= ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point) and \
+                                           i <= (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point) ):
+                                        
+                                        if pulse_phase_np[index] != 1000:
+                                            #self.full_buffer[point, i]
+                                            pnBuffer[i] = int( self.maxCAD * ( 1 - abs( sin( pi*( i - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
+                                                            sin(2*pi*(( i - mid_point ))*( pulse_frequency[index][0] / self.sample_rate + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
+                                                            ( i - mid_point ) / pulse_length_smp[index] / self.sample_rate ) + pulse_phase_np[index] ) )
+
+                                        else:
+                                            #self.full_buffer[point, i]
+                                            # self.maxCAD / pulse_amp[index] 
+                                            pnBuffer[i] = int( self.maxCAD * ( 1 - abs( sin( pi*( i - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
+                                                            sin(2*pi*(( i - mid_point ))*( pulse_frequency[index][0] / self.sample_rate + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
+                                                            ( i - mid_point ) / pulse_length_smp[index] / self.sample_rate ) + pulse_phase_np[index] + rnd_phase ) )
+
+                                    else:
+                                        break
 
                     self.full_buffer.append(pnBuffer)
                     self.full_buffer_pointer.append(pvBuffer)
@@ -2312,7 +2340,7 @@ class Spectrum_M4I_6631_X8:
                                         break
 
                         elif element == 'GAUSS':
-                            # mid_point for GAUSS and SINC
+                            # mid_point for GAUSS, SINC, and WURST
                             mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index]*point + \
                                 pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point)/2 )
 
@@ -2347,7 +2375,7 @@ class Spectrum_M4I_6631_X8:
                                         break
                             
                         elif element == 'SINC':
-                            # mid_point for GAUSS and SINC
+                            # mid_point for GAUSS, SINC, and WURST
                             mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index]*point + \
                                 pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point)/2 )
 
@@ -2383,6 +2411,46 @@ class Spectrum_M4I_6631_X8:
                         
                         elif element == 'BLANK':
                             break
+
+                        elif element == 'WURST':
+                            # mid_point for GAUSS, SINC, and WURST
+                            mid_point = int( (pulse_start_smp[index] + pulse_delta_start_smp[index]*point + \
+                                pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point)/2 )
+
+                            for i in range(2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]*point), 2*segment_length, 2):
+
+                                    if i < 2 * (pulse_start_smp[index] + pulse_delta_start_smp[index]*point):
+                                        pass
+                                    elif ( i >= 2 * ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point) and \
+                                           i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] + pulse_delta_start_smp[index]*point) ):
+                                        
+                                        if pulse_phase_np[index] != 1000:
+                                            #self.full_buffer[point, i]
+                                            # self.maxCAD / pulse_amp[index] *
+                                            #ch0
+                                            pnBuffer[i] = int( self.maxCAD * ( 1 - abs( sin( pi*( ( i/2 ) - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
+                                                            sin(2*pi*(( ( i/2 ) - mid_point ))*( pulse_frequency[index][0] / self.sample_rate + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
+                                                            ( ( i/2 ) - mid_point ) / pulse_length_smp[index] / self.sample_rate ) + pulse_phase_np[index] ) )
+
+                                            #ch1
+                                            pnBuffer[i + 1] = int( self.maxCAD * ( 1 - abs( sin( pi*( ( i/2 ) - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
+                                                            sin(2*pi*(( ( i/2 ) - mid_point ))*( pulse_frequency[index][0] / self.sample_rate + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
+                                                            ( ( i/2 ) - mid_point ) / pulse_length_smp[index] / self.sample_rate ) + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode ) )
+
+                                        else:
+                                            #self.full_buffer[point, i]
+                                            #ch0
+                                            pnBuffer[i] = int( self.maxCAD * ( 1 - abs( sin( pi*( ( i/2 ) - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
+                                                            sin(2*pi*(( ( i/2 ) - mid_point ))*( pulse_frequency[index][0] / self.sample_rate + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
+                                                            ( ( i/2 ) - mid_point ) / pulse_length_smp[index] / self.sample_rate ) + pulse_phase_np[index] + rnd_phase) )
+
+                                            #ch1
+                                            pnBuffer[i + 1] = int( self.maxCAD * ( 1 - abs( sin( pi*( ( i/2 ) - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
+                                                            sin(2*pi*(( ( i/2 ) - mid_point ))*( pulse_frequency[index][0] / self.sample_rate + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
+                                                            ( ( i/2 ) - mid_point ) / pulse_length_smp[index] / self.sample_rate ) + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode + rnd_phase) )
+
+                                    else:
+                                        break
 
                     self.full_buffer.append(pnBuffer)
                     self.full_buffer_pointer.append(pvBuffer)
@@ -2424,13 +2492,17 @@ class Spectrum_M4I_6631_X8:
             length_array.append( len( pulse_frequency ) )
             arguments_array.append(number_of_points)    #   7
             arguments_array.append(loop)                #   8
+            length_array.append( len( n_wurst ) )
+            arguments_array.append(n_wurst)             #  9   n parameter for WURST pulse
 
             assert( loop > 0 ), 'Number of loops should be higher than 0'
             assert( number_of_points > 0 ), 'Number of points in pulse sequence should be higher than 0'
             assert( rep_rate > 0 ), 'Repetition rate is given in Hz and should be a positive number'
 
-            for el in arguments_array[0]:
-                assert( el == 'SINE' or el == 'GAUSS' or el == 'SINC' or el == 'BLANK'), 'Only SINE, GAUSS, SINC, and BLANK pulses are available'
+            for index, el in arguments_array[0]:
+                assert( el == 'SINE' or el == 'GAUSS' or el == 'SINC' or el == 'BLANK' or el == 'WURST'), 'Only SINE, GAUSS, SINC, BLANK, and WURST pulses are available'
+                if el == 'WURST':
+                    assert( len( pulse_frequency[index] == 2 ) ), 'For WURST pulse frequency should be a tuple: frequency = ("Start MHz", "End MHz")' 
 
             for el in arguments_array[1]:
                 assert( el >= 0 ), 'Pulse starts should be positive numbers'
@@ -2452,7 +2524,7 @@ class Spectrum_M4I_6631_X8:
                 assert( el > 0 ), 'Pulse sigmas should be positive numbers'
 
             for el in arguments_array[5]:
-                assert( el >= self.min_freq and el <= self.max_freq), 'Pulse frequency should be from 1 to 280 MHz'
+                assert( el >= self.min_freq and el <= self.max_freq), 'Pulse frequency should be from '+ str(self.min_freq) + ' MHz' + ' to ' + str(self.max_freq) + ' MHz'
 
             # check that the length is equal (compare all elements in length_array)
             gr = groupby(length_array)
@@ -2836,13 +2908,13 @@ class Spectrum_M4I_6631_X8:
             for element in pulses:
                 # individual pulses at each channel
                 for index2, element2 in enumerate( element ):
-                    # segmented memory; mid_point for GAUSS and SINC
+                    # segmented memory; mid_point for GAUSS, SINC, and WURST
                     mid_point = int( element2[4]/2 )
 
                     # take a segment: self.segment_memsize*index2, self.segment_memsize*(index2 + 1)
                     for i in range ( self.segment_memsize*index2, self.segment_memsize*(index2 + 1), 1):
-                                             #[      0,        1,               2,           3,                4,               5,     6,           7,               8]
-                        if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples), start, delta_start, amp_coefficient]
+                                             #[      0,        1,               2,           3,                4,               5,     6,           7,               8,        9]
+                        if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples), start, delta_start, amp_coefficient, n_wurst]
                             if i <= ( element2[4] + self.segment_memsize*index2 ):
                                 #buf[i]
                                 pnBuffer[i] = int(self.maxCAD / element2[8] * sin(2*pi*(( i - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3]) )
@@ -2863,6 +2935,13 @@ class Spectrum_M4I_6631_X8:
                                 break
                         elif element2[1] == 3: # BLANK
                             break
+                        elif element2[1] == 4: # WURST
+                            if i <= ( element2[4] + self.segment_memsize*index2 ):
+                                pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( ( i - self.segment_memsize*index2) - mid_point ) / element2[4] ) ) ** element2[9] )*\
+                                    sin(2*pi*(( ( i - self.segment_memsize*index2) - mid_point ))*( element2[2][0] / self.sample_rate + (element2[2][1] - element2[2][0])*\
+                                    ( ( i - self.segment_memsize*index2) - mid_point ) / element2[4] / self.sample_rate ) + element2[3] ) )
+                            else:
+                                break
 
             return pvBuffer, pnBuffer
 
@@ -2881,15 +2960,15 @@ class Spectrum_M4I_6631_X8:
             for element in pulses:
                 # individual pulses at each channel
                 for index2, element2 in enumerate( element ):
-                    # segments memory; mid_point for GAUSS and SINC
+                    # segments memory; mid_point for GAUSS, SINC, and WURST
                     mid_point = int( element2[4]/2 )
                     
                     if element2[0] == 0:
                         # take a segment: 2*self.segment_memsize*index2, 2*self.segment_memsize*(index2 + 1)
                         # fill even indexes for CH0; step in the cycle is 2
                         for i in range (2 * self.segment_memsize*index2, 2 * self.segment_memsize*(index2 + 1), 2):
-                                                 #[      0,        1,               2,           3,                4,               5,     6,           7,               8]
-                            if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples), start, delta_start, amp_coefficient]
+                                                 #[      0,        1,               2,           3,                4,               5,     6,           7,               8,        9]
+                            if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples), start, delta_start, amp_coefficient, n_wurst]
                                 if i <= (2 * element2[4] + 2 * self.segment_memsize*index2 ):
                                     # Sine Signal CH_0; i/2 in order to keep the frequency
                                     #buf[i] 
@@ -2910,12 +2989,19 @@ class Spectrum_M4I_6631_X8:
                                     break
                             elif element2[1] == 3: # BLANK
                                 break
+                            elif element2[1] == 4: # WURST
+                                if i <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
+                                    pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( ( i/2 - self.segment_memsize*index2) - mid_point ) / element2[4] ) ) ** element2[9] )*\
+                                        sin(2*pi*(( ( i/2 - self.segment_memsize*index2) - mid_point ))*( element2[2][0] / self.sample_rate + (element2[2][1] - element2[2][0])*\
+                                        ( ( i/2 - self.segment_memsize*index2) - mid_point ) / element2[4] / self.sample_rate ) + element2[3] ) )
+                                else:
+                                    break
 
                     elif element2[0] == 1:
                         # fill odd indexes for CH1; step in the cycle is 2
                         for i in range (1 + 2 * self.segment_memsize*index2, 1 + 2 * self.segment_memsize*(index2 + 1), 2):
-                                                 #[      0,        1,               2,           3,                4,               5,     6,           7,               8]
-                            if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples), start, delta_start, amp_coefficient]
+                                                 #[      0,        1,               2,           3,                4,               5,     6,           7,               8,        9]
+                            if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples), start, delta_start, amp_coefficient, n_wurst]
                                 if (i - 1) <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
                                     # Sine Signal CH_1; i/2 in order to keep the frequency
                                     #buf[i]
@@ -2936,6 +3022,13 @@ class Spectrum_M4I_6631_X8:
                                     break
                             elif element2[1] == 3: # BLANK
                                 break
+                            elif element2[1] == 4: # WURST
+                                if (i - 1) <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
+                                    pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( ( (i - 1)/2 - self.segment_memsize*index2) - mid_point ) / element2[4] ) ) ** element2[9] )*\
+                                        sin(2*pi*(( ( (i - 1)/2 - self.segment_memsize*index2) - mid_point ))*( element2[2][0] / self.sample_rate + (element2[2][1] - element2[2][0])*\
+                                        ( ( (i - 1)/2 - self.segment_memsize*index2) - mid_point ) / element2[4] / self.sample_rate ) + element2[3] ) )
+                                else:
+                                    break
 
             return pvBuffer, pnBuffer
 
@@ -2986,9 +3079,9 @@ class Spectrum_M4I_6631_X8:
                     assert( len(self.pulse_ch0_array) == 1 and len(self.pulse_ch1_array) == 1 ), "Only one CH1 and CH0 pulses can be defined in Single mode with CH0 and CH1 enabled"
             elif self.single_joined == 1:
                 if self.channel == 1:
-                    assert( len(self.pulse_ch0_array) > 1 and len(self.pulse_ch1_array) == 0 ), "At least one CH0 pulse should be defined in Single Joined mode with only CH0 enabled"
+                    assert( len(self.pulse_ch0_array) >= 1 and len(self.pulse_ch1_array) == 0 ), "At least one CH0 pulse should be defined in Single Joined mode with only CH0 enabled"
                 elif self.channel == 2:
-                    assert( len(self.pulse_ch1_array) > 1 and len(self.pulse_ch0_array) == 0 ), "At least one CH1 pulse should be defined in Single Joined mode with only CH1 enabled"
+                    assert( len(self.pulse_ch1_array) >= 1 and len(self.pulse_ch0_array) == 0 ), "At least one CH1 pulse should be defined in Single Joined mode with only CH1 enabled"
                 elif self.channel == 3:
                     assert( len(self.pulse_ch0_array) > 0 and len(self.pulse_ch1_array) == 0 ), "Only CH0 pulses should be defined in Single Joined mode with CH0 and CH1 enabled. CH1 pulses are filled automatically"                
 
@@ -3045,12 +3138,12 @@ class Spectrum_M4I_6631_X8:
             for element in pulses:
                 # individual pulses at each channel
                 for index2, element2 in enumerate( element ):
-                    # mid_point for GAUSS and SINC
+                    # mid_point for GAUSS, SINC, and WURST
                     mid_point = int( element2[4]/2 )
 
                     for i in range (0, self.memsize, 1):
-                                                    #[      0,        1,               2,     3,                4,               5,     6,           7,               8]
-                        if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples), start, delta_start, amp_coefficient]
+                                                    #[      0,        1,               2,     3,                4,               5,     6,           7,               8,       9]
+                        if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples), start, delta_start, amp_coefficient, n_wurst]
                             if i <= ( element2[4] ):
                                 #buf[i]
                                 pnBuffer[i] = int( self.maxCAD / element2[8] * sin(2*pi*(( i ))*element2[2] / self.sample_rate + element2[3]) )
@@ -3070,6 +3163,13 @@ class Spectrum_M4I_6631_X8:
                                 break
                         elif element2[1] == 3: # BLANK
                             break
+                        elif element2[1] == 4: # WURST
+                            if i <= ( element2[4] ):
+                                pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( i - mid_point ) / element2[4] ) ) ** element2[9] )*\
+                                    sin(2*pi*(( i - mid_point ))*( element2[2][0] / self.sample_rate + (element2[2][1] - element2[2][0])*\
+                                    ( i - mid_point ) / element2[4] / self.sample_rate ) + element2[3] ) )
+                            else:
+                                break
 
             return pvBuffer, pnBuffer
 
@@ -3088,14 +3188,14 @@ class Spectrum_M4I_6631_X8:
             for element in pulses:
                 # individual pulses at each channel
                 for index2, element2 in enumerate( element ):
-                    # mid_point for GAUSS and SINC
+                    # mid_point for GAUSS, SINC, and WURST
                     mid_point = int( element2[4]/2 )
                     
                     if element2[0] == 0:
                         # fill even indexes for CH0; step in the cycle is 2
                         for i in range (0, 2 * self.memsize, 2):
-                                                        #[      0,        1,               2,     3,                4,               5,     6,           7,               8]
-                            if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples), start, delta_start, amp_coefficient]
+                                                        #[      0,        1,               2,     3,                4,               5,     6,           7,               8,       9]
+                            if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples), start, delta_start, amp_coefficient, n_wurst]
                                 if i <= ( 2 * element2[4] ):
                                     # Sine Signal CH_0; i/2 in order to keep the frequency
                                     #buf[i]
@@ -3116,11 +3216,17 @@ class Spectrum_M4I_6631_X8:
                                     break
                             elif element2[1] == 3: # BLANK
                                 break
+                            elif element2[1] == 4: # WURST
+                                if i <= ( 2 * element2[4] ):
+                                    pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( ( i/2 ) - mid_point ) / element2[4] ) ) ** element2[9] )*\
+                                        sin(2*pi*(( ( i/2 ) - mid_point ))*( element2[2][0] / self.sample_rate + (element2[2][1] - element2[2][0])*\
+                                        ( ( i/2 ) - mid_point ) / element2[4] / self.sample_rate ) + element2[3] ) )
 
                     elif element2[0] == 1:
                         # fill odd indexes for CH1; step in the cycle is 2
                         for i in range (1 , 1 + 2 * self.memsize, 2):
-                            if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples)]
+                                                        #[      0,        1,               2,     3,                4,               5,     6,           7,               8,       9]
+                            if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples), start, delta_start, amp_coefficient, n_wurst]
                                 if (i - 1) <= ( 2 * element2[4] ):
                                     # Sine Signal CH_1; i/2 in order to keep the frequency
                                     #buf[i]
@@ -3141,6 +3247,11 @@ class Spectrum_M4I_6631_X8:
                                     break
                             elif element2[1] == 3: # BLANK
                                 break
+                            elif element2[1] == 4: # WURST
+                                if (i - 1) <= ( 2 * element2[4] ):
+                                    pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( (i - 1)/2 - mid_point ) / element2[4] ) ) ** element2[9] )*\
+                                        sin(2*pi*(( (i - 1)/2 - mid_point ))*( element2[2][0] / self.sample_rate + (element2[2][1] - element2[2][0])*\
+                                        ( (i - 1)/2 - mid_point ) / element2[4] / self.sample_rate ) + element2[3] ) )
 
             return pvBuffer, pnBuffer
 
@@ -3326,18 +3437,17 @@ class Spectrum_M4I_6631_X8:
                                i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                             
                             if pulse_phase_np[index] != 1000:
-                                self.full_buffer[point, i] 
                                 # ( i - pulse_start_smp[index] ) in Sine for always zero phase
                                 pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * ( 1 - abs( sin( pi*( i - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
-                                                           sin(2*pi*(( i - mid_point ))*( pulse_frequency[index][0] + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
-                                                           ( i - mid_point ) / pulse_length_smp[index] ) + pulse_phase_np[index] ) )
+                                                            sin(2*pi*(( i - mid_point ))*( pulse_frequency[index][0] / self.sample_rate + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
+                                                            ( i - mid_point ) / pulse_length_smp[index] / self.sample_rate ) + pulse_phase_np[index] ) )
 
                             else:
                                 # for DEER pulse with random phase
                                 rnd_phase = 2*pi*random.random()
                                 pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * ( 1 - abs( sin( pi*( i - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
-                                                           sin(2*pi*(( i - mid_point ))*( pulse_frequency[index][0] + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
-                                                           ( i - mid_point ) / pulse_length_smp[index] ) + pulse_phase_np[index] + rnd_phase) )
+                                                            sin(2*pi*(( i - mid_point ))*( pulse_frequency[index][0] / self.sample_rate + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
+                                                            ( i - mid_point ) / pulse_length_smp[index] / self.sample_rate ) + pulse_phase_np[index] + rnd_phase) )
 
                         else:
                             break
@@ -3538,15 +3648,17 @@ class Spectrum_M4I_6631_X8:
                                         (self.maxCAD / pulse_amp[index] * ( 1 - np.abs( np.sin( np.pi * ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                             pulse_length_smp[index]) - mid_point) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] ) * \
                                             np.sin(2*np.pi*( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                            pulse_length_smp[index] ) - mid_point)*( pulse_frequency[index][0] + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
-                                            ( i - mid_point ) / pulse_length_smp[index] ) + pulse_phase_np[index] )).astype(int64)                        
+                                            pulse_length_smp[index] ) - mid_point)*( pulse_frequency[index][0] / self.sample_rate + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
+                                            ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            pulse_length_smp[index] ) - mid_point ) / pulse_length_smp[index] / self.sample_rate ) + pulse_phase_np[index] )).astype(int64)                        
 
                         pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
                                         (self.maxCAD / pulse_amp[index] * ( 1 - np.abs( np.sin( np.pi * ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                             pulse_length_smp[index]) - mid_point) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] ) * \
                                             np.sin(2*np.pi*( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                            pulse_length_smp[index] ) - mid_point)*( pulse_frequency[index][0] + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
-                                            ( i - mid_point ) / pulse_length_smp[index] ) + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode)).astype(int64)  
+                                            pulse_length_smp[index] ) - mid_point)*( pulse_frequency[index][0] / self.sample_rate + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
+                                            ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            pulse_length_smp[index] ) - mid_point ) / pulse_length_smp[index] / self.sample_rate) + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode)).astype(int64)  
                     else:
                         # DEER pulse
                         rnd_phase = 2*pi*random.random()
@@ -3554,15 +3666,17 @@ class Spectrum_M4I_6631_X8:
                                         (self.maxCAD / pulse_amp[index] * ( 1 - np.abs( np.sin( np.pi * ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                             pulse_length_smp[index]) - mid_point) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] ) * \
                                             np.sin(2*np.pi*( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                            pulse_length_smp[index] ) - mid_point)*( pulse_frequency[index][0] + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
-                                            ( i - mid_point ) / pulse_length_smp[index] ) + pulse_phase_np[index] + rnd_phase )).astype(int64)                        
+                                            pulse_length_smp[index] ) - mid_point)*( pulse_frequency[index][0] / self.sample_rate + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
+                                            ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            pulse_length_smp[index] ) - mid_point ) / pulse_length_smp[index] / self.sample_rate ) + pulse_phase_np[index] + rnd_phase )).astype(int64)                        
 
                         pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
                                         (self.maxCAD / pulse_amp[index] * ( 1 - np.abs( np.sin( np.pi * ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                             pulse_length_smp[index]) - mid_point) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] ) * \
                                             np.sin(2*np.pi*( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                            pulse_length_smp[index] ) - mid_point)*( pulse_frequency[index][0] + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
-                                            ( i - mid_point ) / pulse_length_smp[index] ) + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode + rnd_phase )).astype(int64)  
+                                            pulse_length_smp[index] ) - mid_point)*( pulse_frequency[index][0] / self.sample_rate + (pulse_frequency[index][1] - pulse_frequency[index][0])*\
+                                            ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
+                                            pulse_length_smp[index] ) - mid_point ) / pulse_length_smp[index] / self.sample_rate ) + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode + rnd_phase )).astype(int64)  
 
             return pvBuffer, pnBuffer.ctypes.data_as(ptr16) #STANDARD: return pvBuffer, pnBuffer
     
