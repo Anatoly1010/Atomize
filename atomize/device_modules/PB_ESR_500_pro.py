@@ -11,6 +11,11 @@ import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 import atomize.general_modules.spinapi as spinapi
 
+# Line 2290
+# when min pulse length 12 ns
+# there is a problem between phase pulse and previous MW pulse
+# in config switch_phase_delay = 32 (for 12 ns min pulse) -> 28
+# L2491: element_lna[2] = element_lna[2] + self.overlap_amp_lna_mw + 1
 
 class PB_ESR_500_Pro:
     def __init__(self):
@@ -65,14 +70,14 @@ class PB_ESR_500_Pro:
 
         # a constant that use to overcome short instruction for our diagonal amp_on and mw pulses
         # see also add_amp_on_pulses() function; looking for pulses with +-overlap_amp_lna_mw overlap
-        self.overlap_amp_lna_mw = 6 # in clock ### it was 5; 10.09.2021
+        self.overlap_amp_lna_mw = 5 # in clock ### it was 6; 06.10.2021
 
         # after all manupulations with diagonal amp_on pulses there is a variant
         # when we use several mw pulses with app. 40 ns distance and with the phase different from
         # +x. In this case two phase pulses start to be at the distance less than current minimal distance
         # in 40 ns. That is why a different minimal distance (10 ns) is added for phase pulses
         # see also preparing_to_bit_pulse() function
-        self.minimal_distance_phase = 6 # in clock ### it was 5; 10.09.2021
+        self.minimal_distance_phase = 5 # in clock ### it was 6; 06.10.2021
 
         # minimal distance for joining AMP_ON and LNA_PROTECT pulses
         # decided to keep it as 12 ns, while for MW pulses the limit is 40 ns
@@ -528,7 +533,7 @@ class PB_ESR_500_Pro:
                 #general.message(to_spinapi)
                 
                 ##for element in to_spinapi:
-                ##    if element[2] < 12: # it was 10; 10.09.2021
+                ##    if element[2] < 10: # it was 12; 06.10.2021
                 ##        general.message('Incorrect instruction are found')
                 ##        ###general.message('ALARM')
                 ##        self.pulser_stop()
@@ -608,7 +613,7 @@ class PB_ESR_500_Pro:
                 #to_spinapi = self.instruction_pulse( self.convert_to_bit_pulse( self.pulse_array ) )
                 to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
                 for element in to_spinapi:
-                    if element[2] < 12:  # it was 10; 10.09.2021
+                    if element[2] < 10:  # it was 12; 06.10.2021
                         assert( 1 == 2), 'Incorrect instruction are found. Probably Trigger pulses are overlap with other'
 
                 self.reset_count = 1
