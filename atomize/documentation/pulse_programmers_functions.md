@@ -14,6 +14,7 @@ Functions:
 - [pulser_repetition_rate(*r_rate)](#pulser_repetition_rater_rate)<br/>
 - [pulser_shift(*pulses)](#pulser_shiftpulses)<br/>
 - [pulser_increment(*pulses)](#pulser_incrementpulses)<br/>
+- [pulser_redefine_start(*, name, start)](#pulser_redefine_start-name-start)<br/>
 - [pulser_redefine_delta_start(*, name, delta_start)](#pulser_redefine_delta_start-name-delta_start)<br/>
 - [pulser_redefine_length_increment(*, name, length_increment)](#pulser_redefine_length_increment-name-length_increment)<br/>
 - [pulser_reset()](#pulser_reset)<br/>
@@ -112,6 +113,14 @@ Arguments: none or string of pulse names; Output: none.
 Example: pulser_increment('P0') increments the pulse named 'P0' by the corresponding length_increment value.
 ```
 This function can be called with either no argument or with a list of comma separated pulse names (i.e. 'P0', 'P1'). If no argument is given the lengths of all pulses that have a nonzero length_increment and are currently active (do not have a length of 0) are incremented by their corresponding length_increment value. If there is one argument or a list of comma separated pulse names only the lengths of the listed pulses are changed. Calling this function also resets the phase (if specified in the argument phase_list of the [pulser_pulse()](#pulser_pulse)) to the first phase in the phase_list.
+### pulser_redefine_start(*, name, start)
+```python3
+pulser_redefine_start(*, name, start)
+Arguments: name = 'Pulse name', start = a new start time of the pulse (as a string);
+Output: none.
+Example: pulser_redefine_start('P0', start = '100 ns') changes start setting of the 'P0' pulse to 100 ns.
+```
+This function should be called with two keyword arguments, namely name and start. The first argument specifies the name of the pulse as a string. The second argument defines a new value of pulse start as a string in the format value + dimension (i.e. '100 ns'). The main purpose of the function is non-uniform sampling. Please note, that the function does not update the pulse programmer. [pulser_update()](#pulser_update) should be called to apply changes.
 ### pulser_redefine_delta_start(*, name, delta_start)
 ```python3
 pulser_redefine_delta_start(*, name, delta_start)

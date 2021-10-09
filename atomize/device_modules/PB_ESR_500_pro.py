@@ -5,6 +5,8 @@ import os
 import sys
 import math
 from copy import deepcopy
+#from operator import iconcat
+#from functools import reduce
 from itertools import groupby, chain
 import numpy as np
 import atomize.device_modules.config.config_utils as cutil
@@ -244,6 +246,51 @@ class PB_ESR_500_Pro:
                     assert(1 == 2), 'Incorrect auto_defense setting'
             else:
                 assert (1 == 2), 'Incorrect channel name'
+
+    def pulser_redefine_start(self, *, name, start):
+        """
+        A function for redefining start of the specified pulse.
+        pulser_redefine_start(name = 'P0', start = '100 ns') changes start of the 'P0' pulse to 100 ns.
+        The main purpose of the function is non-uniform sampling / 2D experimental scripts
+
+        def func(*, name1, name2): defines a function without default values of key arguments
+        """
+
+        if self.test_flag != 'test':
+            i = 0
+
+            while i < len( self.pulse_array ):
+                if name == self.pulse_array[i]['name']:
+                    self.pulse_array[i]['start'] = str(start)
+                    self.shift_count = 1
+                else:
+                    pass
+
+                i += 1
+
+        elif self.test_flag == 'test':
+            i = 0
+            assert( name in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+
+            while i < len( self.pulse_array ):
+                if name == self.pulse_array[i]['name']:
+
+                    # checks
+                    temp_start = start.split(" ")
+                    if temp_start[1] in self.timebase_dict:
+                        coef = self.timebase_dict[temp_start[1]]
+                        p_start = coef*float(temp_start[0])
+                        assert(p_start % 2 == 0), 'Pulse start should be divisible by 2'
+                        assert(p_start >= 0), 'Pulse start is a negative number'
+                    else:
+                        assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+
+                    self.pulse_array[i]['start'] = str(start)
+                    self.shift_count = 1
+                else:
+                    pass
+
+                i += 1
 
     def pulser_redefine_delta_start(self, *, name, delta_start):
         """
@@ -612,9 +659,15 @@ class PB_ESR_500_Pro:
                 # using a special functions for convertion to instructions
                 #to_spinapi = self.instruction_pulse( self.convert_to_bit_pulse( self.pulse_array ) )
                 to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
+                
+                ##with open("test.out", "a") as f:
+                ##    np.savetxt(f, [reduce(iconcat, to_spinapi, [])], delimiter=',', fmt = '%u') 
+                
+                ##f.close()
+
                 for element in to_spinapi:
                     if element[2] < 10:  # it was 12; 06.10.2021
-                        assert( 1 == 2), 'Incorrect instruction are found. Probably Trigger pulses are overlap with other'
+                        assert( 1 == 2 ), 'Incorrect instruction are found. Probably Trigger pulses are overlap with other'
 
                 self.reset_count = 1
                 self.shift_count = 0
@@ -1820,8 +1873,15 @@ class PB_ESR_500_Pro:
                                 shifted_back_awg_mw = shifted_back_awg_pulses
                             
                             self.check_problem_pulses(no_awg_element)
+                            # 09-10-2021 Commented next line for full AWG ESEEM
+                            # uncomment in case of problems
                             self.check_problem_pulses(no_mw_element)
                             self.check_problem_pulses(shifted_back_awg_mw)
+
+                            ##with open("test.out", "a") as f:
+                            ##    np.savetxt(f, no_mw_element, delimiter=',', fmt = '%u') 
+                            
+                            ##f.close()
 
                         amp_on_pulses = self.add_amp_on_pulses(element)
                         lna_pulses = self.add_lna_protect_pulses(element)

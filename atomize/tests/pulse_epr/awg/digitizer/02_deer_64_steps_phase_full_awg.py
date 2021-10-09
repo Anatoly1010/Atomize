@@ -28,7 +28,7 @@ def cleanup(*args):
     awg.awg_stop()
     awg.awg_close()
     pb.pulser_stop()
-    file_handler.save_data(file_data, np.c_[x_axis, data_x, data_y], header = header, mode = 'w')
+    file_handler.save_data(file_data, data, header = header, mode = 'w')
     sys.exit(0)
 
 signal.signal(signal.SIGTERM, cleanup)
@@ -50,23 +50,23 @@ CURVE_NAME = 'exp1'
 #
 dig4450.digitizer_read_settings()
 dig4450.digitizer_number_of_averages(AVERAGES)
-tb = dig4450.digitizer_window()
+time_res = int( 1000 / int(dig4450.digitizer_sample_rate().split(' ')[0]) )
+# a full oscillogram will be transfered
+wind = dig4450.digitizer_number_of_points()
+cycle_data_x = np.zeros( (64, int(wind)) )
+cycle_data_y = np.zeros( (64, int(wind)) )
+data = np.zeros( (2, int(wind), POINTS) )
 
 ###t3034.oscilloscope_record_length( 2500 )
 ###real_length = t3034.oscilloscope_record_length( )
 ###tb = t3034.oscilloscope_timebase() * 1000
-
-cycle_data_x = np.zeros( (64, int(tb)) )
-cycle_data_y = np.zeros( (64, int(tb)) )
-data = np.zeros( (2, int(tb), POINTS) )
-
 #x_axis = np.linspace(0, (POINTS - 1)*STEP, num = POINTS) 
 ###
 
 #PROBE
 pb.pulser_pulse(name = 'P0', channel = 'TRIGGER_AWG', start = '0 ns', length = '20 ns')
 
-pb.pulser_pulse(name = 'P1', channel = 'AWG', start = '398 ns', length = '16 ns')
+pb.pulser_pulse(name = 'P1', channel = 'AWG', start = '494 ns', length = '16 ns')
 awg.awg_pulse(name = 'P2', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, \
             length = '16 ns', sigma = '16 ns', start = '0 ns', \
             phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x',\
@@ -74,7 +74,7 @@ awg.awg_pulse(name = 'P2', channel = 'CH0', func = 'SINE', frequency = '200 MHz'
                   '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x',\
                   '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y'])
 
-pb.pulser_pulse(name = 'P3', channel = 'AWG', start = '738 ns', length = '32 ns')
+pb.pulser_pulse(name = 'P3', channel = 'AWG', start = '834 ns', length = '32 ns')
 awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, \
             length = '32 ns', sigma = '32 ns', start = '340 ns', \
             phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x',\
@@ -83,7 +83,7 @@ awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'SINE', frequency = '200 MHz'
                   '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y'])
 
 #PUMP
-pb.pulser_pulse(name = 'P7', channel = 'AWG', start = '978 ns', length = '20 ns', delta_start = str(STEP) + ' ns')
+pb.pulser_pulse(name = 'P7', channel = 'AWG', start = '1074 ns', length = '20 ns', delta_start = str(STEP) + ' ns')
 awg.awg_pulse(name = 'P8', channel = 'CH0', func = 'SINE', frequency = '70 MHz', phase = 0, \
             length = '20 ns', sigma = '20 ns', start = '580 ns', delta_start = str(STEP) + ' ns', \
             phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x',\
@@ -91,7 +91,7 @@ awg.awg_pulse(name = 'P8', channel = 'CH0', func = 'SINE', frequency = '70 MHz',
                   '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x',\
                   '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x'])
 
-pb.pulser_pulse(name = 'P5', channel = 'AWG', start = '2078 ns', length = '32 ns')
+pb.pulser_pulse(name = 'P5', channel = 'AWG', start = '2174 ns', length = '32 ns')
 awg.awg_pulse(name = 'P6', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, \
             length = '32 ns', sigma = '32 ns', start = '1680 ns', \
             phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x',\
@@ -99,9 +99,9 @@ awg.awg_pulse(name = 'P6', channel = 'CH0', func = 'SINE', frequency = '200 MHz'
                   '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x',\
                   '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y'])
 
-
-
-# AWG = 398 (awg_output delay) + (awg pulse position)
+# 398 ns is delay from AWG trigger 1.25 GHz
+# 494 ns is delay from AWG trigger 1.00 GHz
+# AWG = 494 (awg_output delay) + (awg pulse position)
 
 #DETECTION
 pb.pulser_pulse(name = 'P9', channel = 'TRIGGER', start = '2680 ns', length = '100 ns')
@@ -128,16 +128,15 @@ awg.awg_setup()
 
 
 # Data saving
-#str(t3034.oscilloscope_timebase()*1000)
-#str(tb)
 header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + \
          'DEER Measurement; 64 Step Phase Cycling; Full AWG\n' + 'Field: ' + str(FIELD) + ' G \n' + str(mw.mw_bridge_att1_prd()) + '\n' + \
            str(mw.mw_bridge_att2_prd()) + '\n' + str(mw.mw_bridge_att_prm()) + '\n' + str(mw.mw_bridge_synthesizer()) + '\n' + \
           'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' + 'Number of Scans: ' + str(SCANS) + '\n' +\
-          'Averages: ' + str(AVERAGES) + '\n' + 'Points: ' + str(POINTS) + '\n' + 'Window: ' + str(tb) + ' ns\n' \
+          'Averages: ' + str(AVERAGES) + '\n' + 'Points: ' + str(POINTS) + '\n' + 'Window: ' + str(wind * time_res) + ' ns\n' \
+          + 'Horizontal Resolution: ' + str(time_res) + ' ns\n' + 'Vertical Resolution: ' + str(STEP) + ' ns\n' \
           + 'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
           'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'AWG Pulse List: ' + '\n' +\
-          str(awg.awg_pulse_list()) + 'Time (awg delta_start), X (V*s), Y (V*s) '
+          str(awg.awg_pulse_list()) + '2D Data'
 
 file_data, file_param = file_handler.create_file_parameters('.param')
 file_handler.save_header(file_param, header = header, mode = 'w')
@@ -175,7 +174,7 @@ for j in general.scans(SCANS):
         data[0, :, i] = ( data[0, :, i] * (j - 1) + x ) / j
         data[1, :, i] = ( data[0, :, i] * (j - 1) + y ) / j
 
-        general.plot_2d(EXP_NAME, data, start_step = ( (0, tb), (0, STEP) ), xname = 'Time',\
+        general.plot_2d(EXP_NAME, data, start_step = ( (0, time_res), (0, STEP) ), xname = 'Time',\
             xscale = 'ns', yname = 'Delay', yscale = 'ns', zname = 'Intensity', zscale = 'V')
         general.text_label( EXP_NAME, "Scan / Time: ", str(j) + ' / '+ str(i*STEP) )
 

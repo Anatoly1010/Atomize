@@ -33,10 +33,12 @@ pb.pulser_pulse(name = 'P2', channel = 'MW', start = '3780 ns', length = '32 ns'
 
 #PUMP
 pb.pulser_pulse(name = 'P3', channel = 'AWG', start = '2680 ns', length = '20 ns')
-pb.pulser_pulse(name = 'P4', channel = 'TRIGGER_AWG', start = '526 ns', length = '50 ns') #526
+pb.pulser_pulse(name = 'P4', channel = 'TRIGGER_AWG', start = '430 ns', length = '50 ns') # 526
 awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '70 MHz', phase = 0, \
               length = '20 ns', sigma = '20 ns', start = '1756 ns')
-# 2680 = 398 (awg_output delay) + 526 (awg trigger) + 1756 (awg position)
+# 398 ns is delay from AWG trigger 1.25 GHz
+# 494 ns is delay from AWG trigger 1.00 GHz
+# 2680 = 494 (awg_output delay) + 430 (awg trigger) + 1756 (awg position)
 
 #DETECTION
 pb.pulser_pulse(name = 'P6', channel = 'TRIGGER', start = '4780 ns', length = '100 ns')

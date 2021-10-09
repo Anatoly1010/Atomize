@@ -35,15 +35,15 @@ STEP = 4
 REP_RATE = '500 Hz'
 PULSE_1_LENGTH = '16 ns'
 PULSE_2_LENGTH = '32 ns'
-# 412 ns is delay from AWG trigger
-PULSE_1_START = '398 ns'
-PULSE_2_START = '698 ns'
-PULSE_SIGNAL_START = '998 ns'
+# 398 ns is delay from AWG trigger 1.25 GHz
+# 494 ns is delay from AWG trigger 1.00 GHz
+PULSE_1_START = '494 ns'
+PULSE_2_START = '794 ns'
+PULSE_SIGNAL_START = '1094 ns'
 PULSE_AWG_1_START = '0 ns'
 PULSE_AWG_2_START = '300 ns'
 
 # Setting pulses
-# trigger awg is always 412 ns before the actual AWG pulse
 pb.pulser_pulse(name = 'P0', channel = 'TRIGGER_AWG', start = '0 ns', length = '30 ns')
 
 # For each awg_pulse; length should be longer than in awg_pulse
@@ -51,9 +51,9 @@ pb.pulser_pulse(name = 'P1', channel = 'AWG', start = PULSE_1_START, length = '1
 pb.pulser_pulse(name = 'P2', channel = 'AWG', start = PULSE_2_START, length = '32 ns', delta_start = str(int(STEP/2)) + ' ns')
 
 pb.pulser_pulse(name = 'P3', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str(int(STEP)) + ' ns')
-awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'SINE', frequency = '125 MHz', phase = 0, \
+awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'SINE', frequency = '50 MHz', phase = 0, \
             length = PULSE_1_LENGTH, sigma = PULSE_1_LENGTH, start = PULSE_AWG_1_START)
-awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '125 MHz', phase = 0, \
+awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '50 MHz', phase = 0, \
             length = PULSE_2_LENGTH, sigma = PULSE_2_LENGTH, start = PULSE_AWG_2_START, delta_start = str(int(STEP/2)) + ' ns')
 
 
@@ -61,6 +61,9 @@ pb.pulser_repetition_rate( REP_RATE )
 
 awg.awg_channel('CH0', 'CH1')
 awg.awg_card_mode('Single Joined')
+awg.awg_clock_mode('External')
+awg.awg_reference_clock(100)
+awg.awg_sample_rate(1000)
 awg.awg_setup()
 
 pb.pulser_update()
