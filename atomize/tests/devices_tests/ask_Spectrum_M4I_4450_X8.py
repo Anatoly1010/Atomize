@@ -26,6 +26,7 @@ ys = np.arange(0, POINTS, 1)
 dig = spectrum.Spectrum_M4I_4450_X8()
 
 dig.digitizer_number_of_points( POINTS )
+general.message( dig.digitizer_number_of_points( ) )
 dig.digitizer_card_mode('Average')
 dig.digitizer_posttrigger( 16 )
 dig.digitizer_number_of_averages(100)

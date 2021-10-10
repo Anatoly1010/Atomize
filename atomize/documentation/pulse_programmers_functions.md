@@ -10,7 +10,7 @@ Functions:
 - [pulser_pulse(*kagrs)](#pulser_pulsekargs)<br/>
 - [pulser_update()](#pulser_update)<br/>
 - [pulser_next_phase()](#pulser_next_phase)<br/>
-- [pulse_acquisition_cycle(data1, data2, acq_cycle = [])](#pulse_acquisition_cycledata1-data2-acq_cycle--)<br/>
+- [pulser_acquisition_cycle(data1, data2, acq_cycle = [])](#pulse_acquisition_cycledata1-data2-acq_cycle--)<br/>
 - [pulser_repetition_rate(*r_rate)](#pulser_repetition_rater_rate)<br/>
 - [pulser_shift(*pulses)](#pulser_shiftpulses)<br/>
 - [pulser_increment(*pulses)](#pulser_incrementpulses)<br/>
@@ -60,14 +60,14 @@ Arguments: none; Output: none.
 Example: pulser_next_phase() switches all pulses in the sequence to the next phase.
 ```
 This function switches all pulses to the next phase. The phase sequence is declared in the [pulser_pulse()](#pulser_pulse) in the form of phase_list = ['-y', '+x', '-x', '+x', ...]. By repeatedly calling the function one can run through the complete list of phases for the pulses. The length of all phase lists specified for different MW pulses has to be the same. This function also immediately updates the pulse sequence, as it is done by calling [pulser_update()](#pulser_update). The first call of the function corresponds to the first phase in the phase_list argument of the [pulser_pulse()](#pulser_pulse).
-### pulse_acquisition_cycle(data1, data2, acq_cycle = [])
+### pulser_acquisition_cycle(data1, data2, acq_cycle = [])
 ```python3
-pulse_acquisition_cycle(data1, data2, acq_cycle = [])
+pulser_acquisition_cycle(data1, data2, acq_cycle = [])
 Arguments: 
 data1, data2 = 1D or 2D numpy arrays;
 acq_cycle = array of mathematical operations, i.e. ['+', '-', '+i', '-i'];
 Output: two numpy arrays, representing phase cycled data1 and data2.
-Example: pulse_acquisition_cycle(np.array([1, 0]), np.array([0, 1]), acq_cycle = ['+', '-'])
+Example: pulser_acquisition_cycle(np.array([1, 0]), np.array([0, 1]), acq_cycle = ['+', '-'])
 performes given mathematical operations on the arrays.
 ```
 This function can be used to shorten the syntax for acqusition in the case of phase cycling. The arguents are (i) two numpy arrays from a quadrature detector, (ii) array of mathematical operations to perform. Data arrays can be both 2D and 1D, representing, respectively, the case of raw oscillograms or integrated data. The length of acq_cycle array and the 1D arrays or the amount of the individual oscillograms in the 2D array should be equal. The data arrays will be treated inside the function as a complex number:

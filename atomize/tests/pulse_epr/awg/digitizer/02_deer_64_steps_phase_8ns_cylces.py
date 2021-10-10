@@ -56,17 +56,17 @@ x_axis = np.linspace(0, (POINTS - 1)*STEP, num = POINTS)
 ###
 
 #PROBE
-pb.pulser_pulse(name = 'P0', channel = 'MW', start = '2100 ns', length = '16 ns', \
+pb.pulser_pulse(name = 'P0', channel = 'MW', start = '2100 ns', length = '16 ns',\
     phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x',\
                   '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y',\
                   '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x',\
                   '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y'])
-pb.pulser_pulse(name = 'P1', channel = 'MW', start = '2440 ns', length = '32 ns', \
+pb.pulser_pulse(name = 'P1', channel = 'MW', start = '2440 ns', length = '32 ns', delta_start = str( int(STEP*2) ) + ' ns',\
     phase_list = ['+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
                   '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
                   '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
                   '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y'])
-pb.pulser_pulse(name = 'P2', channel = 'MW', start = '3780 ns', length = '32 ns', \
+pb.pulser_pulse(name = 'P2', channel = 'MW', start = '3780 ns', length = '32 ns', delta_start = str( int(STEP*4) ) + ' ns', \
     phase_list = ['+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
                   '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
                   '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
@@ -82,7 +82,7 @@ awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '70 MHz',
 # 2680 = 494 (awg_output delay) + 430 (awg trigger) + 1756 (awg position)
 
 #DETECTION
-pb.pulser_pulse(name = 'P6', channel = 'TRIGGER', start = '4780 ns', length = '100 ns')
+pb.pulser_pulse(name = 'P6', channel = 'TRIGGER', start = '4780 ns', length = '100 ns', delta_start = str( int(STEP*4) ) + ' ns')
 
 
 bh15.magnet_setup(FIELD, 1)
@@ -129,47 +129,62 @@ file_handler.save_header(file_param, header = header, mode = 'w')
 for j in general.scans(SCANS):
 #while j <= SCANS:
 
-    for i in range(POINTS):
+    cycle_8 = 1 
+    while cycle_8 <= 8:
 
-        # phase cycle
-        k = 0
-        while k < 64:
+        m = 1
+        while m < cycle_8:
+            pb.pulser_shift('P1', 'P2', 'P3', 'P4', 'P6')
+            pb.pulser_shift('P3', 'P4')
+            pb.pulser_shift('P3', 'P4')
+            pb.pulser_shift('P3', 'P4')
 
-            pb.pulser_next_phase()
-            if k == 0:
-                awg.awg_update()
+            m += 1
 
-            cycle_data_x[k], cycle_data_y[k] = dig4450.digitizer_get_curve( integral = True )
-            ###t3034.oscilloscope_start_acquisition()
-            ###cycle_data_x[k] = t3034.oscilloscope_area('CH4')
-            ###cycle_data_y[k] = t3034.oscilloscope_area('CH3')
+        for i in range(POINTS):
 
-            k += 1
-        
-        # acquisition cycle
-        x, y = pb.pulse_acquisition_cycle(cycle_data_x, cycle_data_y, \
-            acq_cycle = ['+', '-', '+', '-', '-', '+', '-', '+', '+', '-', '+', '-', '-', '+', '-', '+',
-                         '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i', '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i',
-                         '-', '+', '-', '+', '+', '-', '+', '-', '-', '+', '-', '+', '+', '-', '+', '-',
-                         '-i', '+i', '-i', '+i', '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i', '+i', '-i', '+i', '-i' ])
+            # phase cycle
+            k = 0
+            while k < 64:
 
-        data_x[i] = ( data_x[i] * (j - 1) + x ) / j
-        data_y[i] = ( data_y[i] * (j - 1) + y ) / j
+                pb.pulser_next_phase()
+                if k == 0:
+                    awg.awg_update()
 
-        general.plot_1d(EXP_NAME, x_axis, data_x, xname = 'Delay',\
-            xscale = 'ns', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_X')
-        general.plot_1d(EXP_NAME, x_axis, data_y, xname = 'Delay',\
-            xscale = 'ns', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_Y')
-        general.text_label( EXP_NAME, "Scan / Time: ", str(j) + ' / '+ str(i*STEP) )
+                cycle_data_x[k], cycle_data_y[k] = dig4450.digitizer_get_curve( integral = True )
+                ###t3034.oscilloscope_start_acquisition()
+                ###cycle_data_x[k] = t3034.oscilloscope_area('CH4')
+                ###cycle_data_y[k] = t3034.oscilloscope_area('CH3')
 
-        ###awg.awg_stop()
-        ###awg.awg_shift()
-        pb.pulser_shift()
+                k += 1
+            
+            # acquisition cycle
+            x, y = pb.pulser_acquisition_cycle(cycle_data_x, cycle_data_y, \
+                acq_cycle = ['+', '-', '+', '-', '-', '+', '-', '+', '+', '-', '+', '-', '-', '+', '-', '+',
+                             '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i', '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i',
+                             '-', '+', '-', '+', '+', '-', '+', '-', '-', '+', '-', '+', '+', '-', '+', '-',
+                             '-i', '+i', '-i', '+i', '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i', '+i', '-i', '+i', '-i' ])
 
+            data_x[i] = ( data_x[i] * (cycle_8 - 1 + (j - 1) * 8 ) + x ) / ( cycle_8 + (j - 1) * 8 )
+            data_y[i] = ( data_y[i] * (cycle_8 - 1 + (j - 1) * 8 ) + y ) / ( cycle_8 + (j - 1) * 8 )
+
+            general.plot_1d(EXP_NAME, x_axis, data_x, xname = 'Delay',\
+                xscale = 'ns', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_X')
+            general.plot_1d(EXP_NAME, x_axis, data_y, xname = 'Delay',\
+                xscale = 'ns', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_Y')
+            general.text_label( EXP_NAME, "Scan / Time: ", str(j) + ' / ' + str(cycle_8) + ' / '+ str(i*STEP) )
+
+            ###awg.awg_stop()
+            ###awg.awg_shift()
+            pb.pulser_shift('P3','P4')
+
+        pb.pulser_reset()
+        cycle_8 += 1
     
     #j += 1
     ###awg.awg_pulse_reset()
-    pb.pulser_pulse_reset()
+    pb.pulser_reset()
+
 
 dig4450.digitizer_stop()
 dig4450.digitizer_close()

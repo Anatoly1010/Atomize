@@ -5,8 +5,8 @@ import os
 import sys
 import math
 from copy import deepcopy
-#from operator import iconcat
-#from functools import reduce
+from operator import iconcat
+from functools import reduce
 from itertools import groupby, chain
 import numpy as np
 import atomize.device_modules.config.config_utils as cutil
@@ -130,8 +130,11 @@ class PB_ESR_500_Pro:
             self.current_phase_index = 0
             self.awg_pulses = 0
             self.phase_pulses = 0
-        
+            self.instr_from_file = 0
+            self.iterator_of_updates = 0
+
         elif self.test_flag == 'test':
+            open('instructions.out', 'w').close()
             self.test_rep_rate = '2 Hz'
             
             self.pulse_array = []
@@ -146,6 +149,7 @@ class PB_ESR_500_Pro:
             self.current_phase_index = 0
             self.awg_pulses = 0
             self.phase_pulses = 0
+            self.instr_from_file = 0
 
     # Module functions
     def pulser_name(self):
@@ -576,9 +580,12 @@ class PB_ESR_500_Pro:
                 #temp, visualizer = self.convert_to_bit_pulse( self.pulse_array )
                 
                 #to_spinapi = self.instruction_pulse( temp, rep_time )
-                to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
-                #general.message(to_spinapi)
-                
+                if self.instr_from_file == 0:
+                    to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
+                elif self.instr_from_file == 1:
+                    raw_data = np.fromstring( self.raw_instructions[self.iterator_of_updates], dtype = int, sep = ',' )
+                    to_spinapi = raw_data.reshape( ( int(len(raw_data)/3), 3 ) ).tolist()
+
                 ##for element in to_spinapi:
                 ##    if element[2] < 10: # it was 12; 06.10.2021
                 ##        general.message('Incorrect instruction are found')
@@ -598,8 +605,8 @@ class PB_ESR_500_Pro:
                 self.sp.pb_bypass_FF_fix(1)
 
                 i = 0
-                while i < len( to_spinapi) - 1:
-                    if i == 0: 
+                while i < len( to_spinapi ) - 1:
+                    i == 0: 
                         # to create a link for BRANCH
                         # start = pb_inst(ON | "0x%X" % to_spinapi[i][0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
                         
@@ -640,6 +647,8 @@ class PB_ESR_500_Pro:
                 self.shift_count = 0
                 self.increment_count = 0
                 self.rep_rate_count = 0
+
+                self.iterator_of_updates += 1
             else:
                 pass
 
@@ -660,10 +669,12 @@ class PB_ESR_500_Pro:
                 #to_spinapi = self.instruction_pulse( self.convert_to_bit_pulse( self.pulse_array ) )
                 to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
                 
-                ##with open("test.out", "a") as f:
-                ##    np.savetxt(f, [reduce(iconcat, to_spinapi, [])], delimiter=',', fmt = '%u') 
+                # instructions from file:
+                if self.instr_from_file == 1:
+                    with open("instructions.out", "a") as f:
+                        np.savetxt(f, [reduce(iconcat, to_spinapi, [])], delimiter = ',', fmt = '%u') 
                 
-                ##f.close()
+                    f.close()
 
                 for element in to_spinapi:
                     if element[2] < 10:  # it was 12; 06.10.2021
@@ -971,8 +982,15 @@ class PB_ESR_500_Pro:
             # using a special functions for convertion to instructions
             # we get two return arrays because of pulser_visualizer. It is not the case for test flag.
             #temp, visualizer = self.convert_to_bit_pulse( self.pulse_array )
-            to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
-            general.message( to_spinapi )
+
+            if self.instr_from_file == 0:
+                to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
+            elif self.instr_from_file == 1:
+                self.iterator_of_updates = 0
+                raw_data = np.fromstring( self.raw_instructions[self.iterator_of_updates], dtype = int, sep = ',' )
+                to_spinapi = raw_data.reshape( (int(len(raw_data)/3), 3 ) ).tolist()
+
+            #general.message( to_spinapi )
 
             # initialization
             #pb_init()
@@ -983,7 +1001,7 @@ class PB_ESR_500_Pro:
             #pb_start_programming(0)
             self.sp.pb_start_programming(0)
             i = 0
-            while i < len( to_spinapi) - 1:
+            while i < len( to_spinapi ) - 1:
                 if i == 0: 
                     # to create a link for BRANCH
                     #start = pb_inst(ON | "0x%X" % to_spinapi[i][0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
@@ -1020,6 +1038,8 @@ class PB_ESR_500_Pro:
             self.increment_count = 0
             self.shift_count = 0
             self.current_phase_index = 0
+
+            self.iterator_of_updates += 1
 
         elif self.test_flag == 'test':
             # get repetition rate
@@ -1058,6 +1078,8 @@ class PB_ESR_500_Pro:
                 self.shift_count = 0
                 self.current_phase_index = 0
 
+                self.iterator_of_updates = 0
+
             else:
                 set_from_list = set(pulses)
                 for element in set_from_list:
@@ -1071,6 +1093,8 @@ class PB_ESR_500_Pro:
                         self.increment_count = 0
                         self.shift_count = 0
                         self.current_phase_index = 0
+
+                        #self.iterator_of_updates = 0
 
         elif self.test_flag == 'test':
             if len(pulses) == 0:
@@ -1163,7 +1187,7 @@ class PB_ESR_500_Pro:
             #visualizer = self.convert_to_bit_pulse_visualizer_final_instructions( np.asarray(preparation[:-1] ))
 
             # Individual pulses
-            visualizer = self.convert_to_bit_pulse_visualizer(self.pulse_array )
+            visualizer = self.convert_to_bit_pulse_visualizer( self.pulse_array )
 
             #general.plot_1d('Plot XY Test', np.arange(len(to_spinapi)), to_spinapi, label='test data1', timeaxis = 'False')
             general.plot_2d('Pulses Visualizer', np.transpose( visualizer ), \
@@ -1210,7 +1234,7 @@ class PB_ESR_500_Pro:
         """
         self.test_flag = flag
 
-    def pulse_acquisition_cycle(self, data1, data2, acq_cycle = []):
+    def pulser_acquisition_cycle(self, data1, data2, acq_cycle = []):
         if self.test_flag != 'test':
             answer = np.zeros( data1.shape ) + 1j*np.zeros( data2.shape )
 
@@ -1247,6 +1271,26 @@ class PB_ESR_500_Pro:
 
             return (answer.real / len(acq_cycle))[0], (answer.imag / len(acq_cycle))[0]
     
+    #UNDOCUMENTED
+    def pulser_instruction_from_file(self, flag):
+        """
+        Special function to read instructions from the .txt file
+        """
+        if self.test_flag != 'test':
+            if flag == 1:
+                self.instr_from_file = 1
+                f = open('instructions.out')
+                self.raw_instructions = f.read().splitlines()
+                f.close()
+            elif flag == 0:
+                self.instr_from_file = 0
+
+        elif self.test_flag == 'test':
+            if flag == 1:
+                self.instr_from_file = 1
+            elif flag == 0:
+                self.instr_from_file = 0
+
     # Auxilary functions
     def convertion_to_numpy(self, p_array):
         """

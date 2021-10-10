@@ -165,7 +165,7 @@ for j in general.scans(SCANS):
             k += 1
         
         # acquisition cycle
-        x, y = pb.pulse_acquisition_cycle(cycle_data_x, cycle_data_y, \
+        x, y = pb.pulser_acquisition_cycle(cycle_data_x, cycle_data_y, \
             acq_cycle = ['+', '-', '+', '-', '-', '+', '-', '+', '+', '-', '+', '-', '-', '+', '-', '+',
                          '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i', '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i',
                          '-', '+', '-', '+', '+', '-', '+', '-', '-', '+', '-', '+', '+', '-', '+', '-',
@@ -178,7 +178,7 @@ for j in general.scans(SCANS):
             xscale = 'ns', yname = 'Delay', yscale = 'ns', zname = 'Intensity', zscale = 'V')
         general.text_label( EXP_NAME, "Scan / Time: ", str(j) + ' / '+ str(i*STEP) )
 
-        awg.awg_stop()
+        #awg.awg_stop()
         awg.awg_shift()
         pb.pulser_shift()
 

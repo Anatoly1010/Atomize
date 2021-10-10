@@ -117,7 +117,7 @@ for j in general.scans(SCANS):
             k += 1
 
         # acquisition cycle [+, -]
-        x, y = pb.pulse_acquisition_cycle(cycle_data_x, cycle_data_y, acq_cycle = ['+', '-'])
+        x, y = pb.pulser_acquisition_cycle(cycle_data_x, cycle_data_y, acq_cycle = ['+', '-'])
         data_x[i] = ( data_x[i] * (j - 1) + x ) / j
         data_y[i] = ( data_y[i] * (j - 1) + y ) / j
 
