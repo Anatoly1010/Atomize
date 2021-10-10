@@ -606,7 +606,7 @@ class PB_ESR_500_Pro:
 
                 i = 0
                 while i < len( to_spinapi ) - 1:
-                    i == 0: 
+                    if i == 0: 
                         # to create a link for BRANCH
                         # start = pb_inst(ON | "0x%X" % to_spinapi[i][0], CONTINUE, 0, "0x%X" % to_spinapi[i][2])
                         
