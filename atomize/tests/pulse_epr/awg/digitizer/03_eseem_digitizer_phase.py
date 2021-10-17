@@ -32,14 +32,14 @@ def cleanup(*args):
 signal.signal(signal.SIGTERM, cleanup)
 
 ### Experimental parameters
-POINTS = 1001
+POINTS = 2501
 STEP = 8                  # in NS;
-FIELD = 3378
+FIELD = 3469
 AVERAGES = 10
 SCANS = 1
 
 # PULSES
-REP_RATE = '500 Hz'
+REP_RATE = '250 Hz'
 PULSE_1_LENGTH = '16 ns'
 PULSE_2_LENGTH = '16 ns'
 PULSE_3_LENGTH = '16 ns'
@@ -49,12 +49,12 @@ PULSE_3_LENGTH = '16 ns'
 # since they are longer in comparison with MW 
 # and are not combined in one pulse
 PULSE_1_START = '494 ns'
-PULSE_2_START = '794 ns'
-PULSE_3_START = '870 ns'
-PULSE_SIGNAL_START = '1150 ns'
+PULSE_2_START = '702 ns'
+PULSE_3_START = '778 ns'
+PULSE_SIGNAL_START = '1024 ns'
 PULSE_AWG_1_START = '0 ns'
-PULSE_AWG_2_START = '300 ns'
-PULSE_AWG_3_START = '376 ns'
+PULSE_AWG_2_START = '208 ns'
+PULSE_AWG_3_START = '284 ns'
 
 # NAMES
 EXP_NAME = 'ESEEM_AWG'
@@ -63,16 +63,16 @@ EXP_NAME = 'ESEEM_AWG'
 pb.pulser_pulse(name = 'P0', channel = 'TRIGGER_AWG', start = '0 ns', length = '30 ns')
 
 # For each awg_pulse; length should be longer than in awg_pulse
-pb.pulser_pulse(name = 'P1', channel = 'AWG', start = PULSE_1_START, length = '16 ns')
-pb.pulser_pulse(name = 'P2', channel = 'AWG', start = PULSE_2_START, length = '16 ns')
-pb.pulser_pulse(name = 'P3', channel = 'AWG', start = PULSE_3_START, length = '16 ns', delta_start = str(STEP) + ' ns')
+pb.pulser_pulse(name = 'P1', channel = 'AWG', start = PULSE_1_START, length = PULSE_1_LENGTH)
+pb.pulser_pulse(name = 'P2', channel = 'AWG', start = PULSE_2_START, length = PULSE_2_LENGTH)
+pb.pulser_pulse(name = 'P3', channel = 'AWG', start = PULSE_3_START, length = PULSE_3_LENGTH, delta_start = str(STEP) + ' ns')
 
 pb.pulser_pulse(name = 'P4', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str(STEP) + ' ns')
-awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '50 MHz', phase = 0, \
+awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '75 MHz', phase = 0, \
             length = PULSE_1_LENGTH, sigma = PULSE_1_LENGTH, start = PULSE_AWG_1_START, phase_list = ['+x', '-x', '+x', '-x'])
-awg.awg_pulse(name = 'P6', channel = 'CH0', func = 'SINE', frequency = '50 MHz', phase = 0, \
+awg.awg_pulse(name = 'P6', channel = 'CH0', func = 'SINE', frequency = '75 MHz', phase = 0, \
             length = PULSE_2_LENGTH, sigma = PULSE_2_LENGTH, start = PULSE_AWG_2_START, phase_list = ['+x', '+x', '-x', '-x'])
-awg.awg_pulse(name = 'P7', channel = 'CH0', func = 'SINE', frequency = '50 MHz', phase = 0, \
+awg.awg_pulse(name = 'P7', channel = 'CH0', func = 'SINE', frequency = '75 MHz', phase = 0, \
             length = PULSE_3_LENGTH, sigma = PULSE_3_LENGTH, start = PULSE_AWG_3_START, delta_start = str(STEP) + ' ns', phase_list = ['+x', '+x', '+x', '+x'])
 
 pb.pulser_repetition_rate( REP_RATE )

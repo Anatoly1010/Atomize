@@ -32,9 +32,9 @@ def cleanup(*args):
 signal.signal(signal.SIGTERM, cleanup)
 
 ### Experimental parameters
-POINTS = 1001
+POINTS = 2201
 STEP = 8                  # in NS;
-FIELD = 3378
+FIELD = 3469
 AVERAGES = 10
 SCANS = 1
 
@@ -46,7 +46,7 @@ PULSE_2_LENGTH = '32 ns'
 # 494 ns is delay from AWG trigger 1.00 GHz
 PULSE_1_START = '494 ns'
 PULSE_2_START = '794 ns'
-PULSE_SIGNAL_START = '1094 ns'
+PULSE_SIGNAL_START = '1028 ns'
 PULSE_AWG_1_START = '0 ns'
 PULSE_AWG_2_START = '300 ns'
 
@@ -57,13 +57,13 @@ EXP_NAME = 'T2_AWG'
 pb.pulser_pulse(name = 'P0', channel = 'TRIGGER_AWG', start = '0 ns', length = '30 ns')
 
 # For each awg_pulse; length should be longer than in awg_pulse
-pb.pulser_pulse(name = 'P1', channel = 'AWG', start = PULSE_1_START, length = '16 ns')
-pb.pulser_pulse(name = 'P2', channel = 'AWG', start = PULSE_2_START, length = '32 ns', delta_start = str(int(STEP/2)) + ' ns')
+pb.pulser_pulse(name = 'P1', channel = 'AWG', start = PULSE_1_START, length = PULSE_1_LENGTH)
+pb.pulser_pulse(name = 'P2', channel = 'AWG', start = PULSE_2_START, length = PULSE_2_LENGTH, delta_start = str(int(STEP/2)) + ' ns')
 
 pb.pulser_pulse(name = 'P3', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str(STEP) + ' ns')
-awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'SINE', frequency = '50 MHz', phase = 0, \
+awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'SINE', frequency = '10 MHz', phase = 0, \
             length = PULSE_1_LENGTH, sigma = PULSE_1_LENGTH, start = PULSE_AWG_1_START, phase_list = ['+x', '-x'])
-awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '50 MHz', phase = 0, \
+awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '10 MHz', phase = 0, \
             length = PULSE_2_LENGTH, sigma = PULSE_2_LENGTH, start = PULSE_AWG_2_START, delta_start = str(int(STEP/2)) + ' ns', phase_list = ['+x', '+x'])
 
 
