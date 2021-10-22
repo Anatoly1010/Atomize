@@ -122,6 +122,7 @@ bh15.magnet_field(FIELD)
 
 pb.pulser_repetition_rate( REP_RATE )
 
+awg.awg_sample_rate(1000)
 awg.awg_clock_mode('External')
 awg.awg_reference_clock(100)
 awg.awg_channel('CH0', 'CH1')

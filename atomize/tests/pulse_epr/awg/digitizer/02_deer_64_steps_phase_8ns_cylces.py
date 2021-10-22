@@ -34,11 +34,12 @@ signal.signal(signal.SIGTERM, cleanup)
 ### Experimental parameters
 POINTS = 250
 STEP = 4                  # in NS; delta_start for PUMP pulse; # delta_start = str(STEP) + ' ns' -> delta_start = '4 ns'
-FIELD = 3449
-AVERAGES = 20
+FIELD = 3454
+AVERAGES = 50
 SCANS = 1
 
 # PULSES
+REP_RATE = '2000 Hz'
 PULSE_1_LENGTH = '16 ns'
 PULSE_2_LENGTH = '32 ns'
 PULSE_3_LENGTH = '32 ns'
@@ -88,7 +89,7 @@ pb.pulser_pulse(name = 'P2', channel = 'MW', start = PULSE_3_START, length = PUL
 #PUMP
 pb.pulser_pulse(name = 'P3', channel = 'AWG', start = PULSE_PUMP_START, length = PULSE_PUMP_LENGTH, delta_start = str(STEP) + ' ns')
 pb.pulser_pulse(name = 'P4', channel = 'TRIGGER_AWG', start = PULSE_TRIGGER_AWG_START, length = '20 ns', delta_start = str(STEP) + ' ns')
-awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '70 MHz', phase = 0, \
+awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '65 MHz', phase = 0, \
             length = PULSE_PUMP_LENGTH, sigma = PULSE_PUMP_LENGTH, start = PULSE_AWG_PUMP_START)
 # 398 ns is delay from AWG trigger 1.25 GHz
 # 494 ns is delay from AWG trigger 1.00 GHz
@@ -107,6 +108,7 @@ tb = dig4450.digitizer_window()
 
 pb.pulser_repetition_rate( REP_RATE )
 
+awg.awg_sample_rate(1000)
 awg.awg_clock_mode('External')
 awg.awg_reference_clock(100)
 awg.awg_channel('CH0', 'CH1')
