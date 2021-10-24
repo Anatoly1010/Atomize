@@ -14,7 +14,7 @@ import atomize.general_modules.csv_opener_saver as openfile
 FIELD_STEP = 2.5
 FIELD_START = 3411
 FIELD_END = 3501
-AVERAGES = 10000
+AVERAGES = 10
 SCANS = 1
 
 # PULSES
@@ -70,7 +70,7 @@ pb.pulser_repetition_rate( REP_RATE )
 # Data saving
 header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + \
          'FID Trytil\n' + 'Field Start: ' + str(FIELD_START) + ' G \n' \
-          + 'Field End: ' + str(FIELD_END) + ' G \n' + \
+         + 'Field End: ' + str(FIELD_END) + ' G \n' + \
           str(mw.mw_bridge_att_prm()) + '\n' + str(mw.mw_bridge_synthesizer()) + '\n' + \
           'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' + 'Number of Scans: ' + str(SCANS) + '\n' +\
           'Averages: ' + str(AVERAGES) + '\n' + 'Points: ' + str(POINTS) + '\n' + 'Window: ' + str(wind * time_res) + ' ns\n' \
@@ -82,9 +82,7 @@ file_data, file_param = file_handler.create_file_parameters('.param')
 file_handler.save_header(file_param, header = header, mode = 'w')
 
 # Data acquisition
-#j = 1
 for j in general.scans(SCANS):
-#while j <= SCANS:
     
     i = 0
     field = FIELD_START
@@ -117,7 +115,7 @@ for j in general.scans(SCANS):
 
         data[6, :, i] = ( data[6, :, i] * (j - 1) + cycle_data_x[3] ) / j
         data[7, :, i] = ( data[7, :, i] * (j - 1) + cycle_data_y[3] ) / j
-
+        
         general.plot_2d(EXP_NAME, data, start_step = ( (0, time_res), (FIELD_START, FIELD_STEP) ), xname = 'Time',\
             xscale = 'ns', yname = 'Field', yscale = 'G', zname = 'Intensity', zscale = 'V')
         general.text_label( EXP_NAME, "Scan / Time: ", str(j) + ' / '+ str(field) )

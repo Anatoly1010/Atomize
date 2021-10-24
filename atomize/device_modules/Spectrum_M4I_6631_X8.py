@@ -3,11 +3,12 @@
 
 import os
 import sys
+import gc
 import random
 ###AWG
 sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
 ###sys.path.append('/home/anatoly/AWG/spcm_examples/python')
-###sys.path.append('/home/anatoly/awg_files/python')
+#sys.path.append('/home/anatoly/awg_files/python')
 #sys.path.append('C:/Users/User/Desktop/Examples/python')
 from math import sin, pi, exp, log2
 from itertools import groupby, chain
@@ -60,7 +61,8 @@ class Spectrum_M4I_6631_X8:
         self.sample_ref_clock_min = 10 # MHz
         self.loop_max = 100000
         self.delay_max = 8589934560
-        self.delay_min = 0 
+        self.delay_min = 0
+        self.gc_collect_limit = 250*10**6
 
         # Test run parameters
         # These values are returned by the modules in the test run 
@@ -115,6 +117,15 @@ class Spectrum_M4I_6631_X8:
 
             # state counter
             self.state = 0
+
+            # to get rid of memory leak
+            self.pnBuffer = c_void_p()
+            self.pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
+            self.pnBuffer = cast (self.pvBuffer, ptr16)
+
+            # update and visualize counters
+            self.update_counter = 0
+            self.visualize_counter = 0
 
         elif self.test_flag == 'test':
             self.test_sample_rate = '1250 MHz'
@@ -173,6 +184,15 @@ class Spectrum_M4I_6631_X8:
 
             # state counter
             self.state = 0
+
+            # to get rid of memory leak
+            self.pnBuffer = c_void_p()
+            self.pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
+            self.pnBuffer = cast (self.pvBuffer, ptr16)
+            
+            # update and visualize counters
+            self.update_counter = 0
+            self.visualize_counter = 0
 
     # Module functions
     def awg_name(self):
@@ -298,14 +318,13 @@ class Spectrum_M4I_6631_X8:
 
             if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1 or self.sequence_mode_count == 1:
 
+                self.update_counter += 1
                 # change card mode and memory
                 if self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 0:
                     self.buf = self.define_buffer_single()[0]
                     spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, self.memsize)
                 elif self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 1:
-                    #start_time = time.time()
                     self.buf = self.define_buffer_single_joined()[0]
-                    #general.message('BUFFER TIME: ' + str( time.time() - start_time ))
                     spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, self.memsize )
                 elif self.card_mode == 512 and self.sequence_mode == 0:
                     self.buf = self.define_buffer_multi()[0]
@@ -322,17 +341,17 @@ class Spectrum_M4I_6631_X8:
                     pass
 
                 # define the buffer
-                #pnBuffer = c_void_p()
+                #self.pnBuffer = c_void_p()
                 #qwBufferSize = uint64 (self.buffer_size)  # buffer size
-                #pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
-                #pnBuffer = cast (pvBuffer, ptr16)
+                #self.pvBuffer = pvAllocMemPageAligned (qwBufferSize.value)
+                #self.pnBuffer = cast (self.pvBuffer, ptr16)
 
                 # fill the buffer
                 if self.card_mode == 32768 and self.sequence_mode == 0:
                     # convert numpy array to integer
                     #for index, element in enumerate(buf):
-                    #    pnBuffer[index] = int(lMaxDACValue.value * element)
-                    #    #pnBuffer = (lMaxDACValue.value * self.define_buffer_single()).astype('int64')
+                    #    self.pnBuffer[index] = int(lMaxDACValue.value * element)
+                    #    #self.pnBuffer = (lMaxDACValue.value * self.define_buffer_single()).astype('int64')
 
                     # we define the buffer for transfer and start the DMA transfer
                     #sys.stdout.write("Starting the DMA transfer and waiting until data is in board memory\n")
@@ -341,11 +360,20 @@ class Spectrum_M4I_6631_X8:
                     # transfer
                     spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
                     #general.message("AWG buffer has been transferred to board memory")
+
+                    del self.pnBuffer
+                    del self.pvBuffer
+                    del self.buf
+                    
+                    # free memory when the limit is achieved
+                    if self.update_counter * self.qwBufferSize.value > self.gc_collect_limit:
+                        gc.collect()
+                        self.update_counter = 0
 
                 elif self.card_mode == 512 and self.sequence_mode == 0:
                     #for index, element in enumerate(buf):
-                    #    pnBuffer[index] = int(lMaxDACValue.value * element)
-                    #    #pnBuffer = (lMaxDACValue.value * self.define_buffer_multi()).astype('int64')
+                    #    self.pnBuffer[index] = int(lMaxDACValue.value * element)
+                    #    #self.pnBuffer = (lMaxDACValue.value * self.define_buffer_multi()).astype('int64')
 
                     # we define the buffer for transfer and start the DMA transfer
                     #sys.stdout.write("Starting the DMA transfer and waiting until data is in board memory\n")
@@ -354,6 +382,15 @@ class Spectrum_M4I_6631_X8:
                     # transfer
                     spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
                     #general.message("AWG buffer has been transferred to board memory")
+
+                    del self.pnBuffer
+                    del self.pvBuffer
+                    del self.buf
+                    
+                    # free memory when the limit is achieved
+                    if self.update_counter * self.qwBufferSize.value > self.gc_collect_limit:
+                        gc.collect()
+                        self.update_counter = 0
 
                 elif self.sequence_mode == 1:
                     if self.channel == 1 or self.channel == 2:
@@ -391,6 +428,17 @@ class Spectrum_M4I_6631_X8:
                         # Feature flag that marks the current step to be the last in the sequence. The card is stopped at the end of this seg-
                         # ment after the loop counter has reached his end.
 
+                    # free memory
+                    del self.pnBuffer
+                    del self.pvBuffer
+                    del self.full_buffer
+                    del self.full_buffer_pointer
+                    
+                    # free memory when the limit is achieved
+                    if self.update_counter * self.qwBufferSize.value * self.sequence_segments > self.gc_collect_limit:
+                        gc.collect()
+                        self.update_counter = 0
+
                 # We'll start and wait until the card has finished or until a timeout occurs
                 dwError = spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_START | M2CMD_CARD_ENABLETRIGGER | M2CMD_CARD_WAITTRIGGER)
                 # test or error message
@@ -411,12 +459,25 @@ class Spectrum_M4I_6631_X8:
         elif self.test_flag == 'test':
             # to run several important checks
             if self.reset_count == 0 or self.shift_count == 1 or self.increment_count == 1 or self.setting_change_count == 1 or self.sequence_mode_count == 1:
+
+                self.update_counter += 1
+
                 if self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 0:
                     self.buf = self.define_buffer_single()[0]
                 elif self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 1:
                     self.buf = self.define_buffer_single_joined()[0]
                 elif self.card_mode == 512 and self.sequence_mode == 0:
                     self.buf = self.define_buffer_multi()[0]
+
+                del self.pnBuffer
+                del self.pvBuffer
+                if self.sequence_mode == 0:
+                    del self.buf
+                
+                # free memory when the limit is achieved
+                if self.update_counter * self.qwBufferSize.value > self.gc_collect_limit:
+                    gc.collect()
+                    self.update_counter = 0
 
                 self.reset_count = 1
                 self.shift_count = 0
@@ -1252,6 +1313,10 @@ class Spectrum_M4I_6631_X8:
             # reset the pulses; deepcopy helps to create a TRULY NEW array
             self.pulse_array = deepcopy( self.pulse_array_init )
 
+            # free memory
+            gc.collect()
+            self.update_counter = 0
+
             self.awg_update()
 
             self.reset_count = 1
@@ -1262,6 +1327,10 @@ class Spectrum_M4I_6631_X8:
         elif self.test_flag == 'test':
             # reset the pulses; deepcopy helps to create a TRULY NEW array
             self.pulse_array = deepcopy( self.pulse_array_init )
+
+            # free memory
+            gc.collect()
+            self.update_counter = 0
 
             self.awg_update()
 
@@ -1277,12 +1346,19 @@ class Spectrum_M4I_6631_X8:
         the AWG card use the function awg_reset() instead.
         """
         if self.test_flag != 'test':
+            
             if len(pulses) == 0:
+
+                # free memory
                 self.pulse_array = deepcopy(self.pulse_array_init)
                 self.reset_count = 0
                 self.increment_count = 0
                 self.shift_count = 0
                 self.current_phase_index = 0
+
+                gc.collect()
+                self.update_counter = 0
+
             else:
                 set_from_list = set(pulses)
                 for element in set_from_list:
@@ -1304,6 +1380,11 @@ class Spectrum_M4I_6631_X8:
                 self.increment_count = 0
                 self.shift_count = 0
                 self.current_phase_index = 0
+
+                # free memory                
+                gc.collect()
+                self.update_counter = 0
+
             else:
                 set_from_list = set(pulses)
                 for element in set_from_list:
@@ -1932,21 +2013,41 @@ class Spectrum_M4I_6631_X8:
         A function for buffer visualization
         """
         if self.test_flag != 'test':
+            
+            self.visualize_counter += 1
 
             if self.sequence_mode == 0:
                 if self.card_mode == 32768 and (self.channel == 1 or self.channel == 2) and self.single_joined == 0:
                     buf = self.define_buffer_single()[1]
+
+                    del self.pnBuffer
+                    del self.pvBuffer
+                    
+                    # free memory when the limit is achieved
+                    if self.visualize_counter * self.qwBufferSize.value > self.gc_collect_limit:
+                        gc.collect()
+                        self.visualize_counter = 0
+
                     xs = 0.8*np.arange( int(self.memsize) )
                     # A way to convert c_types poinet back to np.array
                     # np.ctypeslib.as_array(buf, shape = (int(self.memsize), ))
                     # also try
-                    # pbyData = cast  (addressof (pvBuffer) + lPCPos.value, ptr8) # cast to pointer to 8bit integer
+                    # pbyData = cast  (addressof (self.pvBuffer) + lPCPos.value, ptr8) # cast to pointer to 8bit integer
                     general.plot_1d('Buffer_single', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize), )), \
                                     label = 'ch0 or ch1')
 
                 # Single Joined
                 elif self.card_mode == 32768 and (self.channel == 1 or self.channel == 2) and self.single_joined == 1:
                     buf = self.define_buffer_single_joined()[1]
+
+                    del self.pnBuffer
+                    del self.pvBuffer
+                    
+                    # free memory when the limit is achieved
+                    if self.visualize_counter * self.qwBufferSize.value > self.gc_collect_limit:
+                        gc.collect()
+                        self.visualize_counter = 0
+
                     xs = 0.8*np.arange( int(self.memsize) )
                     # A way to convert c_types poinet back to np.array
                     # np.ctypeslib.as_array(buf, shape = (int(self.memsize), ))
@@ -1955,6 +2056,15 @@ class Spectrum_M4I_6631_X8:
 
                 elif self.card_mode == 32768 and self.channel == 3 and self.single_joined == 0:
                     buf = self.define_buffer_single()[1]
+
+                    del self.pnBuffer
+                    del self.pvBuffer
+                    
+                    # free memory when the limit is achieved
+                    if self.visualize_counter * self.qwBufferSize.value > self.gc_collect_limit:
+                        gc.collect()
+                        self.visualize_counter = 0
+
                     xs = 0.8*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_single', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
@@ -1964,6 +2074,15 @@ class Spectrum_M4I_6631_X8:
                 # Single Joined
                 elif self.card_mode == 32768 and self.channel == 3 and self.single_joined == 1:
                     buf = self.define_buffer_single_joined()[1]
+
+                    del self.pnBuffer
+                    del self.pvBuffer
+                    
+                    # free memory when the limit is achieved
+                    if self.visualize_counter * self.qwBufferSize.value > self.gc_collect_limit:
+                        gc.collect()
+                        self.visualize_counter = 0
+
                     xs = 0.8*np.arange( int(self.memsize) )
                     ##sin = self.maxCAD * np.sin(2*np.pi*xs*0.125)
                     general.plot_1d('Buffer_single_joined', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
@@ -1974,12 +2093,30 @@ class Spectrum_M4I_6631_X8:
 
                 elif self.card_mode == 512 and (self.channel == 1 or self.channel == 2):
                     buf = self.define_buffer_multi()[1]
+
+                    del self.pnBuffer
+                    del self.pvBuffer
+                    
+                    # free memory when the limit is achieved
+                    if self.visualize_counter * self.qwBufferSize.value > self.gc_collect_limit:
+                        gc.collect()
+                        self.visualize_counter = 0
+
                     xs = 0.8*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_multi', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize), )), \
                                     label = 'ch0 or ch1')
                
                 elif self.card_mode == 512 and self.channel == 3:
                     buf = self.define_buffer_multi()[1]
+
+                    del self.pnBuffer
+                    del self.pvBuffer
+                    
+                    # free memory when the limit is achieved
+                    if self.visualize_counter * self.qwBufferSize.value > self.gc_collect_limit:
+                        gc.collect()
+                        self.visualize_counter = 0
+
                     xs = 0.8*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_multi', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
@@ -1997,6 +2134,15 @@ class Spectrum_M4I_6631_X8:
                     general.plot_1d('Buffer_sequence', xs, 4*self.maxCAD + np.ctypeslib.as_array(self.full_buffer[2], shape = (int(self.qwBufferSize.value/2), )), \
                                         label = '2ch0')
 
+                    del self.pnBuffer
+                    del self.pvBuffer
+                    del self.full_buffer
+                    
+                    # free memory when the limit is achieved
+                    if self.visualize_counter * self.qwBufferSize.value * self.sequence_segments > self.gc_collect_limit:
+                        gc.collect()
+                        self.visualize_counter = 0
+
                 elif self.channel == 3:
                     xs = np.arange( 0, int(self.qwBufferSize.value/4) )*0.8
                 
@@ -2009,15 +2155,36 @@ class Spectrum_M4I_6631_X8:
                     general.plot_1d('Buffer_sequence', xs, 6*self.maxCAD + np.ctypeslib.as_array(self.full_buffer[1], \
                                     shape = (int(self.qwBufferSize.value/2), ))[1::2], label = '1ch1')
 
+                    del self.pnBuffer
+                    del self.pvBuffer
+                    del self.full_buffer
+                    
+                    # free memory when the limit is achieved
+                    if self.visualize_counter * self.qwBufferSize.value * self.sequence_segments > self.gc_collect_limit:
+                        gc.collect()
+                        self.visualize_counter = 0
+
                     #pure_sinus = np.zeros(len(xs))
                     #for i in range(len(xs)):
                     #    pure_sinus[i] = sin(2*pi*(( i ))*70 / 1250)
                     #general.plot_1d('buffer', xs, 6 + pure_sinus, label = 'sine')
 
         elif self.test_flag == 'test':
+            
+            self.visualize_counter += 1
+
             if self.sequence_mode == 0:
                 if self.card_mode == 32768 and (self.channel == 1 or self.channel == 2) and self.single_joined == 0:
                     buf = self.define_buffer_single()[1]
+
+                    del self.pnBuffer
+                    del self.pvBuffer
+                    
+                    # free memory when the limit is achieved
+                    if self.visualize_counter * self.qwBufferSize.value > self.gc_collect_limit:
+                        gc.collect()
+                        self.visualize_counter = 0
+
                     xs = 0.8*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_single', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize), )), \
                                     label = 'ch0 or ch1')
@@ -2025,6 +2192,15 @@ class Spectrum_M4I_6631_X8:
                 # Single Joined
                 elif self.card_mode == 32768 and (self.channel == 1 or self.channel == 2) and self.single_joined == 1:
                     buf = self.define_buffer_single_joined()[1]
+
+                    del self.pnBuffer
+                    del self.pvBuffer
+                    
+                    # free memory when the limit is achieved
+                    if self.visualize_counter * self.qwBufferSize.value > self.gc_collect_limit:
+                        gc.collect()
+                        self.visualize_counter = 0
+
                     xs = 0.8*np.arange( int(self.memsize) )
                     # A way to convert c_types poinet back to np.array
                     #np.ctypeslib.as_array(buf, shape = (int(self.memsize), ))
@@ -2033,6 +2209,15 @@ class Spectrum_M4I_6631_X8:
 
                 elif self.card_mode == 32768 and self.channel == 3 and self.single_joined == 0:
                     buf = self.define_buffer_single()[1]
+
+                    del self.pnBuffer
+                    del self.pvBuffer
+                    
+                    # free memory when the limit is achieved
+                    if self.visualize_counter * self.qwBufferSize.value > self.gc_collect_limit:
+                        gc.collect()
+                        self.visualize_counter = 0
+
                     xs = 0.8*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_single', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
@@ -2042,6 +2227,15 @@ class Spectrum_M4I_6631_X8:
                 # Single Joined
                 elif self.card_mode == 32768 and self.channel == 3 and self.single_joined == 1:
                     buf = self.define_buffer_single_joined()[1]
+
+                    del self.pnBuffer
+                    del self.pvBuffer
+                    
+                    # free memory when the limit is achieved
+                    if self.visualize_counter * self.qwBufferSize.value > self.gc_collect_limit:
+                        gc.collect()
+                        self.visualize_counter = 0
+
                     xs = 0.8*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_single_joined', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
@@ -2050,12 +2244,30 @@ class Spectrum_M4I_6631_X8:
 
                 elif self.card_mode == 512 and (self.channel == 1 or self.channel == 2):
                     buf = self.define_buffer_multi()[1]
+
+                    del self.pnBuffer
+                    del self.pvBuffer
+                    
+                    # free memory when the limit is achieved
+                    if self.visualize_counter * self.qwBufferSize.value > self.gc_collect_limit:
+                        gc.collect()
+                        self.visualize_counter = 0
+
                     xs = 0.8*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_multi', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize), )), \
                                     label = 'ch0 or ch1')
                
                 elif self.card_mode == 512 and self.channel == 3:
                     buf = self.define_buffer_multi()[1]
+
+                    del self.pnBuffer
+                    del self.pvBuffer
+                    
+                    # free memory when the limit is achieved
+                    if self.visualize_counter * self.qwBufferSize.value > self.gc_collect_limit:
+                        gc.collect()
+                        self.visualize_counter = 0
+
                     xs = 0.8*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_multi', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
@@ -2143,12 +2355,15 @@ class Spectrum_M4I_6631_X8:
             
             # WURST pulse center_freq; sweep_freq convertion to start_freq; end_freq
             for el in arguments_array[6]:
-                if len(el) == 2:
-                    # for WURST convert center_freq; sweep_freq to start_freq; end_freq
-                    cen = float(el[0])
-                    sw = float(el[1])
-                    el[0] = ( 2 * cen - sw ) / 2
-                    el[1] = ( 2 * cen + sw ) / 2
+                try:
+                    if len(el) == 2:
+                        # for WURST convert center_freq; sweep_freq to start_freq; end_freq
+                        cen = float(el[0])
+                        sw = float(el[1])
+                        el[0] = ( 2 * cen - sw ) / 2
+                        el[1] = ( 2 * cen + sw ) / 2
+                except TypeError:
+                    pass
 
             # convert everything in samples 
             pulse_phase_np = np.asarray(pulse_phase_converted)
@@ -2179,14 +2394,14 @@ class Spectrum_M4I_6631_X8:
                 self.full_buffer_pointer = []
 
                 # define the buffer
-                pnBuffer = c_void_p()
+                self.pnBuffer = c_void_p()
                 self.qwBufferSize = uint64 (2 * segment_length)  # buffer size
                 
                 # run over all defined pulses for each point
                 for point in range(arguments_array[7]):
                     # clear the buffer
-                    pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
-                    pnBuffer = cast (pvBuffer, ptr16)
+                    self.pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
+                    self.pnBuffer = cast (self.pvBuffer, ptr16)
 
                     # run over defined pulses inside a sequence point
                     for index, element in enumerate(pulse_type):
@@ -2206,7 +2421,7 @@ class Spectrum_M4I_6631_X8:
                                             # i one phase
                                             # ( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i] = int( self.maxCAD * sin(2*pi*(( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate \
+                                            self.pnBuffer[i] = int( self.maxCAD * sin(2*pi*(( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate \
                                                             + pulse_phase_np[index] ) )
 
                                         else:
@@ -2214,7 +2429,7 @@ class Spectrum_M4I_6631_X8:
                                             # i one phase
                                             # ( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i] = int( self.maxCAD * sin(2*pi*(( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate \
+                                            self.pnBuffer[i] = int( self.maxCAD * sin(2*pi*(( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate \
                                                             + rnd_phase) )
                                     else:
                                         break
@@ -2235,7 +2450,7 @@ class Spectrum_M4I_6631_X8:
                                             # i one phase
                                             # ( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i] = int( self.maxCAD * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                            self.pnBuffer[i] = int( self.maxCAD * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                                                                     sin(2*pi*(( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate \
                                                                     + pulse_phase_np[index] ) )
 
@@ -2244,7 +2459,7 @@ class Spectrum_M4I_6631_X8:
                                             # i one phase
                                             # ( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i] = int( self.maxCAD * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                            self.pnBuffer[i] = int( self.maxCAD * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                                                                     sin(2*pi*(( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate \
                                                                     + pulse_phase_np[index] + rnd_phase) )
                                     else:
@@ -2266,7 +2481,7 @@ class Spectrum_M4I_6631_X8:
                                             # i one phase
                                             # ( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i] = int( self.maxCAD * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                            self.pnBuffer[i] = int( self.maxCAD * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
                                                                     sin(2*pi*(( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate \
                                                                     + pulse_phase_np[index] ) )
 
@@ -2275,7 +2490,7 @@ class Spectrum_M4I_6631_X8:
                                             # i one phase
                                             # ( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i] = int( self.maxCAD * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                            self.pnBuffer[i] = int( self.maxCAD * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
                                                                     sin(2*pi*(( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate \
                                                                     + pulse_phase_np[index] + rnd_phase) )
                                     else:
@@ -2303,7 +2518,7 @@ class Spectrum_M4I_6631_X8:
                                             # i one phase
                                             # ( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i] = int( self.maxCAD * ( 1 - abs( sin( pi*( i - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
+                                            self.pnBuffer[i] = int( self.maxCAD * ( 1 - abs( sin( pi*( i - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
                                                             sin(2*pi*( ( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)) * pulse_frequency[index][0] / self.sample_rate \
                                                             + 0.5 * (pulse_frequency[index][1] - pulse_frequency[index][0])*\
                                                             ( ( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))**2 ) / pulse_length_smp[index] / self.sample_rate ) \
@@ -2315,7 +2530,7 @@ class Spectrum_M4I_6631_X8:
                                             # i one phase
                                             # ( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i] = int( self.maxCAD * ( 1 - abs( sin( pi*( i - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
+                                            self.pnBuffer[i] = int( self.maxCAD * ( 1 - abs( sin( pi*( i - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
                                                             sin(2*pi*( ( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)) * pulse_frequency[index][0] / self.sample_rate \
                                                             + 0.5 * (pulse_frequency[index][1] - pulse_frequency[index][0])*\
                                                             ( ( i - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))**2 ) / pulse_length_smp[index] / self.sample_rate ) \
@@ -2324,17 +2539,17 @@ class Spectrum_M4I_6631_X8:
                                     else:
                                         break
 
-                    self.full_buffer.append(pnBuffer)
-                    self.full_buffer_pointer.append(pvBuffer)
+                    self.full_buffer.append(self.pnBuffer)
+                    self.full_buffer_pointer.append(self.pvBuffer)
                 
                 # for sequence_segments as a power of two
                 for point in range(arguments_array[7], self.sequence_segments):
                     # clear the buffer
-                    pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
-                    pnBuffer = cast (pvBuffer, ptr16)
+                    self.pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
+                    self.pnBuffer = cast (self.pvBuffer, ptr16)
 
-                    self.full_buffer.append(pnBuffer)
-                    self.full_buffer_pointer.append(pvBuffer)
+                    self.full_buffer.append(self.pnBuffer)
+                    self.full_buffer_pointer.append(self.pvBuffer)
 
             elif self.channel == 3:
                 #self.full_buffer = np.zeros( ( arguments_array[7], 2*segment_length ), dtype = np.float64 )
@@ -2343,14 +2558,14 @@ class Spectrum_M4I_6631_X8:
                 self.full_buffer_pointer = []
 
                 # define the buffer
-                pnBuffer = c_void_p()
+                self.pnBuffer = c_void_p()
                 self.qwBufferSize = uint64 (2 * segment_length * 2)  # buffer size for two channels
 
                 # run over all defined pulses for each point
                 for point in range(arguments_array[7]):
                     # clear the buffer
-                    pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
-                    pnBuffer = cast (pvBuffer, ptr16)
+                    self.pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
+                    self.pnBuffer = cast (self.pvBuffer, ptr16)
 
                     # run over defined pulses inside a sequence point
                     for index, element in enumerate(pulse_type):
@@ -2371,12 +2586,12 @@ class Spectrum_M4I_6631_X8:
                                             # i/2 one phase
                                             # ( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i] = int( self.maxCAD * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+                                            self.pnBuffer[i] = int( self.maxCAD * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
                                             #ch1
                                             # i/2 one phase
                                             # ( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i + 1] = int( self.maxCAD * sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                                            self.pnBuffer[i + 1] = int( self.maxCAD * sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
                                                                      self.phase_shift_ch1_seq_mode) )
 
                                         else:
@@ -2385,13 +2600,13 @@ class Spectrum_M4I_6631_X8:
                                             # i/2 one phase
                                             # ( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i] = int( self.maxCAD * sin(2*pi*(( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate\
+                                            self.pnBuffer[i] = int( self.maxCAD * sin(2*pi*(( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate\
                                                                 + rnd_phase) )
                                             #ch1
                                             # i/2 one phase
                                             # ( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i + 1] = int( self.maxCAD * sin(2*pi*(( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate\
+                                            self.pnBuffer[i + 1] = int( self.maxCAD * sin(2*pi*(( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate\
                                                                   + rnd_phase + self.phase_shift_ch1_seq_mode) )                                            
                                     else:
                                         break
@@ -2414,14 +2629,14 @@ class Spectrum_M4I_6631_X8:
                                             # i/2 one phase
                                             # ( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i] = int( self.maxCAD * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                            self.pnBuffer[i] = int( self.maxCAD * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                                                                     sin(2*pi*(( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate \
                                                                     + pulse_phase_np[index] ) )
                                             #ch1
                                             # i/2 one phase
                                             # ( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i + 1] = int( self.maxCAD * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                            self.pnBuffer[i + 1] = int( self.maxCAD * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                                                                     sin(2*pi*(( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate \
                                                                     + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode) )
 
@@ -2431,14 +2646,14 @@ class Spectrum_M4I_6631_X8:
                                             # i/2 one phase
                                             # ( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i] = int( self.maxCAD * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                            self.pnBuffer[i] = int( self.maxCAD * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                                                                     sin(2*pi*(( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate \
                                                                     + rnd_phase ) )
                                             #ch1
                                             # i/2 one phase
                                             # ( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i + 1] = int( self.maxCAD * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                            self.pnBuffer[i + 1] = int( self.maxCAD * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                                                                     sin(2*pi*(( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate \
                                                                     + rnd_phase + self.phase_shift_ch1_seq_mode) )
 
@@ -2463,14 +2678,14 @@ class Spectrum_M4I_6631_X8:
                                             # i/2 one phase
                                             # ( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i] = int( self.maxCAD * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                            self.pnBuffer[i] = int( self.maxCAD * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
                                                                      sin(2*pi*(( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate \
                                                                      + pulse_phase_np[index] ) )
                                             #ch1
                                             # i/2 one phase
                                             # ( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i + 1] = int( self.maxCAD * np.sinc(2*(( ( i )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                            self.pnBuffer[i + 1] = int( self.maxCAD * np.sinc(2*(( ( i )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
                                                                      sin(2*pi*(( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate \
                                                                      + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode) )                                            
 
@@ -2480,13 +2695,13 @@ class Spectrum_M4I_6631_X8:
                                             # i/2 one phase
                                             # ( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i] = int( self.maxCAD * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                            self.pnBuffer[i] = int( self.maxCAD * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
                                                                      sin(2*pi*(( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase) )
                                             #ch1
                                             # i/2 one phase
                                             # ( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i + 1] = int( self.maxCAD * np.sinc(2*(( ( i )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                            self.pnBuffer[i + 1] = int( self.maxCAD * np.sinc(2*(( ( i )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
                                                                      sin(2*pi*( ( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)) )*pulse_frequency[index] / self.sample_rate \
                                                                      + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode + rnd_phase) )                                            
 
@@ -2518,14 +2733,14 @@ class Spectrum_M4I_6631_X8:
                                             # i/2 one phase
                                             # ( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i] = int( self.maxCAD * ( 1 - abs( sin( pi*( i/2 - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
+                                            self.pnBuffer[i] = int( self.maxCAD * ( 1 - abs( sin( pi*( i/2 - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
                                                             sin(2*pi*( (i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)) * pulse_frequency[index][0] / self.sample_rate \
                                                              + 0.5 * (pulse_frequency[index][1] - pulse_frequency[index][0])*\
                                                             ( (i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))**2 ) / pulse_length_smp[index] / self.sample_rate )\
                                                              + pulse_phase_np[index] ) )
 
                                             #ch1
-                                            pnBuffer[i + 1] = int( self.maxCAD * ( 1 - abs( sin( pi*( i/2 - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
+                                            self.pnBuffer[i + 1] = int( self.maxCAD * ( 1 - abs( sin( pi*( i/2 - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
                                                             sin(2*pi*( (i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)) * pulse_frequency[index][0] / self.sample_rate \
                                                             + 0.5 * (pulse_frequency[index][1] - pulse_frequency[index][0])*\
                                                             ( (i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))**2 ) / pulse_length_smp[index] / self.sample_rate ) \
@@ -2537,7 +2752,7 @@ class Spectrum_M4I_6631_X8:
                                             # i/2 one phase
                                             # ( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i] = int( self.maxCAD * ( 1 - abs( sin( pi*( i/2 - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
+                                            self.pnBuffer[i] = int( self.maxCAD * ( 1 - abs( sin( pi*( i/2 - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
                                                             sin(2*pi*( (i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)) * pulse_frequency[index][0] / self.sample_rate \
                                                              + 0.5 * (pulse_frequency[index][1] - pulse_frequency[index][0])*\
                                                             ( (i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))**2 ) / pulse_length_smp[index] / self.sample_rate )\
@@ -2547,7 +2762,7 @@ class Spectrum_M4I_6631_X8:
                                             # i/2 one phase
                                             # ( i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))
 
-                                            pnBuffer[i + 1] = int( self.maxCAD * ( 1 - abs( sin( pi*( i/2 - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
+                                            self.pnBuffer[i + 1] = int( self.maxCAD * ( 1 - abs( sin( pi*( i/2 - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
                                                             sin(2*pi*( (i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point)) * pulse_frequency[index][0] / self.sample_rate\
                                                              + 0.5 * (pulse_frequency[index][1] - pulse_frequency[index][0])*\
                                                             ( (i/2 - ( pulse_start_smp[index] + pulse_delta_start_smp[index]*point))**2 ) / pulse_length_smp[index] / self.sample_rate )\
@@ -2555,17 +2770,17 @@ class Spectrum_M4I_6631_X8:
                                     else:
                                         break
 
-                    self.full_buffer.append(pnBuffer)
-                    self.full_buffer_pointer.append(pvBuffer)
+                    self.full_buffer.append(self.pnBuffer)
+                    self.full_buffer_pointer.append(self.pvBuffer)
 
                 # for sequence_segments as a power of two
                 for point in range(arguments_array[7], self.sequence_segments):
                     # clear the buffer
-                    pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
-                    pnBuffer = cast (pvBuffer, ptr16)
+                    self.pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
+                    self.pnBuffer = cast (self.pvBuffer, ptr16)
 
-                    self.full_buffer.append(pnBuffer)
-                    self.full_buffer_pointer.append(pvBuffer)
+                    self.full_buffer.append(self.pnBuffer)
+                    self.full_buffer_pointer.append(self.pvBuffer)
 
             #general.message( (self.full_buffer_pointer[0]) )
             # A way to convert c_types poinet back to np.array
@@ -2602,7 +2817,7 @@ class Spectrum_M4I_6631_X8:
             assert( number_of_points > 0 ), 'Number of points in pulse sequence should be higher than 0'
             assert( rep_rate > 0 ), 'Repetition rate is given in Hz and should be a positive number'
 
-            for index, el in arguments_array[0]:
+            for index, el in enumerate(arguments_array[0]):
                 assert( el == 'SINE' or el == 'GAUSS' or el == 'SINC' or el == 'BLANK' or el == 'WURST'), 'Only SINE, GAUSS, SINC, BLANK, and WURST pulses are available'
                 if el == 'WURST':
                     assert( len( pulse_frequency[index] == 2 ) ), 'For WURST pulse frequency should be a tuple: frequency = ("Center MHz", "Sweep MHz")' 
@@ -3008,10 +3223,10 @@ class Spectrum_M4I_6631_X8:
             #buf = np.zeros(self.memsize * 1, dtype = np.float64 )
 
             # define the buffer
-            pnBuffer = c_void_p()
+            self.pnBuffer = c_void_p()
             self.qwBufferSize = uint64 (self.buffer_size)  # buffer size
-            pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
-            pnBuffer = cast (pvBuffer, ptr16)
+            self.pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
+            self.pnBuffer = cast (self.pvBuffer, ptr16)
 
             # pulses for different channel
             for element in pulses:
@@ -3026,19 +3241,19 @@ class Spectrum_M4I_6631_X8:
                         if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples), start, delta_start, amp_coefficient, n_wurst]
                             if i <= ( element2[4] + self.segment_memsize*index2 ):
                                 #buf[i]
-                                pnBuffer[i] = int(self.maxCAD / element2[8] * sin(2*pi*(( i - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3]) )
+                                self.pnBuffer[i] = int(self.maxCAD / element2[8] * sin(2*pi*(( i - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3]) )
                             else:
                                 # keeping 0
                                 break
                         elif element2[1] == 1: # GAUSS
                             if i <= ( element2[4] + self.segment_memsize*index2 ):
-                                pnBuffer[i] = int(self.maxCAD / element2[8] * exp(-((( i - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                self.pnBuffer[i] = int(self.maxCAD / element2[8] * exp(-((( i - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
                                     sin(2*pi*(( i - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3]) )
                             else:
                                 break
                         elif element2[1] == 2: # SINC
                             if i <= ( element2[4] + self.segment_memsize*index2 ):
-                                pnBuffer[i] = int(self.maxCAD / element2[8] * np.sinc(2*(( i - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
+                                self.pnBuffer[i] = int(self.maxCAD / element2[8] * np.sinc(2*(( i - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
                                     sin(2*pi*( i - self.segment_memsize*index2)*element2[2] / self.sample_rate + element2[3]) )
                             else:
                                 break
@@ -3049,14 +3264,14 @@ class Spectrum_M4I_6631_X8:
                             # ph = 2*pi*(Fstr*t + 0.5*( Ffin - Fstr )*t^2/tp )
                             # WURST = at*sin(ph + phase_0)
                             if i <= ( element2[4] + self.segment_memsize*index2 ):
-                                pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( ( i - self.segment_memsize*index2) - mid_point ) / element2[4] ) ) ** element2[9] )*\
+                                self.pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( ( i - self.segment_memsize*index2) - mid_point ) / element2[4] ) ) ** element2[9] )*\
                                     sin(2*pi*( ( i - self.segment_memsize*index2) *  element2[2][0] / self.sample_rate + 0.5 * (element2[2][1] - element2[2][0])*\
                                     ( i - self.segment_memsize*index2)**2 / element2[4] / self.sample_rate ) + element2[3] ))
 
                             else:
                                 break
 
-            return pvBuffer, pnBuffer
+            return self.pvBuffer, self.pnBuffer
 
         elif self.channel == 3:
             # two bytes per sample; multiply by number of enabled channels
@@ -3064,10 +3279,10 @@ class Spectrum_M4I_6631_X8:
             #buf = np.zeros(self.memsize * 2)
             
             # define the buffer
-            pnBuffer = c_void_p()
+            self.pnBuffer = c_void_p()
             self.qwBufferSize = uint64 (self.buffer_size)  # buffer size
-            pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
-            pnBuffer = cast (pvBuffer, ptr16)
+            self.pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
+            self.pnBuffer = cast (self.pvBuffer, ptr16)
 
             # pulses for different channel
             for element in pulses:
@@ -3085,18 +3300,18 @@ class Spectrum_M4I_6631_X8:
                                 if i <= (2 * element2[4] + 2 * self.segment_memsize*index2 ):
                                     # Sine Signal CH_0; i/2 in order to keep the frequency
                                     #buf[i] 
-                                    pnBuffer[i] = int(self.maxCAD / element2[8] * sin(2*pi*(( i/2 - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3]) )
+                                    self.pnBuffer[i] = int(self.maxCAD / element2[8] * sin(2*pi*(( i/2 - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3]) )
                                 else:
                                     break
                             elif element2[1] == 1: # GAUSS
                                 if i <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
-                                    pnBuffer[i] = int(self.maxCAD / element2[8] * exp(-((( i/2 - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                    self.pnBuffer[i] = int(self.maxCAD / element2[8] * exp(-((( i/2 - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
                                         sin(2*pi*(( i/2 - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3]) )
                                 else:
                                     break
                             elif element2[1] == 2: # SINC
                                 if i <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
-                                    pnBuffer[i] = int(self.maxCAD / element2[8] * np.sinc(2*(( i/2 - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
+                                    self.pnBuffer[i] = int(self.maxCAD / element2[8] * np.sinc(2*(( i/2 - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
                                         sin(2*pi*( i/2 - self.segment_memsize*index2)*element2[2] / self.sample_rate + element2[3]) )
                                 else:
                                     break
@@ -3107,7 +3322,7 @@ class Spectrum_M4I_6631_X8:
                                 # ph = 2*pi*(Fstr*t + 0.5*( Ffin - Fstr )*t^2/tp )
                                 # WURST = at*sin(ph + phase_0)
                                 if i <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
-                                    pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( (  i/2 - self.segment_memsize*index2) - mid_point ) / element2[4] ) ) ** element2[9] )*\
+                                    self.pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( (  i/2 - self.segment_memsize*index2) - mid_point ) / element2[4] ) ) ** element2[9] )*\
                                         sin(2*pi*( (  i/2 - self.segment_memsize*index2) *  element2[2][0] / self.sample_rate + 0.5 * (element2[2][1] - element2[2][0])*\
                                         (  i/2 - self.segment_memsize*index2)**2 / element2[4] / self.sample_rate ) + element2[3] ))
                                 else:
@@ -3121,18 +3336,18 @@ class Spectrum_M4I_6631_X8:
                                 if (i - 1) <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
                                     # Sine Signal CH_1; i/2 in order to keep the frequency
                                     #buf[i]
-                                    pnBuffer[i] = int(self.maxCAD / element2[8] * sin(2*pi*(( (i - 1)/2 - self.segment_memsize*index2 ))*element2[2] / self.sample_rate + element2[3]) )
+                                    self.pnBuffer[i] = int(self.maxCAD / element2[8] * sin(2*pi*(( (i - 1)/2 - self.segment_memsize*index2 ))*element2[2] / self.sample_rate + element2[3]) )
                                 else:
                                     break
                             elif element2[1] == 1: # GAUSS
                                 if (i - 1) <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
-                                    pnBuffer[i] = int(self.maxCAD / element2[8] * exp(-((( (i - 1)/2 - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                    self.pnBuffer[i] = int(self.maxCAD / element2[8] * exp(-((( (i - 1)/2 - self.segment_memsize*index2) - mid_point)**2)*(1/(2*element2[5]**2)))*\
                                         sin(2*pi*(( (i - 1)/2 - self.segment_memsize*index2))*element2[2] / self.sample_rate + element2[3]) )
                                 else:
                                     break
                             elif element2[1] == 2: # SINC
                                 if (i - 1) <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
-                                    pnBuffer[i] = int(self.maxCAD / element2[8] * np.sinc(2*(( (i - 1)/2 - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
+                                    self.pnBuffer[i] = int(self.maxCAD / element2[8] * np.sinc(2*(( (i - 1)/2 - self.segment_memsize*index2) - mid_point) / (element2[5]) )*\
                                         sin(2*pi*( (i - 1)/2 - self.segment_memsize*index2)*element2[2] / self.sample_rate + element2[3]) )
                                 else:
                                     break
@@ -3143,14 +3358,14 @@ class Spectrum_M4I_6631_X8:
                                 # ph = 2*pi*(Fstr*t + 0.5*( Ffin - Fstr )*t^2/tp )
                                 # WURST = at*sin(ph + phase_0)
                                 if (i - 1) <= ( 2 * element2[4] + 2 * self.segment_memsize*index2 ):
-                                    pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( (  (i - 1)/2 - self.segment_memsize*index2) - mid_point ) / element2[4] ) ) ** element2[9] )*\
+                                    self.pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( (  (i - 1)/2 - self.segment_memsize*index2) - mid_point ) / element2[4] ) ) ** element2[9] )*\
                                         sin(2*pi*( (  (i - 1)/2 - self.segment_memsize*index2) *  element2[2][0] / self.sample_rate + 0.5 * (element2[2][1] - element2[2][0])*\
                                         (  (i - 1)/2 - self.segment_memsize*index2)**2 / element2[4] / self.sample_rate ) + element2[3] ))
 
                                 else:
                                     break
 
-            return pvBuffer, pnBuffer
+            return self.pvBuffer, self.pnBuffer
 
     def preparing_buffer_single(self):
         """
@@ -3249,10 +3464,10 @@ class Spectrum_M4I_6631_X8:
             #buf = np.zeros(self.memsize * 1, dtype = np.float64 )
 
             # define the buffer
-            pnBuffer = c_void_p()
+            self.pnBuffer = c_void_p()
             self.qwBufferSize = uint64 (self.buffer_size)  # buffer size
-            pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
-            pnBuffer = cast (pvBuffer, ptr16)
+            self.pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
+            self.pnBuffer = cast (self.pvBuffer, ptr16)
 
             # pulses for different channel
             for element in pulses:
@@ -3266,18 +3481,18 @@ class Spectrum_M4I_6631_X8:
                         if element2[1] == 0: # SINE; [channel, function, frequency (MHz), phase, length (samples), sigma (samples), start, delta_start, amp_coefficient, n_wurst]
                             if i <= ( element2[4] ):
                                 #buf[i]
-                                pnBuffer[i] = int( self.maxCAD / element2[8] * sin(2*pi*(( i ))*element2[2] / self.sample_rate + element2[3]) )
+                                self.pnBuffer[i] = int( self.maxCAD / element2[8] * sin(2*pi*(( i ))*element2[2] / self.sample_rate + element2[3]) )
                             else:
                                 break
                         elif element2[1] == 1: # GAUSS
                             if i <= ( element2[4] ):
-                                pnBuffer[i] = int( self.maxCAD / element2[8] * exp(-((( i ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                self.pnBuffer[i] = int( self.maxCAD / element2[8] * exp(-((( i ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
                                     sin(2*pi*(( i ))*element2[2] / self.sample_rate + element2[3]) )
                             else:
                                 break
                         elif element2[1] == 2: # SINC
                             if i <= ( element2[4] ):
-                                pnBuffer[i] = int( self.maxCAD / element2[8] * np.sinc(2*(( i ) - mid_point) / (element2[5]) )*\
+                                self.pnBuffer[i] = int( self.maxCAD / element2[8] * np.sinc(2*(( i ) - mid_point) / (element2[5]) )*\
                                     sin(2*pi*( i )*element2[2] / self.sample_rate + element2[3]) )
                             else:
                                 break
@@ -3288,13 +3503,13 @@ class Spectrum_M4I_6631_X8:
                             # ph = 2*pi*(Fstr*t + 0.5*( Ffin - Fstr )*t^2/tp )
                             # WURST = at*sin(ph + phase_0)
                             if i <= ( element2[4] ):
-                                pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( i - mid_point ) / element2[4] ) ) ** element2[9] )*\
+                                self.pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( i - mid_point ) / element2[4] ) ) ** element2[9] )*\
                                     sin(2*pi*( i * element2[2][0] / self.sample_rate + 0.5 * (element2[2][1] - element2[2][0])*\
                                     i**2  / element2[4] / self.sample_rate ) + element2[3] ) )
                             else:
                                 break
 
-            return pvBuffer, pnBuffer
+            return self.pvBuffer, self.pnBuffer
 
         elif self.channel == 3:
             # two bytes per sample; multiply by number of enabled channels
@@ -3302,10 +3517,10 @@ class Spectrum_M4I_6631_X8:
             #buf = np.zeros(self.memsize * 2, dtype = np.float64 )
 
             # define the buffer
-            pnBuffer = c_void_p()
+            self.pnBuffer = c_void_p()
             self.qwBufferSize = uint64 (self.buffer_size)  # buffer size
-            pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
-            pnBuffer = cast (pvBuffer, ptr16)
+            self.pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
+            self.pnBuffer = cast (self.pvBuffer, ptr16)
 
             # pulses for different channel
             for element in pulses:
@@ -3322,18 +3537,18 @@ class Spectrum_M4I_6631_X8:
                                 if i <= ( 2 * element2[4] ):
                                     # Sine Signal CH_0; i/2 in order to keep the frequency
                                     # buf[i]
-                                    pnBuffer[i] = int( self.maxCAD / element2[8] * sin(2*pi*(( i/2 ))*element2[2] / self.sample_rate + element2[3]) )
+                                    self.pnBuffer[i] = int( self.maxCAD / element2[8] * sin(2*pi*(( i/2 ))*element2[2] / self.sample_rate + element2[3]) )
                                 else:
                                     break
                             elif element2[1] == 1: # GAUSS
                                 if i <= ( 2 * element2[4] ):
-                                    pnBuffer[i] = int( self.maxCAD / element2[8] * exp(-((( i/2 ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                    self.pnBuffer[i] = int( self.maxCAD / element2[8] * exp(-((( i/2 ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
                                         sin(2*pi*(( i/2 ))*element2[2] / self.sample_rate + element2[3]) )
                                 else:
                                     break
                             elif element2[1] == 2: # SINC
                                 if i <= ( 2 * element2[4] ):
-                                    pnBuffer[i] = int( self.maxCAD / element2[8] * np.sinc(2*(( i/2 ) - mid_point) / (element2[5]) )*\
+                                    self.pnBuffer[i] = int( self.maxCAD / element2[8] * np.sinc(2*(( i/2 ) - mid_point) / (element2[5]) )*\
                                         sin(2*pi*( i/2 )*element2[2] / self.sample_rate + element2[3]) )
                                 else:
                                     break
@@ -3344,7 +3559,7 @@ class Spectrum_M4I_6631_X8:
                                 # ph = 2*pi*(Fstr*t + 0.5*( Ffin - Fstr )*t^2/tp )
                                 # WURST = at*sin(ph + phase_0)                            
                                 if i <= ( 2 * element2[4] ):
-                                    pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( i/2 - mid_point ) / element2[4] ) ) ** element2[9] )*\
+                                    self.pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( i/2 - mid_point ) / element2[4] ) ) ** element2[9] )*\
                                         sin(2*pi*( i/2 * element2[2][0] / self.sample_rate + 0.5 * (element2[2][1] - element2[2][0])*\
                                         (i/2)**2  / element2[4] / self.sample_rate ) + element2[3] ) )
 
@@ -3356,18 +3571,18 @@ class Spectrum_M4I_6631_X8:
                                 if (i - 1) <= ( 2 * element2[4] ):
                                     # Sine Signal CH_1; i/2 in order to keep the frequency
                                     #buf[i]
-                                    pnBuffer[i] = int( self.maxCAD / element2[8] * sin(2*pi*(( (i - 1)/2 ))*element2[2] / self.sample_rate + element2[3]) )
+                                    self.pnBuffer[i] = int( self.maxCAD / element2[8] * sin(2*pi*(( (i - 1)/2 ))*element2[2] / self.sample_rate + element2[3]) )
                                 else:
                                     break
                             elif element2[1] == 1: # GAUSS
                                 if (i - 1) <= ( 2 * element2[4] ):
-                                    pnBuffer[i] = int( self.maxCAD / element2[8] * exp(-((( (i - 1)/2 ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
+                                    self.pnBuffer[i] = int( self.maxCAD / element2[8] * exp(-((( (i - 1)/2 ) - mid_point)**2)*(1/(2*element2[5]**2)))*\
                                         sin(2*pi*(( (i - 1)/2 ))*element2[2] / self.sample_rate + element2[3]) )
                                 else:
                                     break
                             elif element2[1] == 2: # SINC
                                 if (i - 1) <= ( 2 * element2[4] ):
-                                    pnBuffer[i] = int( self.maxCAD / element2[8] * np.sinc(2*(( (i - 1)/2 ) - mid_point) / (element2[5]) )*\
+                                    self.pnBuffer[i] = int( self.maxCAD / element2[8] * np.sinc(2*(( (i - 1)/2 ) - mid_point) / (element2[5]) )*\
                                         sin(2*pi*( (i - 1)/2 )*element2[2] / self.sample_rate + element2[3]) )
                                 else:
                                     break
@@ -3378,11 +3593,11 @@ class Spectrum_M4I_6631_X8:
                                 # ph = 2*pi*(Fstr*t + 0.5*( Ffin - Fstr )*t^2/tp )
                                 # WURST = at*sin(ph + phase_0)                            
                                 if (i - 1) <= ( 2 * element2[4] ):
-                                    pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( (i - 1)/2 - mid_point ) / element2[4] ) ) ** element2[9] )*\
+                                    self.pnBuffer[i] = int( self.maxCAD / element2[8] * ( 1 - abs( sin( pi*( (i - 1)/2 - mid_point ) / element2[4] ) ) ** element2[9] )*\
                                         sin(2*pi*( (i - 1)/2 * element2[2][0] / self.sample_rate + 0.5 * (element2[2][1] - element2[2][0])*\
                                         ((i - 1)/2)**2  / element2[4] / self.sample_rate ) + element2[3] ) )
 
-            return pvBuffer, pnBuffer
+            return self.pvBuffer, self.pnBuffer
 
     def closest_power_of_two(self, x):
         """
@@ -3418,7 +3633,7 @@ class Spectrum_M4I_6631_X8:
         Second channel will be filled automatically
         """
         # pulses are in a form [channel_number, function, frequency, phase, length, sigma, start, delta_start, amp, n_wurst] 
-        #                      [0,               1,          2,      3,      4,      5,      6,      7,        8,   9   ]
+        #                      [0,              1,        2,         3,      4,     5,      6,    7,           8,   9   ]
         self.memsize, pulses = self.preparing_buffer_single() # 0.2-0.3 ms
         # only ch0 pulses are analyzed
         # ch1 will be generated automatically with shifted phase
@@ -3472,10 +3687,10 @@ class Spectrum_M4I_6631_X8:
         if (self.channel == 1 or self.channel == 2) and self.single_joined == 1:
 
             # define the buffer
-            pnBuffer = c_void_p()
+            self.pnBuffer = c_void_p()
             self.qwBufferSize = uint64 (2 * self.memsize)  # buffer size
-            pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
-            pnBuffer = cast (pvBuffer, ptr16)
+            self.pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
+            self.pnBuffer = cast (self.pvBuffer, ptr16)
 
             # run over defined pulses inside a sequence point
             for index, element in enumerate(arguments_array[0]):
@@ -3495,12 +3710,12 @@ class Spectrum_M4I_6631_X8:
                             
                             if pulse_phase_np[index] != 1000:
                                 # ( i - pulse_start_smp[index] ) for always zero phase
-                                pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( i - pulse_start_smp[index] ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+                                self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( i - pulse_start_smp[index] ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
 
                             else:
                                 # for DEER pulse with random phase
                                 rnd_phase = 2*pi*random.random()
-                                pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( i - pulse_start_smp[index] ))*pulse_frequency[index] / self.sample_rate + \
+                                self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( i - pulse_start_smp[index] ))*pulse_frequency[index] / self.sample_rate + \
                                                     pulse_phase_np[index] ) + rnd_phase )
                         else:
                             break
@@ -3521,13 +3736,13 @@ class Spectrum_M4I_6631_X8:
                             if pulse_phase_np[index] != 1000:
                                 #self.full_buffer[point, i] 
                                 # ( i - pulse_start_smp[index] ) in Sine for always zero phase
-                                pnBuffer[i] = int( self.maxCAD / pulse_amp[index]* exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index]* exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                                                         sin(2*pi*(( i - pulse_start_smp[index] ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
 
                             else:
                                 # for DEER pulse with random phase
                                 rnd_phase = 2*pi*random.random()
-                                pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                                self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * exp(-((( i ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                                                         sin(2*pi*(( i - pulse_start_smp[index] ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
                                                         rnd_phase) )
                         else:
@@ -3549,13 +3764,13 @@ class Spectrum_M4I_6631_X8:
                             if pulse_phase_np[index] != 1000:
                                 self.full_buffer[point, i] 
                                 # ( i - pulse_start_smp[index] ) in Sine for always zero phase
-                                pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
                                                            sin(2*pi*(( i - pulse_start_smp[index] ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
 
                             else:
                                 # for DEER pulse with random phase
                                 rnd_phase = 2*pi*random.random()
-                                pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                                self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( i ) - mid_point) / (pulse_sigma_smp[index]) )*\
                                                         sin(2*pi*(( i - pulse_start_smp[index] ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
                                                         rnd_phase) )
                         else:
@@ -3583,7 +3798,7 @@ class Spectrum_M4I_6631_X8:
                             
                             if pulse_phase_np[index] != 1000:
                                 # ( i - pulse_start_smp[index] ) in Sine for always zero phase
-                                pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * ( 1 - abs( sin( pi*( i - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
+                                self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * ( 1 - abs( sin( pi*( i - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
                                                         sin(2*pi*( ( i - pulse_start_smp[index] ) * pulse_frequency[index][0] / self.sample_rate + 0.5 * \
                                                         (pulse_frequency[index][1] - pulse_frequency[index][0]) * ( i - pulse_start_smp[index] )**2 \
                                                         / pulse_length_smp[index] / self.sample_rate ) + pulse_phase_np[index] ))
@@ -3591,26 +3806,26 @@ class Spectrum_M4I_6631_X8:
                             else:
                                 # for DEER pulse with random phase
                                 rnd_phase = 2*pi*random.random()
-                                pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * ( 1 - abs( sin( pi*( i - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
+                                self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * ( 1 - abs( sin( pi*( i - mid_point ) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] )*\
                                                         sin(2*pi*( ( i - pulse_start_smp[index] ) * pulse_frequency[index][0] / self.sample_rate + 0.5 * \
                                                         (pulse_frequency[index][1] - pulse_frequency[index][0]) * ( i - pulse_start_smp[index] )**2 \
                                                         / pulse_length_smp[index] / self.sample_rate ) + pulse_phase_np[index] + rnd_phase ))
 
                         else:
                             break
-            return pvBuffer, pnBuffer
+            return self.pvBuffer, self.pnBuffer
 
         # Modification for vectorized buffer filling 12-08-2021
         # It decreases buffer filling time 2-3 times
         elif self.channel == 3 and self.single_joined == 1:
             # 1-2 ms per pulse
             # define the buffer
-            pnBuffer = c_void_p()
+            self.pnBuffer = c_void_p()
             self.qwBufferSize = uint64 (2 * self.memsize * 2)  # buffer size for two channels
-            pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
-            pnBuffer = cast (pvBuffer, ptr16)
+            self.pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
+            self.pnBuffer = cast (self.pvBuffer, ptr16)
             # additional line to convertion back to numpy; it should be commented in a standard range approach
-            pnBuffer = np.ctypeslib.as_array(pnBuffer, shape = (int(2 * self.memsize), ))
+            self.pnBuffer = np.ctypeslib.as_array(self.pnBuffer, shape = (int(2 * self.memsize), ))
 
             # run over defined pulses inside a sequence point
             for index, element in enumerate(arguments_array[0]):
@@ -3628,16 +3843,16 @@ class Spectrum_M4I_6631_X8:
                     ##        #if pulse_phase_np[index] != 1000:
                     ##            #self.full_buffer[point, i] 
                     ##        # ch0
-                    ##        pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
+                    ##        self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
                     ##        #ch1
-                    ##        pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
+                    ##        self.pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
                     ##                                     self.phase_shift_ch1_seq_mode) )
                     ##        #else:
                     ##            #self.full_buffer[point, i]
                     ##            # ch0
-                    ##            #pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase) )
+                    ##            #self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase) )
                     ##            #ch1
-                    ##            #pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase + \
+                    ##            #self.pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase + \
                     ##            #                         self.phase_shift_ch1_seq_mode) )
                     ##    else:
                     ##        break
@@ -3646,19 +3861,19 @@ class Spectrum_M4I_6631_X8:
                     # always zero phase: np.arange(0, 0 + pulse_length_smp[index]) )
                     # one phase: np.arange(pulse_start_smp[index], pulse_start_smp[index] + pulse_length_smp[index]) )
                     if pulse_phase_np[index] != 1000:
-                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
+                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
                                     (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(0, 0 + \
                                         pulse_length_smp[index]) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] )).astype(int64)
-                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
+                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
                                     (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(0, 0 + \
                                         pulse_length_smp[index]) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode)).astype(int64)
                     else:
                         # DEER pulse
                         rnd_phase = 2*pi*random.random()
-                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
+                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
                                     (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(0, 0 + \
                                         pulse_length_smp[index]) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase)).astype(int64)
-                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
+                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
                                     (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(0, 0 + \
                                         pulse_length_smp[index]) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode + rnd_phase)).astype(int64)
 
@@ -3675,20 +3890,20 @@ class Spectrum_M4I_6631_X8:
                     ##        #if pulse_phase_np[index] != 1000:
                     ##            #self.full_buffer[point, i]
                     ##        # ch0
-                    ##        pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                    ##        self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                     ##                                    sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
                     ##        #ch1
-                    ##        pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                    ##        self.pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                     ##                                    sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
                     ##                                    self.phase_shift_ch1_seq_mode) )
                     ##
                     ##        #else:
                     ##            #self.full_buffer[point, i]
                     ##            # ch0
-                    ##        #    pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                    ##        #    self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                     ##        #                            sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase ) )
                     ##            #ch1
-                    ##        #    pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
+                    ##        #    self.pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                     ##        #                            sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase +\
                     ##        #                            self.phase_shift_ch1_seq_mode) )                                    
                     ##
@@ -3698,12 +3913,12 @@ class Spectrum_M4I_6631_X8:
                     # always zero phase in Sine: np.arange(0, 0 + pulse_length_smp[index]) )
                     # one phase in Sine: np.arange(pulse_start_smp[index], pulse_start_smp[index] + pulse_length_smp[index]) )
                     if pulse_phase_np[index] != 1000:
-                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
+                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
                                         (self.maxCAD / pulse_amp[index] * np.exp(-((( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                             pulse_length_smp[index]) ) ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                                                     np.sin(2*np.pi*(( ( np.arange(0, 0 + \
                                             pulse_length_smp[index]) )  ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] )).astype(int64)
-                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
+                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
                                         (self.maxCAD / pulse_amp[index] * np.exp(-((( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                             pulse_length_smp[index]) )  ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                                                     np.sin(2*np.pi*(( ( np.arange(0, 0 + \
@@ -3711,12 +3926,12 @@ class Spectrum_M4I_6631_X8:
                     else:
                         # DEER pulse
                         rnd_phase = 2*pi*random.random()
-                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
+                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
                                         (self.maxCAD / pulse_amp[index] * np.exp(-((( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                             pulse_length_smp[index]) ) ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                                                     np.sin(2*np.pi*(( ( np.arange(0, 0 + \
                                             pulse_length_smp[index]) )  ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase)).astype(int64)
-                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
+                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
                                         (self.maxCAD / pulse_amp[index] * np.exp(-((( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                             pulse_length_smp[index]) )  ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
                                                     np.sin(2*np.pi*(( ( np.arange(0, 0 + \
@@ -3736,18 +3951,18 @@ class Spectrum_M4I_6631_X8:
                     ##        #if pulse_phase_np[index] != 1000:
                     ##            #self.full_buffer[point, i]
                     ##        # ch0
-                    ##        pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                    ##        self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
                     ##                                     sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
                     ##        #ch1
-                    ##        pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( i  )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                    ##        self.pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( i  )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
                     ##                                     sin(2*pi*(( ( i  )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
                     ##                                     self.phase_shift_ch1_seq_mode) )
                     ##        #else:
                     ##            #self.full_buffer[point, i]
                     ##            # ch0
-                    ##        #    pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                    ##        #    self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
                     ##        #                             sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase) )
-                    ##        #    pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( i )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
+                    ##        #    self.pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( i )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
                     ##        #                             sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
                     ##        #                             self.phase_shift_ch1_seq_mode + rnd_phase) )
                     ##    else:
@@ -3756,12 +3971,12 @@ class Spectrum_M4I_6631_X8:
                     # always zero phase in Sine: np.arange(0, 0 + pulse_length_smp[index]) )
                     # one phase in Sine: np.arange(pulse_start_smp[index], pulse_start_smp[index] + pulse_length_smp[index]) )
                     if pulse_phase_np[index] != 1000:
-                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
+                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
                                         (self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                             pulse_length_smp[index]) ) ) - mid_point) / (pulse_sigma_smp[index]) )*\
                                                 np.sin(2*np.pi*(( ( np.arange(0, 0 + \
                                                     pulse_length_smp[index]) ) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] )).astype(int64)
-                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
+                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
                                         (self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                             pulse_length_smp[index]) ) ) - mid_point) / (pulse_sigma_smp[index]) )*\
                                                 np.sin(2*np.pi*(( ( np.arange(0, 0 + \
@@ -3769,12 +3984,12 @@ class Spectrum_M4I_6631_X8:
                     else:
                         # DEER pulse
                         rnd_phase = 2*pi*random.random()
-                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
+                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
                                         (self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                             pulse_length_smp[index]) ) ) - mid_point) / (pulse_sigma_smp[index]) )*\
                                                 np.sin(2*np.pi*(( ( np.arange(0, 0 + \
                                                     pulse_length_smp[index]) ) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase)).astype(int64)
-                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
+                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
                                         (self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                             pulse_length_smp[index]) ) ) - mid_point) / (pulse_sigma_smp[index]) )*\
                                                 np.sin(2*np.pi*(( ( np.arange(0, 0 + \
@@ -3795,7 +4010,7 @@ class Spectrum_M4I_6631_X8:
                     # ph = 2*pi*(Fstr*t + 0.5*( Ffin - Fstr )*t^2/tp )
                     # WURST = at*sin(ph + phase_0)
                     if pulse_phase_np[index] != 1000:
-                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
+                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
                                         (self.maxCAD / pulse_amp[index] * ( 1 - np.abs( np.sin( np.pi * ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                             pulse_length_smp[index]) - mid_point) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] ) * \
                                             np.sin(2*np.pi*( np.arange(0, 0 + \
@@ -3803,7 +4018,7 @@ class Spectrum_M4I_6631_X8:
                                              / self.sample_rate * np.arange(0, 0 + pulse_length_smp[index] )**2 / pulse_length_smp[index] ) \
                                              + pulse_phase_np[index] )).astype(int64)
 
-                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
+                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
                                         (self.maxCAD / pulse_amp[index] * ( 1 - np.abs( np.sin( np.pi * ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                             pulse_length_smp[index]) - mid_point) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] ) * \
                                             np.sin(2*np.pi*( np.arange(0, 0 + \
@@ -3815,7 +4030,7 @@ class Spectrum_M4I_6631_X8:
                         # DEER pulse
                         rnd_phase = 2*pi*random.random()
 
-                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
+                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
                                         (self.maxCAD / pulse_amp[index] * ( 1 - np.abs( np.sin( np.pi * ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                             pulse_length_smp[index]) - mid_point) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] ) * \
                                             np.sin(2*np.pi*( np.arange(0, 0 + \
@@ -3823,7 +4038,7 @@ class Spectrum_M4I_6631_X8:
                                              / self.sample_rate * np.arange(0, 0 + pulse_length_smp[index] )**2 / pulse_length_smp[index] ) \
                                              + pulse_phase_np[index] + rnd_phase )).astype(int64)
 
-                        pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
+                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
                                         (self.maxCAD / pulse_amp[index] * ( 1 - np.abs( np.sin( np.pi * ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
                                             pulse_length_smp[index]) - mid_point) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] ) * \
                                             np.sin(2*np.pi*( np.arange(0, 0 + \
@@ -3831,7 +4046,7 @@ class Spectrum_M4I_6631_X8:
                                              / self.sample_rate * np.arange(0, 0 + pulse_length_smp[index] )**2 / pulse_length_smp[index] ) \
                                              + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode + rnd_phase )).astype(int64)
 
-            return pvBuffer, pnBuffer.ctypes.data_as(ptr16) #STANDARD: return pvBuffer, pnBuffer
+            return self.pvBuffer, self.pnBuffer.ctypes.data_as(ptr16) #STANDARD: return self.pvBuffer, self.pnBuffer
     
     def round_to_closest(self, x, y):
         """

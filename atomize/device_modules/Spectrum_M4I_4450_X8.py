@@ -3,6 +3,7 @@
 
 import os
 import sys
+import gc
 ###AWG
 sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
 ###sys.path.append('/home/anatoly/AWG/spcm_examples/python')
@@ -17,7 +18,6 @@ from spcm_tools import *
 
 class Spectrum_M4I_4450_X8:
     def __init__(self):
-
         #### Inizialization
         # setting path to *.ini file
         self.path_current_directory = os.path.dirname(__file__)
@@ -59,6 +59,7 @@ class Spectrum_M4I_4450_X8:
         self.averages_max = 100000
         self.delay_max = 8589934576
         self.delay_min = 0
+        self.gc_collect_limit = 250*10**6
 
         # Test run parameters
         # These values are returned by the modules in the test run 
@@ -102,6 +103,9 @@ class Spectrum_M4I_4450_X8:
             # integration window
             self.win_left = 0
             self.win_right = 1
+
+            # get_curve counter
+            self.get_curve_counter = 0
 
         elif self.test_flag == 'test':        
             self.test_sample_rate = '500 MHz'
@@ -156,6 +160,9 @@ class Spectrum_M4I_4450_X8:
             # integration window
             self.win_left = 0
             self.win_right = 1
+            
+            # get_curve counter
+            self.get_curve_counter = 0
 
     # Module functions
     def digitizer_name(self):
@@ -299,6 +306,7 @@ class Spectrum_M4I_4450_X8:
         if self.test_flag != 'test':
 
             #spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
+            self.get_curve_counter += 1
 
             # define the buffer
             pvBuffer = c_void_p ()
@@ -323,6 +331,12 @@ class Spectrum_M4I_4450_X8:
             spcm_dwGetParam_i32 (self.hCard, SPC_MIINST_BITSPERSAMPLE, byref (lBitsPerSample)) # lBitsPerSample.value = 14
 
             pnData = cast  (pvBuffer, ptr16) # cast to pointer to 16bit integer
+            # test of memory leak
+            #pnData = np.ctypeslib.as_array(pnData, shape = (2*6500*100, ))
+            #pnData = np.random.rand(2*6500*100)
+            #self.lMaxDACValue.value = 1
+            #pnData.ctypes.data_as(ptr16)
+
             if self.channel == 1 or self.channel == 2:
 
                 if self.card_mode == 1:
@@ -334,6 +348,14 @@ class Spectrum_M4I_4450_X8:
                         data = ( self.amplitude_1 / 1000) * np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 2 ), )) / self.lMaxDACValue.value
 
                     xs = np.arange( len(data) ) / (self.sample_rate * 1000000)
+
+                    del pnData
+                    del pvBuffer
+
+                    # free memory when the limit is achieved
+                    if self.get_curve_counter * self.aver * self.points > self.gc_collect_limit:
+                        gc.collect()
+                        self.get_curve_counter = 0
 
                     return xs, data
 
@@ -353,6 +375,14 @@ class Spectrum_M4I_4450_X8:
                             data_ave = np.average( data, axis = 0 )
 
                         xs = np.arange( len(data_ave) ) / (self.sample_rate * 1000000)
+
+                        del pnData
+                        del pvBuffer
+
+                        # free memory when the limit is achieved
+                        if self.get_curve_counter * self.aver * self.points > self.gc_collect_limit:
+                            gc.collect()
+                            self.get_curve_counter = 0
 
                         return xs, data_ave
 
@@ -386,6 +416,14 @@ class Spectrum_M4I_4450_X8:
                                         shape = (int( self.qwBufferSize.value / 4 ), )) ) * ( 10**(-6) / self.sample_rate ) / ( self.lMaxDACValue.value * self.aver )
                                 # integral in V*s                            
 
+                        del pnData
+                        del pvBuffer
+
+                        # free memory when the limit is achieved
+                        if self.get_curve_counter * self.aver * self.points > self.gc_collect_limit:
+                            gc.collect()
+                            self.get_curve_counter = 0
+
                         return integ
 
             elif self.channel == 3:
@@ -401,6 +439,14 @@ class Spectrum_M4I_4450_X8:
 
                     xs = np.arange( len(data1) ) / (self.sample_rate * 1000000)
                     
+                    del pnData
+                    del pvBuffer
+
+                    # free memory when the limit is achieved
+                    if self.get_curve_counter * self.aver * self.points > self.gc_collect_limit:
+                        gc.collect()
+                        self.get_curve_counter = 0
+
                     return xs, data1, data2
 
                 elif self.card_mode == 2:
@@ -417,6 +463,14 @@ class Spectrum_M4I_4450_X8:
 
                         xs = np.arange( len(data1) ) / (self.sample_rate * 1000000)
 
+                        del pnData
+                        del pvBuffer
+
+                        # free memory when the limit is achieved
+                        if self.get_curve_counter * self.aver * self.points > self.gc_collect_limit:
+                            gc.collect()
+                            self.get_curve_counter = 0
+
                         return xs, data1, data2
 
                     elif integral == True:
@@ -431,6 +485,14 @@ class Spectrum_M4I_4450_X8:
                             # CH1
                             data2 = ( np.sum( data_ave[1::2][self.win_left:self.win_right] ) * ( 10**(-6) / self.sample_rate ) * ( self.amplitude_1 / 1000) ) / ( self.lMaxDACValue.value )
 
+                            del pnData
+                            del pvBuffer
+
+                            # free memory when the limit is achieved
+                            if self.get_curve_counter * self.aver * self.points > self.gc_collect_limit:
+                                gc.collect()
+                                self.get_curve_counter = 0
+
                             return data1, data2
                         else:
                             data = np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 2 ), ))
@@ -439,6 +501,14 @@ class Spectrum_M4I_4450_X8:
                             data1 = ( np.sum( data[0::2] ) * ( 10**(-6) / self.sample_rate ) * ( self.amplitude_0 / 1000) ) / ( self.lMaxDACValue.value * self.aver )
                             # CH1
                             data2 = ( np.sum( data[1::2] ) * ( 10**(-6) / self.sample_rate ) * ( self.amplitude_1 / 1000) ) / ( self.lMaxDACValue.value * self.aver )
+
+                            del pnData
+                            del pvBuffer
+
+                            # free memory when the limit is achieved
+                            if self.get_curve_counter * self.aver * self.points > self.gc_collect_limit:
+                                gc.collect()
+                                self.get_curve_counter = 0
 
                             return data1, data2
 
