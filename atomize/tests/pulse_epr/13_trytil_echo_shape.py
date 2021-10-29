@@ -11,10 +11,10 @@ import atomize.device_modules.BH_15 as bh
 import atomize.general_modules.csv_opener_saver as openfile
 
 ### Experimental parameters
-FIELD_STEP = 2.5
+FIELD_STEP = 2
 FIELD_START = 3411
 FIELD_END = 3501
-AVERAGES = 10
+AVERAGES = 10000
 SCANS = 1
 
 # PULSES

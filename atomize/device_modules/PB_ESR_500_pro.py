@@ -1190,7 +1190,7 @@ class PB_ESR_500_Pro:
             visualizer = self.convert_to_bit_pulse_visualizer( self.pulse_array )
 
             #general.plot_1d('Plot XY Test', np.arange(len(to_spinapi)), to_spinapi, label='test data1', timeaxis = 'False')
-            general.plot_2d('Pulses Visualizer', np.transpose( visualizer ), \
+            general.plot_2d('Pulse Visualizer', np.transpose( visualizer ), \
                 start_step = ( (0, 1), (0, 1) ), xname = 'Time',\
                 xscale = 'ns', yname = 'Pulse Number', yscale = '', zname = '2**(channel)', zscale = '')
 
