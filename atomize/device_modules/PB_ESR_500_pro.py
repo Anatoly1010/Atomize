@@ -40,12 +40,13 @@ class PB_ESR_500_Pro:
         # Channel assignments
         self.ch0 = self.specific_parameters['ch0'] # TRIGGER
         self.ch1 = self.specific_parameters['ch1'] # AMP_ON
-        self.ch2 = self.specific_parameters['ch2'] # LNA_PROTCT
+        self.ch2 = self.specific_parameters['ch2'] # LNA_PROTECT
         self.ch3 = self.specific_parameters['ch3'] # MW
         self.ch4 = self.specific_parameters['ch4'] # -X
         self.ch5 = self.specific_parameters['ch5'] # +Y
         self.ch6 = self.specific_parameters['ch6'] # TRIGGER_AWG
         self.ch7 = self.specific_parameters['ch7'] # AWG
+        self.ch8 = self.specific_parameters['ch8'] # LASER
 
         # AWG pulse will be substitued by a shifted RECT_AWG pulse and AMP_ON pulse
         # TRIGGER_AWG is used to trigger AWG card
@@ -54,7 +55,7 @@ class PB_ESR_500_Pro:
         # -Y for Mikran bridge is simutaneously turned on -X; +Y
         # that is why there is no -Y channel instead we add both -X and +Y pulses
         self.channel_dict = {self.ch0: 0, self.ch1: 1, self.ch2: 2, self.ch3: 3, self.ch4: 4, self.ch5: 5, \
-                        self.ch6: 6, self.ch7: 7, 'CH8': 8, 'CH9': 9, 'CH10': 10, 'CH11': 11,\
+                        self.ch6: 6, self.ch7: 7, self.ch8: 8, 'CH9': 9, 'CH10': 10, 'CH11': 11,\
                         'CH12': 12, 'CH13': 13, 'CH14': 14, 'CH15': 15, 'CH16': 16, 'CH17': 17,\
                         'CH18': 18, 'CH19': 19, 'CH20': 20, 'CH21': 21, }
 
@@ -1662,7 +1663,6 @@ class PB_ESR_500_Pro:
             # sorted pulse list in order to be able to have an arbitrary pulse order inside
             # the definition in the experimental script
             sorted_np_array = np.asarray(sorted(np_array, key = lambda x: int(x[1])), dtype = np.int64)
-
             ## 16-09-2021; An attempt to optimize the speed; all pulses should be already checked in the TEST RUN
             ## Uncomment everything starting with ## if needed
 
@@ -1760,7 +1760,6 @@ class PB_ESR_500_Pro:
         if self.test_flag != 'test':
             if self.auto_defense == 'False':
                 split_pulse_array = self.splitting_acc_to_channel( self.convertion_to_numpy( np_array ) )
-
                 # iterate over all pulses at different channels
                 for index, element in enumerate(split_pulse_array):
                     # for all pulses just check 40 ns distance
@@ -1985,6 +1984,12 @@ class PB_ESR_500_Pro:
             pulses = self.preparing_to_bit_pulse(np_array)
 
             sorted_pulses_start = np.asarray(sorted(pulses, key = lambda x: int(x[1])), dtype = np.int64)
+
+            #LASER HERE
+            #general.message( sorted_pulses_start )
+            # [[256 125 145] [  2 160 188] [  4 160 238] [  8 245 253] [  2 260 296] [  4 260 361] [ 16 330 361] [  8 345 361] [  1 455 505]]
+
+
             # self.max_pulse_length is 2000 ns now
             index_jump = np.where(np.diff(sorted_pulses_start[:,1], axis = 0) > self.max_pulse_length )[0]
             sorted_arrays_parts = np.split(sorted_pulses_start, index_jump + 1)
