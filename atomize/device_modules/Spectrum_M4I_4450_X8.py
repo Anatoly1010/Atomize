@@ -512,6 +512,34 @@ class Spectrum_M4I_4450_X8:
 
                             return data1, data2
 
+                    elif integral == 'Both':
+                        data = np.ctypeslib.as_array(pnData, \
+                                shape = (int( self.qwBufferSize.value / 2 ), )).reshape((self.aver, 2 * self.points))
+                        #data_ave = np.sum( data, axis = 0 ) / self.aver
+                        data_ave = np.average( data, axis = 0 )
+                        
+                        # CH0
+                        data1 = ( data_ave[0::2] * ( self.amplitude_0 / 1000) ) / self.lMaxDACValue.value
+                        # CH1
+                        data2 = ( data_ave[1::2] * ( self.amplitude_1 / 1000) ) / self.lMaxDACValue.value
+
+                        # CH0
+                        data1int = ( np.sum( data_ave[0::2][self.win_left:self.win_right] ) * ( 10**(-6) / self.sample_rate ) * ( self.amplitude_0 / 1000) ) / ( self.lMaxDACValue.value )
+                        # CH1
+                        data2int = ( np.sum( data_ave[1::2][self.win_left:self.win_right] ) * ( 10**(-6) / self.sample_rate ) * ( self.amplitude_1 / 1000) ) / ( self.lMaxDACValue.value )
+
+                        xs = np.arange( len(data1) ) / (self.sample_rate * 1000000)
+
+                        del pnData
+                        del pvBuffer
+
+                        # free memory when the limit is achieved
+                        if self.get_curve_counter * self.aver * self.points > self.gc_collect_limit:
+                            gc.collect()
+                            self.get_curve_counter = 0
+
+                        return xs, data1, data2, data1int, data2int
+
             #print( len(data) )
             #xs = 2*np.arange( int(qwBufferSize.value / 4) )
 
@@ -527,8 +555,9 @@ class Spectrum_M4I_4450_X8:
             if self.card_mode == 1:
                 dummy = np.zeros( self.points )
             elif self.card_mode == 2:
-                dummy = np.zeros( int( self.digitizer_number_of_points() ) )
-                #dummy = np.zeros( int( self.digitizer_window() ) )
+                #dummy = np.zeros( int( self.digitizer_number_of_points() ) )
+                #25-11-2021
+                dummy = np.zeros( int( self.digitizer_window() ) )
 
             if self.channel == 1 or self.channel == 2:
                 if integral == False:
@@ -546,6 +575,11 @@ class Spectrum_M4I_4450_X8:
                         return dummy, dummy, dummy
                     elif self.card_mode == 2:
                         return self.test_integral, self.test_integral
+                elif integral == 'Both':
+                    if self.card_mode == 1:
+                        return dummy, dummy, dummy
+                    elif self.card_mode == 2:
+                        return dummy, self.test_integral, self.test_integral, dummy, dummy
 
     def digitizer_close(self):
         """
