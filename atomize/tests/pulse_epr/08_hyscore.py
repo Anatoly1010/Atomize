@@ -11,23 +11,23 @@ import atomize.device_modules.SR_PTC_10 as sr
 import atomize.general_modules.csv_opener_saver as openfile
 
 ### Experimental parameters
-POINTS = 15
-STEP = 100                  # in NS; delta_start = str(STEP) + ' ns' -> delta_start = '100 ns'
-FIELD = 3473
-AVERAGES = 10
+POINTS = 160
+STEP = 28                  # in NS; delta_start = str(STEP) + ' ns' -> delta_start = '100 ns'
+FIELD = 3472
+AVERAGES = 5
 SCANS = 1
 
 # PULSES
-REP_RATE = '400 Hz'
+REP_RATE = '500 Hz'
 PULSE_1_LENGTH = '16 ns'
 PULSE_2_LENGTH = '16 ns'
 PULSE_3_LENGTH = '32 ns'
 PULSE_4_LENGTH = '16 ns'
 PULSE_1_START = '0 ns'
-PULSE_2_START = '300 ns'
-PULSE_3_START = '500 ns'
-PULSE_4_START = '700 ns'
-PULSE_SIGNAL_START = '1000 ns'
+PULSE_2_START = '172 ns'
+PULSE_3_START = '228 ns'
+PULSE_4_START = '300 ns'
+PULSE_SIGNAL_START = '472 ns'
 
 # NAMES
 EXP_NAME = 'HYSCORE'
@@ -66,14 +66,17 @@ data = np.zeros( (2, POINTS, POINTS) )
 
 pb.pulser_pulse(name = 'P0', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH, \
                 phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x'])
+#phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x']
 pb.pulser_pulse(name = 'P1', channel = 'MW', start = PULSE_2_START, length = PULSE_2_LENGTH, \
-                phase_list = ['+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y'])
+                phase_list = ['+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y'])
+#phase_list = ['+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y']
 pb.pulser_pulse(name = 'P2', channel = 'MW', start = PULSE_3_START, length = PULSE_3_LENGTH, \
-                phase_list = ['+x', '+x', '-x', '-x', '+x', '+x', '-x', '-x', '+x', '+x', '-x', '-x', '+x', '+x', '-x', '-x'], delta_start = str(STEP) + ' ns')
+                phase_list = ['+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y'], delta_start = str(STEP) + ' ns')
+#phase_list = ['+x', '+x', '-x', '-x', '+x', '+x', '-x', '-x', '+x', '+x', '-x', '-x', '+x', '+x', '-x', '-x'
 pb.pulser_pulse(name = 'P3', channel = 'MW', start = PULSE_4_START, length = PULSE_4_LENGTH, \
-                phase_list = ['+x', '-x', '+x', '-x', '+x', '-x', '+x', '-x', '+x', '-x', '+x', '-x', '+x', '-x', '+x', '-x'], delta_start = str(STEP) + ' ns')
-pb.pulser_pulse(name = 'P4', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', \
-                phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x'], delta_start = str(STEP) + ' ns')
+                phase_list = ['+x', '+y', '-x', '-y', '-x', '-y', '+x', '+y', '+x', '+y', '-x', '-y', '-x', '-y', '+x', '+y'], delta_start = str(STEP) + ' ns')
+#phase_list = ['+x', '-x', '+x', '-x', '+x', '-x', '+x', '-x', '+x', '-x', '+x', '-x', '+x', '-x', '+x', '-x']
+pb.pulser_pulse(name = 'P4', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str(STEP) + ' ns')
 
 pb.pulser_repetition_rate( REP_RATE )
 
@@ -106,7 +109,9 @@ for j in general.scans(SCANS):
             
             # acquisition cycle
             x, y = pb.pulser_acquisition_cycle(cycle_data_x, cycle_data_y, \
-                      acq_cycle = ['+', '-', '+', '-', '-i', '+i', '-i', '+i', '-', '+', '-', '+', '+i', '-i', '+i', '-i'])
+                      acq_cycle = ['+', '-', '+', '-', '-', '+', '-', '+', '+', '-', '+', '-', '-', '+', '-', '+'])
+
+            #acq_cycle = ['+', '-', '+', '-', '-i', '+i', '-i', '+i', '-', '+', '-', '+', '+i', '-i', '+i', '-i']
 
             data[0, i, l] = ( data[0, i, l] * (j - 1) + x ) / j
             data[1, i, l] = ( data[0, i, l] * (j - 1) + y ) / j
