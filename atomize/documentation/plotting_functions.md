@@ -17,10 +17,8 @@ The general idea of the Liveplot is a possibitily to see your data as it comes i
 The [Liveplot](https://github.com/PhilReinhold/liveplot) provides several possibilities for plotting 1D and 2D data. For raw experimental data plotting mainly four of them are applicable. An additional customizability has been added to these functions in comparison with the original Liveplot library. The functions are the following:
 
 - [plot_1d(*args, **kargs)](#1d-plotting)<br/>
-- [append_1d(*args, **kargs)](#1d-plotting)<br/>
 - [plot_2d(*args, **kargs)](#2d-plotting)<br/>
-- [append_2d(*args, **kargs)](#2d-plotting)<br/>
-- [text_label('label', 'text:', DynamicValue)](#dynamic-labeling)<br/>
+- [text_label('label', DynamicValue)](#dynamic-labeling)<br/>
 - [plot_remove('name_of_plot')](#clearing)<br/>
 
 ## GUI features
@@ -38,58 +36,79 @@ To call these functions one should import general function module inside a scrip
 ```python
 import atomize.general_modules.general_functions as general
 ```
-After that the functiins should be used as follows:
+After that the functions should be used as follows:
 
 ## 1D plotting
 ```python	
 plot_1d('name', Xdata, Ydata, label = 'label', xname = 'NameXaxis', 
-xscale = 'XaxisDimension', yname = 'NameYaxis', yscale = 'YaxisDimension', scatter = 'False')
+xscale = 'XaxisDimension', yname = 'NameYaxis', yscale = 'YaxisDimension', scatter = 'False', 
+timeaxis = 'False', vline = 'False', pr = 'None', text = '')
 ```
-	Xdata, Ydata are numpy arrays;
-	name, label are strings;
-	scatter is 'False' (default) or 'True'. Enables scatter plot;
-	other arguments are optional and used for automatic scaling (i.e. V to mV, etc.)
-	Please, note that it is impossible to redraw a line with scatters if they have the same name.
+Xdata, Ydata are numpy arrays of data;<br/>
+name is a string of the plot name;<br/>
+label is a string of the curve name;<br/>
+text is a label of the plot (for multithreading only);<br/>
+scatter is 'False' (default) or 'True'. Enables scatter plot;<br/>
+timeaxis is 'False' (default) or 'True'. Enables time axis;<br/>
+vline is 'False' (default) or a tuple (vline1, vline2). Shows up to two vertical lines;<br/>
+pr is a name of process for plotting in another thread;<br/>
 
-	Currently, up to five curves can be plotted under the same name and different label.
-```python	
-append_1d('name', value, start_step = (x[0], x[1]-x[0]), label = 'label', xname = 'NameXaxis',
-xscale = 'XaxisDimension', yname = 'NameYaxis', yscale = 'YaxisDimension')
+Other arguments are optional and used for automatic scaling (i.e. V to mV, etc.). Please, note
+that it is impossible to redraw a line with scatters if they have the same name. Currently, up 
+to five curves can be plotted under the same name and different labels. 
+There is a possibility to draw data in parallel with the main script. To do this, a keyargumnet 'pr'
+should be used. In this mode, the function returns the thread that starts the drawing, and check on
+the next call whether the process has completed or not. A minimal working example for parallel
+drawing with dynamic label is the following:
+```python
+import atomize.general_modules.general_functions as general
+process = 'None'
+for i in range(10):
+	# draw one curve (x_axis, data_x) with a vertical line and a dynamic label "text"
+	process = general.plot_1d('NAME_1', x_axis, data_1, xname = 'Delay', xscale = 'ns', yname = 'Area', \
+					yscale = 'V*s', label = 'curve', vline = (i, ), pr = process, text = str(i))
+	# draw two curves (x_axis, data_x) and (x_axis, data_y) simultaneously
+	process = general.plot_1d('NAME_2', x_axis, (data_1, data_2), label = 'curve', xname = 'Delay', xscale = 'ns',\
+					 yname = 'Area', yscale = 'V*s', vline = (i, ), text = str(i))
 ```
-	value is a number to append;
-	name, label are strings; 
-	start_step is a list of starting point and step of the X axis;
-	other arguments are optional
+A tuple (data_1, data_2) can be used as Ydata. In this case two curves will be plot simultaneously (see example above).
+A dynamic label based on the text keyargument works only for parallel drawing. For a standard drawing mode a function
+general.text_label() should be used.
 
 ## 2D plotting
 ```python		
 plot_2d('name', data, start_step = ((Xstart, Xstep), (Ystart, Ystep)), xname = 'NameXaxis',
 xscale = 'XaxisDimension', yname = 'NameYaxis Field', yscale = 'YaxisDimension', zname = 'NameZaxis',
-zscale = 'ZaxisDimension')
+zscale = 'ZaxisDimension', pr = 'None', text = '')
 ```
-	data is a multidimensional numpy array; example = [[1,1,1,..],[2,2,2,..],[3,3,3,..],..];
-	name, label are strings; 
-	start_step is a list of starting points and steps. Since the plotting procedure looks like an append of data
-	horizontally the first list is typically (0, 1), the second is (Ystart, Ystep);
-	other arguments are optional
+data is a multidimensional numpy array; example = [[1,1,1,..],[2,2,2,..],[3,3,3,..],..];<br/>
+name is a string of the plot name;<br/>
+label is a string of the curve name;<br/>
+text is a label of the plot (for multithreading only);<br/>
+pr is a name of process for plotting in another thread;<br/>
+start_step is a list of starting points and steps. Since the plotting procedure looks like an append of data;<br/>
+horizontally the first list is typically (0, 1), the second is (Ystart, Ystep);<br/>
+
+Other arguments are optional and used for automatic scaling (i.e. V to mV, etc.).
+There is a possibility to draw data in parallel with the main script. To do this, a keyargumnet 'pr'
+should be used. In this mode, the function returns the thread that starts the drawing, and check on
+the next call whether the process has completed or not. A minimal working example for parallel
+drawing with dynamic label is the following:
 ```python
-append_2d('name', data, start_step = ((Xstart, Xstep), (Ystart, Ystep)), xname = 'NameXaxis',
-xscale = 'XaxisDimension', yname = 'NameYaxis Field', yscale = 'YaxisDimension', zname = 'NameZaxis',
-zscale = 'ZaxisDimension')
+import atomize.general_modules.general_functions as general
+process = 'None'
+for i in range(10):
+    process = general.plot_2d('NAME', data, start_step = ((0, 1), (0, 1)), xname = 'Time',\
+            	xscale = 'ns', yname = 'Delay', yscale = 'ns', zname = 'Intensity', zscale = 'V',\
+            	pr = process, text = str(i))
 ```
-	data is a numpy 1D array to append; example = [1,1,1,..];
-	name, label are strings; 
-	start_step is a list in the format ((Xstart, Xstep), (Ystart, Ystep)). Since the plotting procedure looks
-	like an append of data horizontally the first list is typically (0, 1), the second is (Ystart, Ystep);
-	other arguments are optional
 
 ## Dynamic labeling
 ```python
-text_label('label', 'text:', DynamicValue)
+text_label('label', DynamicValue)
 ```
-	label is a string;
-	text is a string that will be shown on the label;
-	DynamicValue is a number that will change dynamically
+label is a string;<br/>
+DynamicValue is a number that will change dynamically;<br/>
 
 ## Clearing
 ```python
@@ -130,8 +149,8 @@ while i <= 20:
 
 	general.wait('100 ms')
 
-	general.append_2d('2D test plot', data[i-1], start_step = ((0, 1), (0.3, 0.001)),
+	general.plot_2d('2D test plot', data, start_step = ((0, 1), (0.3, 0.001)),
 	xname = 'Time', xscale = 's', yname = 'Magnetic Field', yscale = 'T', zname = 'Intensity',
 	zscale = 'V')
-	general.text_label('2D test plot', 'step:', i)
+	general.text_label('2D test plot; step: ', i)
 ```

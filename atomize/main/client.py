@@ -13,7 +13,7 @@ logging.root.setLevel(logging.WARNING)
 
 class LivePlotClient(object):
     
-    def __init__(self, timeout = 2000, size = 2**28):
+    def __init__(self, timeout=2000, size=2**28):
         # from 06-08-2021; Freezing GUI when import general module
         
         #self.app = QCoreApplication.instance()
@@ -39,7 +39,7 @@ class LivePlotClient(object):
         self.timeout = timeout
         
         atexit.register(self.close)
-
+    
     def close(self):
         self.shared_mem.detach()
 
@@ -94,7 +94,7 @@ class LivePlotClient(object):
         self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
 
     def plot_z(self, name, arr, extent=None, start_step=None, xname='X axis',\
-     xscale='arb. u.', yname='Y axis', yscale='arb. u.', zname='Y axis', zscale='arb. u.'):
+     xscale='arb. u.', yname='Y axis', yscale='arb. u.', zname='Y axis', zscale='arb. u.', text=''):
         '''
         extent is ((initial x, final x), (initial y, final y))
         start_step is ((initial x, delta x), (initial_y, final_y))
@@ -117,13 +117,14 @@ class LivePlotClient(object):
             'Xname': xname,
             'Yname': yname,
             'Zname': zname,
+            'value': text,
         }
         self.send_to_plotter(meta, arr.astype('float64'))
         self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
 
     def plot_xy(self, name, xs, ys, label='', xname='X axis', xscale='arb. u.',\
-     yname='Y axis', yscale='arb. u.', scatter='False', timeaxis='False', vline='False'):
-        arr = np.array([xs, ys])
+     yname='Y axis', yscale='arb. u.', scatter='False', timeaxis='False', vline='False', text=''):
+    
         meta = {
             'name': name,
             'operation':'plot_xy',
@@ -135,10 +136,17 @@ class LivePlotClient(object):
             'Yname': yname,
             'Scatter': scatter,
             'TimeAxis': timeaxis,
-            'Vline': vline
+            'Vline': vline,
+            'value': text,
         }
-        self.send_to_plotter(meta, np.array([xs, ys]).astype('float64')) 
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
+
+        if len( np.shape( ys ) ) == 1:
+            self.send_to_plotter(meta, np.array([xs, ys]).astype('float64'))
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
+        elif len( np.shape( ys ) ) == 2:
+            # simultaneous plot of two curves
+            self.send_to_plotter(meta, np.array([[xs, xs], ys]).astype('float64'))
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
 
     def append_y(self, name, point, start_step=(0, 1), label='', xname='X axis',\
      xscale='arb. u.', yname='Y axis', yscale='arb. u.',scatter='False', timeaxis='False', vline='False'):

@@ -5,7 +5,7 @@ import sys
 import os
 import time
 import socket
-import threading
+from threading import Thread
 import configparser
 from atomize.main.client import LivePlotClient
 #from liveplot import LivePlotClient
@@ -74,11 +74,26 @@ def scans(num_of_scans):
             index += 1
 
 def plot_1d(strname, xd, yd, label='label', xname='X',\
- xscale='arb. u.', yname='Y', yscale='arb. u.', scatter='False', timeaxis='False', vline='False'):
+ xscale='arb. u.', yname='Y', yscale='arb. u.', scatter='False', timeaxis='False', vline='False', pr = 'None', text=''):
 
     if test_flag != 'test':
-        plotter.plot_xy(strname, xd, yd, label=label, xname=xname,\
-            xscale=xscale, yname=yname, yscale=yscale, scatter=scatter, timeaxis=timeaxis, vline=vline)
+        
+        if pr == 'None':
+            plotter.plot_xy(strname, xd, yd, label=label, xname=xname,\
+                        xscale=xscale, yname=yname, yscale=yscale, scatter=scatter, timeaxis=timeaxis, vline=vline, text=text)
+        else:
+            try:
+                pr.join()
+            except ( AttributeError, NameError, TypeError ):
+                pass
+            
+            p1 = Thread(target=plotter.plot_xy, args=(strname, xd, yd, ), kwargs={'label': label, 'xname': xname, \
+                        'xscale': xscale, 'yname': yname, 'yscale': yscale, 'scatter': scatter, 'timeaxis': timeaxis, \
+                        'vline': vline, 'text': text, } )
+            p1.start()
+            #p1.join()
+
+            return p1
 
     elif test_flag == 'test':
         pass
@@ -94,12 +109,26 @@ def append_1d(strname, value, start_step=(0, 1), label='label', xname='X',\
         pass
 
 def plot_2d(strname, data, start_step=None,\
- xname='X', xscale='arb. u.', yname='Y', yscale='arb. u.', zname='Z', zscale='arb. u.'):
+ xname='X', xscale='arb. u.', yname='Y', yscale='arb. u.', zname='Z', zscale='arb. u.', pr='None', text=''):
 
     if test_flag != 'test':
-        plotter.plot_z(strname, data, start_step=start_step,\
-            xname=xname, xscale=xscale, yname=yname, yscale=yscale, zname=zname, zscale=zscale)
 
+        if pr == 'None':
+            plotter.plot_z(strname, data, start_step=start_step,\
+                        xname=xname, xscale=xscale, yname=yname, yscale=yscale, zname=zname, zscale=zscale, text=text)
+        else:
+            try:
+                pr.join()
+            except ( AttributeError, NameError, TypeError ):
+                pass
+            
+            p1 = Thread(target=plotter.plot_z, args=(strname, data, ), kwargs={'start_step': start_step, 'xname': xname, \
+                        'xscale': xscale, 'yname': yname, 'yscale': yscale, 'zname': zname, 'zscale': zscale, 'text': text, } )
+            p1.start()
+            #p1.join()
+
+            return p1
+        
     elif test_flag == 'test':
         pass
 
@@ -113,9 +142,22 @@ def append_2d(strname, data, start_step=None,\
     elif test_flag == 'test':
         pass
 
-def text_label(strlabel, text, value):
+def text_label(strlabel, text, value, pr='None'):
     if test_flag != 'test':
-        plotter.label(strlabel, str(str(text) + str(value)) )
+        
+        if pr == 'None':
+            plotter.label(strlabel, str( str(text) + str(value) ) )
+        else:
+            try:
+                pr.join()
+            except ( AttributeError, NameError, TypeError ):
+                pass
+            
+            p1 = Thread(target=plotter.label, args=(strlabel, str( str(text) + str(value) ), ) )
+            p1.start()
+            #p1.join()
+
+            return p1
 
     elif test_flag == 'test':
         pass

@@ -210,8 +210,32 @@ class CrosshairDock(CloseableDock):
                 kwargs['symbolSize'] = 7
                 self.curves[name].setData(*args, **kwargs)
             elif kwargs.get('scatter', '') == 'False':
-                kwargs['pen'] = self.used_colors[name]
-                self.curves[name].setData(*args, **kwargs)
+                if len( np.shape(args[0]) ) > 1:
+                    # simultaneous plot of two curves
+                    for i in range( len( args[0]) ):
+                        if i == 0:
+                            kwargs['pen'] = self.used_colors[name]
+                            args_mod = (args[0][i], args[1][i])
+                            self.curves[name].setData(*args_mod, **kwargs)
+                        else:
+                            kwargs['pen'] = self.used_colors[name]
+                            args_mod = (args[0][0], args[1][0])
+                            self.curves[name].setData(*args_mod, **kwargs)
+                            # the second curve
+                            name = name + '_' + str(i)
+                            kwargs['name'] = name
+                            kwargs['pen'] = self.used_colors[name]
+                            args_mod = (args[0][i], args[1][i])
+                            self.curves[name].setData(*args_mod, **kwargs)
+                            # Text label above the graph
+                            temp = kwargs.get('text', '')
+                            if temp != '':
+                                self.setTitle( temp )
+
+                else:
+                    kwargs['pen'] = self.used_colors[name]
+                    self.curves[name].setData(*args, **kwargs)
+
                 # vertical lines
                 if vline_arg != 'False':
                     try:
@@ -234,8 +258,32 @@ class CrosshairDock(CloseableDock):
                 kwargs['symbolSize'] = 7
                 self.curves[name] = self.plot_widget.plot(*args, **kwargs)
             elif kwargs.get('scatter', '') == 'False':
-                kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
-                self.curves[name] = self.plot_widget.plot(*args, **kwargs)
+                if len( np.shape(args[0]) ) > 1:
+                    # simultaneous plot of two curves
+                    for i in range( len( args[0] )):
+                        if i == 0:
+                            kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
+                            args_mod = (args[0][i], args[1][i])
+                            self.curves[name] = self.plot_widget.plot(*args_mod, **kwargs)
+                        else:
+                            kwargs['pen'] = self.used_colors[name]
+                            args_mod = (args[0][0], args[1][0])
+                            # the first curve is already plotted
+                            self.curves[name].setData(*args_mod, **kwargs)
+                            name = name + '_' + str(i)
+                            kwargs['name'] = name
+                            kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
+                            args_mod = (args[0][i], args[1][i])
+                            # the second curve is a new one
+                            self.curves[name] = self.plot_widget.plot(*args_mod, **kwargs)
+                            # Text label above the graph
+                            temp = kwargs.get('text', '')
+                            if temp != '':
+                                self.setTitle( temp )
+
+                else:
+                    kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
+                    self.curves[name] = self.plot_widget.plot(*args, **kwargs)
                 # vertical lines
                 if vline_arg != 'False':
                     try:

@@ -1,6 +1,7 @@
 import time
 import numpy as np
 from datetime import datetime
+from threading import Thread
 from multiprocessing import Process
 import atomize.general_modules.general_functions as general
 #import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
@@ -8,56 +9,44 @@ import atomize.general_modules.csv_opener_saver as openfile
 
 file_handler = openfile.Saver_Opener()
 
-xs = np.array([])
-ys = np.array([])
-ys2 = np.array([])
-ys3 = np.array([])
-ys4 = np.array([])
+a = 'None'
+POINTS = 50
+STEP = 2
+j = 1
+wind = 50
 
-#xs = np.arange(50);
-#ys = np.zeros(15000);
-#ys = np.random.rand(1,5000)
+data_x = np.zeros(POINTS)
+data_y = np.zeros(POINTS)
+x_axis = np.linspace(0, (POINTS - 1)*STEP, num = POINTS) 
+
+data = np.zeros( (2, int(wind), POINTS) )
 
 # Plot_xy Test
-for i in range(50):
-    start_time = time.time()
-    #ys = np.append(ys, np.random.rand(1,1))
-    #ys2 = np.append(ys2, 1)
-    #ys3 = np.append(ys3, np.random.rand(1,1))
-    #ys4 = np.append(ys4, 0)
-    #now = time.time()
-    #timestamp = datetime.timestamp(now)
-    #xs = np.append(xs, now)
-    xs = np.append(xs, i)
-    #general.message(xs)
-    ys = np.append(ys, np.random.randint(0, 10 + 1));
-    #ys[i] = np.random.randint(0, 10 + 1);
-    start_time = time.time()
+for i in range(POINTS):
 
-    p1 = Process(target=general.plot_1d, args=('Plot XY Test', xs, ys, ), kwargs={'label': 'test data2', 'timeaxis': 'False',} )
-    p1.start()
-    p1.join()
+    # 1D
+    #x, y = np.random.rand(1)[0], np.random.rand(1)[0]
+    #data_x[i] = ( data_x[i] * (j - 1) + x ) / j
+    #data_y[i] = ( data_y[i] * (j - 1) + y ) / j
 
-    #general.plot_1d('Plot XY Test', xs, ys, label='test data2', timeaxis = 'False')
-    #general.plot_1d('Plot XY Test', xs, ys2, label='test data2')
-    #general.plot_1d('Plot XY Test', xs, ys3, label='test data3')
-    #general.plot_1d('Plot XY Test', xs, ys4, label='test data4')
-    #general.wait('200 ms')
+    # 2D
+    x, y = np.random.rand(wind), np.random.rand(wind)
+
+    data[0, :, i] = ( data[0, :, i] * (j - 1) + x ) / j
+    data[1, :, i] = ( data[0, :, i] * (j - 1) + y ) / j
+
+    start_time = time.time()
+    general.wait('100 ms')
+
+    ##p1 = Thread(target=general.plot_1d, args=('Plot XY Test', xs, ys, ), kwargs={'label': 'test data2', 'timeaxis': 'False',} )
+    #a = general.plot_1d('EXP_NAME', x_axis, (data_x, data_y), label = 'test2', xname = 'Delay', xscale = 'ns', yname = 'Area', yscale = 'V*s', vline = (STEP*i, ), pr = a, text=str(STEP*i))
+    #a = general.plot_1d('EXP_NAME', x_axis, data_x, xname = 'Delay', xscale = 'ns', yname = 'Area', yscale = 'V*s', label = 'cur2', vline = (STEP*i, ), pr = a)
+    #general.plot_1d('EXP_NAME', x_axis, data_x, xname = 'Delay', xscale = 'ns', yname = 'Area', yscale = 'V*s', label = 'cur2', vline = (STEP*i, ))
+
+    a = general.plot_2d('EXP_NAME', data, start_step = ( (0, 1), (0, 1) ), xname = 'Time',\
+            xscale = 'ns', yname = 'Delay', yscale = 'ns', zname = 'Intensity', zscale = 'V', pr = a, text=str(i))
+    #a = general.text_label( 'EXP_NAME', "Scan / Time: ", 'TEST', pr = a )
+    
     general.message(str(time.time() - start_time))
     
-file_handler.save_1D_dialog( (xs, ys), header = 'TEST' )
-
-#general.plot_remove('Plot XY Test')
-
-# Append_y Test
-#xs = np.linspace(0, 5, 1000)
-#xs = time.time()
-#general.wait('1000 ms')
-#xs2 = time.time()
-#for i in range(1000):
-#   start_time = time.time()
-#    val = np.random.randint(0,10+1)
-    #general.append_1d('Append Y Test', val, start_step=(xs[0], xs[1]-xs[0]), label='test data')
-#    general.append_1d('Append Y Test', val, start_step=(xs, xs2 - xs), label='test data2', timeaxis = 'True')
-#    general.wait('100 ms')
-#   general.message(str(time.time() - start_time))
+#file_handler.save_1D_dialog( (xs, ys), header = 'TEST' )

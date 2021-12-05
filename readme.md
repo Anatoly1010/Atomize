@@ -240,9 +240,7 @@ save_data(filename, data, header = '', mode = 'w')
 ## [Available plotting functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
 ```python3
 plot_1d('name', Xdata, Ydata, **args)
-append_1d('name', value, start_step = (x[0], x[1] - x[0]), label = 'label', **args)
 plot_2d('name', data, start_step = ((Xstart, Xstep), (Ystart, Ystep)), **args)
-append_2d('name', data, start_step = ((Xstart, Xstep), (Ystart, Ystep)), **args)
 text_label('label', DynamicValue)
 plot_remove('name')
 ```
