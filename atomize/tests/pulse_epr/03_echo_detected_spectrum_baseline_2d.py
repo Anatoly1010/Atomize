@@ -19,6 +19,7 @@ TIME_STEP = 100 # in ns
 TIME_POINTS = 11
 AVERAGES = 10
 SCANS = 1
+process = 'None'
 
 # PULSES
 REP_RATE = '500 Hz'
@@ -107,9 +108,9 @@ for j in general.scans(SCANS):
             data[0, i, l] = ( data[0, i, l] * (j - 1) + x ) / j
             data[1, i, l] = ( data[0, i, l] * (j - 1) + y ) / j
 
-            general.plot_2d(EXP_NAME, data, start_step = ( (START_FIELD, FIELD_STEP), (0, TIME_STEP) ), xname = 'Field',\
-                xscale = 'G', yname = 'Delay', yscale = 'ns', zname = 'Intensity', zscale = 'V')
-            general.text_label( EXP_NAME, "Scan / Time: ", str(j) + ' / '+ str(l*TIME_STEP) + ' / '+ str(i*FIELD_STEP) )
+            process = general.plot_2d(EXP_NAME, data, start_step = ( (START_FIELD, FIELD_STEP), (0, TIME_STEP) ), xname = 'Field',\
+                xscale = 'G', yname = 'Delay', yscale = 'ns', zname = 'Intensity', zscale = 'V', pr = process, \
+                text = 'Scan / Time: ' + str(j) + ' / '+ str(l*TIME_STEP) + ' / '+ str(i*FIELD_STEP) )
 
             field = round( (FIELD_STEP + field), 3 )
             i += 1

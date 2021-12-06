@@ -37,6 +37,7 @@ STEP = 4                  # in NS; delta_start for PUMP pulse; # delta_start = s
 FIELD = 3454
 AVERAGES = 50
 SCANS = 1
+process = 'None'
 
 # PULSES
 REP_RATE = '2000 Hz'
@@ -168,11 +169,9 @@ for j in general.scans(SCANS):
             data_x[i] = ( data_x[i] * (cycle_8 - 1 + (j - 1) * 8 ) + x ) / ( cycle_8 + (j - 1) * 8 )
             data_y[i] = ( data_y[i] * (cycle_8 - 1 + (j - 1) * 8 ) + y ) / ( cycle_8 + (j - 1) * 8 )
 
-            general.plot_1d(EXP_NAME, x_axis, data_x, xname = 'Delay',\
-                xscale = 'ns', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_X')
-            general.plot_1d(EXP_NAME, x_axis, data_y, xname = 'Delay',\
-                xscale = 'ns', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_Y')
-            general.text_label( EXP_NAME, "Scan / Time: ", str(j) + ' / ' + str(cycle_8) + ' / '+ str(i*STEP) )
+            process = general.plot_1d(EXP_NAME, x_axis, ( data_x, data_y ), xname = 'Delay',\
+                xscale = 'ns', yname = 'Area', yscale = 'V*s', label = CURVE_NAME, pr = process, \
+                text = 'Scan / Time: ' + str(j) + ' / ' + str(cycle_8) + ' / '+ str(i*STEP))
 
             ###awg.awg_stop()
             ###awg.awg_shift()

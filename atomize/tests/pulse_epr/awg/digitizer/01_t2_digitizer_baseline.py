@@ -37,6 +37,7 @@ STEP = 8                  # in NS;
 FIELD = 3469
 AVERAGES = 10
 SCANS = 1
+process = 'None'
 
 # PULSES
 REP_RATE = '500 Hz'
@@ -105,9 +106,7 @@ file_data, file_param = file_handler.create_file_parameters('.param')
 file_handler.save_header(file_param, header = header, mode = 'w')
 
 # Data acquisition
-#j = 1
 for j in general.scans(SCANS):
-#while j <= SCANS:
 
     for i in range(POINTS):
 
@@ -128,15 +127,14 @@ for j in general.scans(SCANS):
         data[0, :, i] = ( data[0, :, i] * (j - 1) + x ) / j
         data[1, :, i] = ( data[0, :, i] * (j - 1) + y ) / j
 
-        general.plot_2d(EXP_NAME, data, start_step = ( (0, time_res), (0, STEP) ), xname = 'Time',\
-            xscale = 'ns', yname = 'Delay', yscale = 'ns', zname = 'Intensity', zscale = 'V')
-        general.text_label( EXP_NAME, "Scan / Time: ", str(j) + ' / '+ str(i*STEP) )
+        process = general.plot_2d(EXP_NAME, data, start_step = ( (0, time_res), (0, STEP) ), xname = 'Time',\
+            xscale = 'ns', yname = 'Delay', yscale = 'ns', zname = 'Intensity', zscale = 'V', pr = process, \
+            text = 'Scan / Time: ' + str(j) + ' / ' + str(i*STEP))
 
         #awg.awg_stop()
         awg.awg_shift()
         pb.pulser_shift()
 
-    #j += 1
     awg.awg_pulse_reset()
     pb.pulser_pulse_reset()
 

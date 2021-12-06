@@ -37,6 +37,7 @@ END_FIELD = 3479
 FIELD_STEP = 1
 AVERAGES = 10
 SCANS = 1
+process = 'None'
 
 # PULSES
 REP_RATE = '500 Hz'
@@ -114,9 +115,9 @@ for j in general.scans(SCANS):
         data[0, :, i] = ( data[0, :, i] * (j - 1) + area_x ) / j
         data[1, :, i] = ( data[0, :, i] * (j - 1) + area_y ) / j
 
-        general.plot_2d(EXP_NAME, data, start_step = ( (0, time_res), (0, FIELD_STEP) ), xname = 'Time',\
-            xscale = 'ns', yname = 'Magnetic Field', yscale = 'G', zname = 'Intensity', zscale = 'V')
-        general.text_label( EXP_NAME, "Scan / Time: ", str(j) + ' / '+ str(field) )
+        process = general.plot_2d(EXP_NAME, data, start_step = ( (0, time_res), (0, FIELD_STEP) ), xname = 'Time',\
+            xscale = 'ns', yname = 'Magnetic Field', yscale = 'G', zname = 'Intensity', zscale = 'V', pr = process, \
+            text = 'Scan / Time: ' + str(j) + ' / ' + str(field))
 
         field = round( (FIELD_STEP + field), 3 )
         i += 1

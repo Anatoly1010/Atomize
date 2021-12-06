@@ -1,4 +1,5 @@
 import sys
+import time
 import signal
 import datetime
 import numpy as np
@@ -11,11 +12,12 @@ import atomize.device_modules.SR_PTC_10 as sr
 import atomize.general_modules.csv_opener_saver as openfile
 
 ### Experimental parameters
-POINTS = 5
+POINTS = 20
 STEP = 100                  # in NS; delta_start = str(STEP) + ' ns' -> delta_start = '100 ns'
 FIELD = 3473
 AVERAGES = 10
 SCANS = 1
+process = 'None'
 
 # PULSES
 REP_RATE = '400 Hz'
@@ -122,24 +124,24 @@ for j in general.scans(SCANS):
 
             data_shape[0 + 2*l, :, i] = ( data_shape[0 + 2*l, :, i] * (j - 1) + x_shape ) / j
             data_shape[1 + 2*l, :, i] = ( data_shape[1 + 2*l, :, i] * (j - 1) + y_shape ) / j
-
-            general.plot_2d(EXP_NAME, data, start_step = ( (0, STEP), (0, STEP) ), xname = 'Delay_1',\
-                xscale = 'ns', yname = 'Delay_2', yscale = 'ns', zname = 'Intensity', zscale = 'V')
-            general.text_label( EXP_NAME, "Scan / Time: ", str(j) + ' / '+ str(l*STEP) + ' / '+ str(i*STEP) )
+            
+            process = general.plot_2d(EXP_NAME, data, start_step = ( (0, STEP), (0, STEP) ), xname = 'Delay_1',\
+                xscale = 'ns', yname = 'Delay_2', yscale = 'ns', zname = 'Intensity', zscale = 'V', pr = process, \
+                text = 'Scan / Time: ' + str(j) + ' / '+ str(l*STEP) + ' / '+ str(i*STEP))
 
             # Delay_1 scan
             pb.pulser_shift('P2', 'P3', 'P4')
-
+        
         # Delay_2 change
         pb.pulser_pulse_reset('P2', 'P3', 'P4')
     
-        ##pb.pulser_redefine_start(name = 'P3', start = str( int( PULSE_3_START.split(' ')[0] ) + ( l + 1 ) * STEP ) + ' ns')
-        ##pb.pulser_redefine_start(name = 'P4', start = str( int( PULSE_4_START.split(' ')[0] ) + ( l + 1 ) * STEP ) + ' ns')
+        #pb.pulser_redefine_start(name = 'P3', start = str( int( PULSE_3_START.split(' ')[0] ) + ( l + 1 ) * STEP ) + ' ns')
+        #pb.pulser_redefine_start(name = 'P4', start = str( int( PULSE_4_START.split(' ')[0] ) + ( l + 1 ) * STEP ) + ' ns')
         d2 = 0
         while d2 < (l + 1):
             pb.pulser_shift('P3', 'P4')
             d2 += 1
-    
+        
     pb.pulser_pulse_reset()
 
 dig4450.digitizer_stop()

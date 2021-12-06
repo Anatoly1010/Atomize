@@ -17,6 +17,7 @@ END_FIELD = 3536
 FIELD_STEP = 2
 AVERAGES = 10
 SCANS = 1
+process = 'None'
 
 # PULSES
 REP_RATE = '500 Hz'
@@ -79,7 +80,6 @@ pb.pulser_update()
 
 # Data saving
 #str(t3034.oscilloscope_timebase()*1000)
-#str(tb)
 header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + 'Echo Detected Spectrum; Phase Cycling\n' + \
             'Start Field: ' + str(START_FIELD) + ' G \n' + 'End Field: ' + str(END_FIELD) + ' G \n' + \
             'Field Step: ' + str(FIELD_STEP) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + \
@@ -92,9 +92,7 @@ header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) +
 file_data, file_param = file_handler.create_file_parameters('.param')
 file_handler.save_header(file_param, header = header, mode = 'w')
 
-#j = 1
 for j in general.scans(SCANS):
-#while j <= SCANS:
 
     i = 0
     field = START_FIELD
@@ -121,11 +119,9 @@ for j in general.scans(SCANS):
         data_x[i] = ( data_x[i] * (j - 1) + x ) / j
         data_y[i] = ( data_y[i] * (j - 1) + y ) / j
 
-        general.plot_1d(EXP_NAME, x_axis, data_x, xname = 'Field',\
-            xscale = 'G', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_X')
-        general.plot_1d(EXP_NAME, x_axis, data_y, xname = 'Field',\
-            xscale = 'G', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_Y')
-        general.text_label( EXP_NAME, "Scan / Field: ", str(j) + ' / '+ str(field) )
+        process = general.plot_1d(EXP_NAME, x_axis, ( data_x, data_y ), xname = 'Field',\
+            xscale = 'G', yname = 'Area', yscale = 'V*s', label = CURVE_NAME, pr = process, \
+            text = 'Scan / Field: ' + str(j) + ' / '+ str(field))
 
         field = round( (FIELD_STEP + field), 3 )
         i += 1
@@ -134,7 +130,6 @@ for j in general.scans(SCANS):
     
     bh15.magnet_field(START_FIELD)
 
-    #j += 1
 
 dig4450.digitizer_stop()
 dig4450.digitizer_close()

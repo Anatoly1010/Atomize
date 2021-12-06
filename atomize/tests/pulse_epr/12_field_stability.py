@@ -16,6 +16,7 @@ STEP = 4
 FIELD = 3458
 AVERAGES = 200
 SCANS = 1
+process = 'None'
 
 # PULSES
 REP_RATE = '5000 Hz'
@@ -102,11 +103,9 @@ for j in general.scans(SCANS):
         data_x[i] = ( data_x[i] * (j - 1) + x ) / j
         data_y[i] = ( data_y[i] * (j - 1) + y ) / j
 
-        general.plot_1d(EXP_NAME, x_axis, data_x, xname = 'Delay',\
-            xscale = 'ns', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_X')
-        general.plot_1d(EXP_NAME, x_axis, data_y, xname = 'Delay',\
-            xscale = 'ns', yname = 'Area', yscale = 'V*s', label = CURVE_NAME + '_Y')
-        general.text_label( EXP_NAME, "Scan / Time: ", str(j) + ' / '+ str(i) )
+        process = general.plot_1d(EXP_NAME, x_axis, ( data_x, data_y ), xname = 'Delay',\
+            xscale = 'ns', yname = 'Area', yscale = 'V*s', label = CURVE_NAME, pr = process, \
+            text = 'Scan / Time: ' + str(j) + ' / '+ str(i))
 
         #pb.pulser_shift()
         pb.pulser_pulse_reset()

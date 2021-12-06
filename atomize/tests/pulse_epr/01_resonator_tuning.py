@@ -25,6 +25,7 @@ END_FREQ = 9600
 STEP = 1
 SCANS = 1
 AVERAGES = 100
+process = 'None'
 
 # PULSES
 REP_RATE = '500 Hz'
@@ -62,10 +63,7 @@ t3034.oscilloscope_number_of_averages(AVERAGES)
 mw.mw_bridge_synthesizer( START_FREQ )
 #path_to_file = open1d.create_file_dialog(directory = '')
 
-#j = 1
 for j in general.scans(SCANS):
-#while j <= SCANS:
-
     i = 0
     freq = START_FREQ
 
@@ -78,9 +76,9 @@ for j in general.scans(SCANS):
 
         data[i] = ( data[i] * (j - 1) + y ) / j
 
-        general.plot_2d(EXP_NAME, np.transpose( data ), start_step = ( (0, 1), (START_FREQ*1000000, STEP*1000000) ), xname = 'Time',\
-            xscale = 's', yname = 'Frequency', yscale = 'Hz', zname = 'Intensity', zscale = 'V')
-        general.text_label( EXP_NAME, "Scan / Frequency: ", str(j) + ' / '+ str(freq) )
+        process = general.plot_2d(EXP_NAME, np.transpose( data ), start_step = ( (0, 1), (START_FREQ*1000000, STEP*1000000) ), xname = 'Time',\
+            xscale = 's', yname = 'Frequency', yscale = 'Hz', zname = 'Intensity', zscale = 'V', pr = process, text = 'Scan / Frequency: ' + \
+            str(j) + ' / '+ str(freq) )
 
         #f = open(path_to_file,'a')
         #np.savetxt(f, y, fmt='%.10f', delimiter=' ', newline='\n', header='frequency: %d' % i, footer='', comments='#', encoding=None)
@@ -90,7 +88,6 @@ for j in general.scans(SCANS):
         i += 1
 
     mw.mw_bridge_synthesizer( START_FREQ )
-    #j += 1
 
 mw.mw_bridge_synthesizer( freq_before )
 

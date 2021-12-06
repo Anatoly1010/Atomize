@@ -190,7 +190,6 @@ class Worker(QWidget):
         #pb.pulser_pulse(name ='P0', channel = 'MW', start = '100 ns', length = '100 ns')
         #pb.pulser_pulse(name ='P1', channel = 'TRIGGER', start = '0 ns', length = '100 ns')
 
-
         pb.pulser_update()
         i = 0
         # the idea of automatic and dynamic changing of repetition rate is

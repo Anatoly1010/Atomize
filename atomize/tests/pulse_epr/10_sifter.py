@@ -19,6 +19,7 @@ STEP = 20                  # in NS
 FIELD = 3389
 AVERAGES = 50
 SCANS = 1
+process = 'None'
 
 # PULSES
 REP_RATE = '500 Hz'
@@ -97,9 +98,7 @@ header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) +
 file_data, file_param = file_handler.create_file_parameters('.param')
 file_handler.save_header(file_param, header = header, mode = 'w')
 
-#j = 1
 for j in general.scans(SCANS):
-#while j <= SCANS:
 
     for i in range(POINTS):
 
@@ -117,16 +116,12 @@ for j in general.scans(SCANS):
         data_x[i] = ( data_x[i] * (j - 1) + x ) / j
         data_y[i] = ( data_y[i] * (j - 1) + y ) / j
 
-        general.plot_1d(EXP_NAME, x_axis, data_x, xname = 'Delay',\
-            xscale = 'ns', yname = 'Area', yscale = 'V*s', timeaxis = 'False', label = CURVE_NAME + '_X')
-        general.plot_1d(EXP_NAME, x_axis, data_y, xname = 'Delay',\
-            xscale = 'ns', yname = 'Area', yscale = 'V*s', timeaxis = 'False', label = CURVE_NAME + '_Y')
-        general.text_label( EXP_NAME, "Scan / Time: ", str(j) + ' / '+ str(i*STEP) )
+        process = general.plot_1d(EXP_NAME, x_axis, ( data_x, data_y ), xname = 'Delay',\
+            xscale = 'ns', yname = 'Area', yscale = 'V*s', timeaxis = 'False', label = CURVE_NAME, \
+            pr = process, text = 'Scan / Time: ' + str(j) + ' / '+ str(i*STEP))
 
         pb.pulser_shift()
 
-    #j += 1
-    
     pb.pulser_pulse_reset()
 
 dig4450.digitizer_stop()
