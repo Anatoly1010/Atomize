@@ -9,7 +9,7 @@ import random
 sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
 ###sys.path.append('/home/anatoly/AWG/spcm_examples/python')
 #sys.path.append('/home/anatoly/awg_files/python')
-#sys.path.append('C:/Users/User/Desktop/Examples/python')
+##sys.path.append('C:/Users/User/Desktop/Examples/python')
 from math import sin, pi, exp, log2
 from itertools import groupby, chain
 from copy import deepcopy
@@ -218,6 +218,7 @@ class Spectrum_M4I_6631_X8:
             else:
                 pass
 
+            spcm_dwSetParam_i32 (self.hCard, SPC_TIMEOUT, 10000)
             # general parameters of the card; internal/external clock
             if self.clock_mode == 1:
                 spcm_dwSetParam_i64 (self.hCard, SPC_SAMPLERATE, MEGA(self.sample_rate))

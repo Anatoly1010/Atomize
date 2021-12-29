@@ -120,7 +120,7 @@ for j in general.scans(SCANS):
                       acq_cycle = ['+', '-', '+', '-', '-i', '+i', '-i', '+i', '-', '+', '-', '+', '+i', '-i', '+i', '-i'])
 
             data[0, i, l] = ( data[0, i, l] * (j - 1) + x ) / j
-            data[1, i, l] = ( data[0, i, l] * (j - 1) + y ) / j
+            data[1, i, l] = ( data[1, i, l] * (j - 1) + y ) / j
 
             data_shape[0 + 2*l, :, i] = ( data_shape[0 + 2*l, :, i] * (j - 1) + x_shape ) / j
             data_shape[1 + 2*l, :, i] = ( data_shape[1 + 2*l, :, i] * (j - 1) + y_shape ) / j

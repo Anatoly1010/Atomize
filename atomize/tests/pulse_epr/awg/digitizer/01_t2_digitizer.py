@@ -114,7 +114,7 @@ for j in general.scans(SCANS):
         x_axis, x, y = dig4450.digitizer_get_curve( )
         
         data[0, :, i] = ( data[0, :, i] * (j - 1) + x ) / j
-        data[1, :, i] = ( data[0, :, i] * (j - 1) + y ) / j
+        data[1, :, i] = ( data[1, :, i] * (j - 1) + y ) / j
 
         process = general.plot_2d(EXP_NAME, data, start_step = ( (0, time_res), (0, STEP) ), xname = 'Time',\
             xscale = 'ns', yname = 'Delay', yscale = 'ns', zname = 'Intensity', zscale = 'V', pr = process, \

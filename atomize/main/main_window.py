@@ -382,6 +382,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.text_errors.setCenterOnScroll(True)
         self.text_errors.ensureCursorVisible()
 
+        self.label_filename.setStyleSheet("QLabel { color : rgb(193, 202, 227); }")
+
         self.text_errors.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
         self.text_errors.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); } \
                                     QMenu::item { color: rgb(211, 194, 78); } QMenu::item:selected {color: rgb(193, 202, 227); }")
@@ -560,6 +562,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.path = os.path.dirname(filename) # for memorizing the path to the last used folder
         self.script = filename
         self.textEdit.setPlainText(text)
+
+        self.label_filename.setText( str( self.script ) )
 
     def save_file(self, filename):
         """

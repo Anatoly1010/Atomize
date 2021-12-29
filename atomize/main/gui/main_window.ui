@@ -479,6 +479,19 @@ QTabBar::tab:selected {
           </item>
          </layout>
         </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_filename">
+          <property name="font">
+           <font>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string> No experimental script is opened</string>
+          </property>
+         </widget>
+        </item>
        </layout>
       </widget>
       <widget class="QWidget" name="tab_liveplot">
@@ -498,16 +511,6 @@ QTabBar::tab:selected {
      </widget>
     </item>
    </layout>
-  </widget>
-  <widget class="QMenuBar" name="menubar">
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>981</width>
-     <height>22</height>
-    </rect>
-   </property>
   </widget>
  </widget>
  <customwidgets>

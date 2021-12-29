@@ -1,4 +1,5 @@
-#!/usr/bin/env python3 # -*- coding: utf-8 -*-
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 import os
 import gc
@@ -173,7 +174,7 @@ class Tektronix_4000_Series:
                 st = int(kargs['start'])
                 stop = int(kargs['stop'])
                 points = self.oscilloscope_record_length()
-                assert(stop > points or st > points), 'Invalid window'
+                assert(stop <= points or st > points), 'Invalid window'
             except KeyError:
                 answer1 = self.test_start
                 answer2 = self.test_stop
@@ -198,6 +199,7 @@ class Tektronix_4000_Series:
             if len(points) == 1:
                 temp = int(points[0])
                 poi = min(self.points_list, key = lambda x: abs(x - temp))
+                self.test_record_length = poi
             elif len(points) == 0:
                 answer = self.test_record_length
                 return answer

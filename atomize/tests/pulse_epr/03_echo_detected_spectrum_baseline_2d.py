@@ -106,7 +106,7 @@ for j in general.scans(SCANS):
             # acquisition cycle [+, -]
             x, y = pb.pulser_acquisition_cycle(cycle_data_x, cycle_data_y, acq_cycle = ['+', '-'])
             data[0, i, l] = ( data[0, i, l] * (j - 1) + x ) / j
-            data[1, i, l] = ( data[0, i, l] * (j - 1) + y ) / j
+            data[1, i, l] = ( data[1, i, l] * (j - 1) + y ) / j
 
             process = general.plot_2d(EXP_NAME, data, start_step = ( (START_FIELD, FIELD_STEP), (0, TIME_STEP) ), xname = 'Field',\
                 xscale = 'G', yname = 'Delay', yscale = 'ns', zname = 'Intensity', zscale = 'V', pr = process, \

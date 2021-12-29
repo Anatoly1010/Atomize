@@ -113,7 +113,7 @@ for j in general.scans(SCANS):
         x_axis, area_x, area_y = dig4450.digitizer_get_curve()
                 
         data[0, :, i] = ( data[0, :, i] * (j - 1) + area_x ) / j
-        data[1, :, i] = ( data[0, :, i] * (j - 1) + area_y ) / j
+        data[1, :, i] = ( data[1, :, i] * (j - 1) + area_y ) / j
 
         process = general.plot_2d(EXP_NAME, data, start_step = ( (0, time_res), (0, FIELD_STEP) ), xname = 'Time',\
             xscale = 'ns', yname = 'Magnetic Field', yscale = 'G', zname = 'Intensity', zscale = 'V', pr = process, \
