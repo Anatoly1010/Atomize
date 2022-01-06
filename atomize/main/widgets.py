@@ -167,12 +167,12 @@ class CrosshairDock(CloseableDock):
         open_action.triggered.connect(self.file_dialog) # self.open_file_dialog
         self.menu.addAction(open_action)
 
-        self.avail_colors = [pg.mkPen(color=(0,0,0),width=1),pg.mkPen(color=(255,153,0),width=1),
+        self.avail_colors = [pg.mkPen(color=(0,0,255),width=1), pg.mkPen(color=(0,0,0),width=1),pg.mkPen(color=(255,153,0),width=1),
         pg.mkPen(color=(255,0,255),width=1), pg.mkPen(color=(0,255,0),width=1), pg.mkPen(color=(255,255,255),width=1)]
-        self.avail_symbols= ['x','p','star','s','o']
-        self.avail_sym_pens = [pg.mkPen(color=(255, 255, 255), width=0),pg.mkPen(color=(0, 255, 0), width=0),
-        pg.mkPen(color=(255, 0, 0), width=0),pg.mkPen(color=(255, 0, 0), width=0),pg.mkPen(color=(255, 0, 255), width=0)]
-        self.avail_sym_brush = [pg.mkBrush(255, 255, 255, 255),pg.mkBrush(0, 255, 0, 255),pg.mkBrush(0, 0, 255, 255),
+        self.avail_symbols= ['x','p','star','s','o','+']
+        self.avail_sym_pens = [ pg.mkPen(color=(0, 0, 0), width=0), pg.mkPen(color=(255, 255, 255), width=0),pg.mkPen(color=(0, 255, 0), width=0),
+        pg.mkPen(color=(0, 0, 255), width=0),pg.mkPen(color=(255, 0, 0), width=0),pg.mkPen(color=(255, 0, 255), width=0)]
+        self.avail_sym_brush = [pg.mkBrush(0, 0, 0, 255), pg.mkBrush(255, 255, 255, 255),pg.mkBrush(0, 255, 0, 255),pg.mkBrush(0, 0, 255, 255),
         pg.mkBrush(255, 0, 0, 255),pg.mkBrush(255, 0, 255, 255)]
         self.used_colors = {}
         self.used_pens = {}
@@ -186,6 +186,8 @@ class CrosshairDock(CloseableDock):
         self.index_shift = 0
         self.adaptive_scale = 1
         self.value_prev = 0
+        # for delete and shift q_action
+        self.qaction_added = 0
 
     def plot(self, *args, **kwargs):
         self.plot_widget.parametric = kwargs.pop('parametric', False)
@@ -198,6 +200,7 @@ class CrosshairDock(CloseableDock):
             self.plot_widget.setLabel("bottom", text=kwargs.get('xname', ''))
         else:
             self.plot_widget.setLabel("bottom", text=kwargs.get('xname', ''), units=kwargs.get('xscale', ''))
+        
         self.plot_widget.setLabel("left", text=kwargs.get('yname', ''), units=kwargs.get('yscale', ''))
         name = kwargs.get('name', '')
 
@@ -223,14 +226,31 @@ class CrosshairDock(CloseableDock):
                             self.curves[name].setData(*args_mod, **kwargs)
                             # the second curve
                             name = name + '_' + str(i)
-                            kwargs['name'] = name
-                            kwargs['pen'] = self.used_colors[name]
-                            args_mod = (args[0][i], args[1][i])
-                            self.curves[name].setData(*args_mod, **kwargs)
-                            # Text label above the graph
-                            temp = kwargs.get('text', '')
-                            if temp != '':
-                                self.setTitle( temp )
+                            if name in self.curves:
+                                kwargs['name'] = name
+                                kwargs['pen'] = self.used_colors[name]
+                                args_mod = (args[0][i], args[1][i])
+                                self.curves[name].setData(*args_mod, **kwargs)
+                                # Text label above the graph
+                                temp = kwargs.get('text', '')
+                                if temp != '':
+                                    self.setTitle( temp )
+                            else:
+                                kwargs['name'] = name
+                                kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
+                                args_mod = (args[0][i], args[1][i])
+                                self.curves[name] = self.plot_widget.plot(*args_mod, **kwargs)
+                                # Text label above the graph
+                                temp = kwargs.get('text', '')
+                                if temp != '':
+                                    self.setTitle( temp )
+
+                                # 05-01-2022; shift and delete graphs
+                                del_action = QtWidgets.QAction(str(name), self)
+                                shifter = QtWidgets.QDoubleSpinBox()
+                                shiftAction = QtWidgets.QWidgetAction(self)
+                                self.add_del_shift_actions(name, del_action, shifter, shiftAction)
+
 
                 else:
                     kwargs['pen'] = self.used_colors[name]
@@ -270,20 +290,42 @@ class CrosshairDock(CloseableDock):
                             args_mod = (args[0][0], args[1][0])
                             # the first curve is already plotted
                             self.curves[name].setData(*args_mod, **kwargs)
+
+                            # 05-01-2022; shift and delete graphs
+                            del_action = QtWidgets.QAction(str(name), self)
+                            shifter = QtWidgets.QDoubleSpinBox()
+                            shiftAction = QtWidgets.QWidgetAction(self)
+                            self.add_del_shift_actions(name, del_action, shifter, shiftAction)
+
                             name = name + '_' + str(i)
-                            kwargs['name'] = name
-                            kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
-                            args_mod = (args[0][i], args[1][i])
-                            # the second curve is a new one
-                            self.curves[name] = self.plot_widget.plot(*args_mod, **kwargs)
-                            # Text label above the graph
-                            temp = kwargs.get('text', '')
-                            if temp != '':
-                                self.setTitle( temp )
+                            
+                            if name in self.curves:
+                                kwargs['name'] = name
+                                args_mod = (args[0][i], args[1][i])
+                                # the second curve is a new one
+                                self.curves[name].setData(*args_mod, **kwargs)
+                                # Text label above the graph
+                                temp = kwargs.get('text', '')
+                                if temp != '':
+                                    self.setTitle( temp )
+
+                                # a little correction for delete and shift q_action
+                                self.qaction_added = 1
+                            else:
+                                kwargs['name'] = name
+                                kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
+                                args_mod = (args[0][i], args[1][i])
+                                # the second curve is a new one
+                                self.curves[name] = self.plot_widget.plot(*args_mod, **kwargs)
+                                # Text label above the graph
+                                temp = kwargs.get('text', '')
+                                if temp != '':
+                                    self.setTitle( temp )
 
                 else:
                     kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
                     self.curves[name] = self.plot_widget.plot(*args, **kwargs)
+                
                 # vertical lines
                 if vline_arg != 'False':
                     try:
@@ -293,26 +335,34 @@ class CrosshairDock(CloseableDock):
                     except IndexError:
                         pass
             
-            del_action = QtGui.QAction(str(name), self)
-            self.del_dict[del_action] = self.plot_widget.listDataItems()[-1]
-            self.name_dict[del_action] = name
-            del_action.triggered.connect(lambda: self.del_item(self.del_dict[del_action]))
-            self.del_menu.addAction(del_action)
-
-            shifter = QtWidgets.QDoubleSpinBox()
-            shifter.setDecimals(3)
-            shifter.setRange(-1, 1)
-            shifter.setSingleStep(0.001)
-            shifter.setKeyboardTracking(0)
-            self.shifter_dict[shifter] = self.plot_widget.listDataItems()[-1]
-            #shifter.valueChanged.connect( self.shift_curve )
-            shifter.valueChanged.connect( lambda: self.shift_curve(self.shifter_dict[shifter]) )
-            shiftAction = QtWidgets.QWidgetAction(self)
-            shiftAction.setDefaultWidget(shifter)
-            self.shift_menu.addAction(shiftAction)
-            self.shifter_action_dict[shiftAction] = self.plot_widget.listDataItems()[-1]
-            self.index_shift = 0
+            if self.qaction_added == 0:
+                del_action_2 = QtWidgets.QAction(str(name), self)
+                shifter_2 = QtWidgets.QDoubleSpinBox()
+                shiftAction_2 = QtWidgets.QWidgetAction(self)
+                self.add_del_shift_actions(name, del_action_2, shifter_2, shiftAction_2)
     
+    def add_del_shift_actions(self, gr_name, del_act, shiftspinbox, shift_act):
+        """
+        05-01-2021
+        Auxiliary function for Delete and Shift QActions
+        """
+        self.del_dict[del_act] = self.plot_widget.listDataItems()[-1]
+        self.name_dict[del_act] = gr_name
+        del_act.triggered.connect(lambda: self.del_item(self.del_dict[del_act]))
+        self.del_menu.addAction(del_act)
+
+        shiftspinbox.setDecimals(3)
+        shiftspinbox.setRange(-1, 1)
+        shiftspinbox.setSingleStep(0.001)
+        shiftspinbox.setKeyboardTracking(0)
+        self.shifter_dict[shiftspinbox] = self.plot_widget.listDataItems()[-1]
+        #shifter.valueChanged.connect( self.shift_curve )
+        shiftspinbox.valueChanged.connect( lambda: self.shift_curve(self.shifter_dict[shiftspinbox]) )
+        shift_act.setDefaultWidget(shiftspinbox)
+        self.shift_menu.addAction(shift_act)
+        self.shifter_action_dict[shift_act] = self.plot_widget.listDataItems()[-1]
+        self.index_shift = 0
+
     def shift_curve(self, item):
 
         qboxname = list(self.shifter_dict.keys())[list(self.shifter_dict.values()).index(item)]

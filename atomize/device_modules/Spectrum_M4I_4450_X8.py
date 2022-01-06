@@ -555,9 +555,9 @@ class Spectrum_M4I_4450_X8:
             if self.card_mode == 1:
                 dummy = np.zeros( self.points )
             elif self.card_mode == 2:
-                #dummy = np.zeros( int( self.digitizer_number_of_points() ) )
+                dummy = np.zeros( int( self.digitizer_number_of_points() ) )
                 #25-11-2021
-                dummy = np.zeros( int( self.digitizer_window() ) )
+                #dummy = np.zeros( int( self.digitizer_window() ) )
 
             if self.channel == 1 or self.channel == 2:
                 if integral == False:
@@ -678,7 +678,7 @@ class Spectrum_M4I_4450_X8:
                     self.points = pnts
 
             elif len(points) == 0:
-                return self.test_points    
+                return self.points    
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
 
