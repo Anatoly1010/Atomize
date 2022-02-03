@@ -9,7 +9,7 @@ import random
 sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
 ###sys.path.append('/home/anatoly/AWG/spcm_examples/python')
 #sys.path.append('/home/anatoly/awg_files/python')
-##sys.path.append('C:/Users/User/Desktop/Examples/python')
+#sys.path.append('C:/Users/User/Desktop/Examples/python')
 from math import sin, pi, exp, log2
 from itertools import groupby, chain
 from copy import deepcopy
@@ -789,6 +789,59 @@ class Spectrum_M4I_6631_X8:
                         assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
 
                     self.pulse_array[i]['delta_start'] = str(delta_start)
+                    self.shift_count = 1
+                else:
+                    pass
+
+                i += 1
+
+    def awg_redefine_frequency(self, *, name, freq):
+        """
+        A function for redefining frequency of the specified pulse.
+        awg_redefine_frequency(name = 'P0', freq = '100 MHz') changes frequency of the 'P0' pulse to 100 MHz.
+
+        def func(*, name1, name2): defines a function without default values of key arguments
+        """
+
+        if self.test_flag != 'test':
+            i = 0
+
+            while i < len( self.pulse_array ):
+                if name == self.pulse_array[i]['name']:
+                    self.pulse_array[i]['frequency'] = freq
+                    self.shift_count = 1
+                else:
+                    pass
+
+                i += 1
+
+        elif self.test_flag == 'test':
+            i = 0
+            assert( name in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+
+            while i < len( self.pulse_array ):
+                if name == self.pulse_array[i]['name']:
+                    # checks
+
+                    if self.pulse_array[i]['function'] != 'WURST':
+                        temp_freq = freq.split(" ")
+                        coef = temp_freq[1]
+                        p_freq = float(temp_freq[0])
+                        assert (coef == 'MHz'), 'Incorrect frequency dimension. Only MHz is possible'
+                        assert(p_freq >= self.min_freq), 'Frequency is lower than minimum available (' + str(self.min_freq) +' MHz)'
+                        assert(p_freq < self.max_freq), 'Frequency is longer than minimum available (' + str(self.max_freq) +' MHz)'
+                    else:
+                        temp_freq_st = frequency[0].split(" ")
+                        temp_freq_end = frequency[1].split(" ")
+                        coef_st = temp_freq_st[1]
+                        coef_end = temp_freq_end[1]
+                        p_freq_st = float(temp_freq_st[0])
+                        p_freq_end = float(temp_freq_end[0])
+                        assert (coef_st == 'MHz' and coef_end == 'MHz'), 'Incorrect frequency dimension. Only MHz is possible'
+                        assert(p_freq_st >= self.min_freq and p_freq_end >= self.min_freq), 'Frequency is lower than minimum available (' + str(self.min_freq) +' MHz)'
+                        assert(p_freq_st < self.max_freq and p_freq_end < self.max_freq), 'Frequency is longer than minimum available (' + str(self.max_freq) +' MHz)'
+
+                    self.pulse_array[i]['frequency'] = freq
                     self.shift_count = 1
                 else:
                     pass

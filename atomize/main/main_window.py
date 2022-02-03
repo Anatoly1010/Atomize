@@ -28,9 +28,10 @@ from PyQt6 import QtWidgets, uic, QtCore, QtGui
 from pyqtgraph.dockarea import DockArea
 import atomize.main.messenger_socket_server as socket_server
 ###AWG
-sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
-from pyspcm import *
-from spcm_tools import *
+#sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
+
+#from pyspcm import *
+#from spcm_tools import *
 
 class MainWindow(QtWidgets.QMainWindow):
     """

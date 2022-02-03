@@ -22,6 +22,7 @@ Functions:
 - [awg_next_phase()](#awg_next_phase)<br/>
 - [awg_redefine_delta_phase(*, name, delta_phase)](#awg_redefine_delta_phase-name-delta_phase)<br/>
 - [awg_redefine_phase(*, name, phase)](#awg_redefine_phase-name-phase)<br/>
+- [awg_redefine_frequency(*, name, freq)](#awg_redefine_frequency-name-freq)<br/>
 - [awg_redefine_delta_start(*, name, delta_start)](#awg_redefine_delta_start-name-delta_start)<br/>
 - [awg_redefine_increment(*, name, increment)](#awg_redefine_increment-name-increment)<br/>
 - [awg_add_phase(*, name, add_phase)](#awg_add_phase-name-add_phase)<br/>
@@ -192,6 +193,14 @@ Output: none.
 Example: awg_redefine_phase('P0', phase = pi) changes phase setting of the 'P0' pulse to pi radians.
 ```
 This function should be called with two keyword arguments, namely name and phase. The first argument specifies the name of the pulse as a string. The second argument defines a new value of phase in radians. The main purpose of the function is phase cycling. Please note, that the function does not update the AWG card. [awg_update()](#awg_update) should be called to apply changes. The function has no meaning for the 'Sequence' card mode. One should redefine all the sequence instead.
+### awg_redefine_frequency(*, name, freq)
+```python3
+awg_redefine_frequency(*, name, freq)
+Arguments: name = 'Pulse name', freq = a new frequency as a string ('100 MHz'; only in MHz);
+Output: none.
+Example: awg_redefine_frequency('P0', freq = '10 MHz') changes frequency setting of the 'P0' pulse to '10 MHz'.
+```
+This function should be called with two keyword arguments, namely name and frequency. The first argument specifies the name of the pulse as a string. The second argument defines a new value of frequency as a string, i.e. '100 MHz' or a list of string ('0 MHz', '100' MHz) for WURST pulses, see [awg_pulse()](#awg_pulse) for more details.Please note, that the function does not update the AWG card. [awg_update()](#awg_update) should be called to apply changes. The function has no meaning for the 'Sequence' card mode. One should redefine all the sequence instead.
 ### awg_redefine_delta_start(*, name, delta_start)
 ```python3
 awg_redefine_delta_start(*, name, delta_start)
