@@ -872,7 +872,8 @@ class BH_15:
 
                 # If remote LED isn't on we're out of luck...
                 if is_remote == False:
-                    general.message("Device isn't in remote state.")
+                    # 22-02-2022;
+                    ###general.message("Device isn't in remote state.")
                     # 16-08-2021; NIOCH First initialization problem
                     pass
                     #raise BrokenPipeError

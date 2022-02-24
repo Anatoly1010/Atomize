@@ -7,7 +7,7 @@ import gc
 ###AWG
 sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
 ###sys.path.append('/home/anatoly/AWG/spcm_examples/python')
-##sys.path.append('/home/anatoly/awg_files/python')
+#sys.path.append('/home/anatoly/awg_files/python')
 #sys.path.append('C:/Users/User/Desktop/Examples/python')
 import numpy as np
 import atomize.device_modules.config.config_utils as cutil
@@ -678,7 +678,7 @@ class Spectrum_M4I_4450_X8:
                     self.points = pnts
 
             elif len(points) == 0:
-                return self.points    
+                return self.points #############
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
 

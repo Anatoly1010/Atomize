@@ -11,20 +11,20 @@ import atomize.device_modules.BH_15 as bh
 import atomize.general_modules.csv_opener_saver as openfile
 
 ### Experimental parameters
-POINTS = 2201
-STEP = 8                  # in NS;
-FIELD = 3469
-AVERAGES = 10
+POINTS = 501
+STEP = 20                  # in NS;
+FIELD = 3435.5
+AVERAGES = 2
 SCANS = 1
 process = 'None'
 
 # PULSES
-REP_RATE = '500 Hz'
+REP_RATE = '5000 Hz'
 PULSE_1_LENGTH = '16 ns'
 PULSE_2_LENGTH = '32 ns'
 PULSE_1_START = '0 ns'
-PULSE_2_START = '300 ns'
-PULSE_SIGNAL_START = '560 ns'
+PULSE_2_START = '400 ns'
+PULSE_SIGNAL_START = '800 ns'
 
 # NAMES
 EXP_NAME = 'T2 Echo Shape'

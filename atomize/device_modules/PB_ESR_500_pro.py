@@ -962,6 +962,13 @@ class PB_ESR_500_Pro:
                     else:
                         assert(1 == 2), "There is no pulse with the specified name"
 
+    #UNDOCUMENTED
+    def pulser_phase_reset(self):
+        """
+        Reset phase index to zero in order to start phase cycling once again
+        """
+        self.current_phase_index = 0
+
     def pulser_reset(self):
         """
         Reset all pulses to the initial state it was in at the start of the experiment.
@@ -1240,13 +1247,13 @@ class PB_ESR_500_Pro:
             answer = np.zeros( data1.shape ) + 1j*np.zeros( data2.shape )
 
             for index, element in enumerate(acq_cycle):
-                if element == '+':
+                if element == '+' or element == '+x':
                     answer = answer + data1[index] + 1j*data2[index]
-                elif element == '-':
+                elif element == '-' or element == '-x':
                     answer = answer - data1[index] - 1j*data2[index]
-                elif element == '+i':
+                elif element == '+i' or element == '+y':
                     answer = answer + 1j*data1[index] - data2[index]
-                elif element == '-i':
+                elif element == '-i' or element == '-y':
                     answer = answer - 1j*data1[index] + data2[index]
 
             return (answer.real / len(acq_cycle))[0], (answer.imag / len(acq_cycle))[0]

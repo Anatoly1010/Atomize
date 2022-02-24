@@ -31,7 +31,7 @@ PULSE_3_START = '165500 ns'
 PULSE_SIGNAL_START = '165800 ns'
 
 # NAMES
-EXP_NAME = 'Laser Echo Detected Spectrum'
+EXP_NAME = 'Laser ED'
 CURVE_NAME = 'exp1'
 
 #

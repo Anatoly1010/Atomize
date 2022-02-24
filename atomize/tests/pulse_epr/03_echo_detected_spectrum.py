@@ -12,20 +12,20 @@ import atomize.device_modules.SR_PTC_10 as sr
 import atomize.general_modules.csv_opener_saver as openfile
 
 ### Experimental parameters
-START_FIELD = 3336
-END_FIELD = 3536
-FIELD_STEP = 1
-AVERAGES = 2
+START_FIELD = 3400
+END_FIELD = 3470
+FIELD_STEP = 0.25
+AVERAGES = 100
 SCANS = 1
 process = 'None'
 
 # PULSES
-REP_RATE = '1000 Hz'
+REP_RATE = '5000 Hz'
 PULSE_1_LENGTH = '16 ns'
 PULSE_2_LENGTH = '32 ns'
 PULSE_1_START = '0 ns'
-PULSE_2_START = '300 ns'
-PULSE_SIGNAL_START = '600 ns'
+PULSE_2_START = '400 ns'
+PULSE_SIGNAL_START = '800 ns'
 
 # NAMES
 EXP_NAME = 'Echo Detected Spectrum Scan'

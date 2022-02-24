@@ -12,25 +12,25 @@ import atomize.device_modules.SR_PTC_10 as sr
 import atomize.general_modules.csv_opener_saver as openfile
 
 ### Experimental parameters
-START_FIELD = 3336
-END_FIELD = 3536
-FIELD_STEP = 2
-TIME_STEP = 100 # in ns
-TIME_POINTS = 11
+START_FIELD = 3400
+END_FIELD = 3470
+FIELD_STEP = 0.25
+TIME_STEP = 400 # in ns
+TIME_POINTS = 5
 AVERAGES = 10
 SCANS = 1
 process = 'None'
 
 # PULSES
-REP_RATE = '500 Hz'
+REP_RATE = '5000 Hz'
 PULSE_1_LENGTH = '16 ns'
 PULSE_2_LENGTH = '32 ns'
 PULSE_1_START = '0 ns'
-PULSE_2_START = '300 ns'
-PULSE_SIGNAL_START = '600 ns'
+PULSE_2_START = '400 ns'
+PULSE_SIGNAL_START = '800 ns'
 
 # NAMES
-EXP_NAME = 'Echo Detected Spectrum 2D'
+EXP_NAME = 'ED 2D'
 CURVE_NAME = 'exp1'
 
 #
@@ -109,7 +109,7 @@ for j in general.scans(SCANS):
             data[1, i, l] = ( data[1, i, l] * (j - 1) + y ) / j
 
             process = general.plot_2d(EXP_NAME, data, start_step = ( (START_FIELD, FIELD_STEP), (0, TIME_STEP) ), xname = 'Field',\
-                xscale = 'G', yname = 'Delay', yscale = 'ns', zname = 'Intensity', zscale = 'V', pr = process, \
+                xscale = 'G', yname = 'Delay', yscale = 'ns', zname = 'I', zscale = 'V', pr = process, \
                 text = 'Scan / Time: ' + str(j) + ' / '+ str(l*TIME_STEP) + ' / '+ str(i*FIELD_STEP) )
 
             field = round( (FIELD_STEP + field), 3 )
@@ -117,10 +117,10 @@ for j in general.scans(SCANS):
             
             pb.pulser_pulse_reset()
 
-        d2 = 0
-        while d2 < (l + 1):
-            pb.pulser_shift()
-            d2 += 1
+            d2 = 0
+            while d2 < (l + 1):
+                pb.pulser_shift()
+                d2 += 1
 
         bh15.magnet_field(START_FIELD)
 

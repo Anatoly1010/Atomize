@@ -5,8 +5,8 @@ import warnings
 import numpy as np
 import logging
 import time
-from PyQt6.QtNetwork import QLocalSocket
-from PyQt6.QtCore import QCoreApplication, QSharedMemory
+from PyQt5.QtNetwork import QLocalSocket
+from PyQt5.QtCore import QCoreApplication, QSharedMemory
 import time
 
 logging.root.setLevel(logging.WARNING)
@@ -39,7 +39,8 @@ class LivePlotClient(object):
         self.timeout = timeout
         
         atexit.register(self.close)
-    
+
+
     def close(self):
         self.shared_mem.detach()
 
@@ -49,7 +50,6 @@ class LivePlotClient(object):
         if meta["name"] is None:
             meta["name"] = "*"
         if arr is not None:
-            
             arrbytes = bytearray(arr)
             arrsize = len(arrbytes)
             if arrsize > self.shared_mem.size():
@@ -67,7 +67,8 @@ class LivePlotClient(object):
             self.sock.write(meta_bytes.encode())
         else:
             if not self.sock.bytesAvailable():
-                self.sock.waitForReadyRead()
+                # should be clarified
+                self.sock.waitForReadyRead(1000)
             self.sock.read(2)
             self.shared_mem.lock()
             self.sock.write(meta_bytes.encode())
@@ -139,6 +140,7 @@ class LivePlotClient(object):
             'Vline': vline,
             'value': text,
         }
+
 
         if len( np.shape( ys ) ) == 1:
             self.send_to_plotter(meta, np.array([xs, ys]).astype('float64'))

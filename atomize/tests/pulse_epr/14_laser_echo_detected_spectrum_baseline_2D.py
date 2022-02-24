@@ -33,7 +33,7 @@ PULSE_3_START = '165500 ns'
 PULSE_SIGNAL_START = '165800 ns'
 
 # NAMES
-EXP_NAME = 'Laser Echo Detected Spectrum 2D'
+EXP_NAME = 'Laser ED 2D'
 CURVE_NAME = 'exp1'
 
 #
@@ -120,10 +120,10 @@ for j in general.scans(SCANS):
             
             pb.pulser_pulse_reset()
         
-        d2 = 0
-        while d2 < (l + 1):
-            pb.pulser_shift()
-            d2 += 1
+            d2 = 0
+            while d2 < (l + 1):
+                pb.pulser_shift()
+                d2 += 1
 
         bh15.magnet_field(START_FIELD)
 
