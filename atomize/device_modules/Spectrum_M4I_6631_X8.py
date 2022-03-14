@@ -2034,6 +2034,7 @@ class Spectrum_M4I_6631_X8:
         It runs TEST mode
         """
         self.test_flag = flag
+        self.test_amplitude = '600 mV'
 
     def awg_pulse_list(self):
         """
