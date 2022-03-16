@@ -11,7 +11,7 @@ import atomize.device_modules.BH_15 as bh
 import atomize.general_modules.csv_opener_saver as openfile
 
 ### Experimental parameters
-POINTS = 501
+POINTS = 11
 STEP = 20                  # in NS;
 FIELD = 3435.5
 AVERAGES = 2

@@ -12,22 +12,22 @@ import atomize.device_modules.SR_PTC_10 as sr
 import atomize.general_modules.csv_opener_saver as openfile
 
 ### Experimental parameters
-START_FIELD = 3400
-END_FIELD = 3470
-FIELD_STEP = 0.25
-TIME_STEP = 400 # in ns
-TIME_POINTS = 5
-AVERAGES = 10
+START_FIELD = 3380
+END_FIELD = 3530
+FIELD_STEP = 1.
+TIME_STEP = 32 # in ns
+TIME_POINTS = 20
+AVERAGES = 5
 SCANS = 1
 process = 'None'
 
 # PULSES
-REP_RATE = '5000 Hz'
+REP_RATE = '200 Hz'
 PULSE_1_LENGTH = '16 ns'
 PULSE_2_LENGTH = '32 ns'
 PULSE_1_START = '0 ns'
-PULSE_2_START = '400 ns'
-PULSE_SIGNAL_START = '800 ns'
+PULSE_2_START = '300 ns'
+PULSE_SIGNAL_START = '600 ns'
 
 # NAMES
 EXP_NAME = 'ED 2D'

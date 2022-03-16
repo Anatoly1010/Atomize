@@ -28,7 +28,7 @@ PULSE_2_START = '300 ns'
 PULSE_SIGNAL_START = '600 ns'
 
 # NAMES
-EXP_NAME = 'Echo Detected Spectrum Scan'
+EXP_NAME = 'ED'
 CURVE_NAME = 'exp1'
 
 #

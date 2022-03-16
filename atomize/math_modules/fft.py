@@ -21,12 +21,12 @@ class Fast_Fourier():
             #else:
             #    baseline = 0
 
-            x_axis = x_axis * 10**(+6) # to us
+            #x_axis = x_axis * 10**(+3) # to us
             data = data_i + 1j*data_q
             sp = np.fft.fft( data )
 
             #sp = np.fft.fft( data - baseline)
-            freq = np.fft.fftfreq(x_axis.shape[-1], sample_spacing)
+            freq = np.fft.fftfreq(x_axis.shape[-1], sample_spacing*10**(-3))
             i = np.argsort(freq)
 
             #sp.real = sp.real[i]
@@ -41,7 +41,7 @@ class Fast_Fourier():
             #else:
             #    baseline = 0
 
-            x_axis = x_axis * 10**(+6) # to us
+            #x_axis = x_axis * 10**(+3) # to us
             data = data_i + 1j*data_q
             sp = np.fft.fft( data )
 
