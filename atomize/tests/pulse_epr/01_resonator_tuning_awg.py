@@ -8,7 +8,7 @@ import atomize.device_modules.Spectrum_M4I_4450_X8 as spectrum_dig
 import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.PB_ESR_500_pro as pb_pro
 import atomize.device_modules.SR_PTC_10 as sr
-import atomize.general_modules.csv_opener_saver as openfile
+import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 
 # initialization of the devices
 file_handler = openfile.Saver_Opener()
@@ -40,15 +40,15 @@ start_freq_num = int( START_FREQ.split(" ")[0] )
 end_freq_num = int( END_FREQ.split(" ")[0] )
 
 # PULSES
-REP_RATE = '500 Hz'
-PULSE_1_LENGTH = '100 ns'
+REP_RATE = '2500 Hz'
+PULSE_1_LENGTH = '50 ns'
 # 398 ns is delay from AWG trigger 1.25 GHz
 # 494 ns is delay from AWG trigger 1.00 GHz
 PULSE_1_START = '494 ns'
 PULSE_AWG_1_START = '0 ns'
 
 # NAMES
-EXP_NAME = 'Tune AWG Scan'
+EXP_NAME = 'Tune AWG'
 
 # setting pulses:
 pb.pulser_pulse(name = 'P0', channel = 'TRIGGER_AWG', start = '0 ns', length = '30 ns')
