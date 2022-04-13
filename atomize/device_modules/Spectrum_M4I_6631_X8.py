@@ -2083,7 +2083,7 @@ class Spectrum_M4I_6631_X8:
                         gc.collect()
                         self.visualize_counter = 0
 
-                    xs = 0.8*np.arange( int(self.memsize) )
+                    xs = 1000/self.sample_rate*np.arange( int(self.memsize) )
                     # A way to convert c_types poinet back to np.array
                     # np.ctypeslib.as_array(buf, shape = (int(self.memsize), ))
                     # also try
@@ -2103,7 +2103,7 @@ class Spectrum_M4I_6631_X8:
                         gc.collect()
                         self.visualize_counter = 0
 
-                    xs = 0.8*np.arange( int(self.memsize) )
+                    xs = 1000/self.sample_rate*np.arange( int(self.memsize) )
                     # A way to convert c_types poinet back to np.array
                     # np.ctypeslib.as_array(buf, shape = (int(self.memsize), ))
                     general.plot_1d('Buffer_single_joined', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize), )), \
@@ -2120,7 +2120,7 @@ class Spectrum_M4I_6631_X8:
                         gc.collect()
                         self.visualize_counter = 0
 
-                    xs = 0.8*np.arange( int(self.memsize) )
+                    xs = 1000/self.sample_rate*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_single', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
                     general.plot_1d('Buffer_single', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
@@ -2138,7 +2138,7 @@ class Spectrum_M4I_6631_X8:
                         gc.collect()
                         self.visualize_counter = 0
 
-                    xs = 0.8*np.arange( int(self.memsize) )
+                    xs = 1000/self.sample_rate*np.arange( int(self.memsize) )
                     ##sin = self.maxCAD * np.sin(2*np.pi*xs*0.125)
                     general.plot_1d('Buffer_single_joined', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
@@ -2157,7 +2157,7 @@ class Spectrum_M4I_6631_X8:
                         gc.collect()
                         self.visualize_counter = 0
 
-                    xs = 0.8*np.arange( int(self.memsize) )
+                    xs = 1000/self.sample_rate*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_multi', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize), )), \
                                     label = 'ch0 or ch1')
                
@@ -2172,7 +2172,7 @@ class Spectrum_M4I_6631_X8:
                         gc.collect()
                         self.visualize_counter = 0
 
-                    xs = 0.8*np.arange( int(self.memsize) )
+                    xs = 1000/self.sample_rate*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_multi', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
                     general.plot_1d('Buffer_multi', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
@@ -2180,7 +2180,7 @@ class Spectrum_M4I_6631_X8:
 
             elif self.sequence_mode == 1:
                 if self.channel != 3:
-                    xs = np.arange( 0, int(self.qwBufferSize.value/2) )*0.8
+                    xs = np.arange( 0, int(self.qwBufferSize.value/2) )*1000/self.sample_rate
 
                     general.plot_1d('Buffer_sequence', xs, np.ctypeslib.as_array(self.full_buffer[0], shape = (int(self.qwBufferSize.value/2), )),\
                                         label = '0ch0')
@@ -2199,7 +2199,7 @@ class Spectrum_M4I_6631_X8:
                         self.visualize_counter = 0
 
                 elif self.channel == 3:
-                    xs = np.arange( 0, int(self.qwBufferSize.value/4) )*0.8
+                    xs = np.arange( 0, int(self.qwBufferSize.value/4) )*1000/self.sample_rate
                 
                     general.plot_1d('Buffer_sequence', xs, np.ctypeslib.as_array(self.full_buffer[0], \
                                     shape = (int(self.qwBufferSize.value/2), ))[0::2], label = '0ch0')
@@ -2240,7 +2240,7 @@ class Spectrum_M4I_6631_X8:
                         gc.collect()
                         self.visualize_counter = 0
 
-                    xs = 0.8*np.arange( int(self.memsize) )
+                    xs = 1000/self.sample_rate*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_single', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize), )), \
                                     label = 'ch0 or ch1')
 
@@ -2256,7 +2256,7 @@ class Spectrum_M4I_6631_X8:
                         gc.collect()
                         self.visualize_counter = 0
 
-                    xs = 0.8*np.arange( int(self.memsize) )
+                    xs = 1000/self.sample_rate*np.arange( int(self.memsize) )
                     # A way to convert c_types poinet back to np.array
                     #np.ctypeslib.as_array(buf, shape = (int(self.memsize), ))
                     general.plot_1d('Buffer_single_joined', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize), )), \
@@ -2273,7 +2273,7 @@ class Spectrum_M4I_6631_X8:
                         gc.collect()
                         self.visualize_counter = 0
 
-                    xs = 0.8*np.arange( int(self.memsize) )
+                    xs = 1000/self.sample_rate*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_single', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
                     general.plot_1d('Buffer_single', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
@@ -2291,7 +2291,7 @@ class Spectrum_M4I_6631_X8:
                         gc.collect()
                         self.visualize_counter = 0
 
-                    xs = 0.8*np.arange( int(self.memsize) )
+                    xs = 1000/self.sample_rate*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_single_joined', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
                     general.plot_1d('Buffer_single_joined', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
@@ -2308,7 +2308,7 @@ class Spectrum_M4I_6631_X8:
                         gc.collect()
                         self.visualize_counter = 0
 
-                    xs = 0.8*np.arange( int(self.memsize) )
+                    xs = 1000/self.sample_rate*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_multi', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize), )), \
                                     label = 'ch0 or ch1')
                
@@ -2323,7 +2323,7 @@ class Spectrum_M4I_6631_X8:
                         gc.collect()
                         self.visualize_counter = 0
 
-                    xs = 0.8*np.arange( int(self.memsize) )
+                    xs = 1000/self.sample_rate*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_multi', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
                     general.plot_1d('Buffer_multi', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
@@ -3721,7 +3721,7 @@ class Spectrum_M4I_6631_X8:
         pulse_delta_start_smp = (np.asarray(arguments_array[2])).astype('int64')
         pulse_length_smp = (np.asarray(arguments_array[3])).astype('int64')
         pulse_sigma_smp = np.asarray(arguments_array[5])
-        pulse_frequency = np.asarray(arguments_array[6])
+        pulse_frequency = np.asarray(arguments_array[6], dtype=object)
         pulse_amp = np.asarray(arguments_array[7])
         pulse_n_wurst = np.asarray(arguments_array[8])
         
