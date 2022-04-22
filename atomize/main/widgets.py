@@ -292,7 +292,7 @@ class CrosshairDock(CloseableDock):
                             self.curves[name].setData(*args_mod, **kwargs)
 
                             # 05-01-2022; shift and delete graphs
-                            del_action = QtWidgets.QAction(str(name), self)
+                            del_action = QtGui.QAction(str(name), self)
                             shifter = QtWidgets.QDoubleSpinBox()
                             shiftAction = QtWidgets.QWidgetAction(self)
                             self.add_del_shift_actions(name, del_action, shifter, shiftAction)
@@ -336,7 +336,7 @@ class CrosshairDock(CloseableDock):
                         pass
             
             if self.qaction_added == 0:
-                del_action_2 = QtWidgets.QAction(str(name), self)
+                del_action_2 = QtGui.QAction(str(name), self)
                 shifter_2 = QtWidgets.QDoubleSpinBox()
                 shiftAction_2 = QtWidgets.QWidgetAction(self)
                 self.add_del_shift_actions(name, del_action_2, shifter_2, shiftAction_2)
