@@ -5,8 +5,8 @@ import warnings
 import numpy as np
 import logging
 import time
-from PyQt5.QtNetwork import QLocalSocket
-from PyQt5.QtCore import QCoreApplication, QSharedMemory
+from PyQt6.QtNetwork import QLocalSocket
+from PyQt6.QtCore import QCoreApplication, QSharedMemory
 import time
 
 logging.root.setLevel(logging.WARNING)
