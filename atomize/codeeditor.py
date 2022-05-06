@@ -48,8 +48,8 @@ class CodeEditor(QPlainTextEdit):
             if block.isVisible() and bottom >= event.rect().top():
                 number = str(blockNumber + 1)
                 painter.setPen(QColor(192, 202, 227))
-                painter.setFont(QFont("Ubuntu", 9.0, weight = QtGui.QFont.Weight.Bold))
-                painter.drawText(-4, top + 1, self.lineNumberArea.width(), 
+                painter.setFont(QtGui.QFont("Ubuntu", 9.0, QtGui.QFont.Weight.Bold))
+                painter.drawText(-4, int(top + 1), self.lineNumberArea.width(), 
                     self.fontMetrics().height(),
                     Qt.AlignmentFlag.AlignRight, number)
             block = block.next()

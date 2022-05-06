@@ -63,7 +63,7 @@ class SR_860:
                     try:
                         # test should be here
                         self.device_write('*CLS')
-                        answer = int(self.device_query('*TST?'))
+                        answer = int(float(self.device_query('*TST?')))
                         if answer == 0:
                             self.status_flag = 1
                         else:
