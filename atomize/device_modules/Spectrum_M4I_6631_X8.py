@@ -706,11 +706,11 @@ class Spectrum_M4I_6631_X8:
                         self.reset_count = 0
 
                     elif element['phase_list'][self.current_phase_index] == '+y':
-                        element['phase'] = self.pulse_array_init[index]['phase'] - np.pi / 2
+                        element['phase'] = self.pulse_array_init[index]['phase'] + np.pi / 2
                         self.reset_count = 0
 
                     elif element['phase_list'][self.current_phase_index] == '-y':
-                        element['phase'] = self.pulse_array_init[index]['phase'] - 3 * np.pi / 2
+                        element['phase'] = self.pulse_array_init[index]['phase'] + 3 * np.pi / 2
                         self.reset_count = 0
 
             self.current_phase_index += 1
@@ -737,11 +737,11 @@ class Spectrum_M4I_6631_X8:
                         self.reset_count = 0
 
                     elif element['phase_list'][self.current_phase_index] == '+y':
-                        element['phase'] = self.pulse_array_init[index]['phase'] - np.pi / 2
+                        element['phase'] = self.pulse_array_init[index]['phase'] + np.pi / 2
                         self.reset_count = 0
 
                     elif element['phase_list'][self.current_phase_index] == '-y':
-                        element['phase'] = self.pulse_array_init[index]['phase'] - 3 * np.pi / 2
+                        element['phase'] = self.pulse_array_init[index]['phase'] + 3 * np.pi / 2
                         self.reset_count = 0
                     else:
                         assert( 1 == 2 ), 'Incorrect phase name (+x, -x, +y, -y)'
