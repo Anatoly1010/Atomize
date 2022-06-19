@@ -25,7 +25,7 @@ data = np.zeros( (2, int(wind), POINTS) )
 for i in range(POINTS):
 
     # 1D
-    x, y = np.random.rand(1)[0], np.random.rand(1)[0]
+    x, y = np.random.rand(1)[0]*10e-10, np.random.rand(1)[0]*10e-10
     data_x[i] = ( data_x[i] * (j - 1) + x ) / j
     data_y[i] = ( data_y[i] * (j - 1) + y ) / j
 

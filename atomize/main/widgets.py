@@ -425,17 +425,30 @@ class CrosshairDock(CloseableDock):
             header_array.append(temp)
         file_to_read.close()
 
-        temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 0) 
+        temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 1, comments = '#') 
         data = np.transpose(temp)
 
         if len(data) == 2:
             self.plot(data[0], data[1], parametric = True, name = file_path, xname = 'X', xscale = 'Arb. U.',\
-            yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
-        elif len(data) == 3:
+                yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+        elif len(data) == 3 and np.isnan(data[2][0]) != True:
             self.plot(data[0], data[1], parametric = True, name = file_path + '_1', xname = 'X', xscale = 'Arb. U.',\
-            yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+                yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
             self.plot(data[0], data[2], parametric = True, name = file_path + '_2', xname = 'X', xscale = 'Arb. U.',\
-            yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
+                yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
+        elif len(data) == 3 and np.isnan(data[2][0]) == True:
+            self.plot(data[0], data[1], parametric = True, name = file_path, xname = 'X', xscale = 'Arb. U.',\
+                yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+        elif len(data) == 4 and np.isnan(data[3][0]) == True:
+            self.plot(data[0], data[1], parametric = True, name = file_path + '_1', xname = 'X', xscale = 'Arb. U.',\
+                yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+            self.plot(data[0], data[2], parametric = True, name = file_path + '_2', xname = 'X', xscale = 'Arb. U.',\
+                yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
+        elif len(data) == 5 and np.isnan(data[4][0]) == True:
+            self.plot(data[0], data[1], parametric = True, name = file_path + '_1', xname = 'X', xscale = 'Arb. U.',\
+                yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+            self.plot(data[0], data[3], parametric = True, name = file_path + '_2', xname = 'X', xscale = 'Arb. U.',\
+                yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
 
     # unused
     def open_file_dialog(self, directory = '', header = 0):
