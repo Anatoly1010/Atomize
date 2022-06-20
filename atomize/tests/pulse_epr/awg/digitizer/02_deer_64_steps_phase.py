@@ -9,7 +9,7 @@ import atomize.device_modules.Spectrum_M4I_4450_X8 as spectrum_dig
 import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.BH_15 as bh
 import atomize.device_modules.SR_PTC_10 as sr
-import atomize.general_modules.csv_opener_saver as openfile
+import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 
 # initialization of the devices
 file_handler = openfile.Saver_Opener()

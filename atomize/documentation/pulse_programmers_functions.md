@@ -118,7 +118,7 @@ This function can be called with either no argument or with a list of comma sepa
 pulser_redefine_start(*, name, start)
 Arguments: name = 'Pulse name', start = a new start time of the pulse (as a string);
 Output: none.
-Example: pulser_redefine_start('P0', start = '100 ns') changes start setting of the 'P0' pulse to 100 ns.
+Example: pulser_redefine_start(name = 'P0', start = '100 ns') changes start setting of the 'P0' pulse to 100 ns.
 ```
 This function should be called with two keyword arguments, namely name and start. The first argument specifies the name of the pulse as a string. The second argument defines a new value of pulse start as a string in the format value + dimension (i.e. '100 ns'). The main purpose of the function is non-uniform sampling. Please note, that the function does not update the pulse programmer. [pulser_update()](#pulser_update) should be called to apply changes.
 ### pulser_redefine_delta_start(*, name, delta_start)
@@ -126,7 +126,7 @@ This function should be called with two keyword arguments, namely name and start
 pulser_redefine_delta_start(*, name, delta_start)
 Arguments: name = 'Pulse name', delta_start = a new start time increment (as a string);
 Output: none.
-Example: pulser_redefine_delta_start('P0', delta_start = '10 ns') changes delta_start setting of the 'P0' pulse to 10 ns.
+Example: pulser_redefine_delta_start(name = 'P0', delta_start = '10 ns') changes delta_start setting of the 'P0' pulse to 10 ns.
 ```
 This function should be called with two keyword arguments, namely name and delta_start. The first argument specifies the name of the pulse as a string. The second argument defines a new value of delta_start as a string in the format value + dimension (i.e. '100 ns'). The main purpose of the function is non-uniform sampling. Please note, that the function does not update the pulse programmer. [pulser_update()](#pulser_update) should be called to apply changes.
 ### pulser_redefine_length_increment(*, name, length_increment)
@@ -134,7 +134,7 @@ This function should be called with two keyword arguments, namely name and delta
 pulser_redefine_length_increment(*, name, length_increment)
 Arguments: name = 'Pulse name', length_increment = a new length increment (as a string);
 Output: none.
-Example: pulser_redefine_length_increment('P2', length_increment = '2 ns') changes length
+Example: pulser_redefine_length_increment(name = 'P2', length_increment = '2 ns') changes length
 increment setting of the 'P2' pulse to 2 ns.
 ```
 This function should be called with two keyword arguments, namely name and length_increment. The first argument specifies the name of the pulse as a string. The second argument defines a new value of length increment as a string in the format value + dimension (i.e. '10 ms'). The main purpose of the function is non-uniform sampling. Please note, that the function does not update the pulse programmer. [pulser_update()](#pulser_update) should be called to apply changes.

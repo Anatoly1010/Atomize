@@ -41,21 +41,21 @@ process = 'None'
 
 # PULSES
 REP_RATE = '250 Hz'
-PULSE_1_LENGTH = '16 ns'
-PULSE_2_LENGTH = '16 ns'
-PULSE_3_LENGTH = '16 ns'
+PULSE_1_LENGTH = '270 ns'
+PULSE_2_LENGTH = '270 ns'
+PULSE_3_LENGTH = '270 ns'
 # 398 ns is delay from AWG trigger 1.25 GHz
 # 494 ns is delay from AWG trigger 1.00 GHz
 # for AWG minimal distance between pulses 60 ns
 # since they are longer in comparison with MW 
 # and are not combined in one pulse
 PULSE_1_START = '494 ns'
-PULSE_2_START = '702 ns'
-PULSE_3_START = '778 ns'
-PULSE_SIGNAL_START = '1024 ns'
+PULSE_2_START = '910 ns'
+PULSE_3_START = '1240 ns'
+PULSE_SIGNAL_START = '1656 ns'
 PULSE_AWG_1_START = '0 ns'
-PULSE_AWG_2_START = '208 ns'
-PULSE_AWG_3_START = '284 ns'
+PULSE_AWG_2_START = '416 ns'
+PULSE_AWG_3_START = '746 ns'
 PHASES = 4
 
 # NAMES
@@ -70,12 +70,16 @@ pb.pulser_pulse(name = 'P2', channel = 'AWG', start = PULSE_2_START, length = PU
 pb.pulser_pulse(name = 'P3', channel = 'AWG', start = PULSE_3_START, length = PULSE_3_LENGTH, delta_start = str(STEP) + ' ns')
 
 pb.pulser_pulse(name = 'P4', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str(STEP) + ' ns')
-awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '75 MHz', phase = 0, \
-            length = PULSE_1_LENGTH, sigma = PULSE_1_LENGTH, start = PULSE_AWG_1_START, phase_list = ['+x', '-x', '+x', '-x'])
-awg.awg_pulse(name = 'P6', channel = 'CH0', func = 'SINE', frequency = '75 MHz', phase = 0, \
-            length = PULSE_2_LENGTH, sigma = PULSE_2_LENGTH, start = PULSE_AWG_2_START, phase_list = ['+x', '+x', '-x', '-x'])
-awg.awg_pulse(name = 'P7', channel = 'CH0', func = 'SINE', frequency = '75 MHz', phase = 0, \
-            length = PULSE_3_LENGTH, sigma = PULSE_3_LENGTH, start = PULSE_AWG_3_START, delta_start = str(STEP) + ' ns', phase_list = ['+x', '+x', '+x', '+x'])
+awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'WURST', frequency = ('85 MHz', '390 MHz'), phase = 0, \
+            length = PULSE_1_LENGTH, sigma = PULSE_1_LENGTH, start = PULSE_AWG_1_START, \
+            phase_list = ['+x', '-x', '+x', '-x'], n = 30, d_coef = 5.0)
+awg.awg_pulse(name = 'P6', channel = 'CH0', func = 'WURST', frequency = ('85 MHz', '390 MHz'), phase = 0, \
+            length = PULSE_2_LENGTH, sigma = PULSE_2_LENGTH, start = PULSE_AWG_2_START, \
+            phase_list = ['+x', '+x', '-x', '-x'], n = 30, d_coef = 5.0)
+awg.awg_pulse(name = 'P7', channel = 'CH0', func = 'WURST', frequency = ('85 MHz', '390 MHz'), phase = 0, \
+            length = PULSE_3_LENGTH, sigma = PULSE_3_LENGTH, start = PULSE_AWG_3_START, delta_start = str(STEP) + ' ns', \
+            phase_list = ['+x', '+x', '+x', '+x'], n = 30, d_coef = 5.0)
+
 
 pb.pulser_repetition_rate( REP_RATE )
 pb.pulser_update()

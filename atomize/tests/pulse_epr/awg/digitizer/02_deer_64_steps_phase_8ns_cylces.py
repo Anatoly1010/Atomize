@@ -9,7 +9,7 @@ import atomize.device_modules.Spectrum_M4I_4450_X8 as spectrum_dig
 import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.BH_15 as bh
 import atomize.device_modules.SR_PTC_10 as sr
-import atomize.general_modules.csv_opener_saver as openfile
+import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 
 # initialization of the devices
 file_handler = openfile.Saver_Opener()
@@ -34,6 +34,7 @@ signal.signal(signal.SIGTERM, cleanup)
 ### Experimental parameters
 POINTS = 250
 STEP = 4                  # in NS; delta_start for PUMP pulse; # delta_start = str(STEP) + ' ns' -> delta_start = '4 ns'
+STEP8 = 8
 FIELD = 3454
 AVERAGES = 50
 SCANS = 1
@@ -59,7 +60,7 @@ PULSE_AWG_PUMP_START = '1756 ns'
 
 
 # NAMES
-EXP_NAME = 'DEER 64'
+EXP_NAME = 'DEER'
 CURVE_NAME = 'exp1'
 
 #
@@ -76,12 +77,12 @@ pb.pulser_pulse(name = 'P0', channel = 'MW', start = PULSE_1_START, length = PUL
                   '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y',\
                   '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x',\
                   '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y'])
-pb.pulser_pulse(name = 'P1', channel = 'MW', start = PULSE_2_START, length = PULSE_2_LENGTH, delta_start = str( int(STEP*2) ) + ' ns',\
+pb.pulser_pulse(name = 'P1', channel = 'MW', start = PULSE_2_START, length = PULSE_2_LENGTH, delta_start = str( int(STEP8) ) + ' ns',\
     phase_list = ['+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
                   '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
                   '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
                   '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y'])
-pb.pulser_pulse(name = 'P2', channel = 'MW', start = PULSE_3_START, length = PULSE_3_LENGTH, delta_start = str( int(STEP*4) ) + ' ns', \
+pb.pulser_pulse(name = 'P2', channel = 'MW', start = PULSE_3_START, length = PULSE_3_LENGTH, delta_start = str( int(STEP8*2) ) + ' ns', \
     phase_list = ['+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
                   '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
                   '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
@@ -97,7 +98,7 @@ awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '65 MHz',
 # 2680 = 494 (awg_output delay) + 430 (awg trigger) + 1756 (awg position)
 
 #DETECTION
-pb.pulser_pulse(name = 'P6', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str( int(STEP*4) ) + ' ns')
+pb.pulser_pulse(name = 'P6', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str( int(STEP8*2) ) + ' ns')
 
 
 bh15.magnet_setup(FIELD, 1)
@@ -138,10 +139,11 @@ for j in general.scans(SCANS):
 
         m = 1
         while m < cycle_8:
+            pb.pulser_redefine_delta_start(name = 'P3', delta_start = str( int(STEP8*2) ) + ' ns')
+            pb.pulser_redefine_delta_start(name = 'P4', delta_start = str( int(STEP8*2) ) + ' ns')
             pb.pulser_shift('P1', 'P2', 'P3', 'P4', 'P6')
-            pb.pulser_shift('P3', 'P4')
-            pb.pulser_shift('P3', 'P4')
-            pb.pulser_shift('P3', 'P4')
+            pb.pulser_redefine_delta_start(name = 'P3', delta_start = str( int(STEP) ) + ' ns')
+            pb.pulser_redefine_delta_start(name = 'P4', delta_start = str( int(STEP) ) + ' ns')
 
             m += 1
 
