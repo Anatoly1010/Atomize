@@ -32,31 +32,31 @@ def cleanup(*args):
 signal.signal(signal.SIGTERM, cleanup)
 
 ### Experimental parameters
-POINTS = 2501
-STEP = 8                  # in NS;
-FIELD = 3469
-AVERAGES = 10
-SCANS = 1
+POINTS = 1001
+STEP = 12                  # in NS;
+FIELD = 3448
+AVERAGES = 8
+SCANS = 30
 process = 'None'
 
 # PULSES
-REP_RATE = '250 Hz'
-PULSE_1_LENGTH = '270 ns'
-PULSE_2_LENGTH = '270 ns'
-PULSE_3_LENGTH = '270 ns'
+REP_RATE = '900 Hz'
+PULSE_1_LENGTH = '126 ns'
+PULSE_2_LENGTH = '126 ns'
+PULSE_3_LENGTH = '126 ns'
 # 398 ns is delay from AWG trigger 1.25 GHz
 # 494 ns is delay from AWG trigger 1.00 GHz
 # for AWG minimal distance between pulses 60 ns
 # since they are longer in comparison with MW 
 # and are not combined in one pulse
 PULSE_1_START = '494 ns'
-PULSE_2_START = '910 ns'
-PULSE_3_START = '1240 ns'
-PULSE_SIGNAL_START = '1656 ns'
+PULSE_2_START = '702 ns'
+PULSE_3_START = '888 ns'
+PULSE_SIGNAL_START = '1278 ns'
 PULSE_AWG_1_START = '0 ns'
-PULSE_AWG_2_START = '416 ns'
-PULSE_AWG_3_START = '746 ns'
-PHASES = 4
+PULSE_AWG_2_START = '208 ns'
+PULSE_AWG_3_START = '394 ns'
+PHASES = 64
 
 # NAMES
 EXP_NAME = 'ESEEM'
@@ -70,15 +70,24 @@ pb.pulser_pulse(name = 'P2', channel = 'AWG', start = PULSE_2_START, length = PU
 pb.pulser_pulse(name = 'P3', channel = 'AWG', start = PULSE_3_START, length = PULSE_3_LENGTH, delta_start = str(STEP) + ' ns')
 
 pb.pulser_pulse(name = 'P4', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str(STEP) + ' ns')
-awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'WURST', frequency = ('85 MHz', '390 MHz'), phase = 0, \
+awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'WURST', frequency = ('90 MHz', '368 MHz'), phase = 0, \
             length = PULSE_1_LENGTH, sigma = PULSE_1_LENGTH, start = PULSE_AWG_1_START, \
-            phase_list = ['+x', '-x', '+x', '-x'], n = 30, d_coef = 5.0)
-awg.awg_pulse(name = 'P6', channel = 'CH0', func = 'WURST', frequency = ('85 MHz', '390 MHz'), phase = 0, \
+            phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x',\
+                  '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y',\
+                  '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x',\
+                  '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y'], n = 30, d_coef = 1.0)
+awg.awg_pulse(name = 'P6', channel = 'CH0', func = 'WURST', frequency = ('90 MHz', '368 MHz'), phase = 0, \
             length = PULSE_2_LENGTH, sigma = PULSE_2_LENGTH, start = PULSE_AWG_2_START, \
-            phase_list = ['+x', '+x', '-x', '-x'], n = 30, d_coef = 5.0)
-awg.awg_pulse(name = 'P7', channel = 'CH0', func = 'WURST', frequency = ('85 MHz', '390 MHz'), phase = 0, \
+            phase_list = ['+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
+                  '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
+                  '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
+                  '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y'], n = 30, d_coef = 1.0)
+awg.awg_pulse(name = 'P7', channel = 'CH0', func = 'WURST', frequency = ('90 MHz', '368 MHz'), phase = 0, \
             length = PULSE_3_LENGTH, sigma = PULSE_3_LENGTH, start = PULSE_AWG_3_START, delta_start = str(STEP) + ' ns', \
-            phase_list = ['+x', '+x', '+x', '+x'], n = 30, d_coef = 5.0)
+            phase_list = ['+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
+                  '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
+                  '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
+                  '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y'], n = 30, d_coef = 1.0)
 
 
 pb.pulser_repetition_rate( REP_RATE )
@@ -135,7 +144,11 @@ for j in general.scans(SCANS):
             k += 1
         
         # acquisition cycle
-        x, y = pb.pulser_acquisition_cycle(cycle_data_x, cycle_data_y, acq_cycle = ['+', '-', '-', '+'])
+        x, y = pb.pulser_acquisition_cycle(cycle_data_x, cycle_data_y, \
+            acq_cycle = ['+', '+i', '-', '-i', '+i', '-', '-i', '+', '-', '-i', '+', '+i', '-i', '+', '+i', '-',
+                         '-i', '+', '+i', '-', '+', '+i', '-', '-i', '+i', '-', '-i', '+', '-', '-i', '+', '+i',
+                         '-', '-i', '+', '+i', '-i', '+', '+i', '-', '+', '+i', '-', '-i', '+i', '-', '-i', '+',
+                         '+i', '-', '-i', '+', '-', '-i', '+', '+i', '-i', '+', '+i', '-', '+', '+i', '-', '-i'])
         
         data[0, :, i] = ( data[0, :, i] * (j - 1) + x ) / j
         data[1, :, i] = ( data[1, :, i] * (j - 1) + y ) / j

@@ -35,8 +35,8 @@ signal.signal(signal.SIGTERM, cleanup)
 POINTS = 250
 STEP = 4                  # in NS; delta_start for PUMP pulse; # delta_start = str(STEP) + ' ns' -> delta_start = '4 ns'
 STEP8 = 8
-FIELD = 3454
-AVERAGES = 50
+FIELD = 3447
+AVERAGES = 2
 SCANS = 1
 process = 'None'
 
@@ -45,27 +45,28 @@ REP_RATE = '2000 Hz'
 PULSE_1_LENGTH = '16 ns'
 PULSE_2_LENGTH = '32 ns'
 PULSE_3_LENGTH = '32 ns'
-PULSE_PUMP_LENGTH = '20 ns'
+PULSE_PUMP_LENGTH = '14 ns'
 # 398 ns is delay from AWG trigger 1.25 GHz
 # 494 ns is delay from AWG trigger 1.00 GHz
 PULSE_1_START = '2100 ns'
-PULSE_2_START = '2440 ns'
-# 2680 = 494 (awg_output delay) + 430 (awg trigger) + 1756 (awg position)
-PULSE_PUMP_START = '2680 ns'
-PULSE_3_START = '3780 ns'
-PULSE_SIGNAL_START = '4780 ns'
+PULSE_2_START = '2400 ns'
+# 2600 = 494 (awg_output delay) + 430 (awg trigger) + 1676 (awg position)
+PULSE_PUMP_START = '2600 ns'
+PULSE_3_START = '3700 ns'
+PULSE_SIGNAL_START = '4700 ns'
 
 PULSE_TRIGGER_AWG_START = '430 ns'
-PULSE_AWG_PUMP_START = '1756 ns'
+PULSE_AWG_PUMP_START = '1676 ns'
 
+PHASE = 64
 
 # NAMES
-EXP_NAME = 'DEER'
+EXP_NAME = 'DEER 1D'
 CURVE_NAME = 'exp1'
 
 #
-cycle_data_x = np.zeros( 64 )
-cycle_data_y = np.zeros( 64 )
+cycle_data_x = np.zeros( PHASE )
+cycle_data_y = np.zeros( PHASE )
 data_x = np.zeros(POINTS)
 data_y = np.zeros(POINTS)
 x_axis = np.linspace(0, (POINTS - 1)*STEP, num = POINTS) 
@@ -91,7 +92,7 @@ pb.pulser_pulse(name = 'P2', channel = 'MW', start = PULSE_3_START, length = PUL
 #PUMP
 pb.pulser_pulse(name = 'P3', channel = 'AWG', start = PULSE_PUMP_START, length = PULSE_PUMP_LENGTH, delta_start = str(STEP) + ' ns')
 pb.pulser_pulse(name = 'P4', channel = 'TRIGGER_AWG', start = PULSE_TRIGGER_AWG_START, length = '20 ns', delta_start = str(STEP) + ' ns')
-awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '65 MHz', phase = 0, \
+awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '70 MHz', phase = 0, \
             length = PULSE_PUMP_LENGTH, sigma = PULSE_PUMP_LENGTH, start = PULSE_AWG_PUMP_START)
 # 398 ns is delay from AWG trigger 1.25 GHz
 # 494 ns is delay from AWG trigger 1.00 GHz
@@ -100,6 +101,7 @@ awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '65 MHz',
 #DETECTION
 pb.pulser_pulse(name = 'P6', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str( int(STEP8*2) ) + ' ns')
 
+#pb.pulser_instruction_from_file(1)
 
 bh15.magnet_setup(FIELD, 1)
 bh15.magnet_field(FIELD)
@@ -151,7 +153,7 @@ for j in general.scans(SCANS):
 
             # phase cycle
             k = 0
-            while k < 64:
+            while k < PHASE:
 
                 pb.pulser_next_phase()
                 if k == 0:

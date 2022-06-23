@@ -14,7 +14,7 @@ Detailed documentation can be found [here.](https://github.com/Anatoly1010/Atomi
 
 ## Status
 
-At the moment, Atomize has been tested and is currently used for controlling several EPR spectrometers using a broad range of different devices. Examples of experimental scripts for standard pulsed EPR methods can be found in /atomize/tests/pulse_epr directory. The program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and Windows 10.
+At the moment, Atomize has been tested and is currently used for controlling several EPR spectrometers using a broad range of different devices. Examples of experimental scripts for standard pulsed EPR methods can be found in /atomize/tests/pulse_epr directory. The program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and 22.04 LTS.
 
 ## Contents
 - [Requirements](#requirements)<br/>
@@ -56,7 +56,7 @@ Optional:
 - [GPIB driver;](https://linux-gpib.sourceforge.io/) for GPIB devices
 - [Telegram bot API;](https://github.com/eternnoir/pyTelegramBotAPI) for Telegram bot messages
 - [SpinAPI;](http://www.spincore.com/support/spinapi/) for Pulse Blaster ESR 500 Pro
-- [Spcm driver;](https://spectrum-instrumentation.com/en/m4i4450-x8) for Spectrum M4I 6631 X8
+- [Spcm driver;](https://spectrum-instrumentation.com/en/m4i4450-x8) for Spectrum M4I 6631 X8; M4I 4450 X8
 
 ## Basic usage
 
@@ -126,18 +126,6 @@ general.plot_1d('1D Plot', data[0], data[1], label = 'test_data', yname = 'Y axi
 
 Python is used to write an experimental script. Examples (with dummy data) can be found in
 /atomize/tests/ directory.
-
-5. Speeding up plotting functions
-
-It is highly recommended to use OpenGL, if you want to plot data with more than 2000 points.
-On Ubuntu 18.04 LTS, 20.04 LTS python openGL bindings can be installed as:
-
-	apt-get install python3-pyqt5.qtopengl
-	pip3 install pyopengl
-
-On Windows 10 one should use:
-	
-	pip install PyOpenGL PyOpenGL_accelerate
 
 ## Available devices
 #### [Temperature Controllers](#temperature-controllers-1)

@@ -35,9 +35,10 @@ signal.signal(signal.SIGTERM, cleanup)
 POINTS = 250
 STEP = 4                  # in NS; delta_start for PUMP pulse; # delta_start = str(STEP) + ' ns' -> delta_start = '4 ns'
 FIELD = 3447
-AVERAGES = 2
-SCANS = 1
+AVERAGES = 1024
+SCANS = 16
 process = 'None'
+PHASE = 1
 
 # PULSES
 REP_RATE = '2000 Hz'
@@ -58,12 +59,12 @@ PULSE_TRIGGER_AWG_START = '430 ns'
 PULSE_AWG_PUMP_START = '1676 ns'
 
 # NAMES
-EXP_NAME = 'DEER 64'
+EXP_NAME = 'DEER 2'
 CURVE_NAME = 'exp1'
 
 #
-cycle_data_x = np.zeros( 64 )
-cycle_data_y = np.zeros( 64 )
+cycle_data_x = np.zeros( PHASE )
+cycle_data_y = np.zeros( PHASE )
 data_x = np.zeros(POINTS)
 data_y = np.zeros(POINTS)
 x_axis = np.linspace(0, (POINTS - 1)*STEP, num = POINTS) 
@@ -71,20 +72,11 @@ x_axis = np.linspace(0, (POINTS - 1)*STEP, num = POINTS)
 
 #PROBE
 pb.pulser_pulse(name = 'P0', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH, \
-    phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x',\
-                  '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y',\
-                  '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x',\
-                  '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y'])
+    phase_list = ['+x'])
 pb.pulser_pulse(name = 'P1', channel = 'MW', start = PULSE_2_START, length = PULSE_2_LENGTH, \
-    phase_list = ['+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
-                  '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
-                  '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
-                  '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y'])
+    phase_list = ['+x'])
 pb.pulser_pulse(name = 'P2', channel = 'MW', start = PULSE_3_START, length = PULSE_3_LENGTH, \
-    phase_list = ['+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
-                  '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
-                  '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
-                  '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y'])
+    phase_list = ['+x'])
 
 #PUMP
 pb.pulser_pulse(name = 'P3', channel = 'AWG', start = PULSE_PUMP_START, length = PULSE_PUMP_LENGTH, delta_start = str(STEP) + ' ns')
@@ -138,7 +130,7 @@ for j in general.scans(SCANS):
 
         # phase cycle
         k = 0
-        while k < 64:
+        while k < PHASE:
 
             pb.pulser_next_phase()
             if k == 0:
@@ -150,10 +142,7 @@ for j in general.scans(SCANS):
         
         # acquisition cycle
         x, y = pb.pulser_acquisition_cycle(cycle_data_x, cycle_data_y, \
-            acq_cycle = ['+', '-', '+', '-', '-', '+', '-', '+', '+', '-', '+', '-', '-', '+', '-', '+',
-                         '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i', '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i',
-                         '-', '+', '-', '+', '+', '-', '+', '-', '-', '+', '-', '+', '+', '-', '+', '-',
-                         '-i', '+i', '-i', '+i', '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i', '+i', '-i', '+i', '-i' ])
+            acq_cycle = ['+'])
 
         data_x[i] = ( data_x[i] * (j - 1) + x ) / j
         data_y[i] = ( data_y[i] * (j - 1) + y ) / j
