@@ -21,29 +21,29 @@ def cleanup(*args):
 
 signal.signal(signal.SIGTERM, cleanup)
 
-FIELD = 3454
+FIELD = 3448
 
 # PULSES
 REP_RATE = '2000 Hz'
 
 #PROBE
 pb.pulser_pulse(name = 'P0', channel = 'MW', start = '2100 ns', length = '16 ns')
-pb.pulser_pulse(name = 'P1', channel = 'MW', start = '2440 ns', length = '32 ns')
-pb.pulser_pulse(name = 'P2', channel = 'MW', start = '3780 ns', length = '32 ns')
+pb.pulser_pulse(name = 'P1', channel = 'MW', start = '2400 ns', length = '32 ns')
+pb.pulser_pulse(name = 'P2', channel = 'MW', start = '3700 ns', length = '32 ns')
 
 #PUMP
-pb.pulser_pulse(name = 'P3', channel = 'AWG', start = '3280 ns', length = '20 ns') #2680
-pb.pulser_pulse(name = 'P4', channel = 'TRIGGER_AWG', start = '430 ns', length = '50 ns')
+pb.pulser_pulse(name = 'P3', channel = 'AWG', start = '2900 ns', length = '18 ns') #2680
+pb.pulser_pulse(name = 'P4', channel = 'TRIGGER_AWG', start = '430 ns', length = '20 ns')
 
 
-awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '65 MHz', phase = 0, \
-              length = '20 ns', sigma = '20 ns', start = '2356 ns') #1756
+awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '70 MHz', phase = 0, \
+              length = '18 ns', sigma = '18 ns', start = '1976 ns') #1756
 # 398 ns is delay from AWG trigger 1.25 GHz
 # 494 ns is delay from AWG trigger 1.00 GHz
-# 2680 = 494 (awg_output delay) + 430 (awg trigger) + 1756 (awg position)
+# 2700 = 494 (awg_output delay) + 430 (awg trigger) + 1776 (awg position)
 
 #DETECTION
-pb.pulser_pulse(name = 'P6', channel = 'TRIGGER', start = '4780 ns', length = '100 ns')
+pb.pulser_pulse(name = 'P6', channel = 'TRIGGER', start = '4700 ns', length = '100 ns')
 
 
 bh15.magnet_setup(FIELD, 1)

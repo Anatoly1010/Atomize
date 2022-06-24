@@ -32,10 +32,10 @@ def cleanup(*args):
 signal.signal(signal.SIGTERM, cleanup)
 
 ### Experimental parameters
-POINTS = 250
+POINTS = 300
 STEP = 4                  # in NS; delta_start for PUMP pulse; # delta_start = str(STEP) + ' ns' -> delta_start = '4 ns'
 STEP8 = 8
-FIELD = 3447
+FIELD = 3448
 AVERAGES = 2
 SCANS = 1
 process = 'None'
@@ -45,20 +45,20 @@ REP_RATE = '2000 Hz'
 PULSE_1_LENGTH = '16 ns'
 PULSE_2_LENGTH = '32 ns'
 PULSE_3_LENGTH = '32 ns'
-PULSE_PUMP_LENGTH = '14 ns'
+PULSE_PUMP_LENGTH = '18 ns'
 # 398 ns is delay from AWG trigger 1.25 GHz
 # 494 ns is delay from AWG trigger 1.00 GHz
 PULSE_1_AWG_START = '0 ns'
 PULSE_2_AWG_START = '300 ns'
 PULSE_AWG_PUMP_START = '500 ns'
-PULSE_3_AWG_START = '1600 ns'
-PULSE_SIGNAL_START = '3094 ns' # 3174?
+PULSE_3_AWG_START = '1800 ns'
+PULSE_SIGNAL_START = '3494 ns' # 3174?
 
 PULSE_TRIGGER_AWG_START = '430 ns'
 PULSE_1_START = '494 ns'
 PULSE_2_START = '794 ns'
 PULSE_PUMP_START = '994 ns'
-PULSE_3_START = '2094 ns'
+PULSE_3_START = '2294 ns'
 PHASE = 64
 
 # NAMES
@@ -85,7 +85,7 @@ awg.awg_pulse(name = 'P2', channel = 'CH0', func = 'SINE', frequency = '100 MHz'
                           '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y',\
                           '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x',\
                           '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y'], \
-                          d_coef = 2.564)
+                          d_coef = 3.448)
 
 pb.pulser_pulse(name = 'P3', channel = 'AWG', start = PULSE_2_START, length = PULSE_2_LENGTH, delta_start = str( int(STEP8) ) + ' ns')
 awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'SINE', frequency = '100 MHz', phase = 0, delta_start = str( int(STEP8) ) + ' ns', \
@@ -94,7 +94,7 @@ awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'SINE', frequency = '100 MHz'
                           '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
                           '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
                           '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y'], \
-                          d_coef = 2.564)
+                          d_coef = 3.448)
 
 #PUMP
 pb.pulser_pulse(name = 'P7', channel = 'AWG', start = PULSE_PUMP_START, length = PULSE_PUMP_LENGTH, delta_start = str(STEP) + ' ns')
@@ -112,7 +112,7 @@ awg.awg_pulse(name = 'P6', channel = 'CH0', func = 'SINE', frequency = '100 MHz'
                           '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
                           '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
                           '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y'], \
-                          d_coef = 2.564)
+                          d_coef = 3.448)
 
 # 398 ns is delay from AWG trigger 1.25 GHz
 # 494 ns is delay from AWG trigger 1.00 GHz
@@ -187,11 +187,6 @@ for j in general.scans(SCANS):
                              '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i', '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i',
                              '-', '+', '-', '+', '+', '-', '+', '-', '-', '+', '-', '+', '+', '-', '+', '-',
                              '-i', '+i', '-i', '+i', '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i', '+i', '-i', '+i', '-i' ])
-
-# ['+', '-', '+', '-', '-', '+', '-', '+', '+', '-', '+', '-', '-', '+', '-', '+', 
-# '-i', '+i', '-i', '+i', '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i', '+i', '-i', '+i', '-i', 
-# '-', '+', '-', '+', '+', '-', '+', '-', '-', '+', '-', '+', '+', '-', '+', '-', 
-# '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i', '+i', '-i', '+i', '-i', '-i', '+i', '-i', '+i']
 
             data[0, :, i] = ( data[0, :, i] * (cycle_8 - 1 + (j - 1) * 8 ) + x ) / ( cycle_8 + (j - 1) * 8 )
             data[1, :, i] = ( data[1, :, i] * (cycle_8 - 1 + (j - 1) * 8 ) + y ) / ( cycle_8 + (j - 1) * 8 )

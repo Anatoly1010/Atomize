@@ -48,61 +48,51 @@ PULSE_3_LENGTH = '32 ns'
 PULSE_PUMP_LENGTH = '18 ns'
 # 398 ns is delay from AWG trigger 1.25 GHz
 # 494 ns is delay from AWG trigger 1.00 GHz
-PULSE_1_AWG_START = '0 ns'
-PULSE_2_AWG_START = '300 ns'
-PULSE_AWG_PUMP_START = '500 ns'
-PULSE_3_AWG_START = '1600 ns'
-PULSE_SIGNAL_START = '3094 ns' # 3174?
+PULSE_1_START = '2100 ns'
+PULSE_2_START = '2400 ns'
+# 2680 = 494 (awg_output delay) + 430 (awg trigger) + 1756 (awg position)
+PULSE_PUMP_START = '2600 ns'
+PULSE_3_START = '3700 ns'
+PULSE_SIGNAL_START = '4700 ns'
 
-PULSE_1_START = '494 ns'
-PULSE_2_START = '794 ns'
-PULSE_PUMP_START = '994 ns'
-PULSE_3_START = '2094 ns'
+PULSE_TRIGGER_AWG_START = '430 ns'
+PULSE_AWG_PUMP_START = '1676 ns'
+
+PHASE = 1
 
 # NAMES
-EXP_NAME = 'DEER awg'
+EXP_NAME = 'DEER 2'
 
-#
 dig4450.digitizer_read_settings()
 dig4450.digitizer_number_of_averages(AVERAGES)
 time_res = int( 1000 / int(dig4450.digitizer_sample_rate().split(' ')[0]) )
 # a full oscillogram will be transfered
 wind = dig4450.digitizer_number_of_points()
+#
 cycle_data_x = np.zeros( (PHASE, int(wind)) )
 cycle_data_y = np.zeros( (PHASE, int(wind)) )
 data = np.zeros( (2, int(wind), POINTS) )
 ###
 
 #PROBE
-pb.pulser_pulse(name = 'P0', channel = 'TRIGGER_AWG', start = '0 ns', length = '20 ns')
-
-pb.pulser_pulse(name = 'P1', channel = 'AWG', start = PULSE_1_START, length = PULSE_1_LENGTH)
-awg.awg_pulse(name = 'P2', channel = 'CH0', func = 'SINE', frequency = '100 MHz', phase = 0, \
-            length = PULSE_1_LENGTH, sigma = PULSE_1_LENGTH, start = PULSE_1_AWG_START, \
-            phase_list = ['+x'], d_coef = 3.448)
-
-pb.pulser_pulse(name = 'P3', channel = 'AWG', start = PULSE_2_START, length = PULSE_2_LENGTH)
-awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'SINE', frequency = '100 MHz', phase = 0, \
-            length = PULSE_2_LENGTH, sigma = PULSE_2_LENGTH, start = PULSE_2_AWG_START, \
-            phase_list = ['+x'], d_coef = 3.448)
+pb.pulser_pulse(name = 'P0', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH, \
+    phase_list = ['+x'])
+pb.pulser_pulse(name = 'P1', channel = 'MW', start = PULSE_2_START, length = PULSE_2_LENGTH, \
+    phase_list = ['+x'])
+pb.pulser_pulse(name = 'P2', channel = 'MW', start = PULSE_3_START, length = PULSE_3_LENGTH, \
+    phase_list = ['+x'])
 
 #PUMP
-pb.pulser_pulse(name = 'P7', channel = 'AWG', start = PULSE_PUMP_START, length = PULSE_PUMP_LENGTH, delta_start = str(STEP) + ' ns')
-awg.awg_pulse(name = 'P8', channel = 'CH0', func = 'SINE', frequency = '170 MHz', phase = 0, \
-            length = PULSE_PUMP_LENGTH, sigma = PULSE_PUMP_LENGTH, start = PULSE_AWG_PUMP_START, delta_start = str(STEP) + ' ns', \
-            phase_list = ['+x'])
-
-pb.pulser_pulse(name = 'P5', channel = 'AWG', start = PULSE_3_START, length = PULSE_3_LENGTH)
-awg.awg_pulse(name = 'P6', channel = 'CH0', func = 'SINE', frequency = '100 MHz', phase = 0, \
-            length = PULSE_3_LENGTH, sigma = PULSE_3_LENGTH, start = PULSE_3_AWG_START, \
-            phase_list = ['+x'], d_coef = 3.448)
-
+pb.pulser_pulse(name = 'P3', channel = 'AWG', start = PULSE_PUMP_START, length = PULSE_PUMP_LENGTH, delta_start = str(STEP) + ' ns')
+pb.pulser_pulse(name = 'P4', channel = 'TRIGGER_AWG', start = PULSE_TRIGGER_AWG_START, length = '20 ns', delta_start = str(STEP) + ' ns')
+awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '70 MHz', phase = 0, \
+            length = PULSE_PUMP_LENGTH, sigma = PULSE_PUMP_LENGTH, start = PULSE_AWG_PUMP_START)
 # 398 ns is delay from AWG trigger 1.25 GHz
 # 494 ns is delay from AWG trigger 1.00 GHz
-# AWG = 494 (awg_output delay) + (awg pulse position)
+# 2680 = 494 (awg_output delay) + 430 (awg trigger) + 1756 (awg position)
 
 #DETECTION
-pb.pulser_pulse(name = 'P9', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns')
+pb.pulser_pulse(name = 'P6', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns')
 
 
 bh15.magnet_setup(FIELD, 1)
@@ -118,16 +108,17 @@ awg.awg_card_mode('Single Joined')
 ###awg.trigger_delay('1792 ns')
 awg.awg_setup()
 
+
 # Data saving
 header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + \
-         'DEER Measurement; 64 Step Phase Cycling; Full AWG\n' + 'Field: ' + str(FIELD) + ' G \n' + str(mw.mw_bridge_att1_prd()) + '\n' + \
+         'DEER Measurement; 64 Step Phase Cycling\n' + 'Field: ' + str(FIELD) + ' G \n' + str(mw.mw_bridge_att1_prd()) + '\n' + \
            str(mw.mw_bridge_att2_prd()) + '\n' + str(mw.mw_bridge_att_prm()) + '\n' + str(mw.mw_bridge_synthesizer()) + '\n' + \
           'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' + 'Number of Scans: ' + str(SCANS) + '\n' +\
           'Averages: ' + str(AVERAGES) + '\n' + 'Points: ' + str(POINTS) + '\n' + 'Window: ' + str(wind * time_res) + ' ns\n' \
           + 'Horizontal Resolution: ' + str(time_res) + ' ns\n' + 'Vertical Resolution: ' + str(STEP) + ' ns\n' \
           + 'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
           'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + 'AWG Pulse List: ' + '\n' +\
-          str(awg.awg_pulse_list()) + '2D Data'
+          str(awg.awg_pulse_list()) + '2D Data '
 
 file_data, file_param = file_handler.create_file_parameters('.param')
 file_handler.save_header(file_param, header = header, mode = 'w')
@@ -140,14 +131,14 @@ for j in general.scans(SCANS):
 
         # phase cycle
         k = 0
-        pb.pulser_update()
         while k < PHASE:
 
-            awg.awg_next_phase()
+            pb.pulser_next_phase()
+            if k == 0:
+                awg.awg_update()
 
             x_axis, cycle_data_x[k], cycle_data_y[k] = dig4450.digitizer_get_curve()
 
-            awg.awg_stop()
             k += 1
         
         # acquisition cycle
@@ -161,11 +152,9 @@ for j in general.scans(SCANS):
             xscale = 'ns', yname = 'Delay', yscale = 'ns', zname = 'Intensity', zscale = 'V', pr = process, \
             text = 'Scan / Time: ' + str(j) + ' / ' + str(i*STEP))
 
-        #awg.awg_stop()
-        awg.awg_shift()
         pb.pulser_shift()
 
-    awg.awg_pulse_reset()
+    ###awg.awg_pulse_reset()
     pb.pulser_pulse_reset()
 
 dig4450.digitizer_stop()
