@@ -14,20 +14,21 @@ import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 # 10.1039/C5CP03671B              -> timings
 
 ### Experimental parameters
-POINTS = 75
-STEP = 4                  # in NS
+POINTS = 160
+STEP = 2                  # in NS
+STEP8 = 8
 FIELD = 3446
-AVERAGES = 32
+AVERAGES = 16
 SCANS = 1
 process = 'None'
 PHASE = 16
 
 # PULSES
 REP_RATE = '2000 Hz'
-PULSE_1_LENGTH = '16 ns'
-PULSE_2_LENGTH = '32 ns'
-PULSE_3_LENGTH = '16 ns'
-PULSE_4_LENGTH = '32 ns'
+PULSE_1_LENGTH = '12 ns'
+PULSE_2_LENGTH = '24 ns'
+PULSE_3_LENGTH = '12 ns'
+PULSE_4_LENGTH = '24 ns'
 PULSE_1_START = '0 ns'
 PULSE_2_START = '500 ns'
 PULSE_3_START = '1000 ns'
@@ -83,7 +84,7 @@ pb.pulser_pulse(name = 'P2', channel = 'MW', start = PULSE_3_START, length = PUL
                 phase_list = ['+y', '+y', '+y', '+y', '-y', '-y', '-y', '-y', '+y', '+y', '+y', '+y', '-y', '-y', '-y', '-y'])
 pb.pulser_pulse(name = 'P3', channel = 'MW', start = PULSE_4_START, length = PULSE_4_LENGTH, delta_start = str( STEP ) + ' ns', \
                 phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x'])
-pb.pulser_pulse(name = 'P4', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns')
+pb.pulser_pulse(name = 'P4', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str( int(STEP8 * 4) ) + ' ns')
 
 pb.pulser_repetition_rate( REP_RATE )
 
@@ -101,28 +102,47 @@ file_handler.save_header(file_param, header = header, mode = 'w')
 
 for j in general.scans(SCANS):
 
-    for i in range(POINTS):
+    cycle_8 = 1 
+    while cycle_8 <= 19:
 
-        # phase cycle
-        k = 0
-        while k < PHASE:
+        m = 1
+        while m < cycle_8:
+            pb.pulser_redefine_delta_start(name = 'P1', delta_start = str( int(STEP8) ) + ' ns')
+            pb.pulser_redefine_delta_start(name = 'P2', delta_start = str( int(STEP8 * 2) ) + ' ns')
+            pb.pulser_redefine_delta_start(name = 'P3', delta_start = str( int(STEP8 * 3) ) + ' ns')
+            pb.pulser_shift('P1', 'P2', 'P3', 'P4')
+            
+            pb.pulser_redefine_delta_start(name = 'P1', delta_start = str( int(STEP) ) + ' ns')
+            pb.pulser_redefine_delta_start(name = 'P2', delta_start = str( int(STEP * 2) ) + ' ns')
+            pb.pulser_redefine_delta_start(name = 'P3', delta_start = str( int(STEP) ) + ' ns')
 
-            pb.pulser_next_phase()
-            cycle_data_x[k], cycle_data_y[k] = dig4450.digitizer_get_curve( integral = True )
-            k += 1
-        
-        x, y = pb.pulser_acquisition_cycle(cycle_data_x, cycle_data_y, \
-                acq_cycle = ['+', '-', '+', '-', '+', '-', '+', '-', '+', '-', '+', '-', '+', '-', '+', '-'])
-        data_x[i] = ( data_x[i] * (j - 1) + x ) / j
-        data_y[i] = ( data_y[i] * (j - 1) + y ) / j
+            m += 1
 
-        process = general.plot_1d(EXP_NAME, x_axis, ( data_x, data_y ), xname = 'Delay',\
-            xscale = 'ns', yname = 'Area', yscale = 'V*s', timeaxis = 'False', label = CURVE_NAME, \
-            pr = process, text = 'Scan / Time: ' + str(j) + ' / '+ str(i*STEP))
+        for i in range(POINTS):
 
-        pb.pulser_shift()
+            # phase cycle
+            k = 0
+            while k < PHASE:
 
-    pb.pulser_pulse_reset()
+                pb.pulser_next_phase()
+                cycle_data_x[k], cycle_data_y[k] = dig4450.digitizer_get_curve( integral = True )
+                k += 1
+            
+            x, y = pb.pulser_acquisition_cycle(cycle_data_x, cycle_data_y, \
+                    acq_cycle = ['+', '-', '+', '-', '+', '-', '+', '-', '+', '-', '+', '-', '+', '-', '+', '-'])
+            data_x[i] = ( data_x[i] * (cycle_8 - 1 + (j - 1) * 8 ) + x ) / ( cycle_8 + (j - 1) * 8 )
+            data_y[i] = ( data_y[i] * (cycle_8 - 1 + (j - 1) * 8 ) + y ) / ( cycle_8 + (j - 1) * 8 )
+            
+            process = general.plot_1d(EXP_NAME, x_axis, ( data_x, data_y ), xname = 'Delay',\
+                xscale = 'ns', yname = 'Area', yscale = 'V*s', timeaxis = 'False', label = CURVE_NAME, \
+                pr = process, text = str(j) + ' / ' + str(cycle_8) + ' / ' + str(i*STEP))
+
+            pb.pulser_shift('P1', 'P2', 'P3')
+
+        pb.pulser_pulse_reset()
+        cycle_8 += 1
+
+    pb.pulser_reset()
 
 dig4450.digitizer_stop()
 dig4450.digitizer_close()

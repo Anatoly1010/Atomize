@@ -73,7 +73,7 @@ pb.pulser_update()
 # Data saving
 header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) + '\n' + 'Echo Detected Spectrum 2D; Phase Cycling\n' + \
             'Start Field: ' + str(START_FIELD) + ' G \n' + 'End Field: ' + str(END_FIELD) + ' G \n' + \
-            'Field Step: ' + str(FIELD_STEP) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + \
+            'Field Step: ' + str(FIELD_STEP) + ' G \n' + str(mw.mw_bridge_att_prm()) + '\n' + str(mw.mw_bridge_att1_prd()) + '\n' + \
             str(mw.mw_bridge_synthesizer()) + '\n' + \
            'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' + 'Number of Scans: ' + str(SCANS) + '\n' +\
            'Averages: ' + str(AVERAGES) + '\n' + 'Field Points: ' + str(points) + '\n' + 'Time Points: ' + str(TIME_POINTS) + '\n' + \

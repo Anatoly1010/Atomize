@@ -35,21 +35,21 @@ def cleanup(*args):
 signal.signal(signal.SIGTERM, cleanup)
 
 ### Experimental parameters
-POINTS = 140
+POINTS = 160
 STEP = 2                  # in NS
 STEP8 = 8
 FIELD = 3446
-AVERAGES = 128
+AVERAGES = 64
 SCANS = 1
 process = 'None'
 PHASE = 16
 
 # PULSES
 REP_RATE = '2000 Hz'
-PULSE_1_LENGTH = '250 ns'
-PULSE_2_LENGTH = '250 ns'
-PULSE_3_LENGTH = '250 ns'
-PULSE_4_LENGTH = '250 ns'
+PULSE_1_LENGTH = '220 ns'
+PULSE_2_LENGTH = '220 ns'
+PULSE_3_LENGTH = '220 ns'
+PULSE_4_LENGTH = '220 ns'
 PULSE_1_START = '0 ns'
 PULSE_2_START = '500 ns'
 PULSE_3_START = '1000 ns'
@@ -82,7 +82,7 @@ pb.pulser_pulse(name = 'P1', channel = 'AWG', start = str( int(PULSE_1_START.spl
 awg.awg_pulse(name = 'P2', channel = 'CH0', func = 'WURST', frequency = ('80 MHz', '390 MHz'), phase = 0, \
                 length = PULSE_1_LENGTH, sigma = PULSE_1_LENGTH, start = PULSE_1_START, \
                 phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x'], \
-                d_coef = 5.0, n = 30)
+                d_coef = 3.12, n = 30)
 
 pb.pulser_pulse(name = 'P3', channel = 'AWG', start = str( int(PULSE_2_START.split(' ')[0]) + 494 ) + ' ns', length = PULSE_2_LENGTH, \
                 delta_start = str(STEP) + ' ns')
@@ -96,7 +96,7 @@ pb.pulser_pulse(name = 'P5', channel = 'AWG', start = str( int(PULSE_3_START.spl
 awg.awg_pulse(name = 'P6', channel = 'CH0', func = 'WURST', frequency = ('80 MHz', '390 MHz'), phase = 0, \
                 length = PULSE_3_LENGTH, sigma = PULSE_3_LENGTH, start = PULSE_3_START, delta_start = str(2 * STEP) + ' ns', \
                 phase_list = ['+y', '+y', '+y', '+y', '-y', '-y', '-y', '-y', '+y', '+y', '+y', '+y', '-y', '-y', '-y', '-y'], \
-                d_coef = 5.0, n = 30)
+                d_coef = 3.12, n = 30)
 
 pb.pulser_pulse(name = 'P7', channel = 'AWG', start = str( int(PULSE_4_START.split(' ')[0]) + 494 ) + ' ns', length = PULSE_4_LENGTH, \
                 delta_start = str(STEP) + ' ns')
@@ -105,7 +105,7 @@ awg.awg_pulse(name = 'P8', channel = 'CH0', func = 'WURST', frequency = ('80 MHz
                 phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x'], \
                 d_coef = 1.0, n = 30)
 
-pb.pulser_pulse(name = 'P9', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns') #, delta_start = str(4 * STEP) + ' ns'
+pb.pulser_pulse(name = 'P9', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str(STEP8 * 4) + ' ns')
 
 # 398 ns is delay from AWG trigger 1.25 GHz
 # 494 ns is delay from AWG trigger 1.00 GHz
@@ -137,35 +137,62 @@ file_handler.save_header(file_param, header = header, mode = 'w')
 
 for j in general.scans(SCANS):
 
-    for i in range(POINTS):
+    cycle_8 = 1 
+    while cycle_8 <= 12:
 
-        # phase cycle
-        k = 0
-        pb.pulser_update()
-        while k < PHASE:
+        m = 1
+        while m < cycle_8:
+            pb.pulser_redefine_delta_start(name = 'P3', delta_start = str( int(STEP8) ) + ' ns')
+            awg.awg_redefine_delta_start(name = 'P4', delta_start = str( int(STEP8) ) + ' ns')
+            pb.pulser_redefine_delta_start(name = 'P5', delta_start = str( int(STEP8 * 2) ) + ' ns')
+            awg.awg_redefine_delta_start(name = 'P6', delta_start = str( int(STEP8 * 2) ) + ' ns')
+            pb.pulser_redefine_delta_start(name = 'P7', delta_start = str( int(STEP8 * 3) ) + ' ns')
+            awg.awg_redefine_delta_start(name = 'P8', delta_start = str( int(STEP8 * 3) ) + ' ns')
+            pb.pulser_shift('P3', 'P5', 'P7', 'P9')
+            awg.awg_shift('P4', 'P6', 'P8')
 
-            awg.awg_next_phase()
-            x_axis, cycle_data_x[k], cycle_data_y[k] = dig4450.digitizer_get_curve( )
+            pb.pulser_redefine_delta_start(name = 'P3', delta_start = str( int(STEP) ) + ' ns')
+            awg.awg_redefine_delta_start(name = 'P4', delta_start = str( int(STEP) ) + ' ns')
+            pb.pulser_redefine_delta_start(name = 'P5', delta_start = str( int(STEP * 2) ) + ' ns')
+            awg.awg_redefine_delta_start(name = 'P6', delta_start = str( int(STEP * 2) ) + ' ns')
+            pb.pulser_redefine_delta_start(name = 'P7', delta_start = str( int(STEP) ) + ' ns')
+            awg.awg_redefine_delta_start(name = 'P8', delta_start = str( int(STEP) ) + ' ns')
 
-            awg.awg_stop()
-            k += 1
-        
-        x, y = pb.pulser_acquisition_cycle(cycle_data_x, cycle_data_y, \
-                acq_cycle = ['+', '-', '+', '-', '+', '-', '+', '-', '+', '-', '+', '-', '+', '-', '+', '-'])
+            m += 1
 
-        data[0, :, i] = ( data[0, :, i] * (j - 1) + x ) / j
-        data[1, :, i] = ( data[1, :, i] * (j - 1) + y ) / j
+        for i in range(POINTS):
 
-        process = general.plot_2d(EXP_NAME, data, start_step = ( (0, time_res), (0, 2* STEP) ), xname = 'Time',\
-            xscale = 'ns', yname = 'Delay', yscale = 'ns', zname = 'Intensity', zscale = 'V', pr = process, \
-            text = 'Scan / Time: ' + str(j) + ' / ' + str(i*STEP))
+            # phase cycle
+            k = 0
+            pb.pulser_update()
+            while k < PHASE:
 
-        #awg.awg_stop()
-        awg.awg_shift()
-        pb.pulser_shift()
+                awg.awg_next_phase()
+                x_axis, cycle_data_x[k], cycle_data_y[k] = dig4450.digitizer_get_curve( )
+
+                awg.awg_stop()
+                k += 1
+            
+            x, y = pb.pulser_acquisition_cycle(cycle_data_x, cycle_data_y, \
+                    acq_cycle = ['+', '-', '+', '-', '+', '-', '+', '-', '+', '-', '+', '-', '+', '-', '+', '-'])
+
+            data[0, :, i] = ( data[0, :, i] * (cycle_8 - 1 + (j - 1) * 8 ) + x ) / ( cycle_8 + (j - 1) * 8 )
+            data[1, :, i] = ( data[1, :, i] * (cycle_8 - 1 + (j - 1) * 8 ) + y ) / ( cycle_8 + (j - 1) * 8 )
+
+            process = general.plot_2d(EXP_NAME, data, start_step = ( (0, time_res), (0, 2* STEP) ), xname = 'Time',\
+                xscale = 'ns', yname = 'Delay', yscale = 'ns', zname = 'Intensity', zscale = 'V', pr = process, \
+                text = str(j) + ' / ' + str(cycle_8) + ' / ' + str(i*STEP))
+
+            #awg.awg_stop()
+            awg.awg_shift('P4', 'P6', 'P8')
+            pb.pulser_shift('P3', 'P5', 'P7')
+
+        awg.awg_pulse_reset()
+        pb.pulser_pulse_reset()
+        cycle_8 += 1
 
     awg.awg_pulse_reset()
-    pb.pulser_pulse_reset()
+    pb.pulser_reset()
 
 dig4450.digitizer_stop()
 dig4450.digitizer_close()

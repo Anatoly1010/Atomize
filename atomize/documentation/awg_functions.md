@@ -144,7 +144,7 @@ Output: none.
 Example: awg_pulse_sequence(pulse_type = ['SINE', 'GAUSS', 'SINE'],
 pulse_start = [0, 160, 320], pulse_delta_start = [0, 0, 40],
 pulse_length = [40, 120, 40], pulse_phase = ['+x', '+x', '+x'],
-pulse_sigma = [40, 20, 40], pulse_frequency = [50, 200, 40],
+pulse_sigma = [40, 20, 40], pulse_frequency = [50, 200, 40], n_wurst = [20, 20, 20],
 number_of_points = 800, loop = 10, rep_rate = 10000) sets a pulse train of
 three pulses with 10 kHz repetition rate and a third pulse shifting by 40 ns at
 each of 800 points.
