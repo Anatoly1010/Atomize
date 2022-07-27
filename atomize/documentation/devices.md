@@ -14,7 +14,7 @@
 - [Gaussmeters](#gaussmeters)<br/>
 - [Power Supplies](#power-supplies)<br/>
 - [Delay Generators](#delay-generators)<br/>
-- [Balances](#balances)<br/>
+- [Balance](#balances)<br/>
 - [Other](#other)<br/>
 
 ## Temperature Controllers
@@ -88,11 +88,13 @@ PS310, PS325 (GPIB); PS350, PS355, PS365, PS370, PS375 (RS-232, GPIB)
 ## Delay Generators
 - Stanford Research DG535 (GPIB); Untested
 
-## Balances
+## Balance
 - CPWplus 150 (RS-232); Tested 01/2021
 
 ## Other
-- Solid-State Relay RODOS-10N (Ethernet); Tested 01/2021
-- Discrete IO Module Owen-MK110-220.4DN.4R (RS-485); Tested 04/2021
+- RODOS-10N Solid-State Relay (Ethernet); Tested 01/2021
+- Owen-MK110-220.4DN.4R Discrete IO Module (RS-485); Tested 04/2021
+- Cryomagnetics LM-510 Liquid Cryogen Monitor (TCP/IP Socket); Tested 07/2022
+- Cryomech CPA2896, CPA1110 Digital Panels (RS-485); Tested 07/2022
 
 

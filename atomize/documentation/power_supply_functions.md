@@ -110,7 +110,7 @@ power_supply_range(*range)
 Arguments: range = string ('range string' ['1 V','10 V','100 V']); Output: string.
 Example: power_supply_range('10 V') sets the voltage range setting to 10 V.
 ```
-This functions is only supported by Stanford Research DC205 and allows to set or query the voltage range setting. If there is an argument it will be set as a new voltage range setting. If there is no argument the current voltage range setting is returned as a string.<br/> 
+This function is only supported by Stanford Research DC205 and allows to set or query the voltage range setting. If there is an argument it will be set as a new voltage range setting. If there is no argument the current voltage range setting is returned as a string.<br/> 
 The argument should be from the following array: ['1 V', '10 V', '100 V'] and 
 corredponds to one of the three range settings: ±1 V, ±10 V, or ±100 V.
 ### power_supply_interlock()
@@ -119,7 +119,7 @@ power_supply_interlock()
 Arguments: none; Output: string.
 Example: power_supply_interlock() returns the interlock state ('On' or 'Off').
 ```
-This functions is only supported by Stanford Research DC205 and allows to query the interlock condition. The DC205 is designed with a safety interlock circuit that must be activated for the ±100 V output range to be enabled. To close the interlock, a low impedance circuit must be established between pins 1 and 2 of the rear-panel INTERLOCK header.
+This function is only supported by Stanford Research DC205 and allows to query the interlock condition. The DC205 is designed with a safety interlock circuit that must be activated for the ±100 V output range to be enabled. To close the interlock, a low impedance circuit must be established between pins 1 and 2 of the rear-panel INTERLOCK header.
 ### power_supply_rear_mode(*mode)
 ```python3
 power_supply_rear_mode(*mode)
@@ -127,7 +127,7 @@ Arguments: string (['Front', 'Rear']); Output: string.
 Example: power_supply_rear_mode('Front') sets the control of the voltage value by
 the front-panel setting.
 ```
-This functions is only supported by Stanford Research PS300 high voltage power supply series and allows to set or query the voltage setting mode. 
+This function is only supported by Stanford Research PS300 high voltage power supply series and allows to set or query the voltage setting mode. 
 The argument 'Front' means that the voltage value is controlled by the front-panel setting, while 'Rear' indicates that the output is controlled by the rear-panel VSET voltage control input. Note that changing the rear_mode value while the high voltage is ON causes the high voltage to be switched OFF.
 ### power_supply_command(command)
 ```python3

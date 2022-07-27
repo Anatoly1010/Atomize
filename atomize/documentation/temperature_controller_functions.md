@@ -9,6 +9,8 @@ ITC 503; Tested 01/2021
 11M6; 13KX3; Tested 04/2021
 - Stanford Research (TCP/IP Socket)
 PTC10; 07/2021
+- Scientific Instruments (TCP/IP Socket, RS-232)
+SCM10; 07/2022
 
 Functions:
 - [tc_name()](#tc_name)<br/>
@@ -49,6 +51,7 @@ Note that arguments can be devices specific. A set of ['A','B'] is used for Lake
 For Oxford Instruments ITC 503 channel should be one from the following: ['1', '2', '3']. Only tc_temperature('1') is valid, tc_temperature(1) are not valid. Note that there are models with different numbers of channels. Please, refer to manual and specify this setting in the configuration file.<br/>
 For Termodat-11M6 channel should be one from the following: ['1', '2', '3', '4']. For Termodat-13KX3 channel should be one from the following: ['1', '2'].  Note that there are models with different numbers of channels. Please, refer to manual and specify this setting in the configuration file.<br/>
 For Stanford Research PTC10 an argumnet of the function tc_temperature() should have the name of the channel. For instance, if the channel name is 2A one should use tc_temperature('2A') in order to get the temperature.<br/>
+For Scientific Instruments SCM10 the only available argument is '1'.<br/>
 ### tc_setpoint(*temp)
 ```python3
 tc_setpoint(*temp)
@@ -56,6 +59,8 @@ Arguments: temp = float; Output: float or none.
 Example: tc_setpoint('100') changes the set point of the specified loop to 100 Kelvin.
 ```
 This function queries or changes the set point, i.e. the target temperature the device will try to achieve and maintain. If an argument is specified the function sets a new temperature point. If there is no argument the function returns the current set point. A loop can be specified in configuration file.<br/>
+The values '50 W', '5 W', and '0.5 W' are shown as High, Medium, and Low on the device display. The exact values depends on the resistance used.<br/>
+This function is not available for Scientific Instruments SCM10.
 For Termodat-11M6, 13KX3 and Stanford Research PTC10 the channel for which the set point is to be set should be specified as an agrument of the function:
 ### tc_setpoint(channel, *temp)
 ```python3
@@ -77,7 +82,7 @@ Note that arguments are devices specific. Currently a set of ['50 W','5 W','0.5 
 For Lakeshore 336 a loop 1 or 2 can be used with a set of ['50 W','5 W','0.5 W','Off']. The loop 3 and 4 can be used only with ['On','Off'] set.<br/>
 For Lakeshore 325 a loop 1 can be used with a set of ['25 W','2.5 W','Off']. The loop 2 can be used only with ['On','Off'] set.<br/>
 The values '50 W', '5 W', and '0.5 W' are shown as High, Medium, and Low on the device display. The exact values depends on the resistance used.<br/>
-This function is not available for Termodat-11M6, 13KX3, Stanford Research PTC10.<br/>
+This function is not available for Termodat-11M6, 13KX3, Stanford Research PTC10, Scientific Instruments SCM10.<br/>
 ### tc_heater_power()
 ```python3
 tc_heater_power()
@@ -87,6 +92,7 @@ Example: tc_heater() returns the array of the heater range and heater percent.
 This function is for reading the current heater value in percent for the specified loop. The loop config (should be indicated in the configuration file) can be: 1, 2 for Lakeshore 325, 331, 332, 335; 1, 2, 3, 4 for Lakeshore 336, 340.<br/>
 For Lakeshore 325, 331, 332, 335  loop 1 is a control loop, while loop 2 is an analog output.<br/>
 For Lakeshore 336, 340 loop 1, 2 are control loops, while loop 3, 4 are analog outputs (1 and 2 (or 3 and 4 for some models), respectively).<br/>
+This function is not available for Scientific Instruments SCM10.
 For Termodat-11M6, 13KX3 the loop should be specified as an argument. For Stanford Research PTC10 the name of the output channel should be specified as an argument. For instance, if the channel name is 'Heater' one should use tc_heater_power('Heater'). In both cases one should use this function as follows:<br/>
 ### tc_heater_power(channel)
 ```python3
@@ -125,7 +131,7 @@ Example: tc_sensor(1) sets the sensor to 1 (or 'A').
 ```
 This function sets or queries the sensor that is used for active control of the temperature when comparing to the setpoint (target temperature). It may differ from the sensor used when calling [tc_temperature()](#tc_temperaturechannel). If an argument is specified the function sets a new sensor setting. If there is no argument the function returns the current sensor setting.<br/>
 Generally not all sensor channels may be usable, there are models with different numbers of channels. Please, refer to device manual.<br/>
-The function is not available for Stanford Research PTC10.<br/>
+The function is not available for Stanford Research PTC10, Scientific Instruments SCM10.<br/>
 For Lakeshore temperature controllers integers 1-4 corresponds respectively to tha channels 'A'-'B' (or 'A'-'D' for Lakeshore 336). Also, for Lakeshore temperature controllers the control loop setting should be specified in the configuration file, since all the command use it as an internal argument. One can find more detail in the description of [tc_heater_power()](#tc_heater_power) function.<br/>
 In case of Lakeshore 325, 331, 332, 340 querying of this function also sets setpoint unit to Kelvin, specifies that the control loop is off after power-up, and sets the heater output to display in power.<br/>
 In case of Lakeshore 335 and 336 querying of this function also sets the control mode to closed loop PID and specifies that the control loop is off after power-up.<br/>
@@ -155,7 +161,7 @@ This function can be used to change the state of the device keyboard. If an argu
 ['Local-Locked', 'Remote-Locked', 'Local-Unlocked', 'Remote-Unlocked']<br/>
 The first part corresponds to the device state, the second to the keyboard state. The default option is 'Remote-Unlocked'.<br/>
 Lakeshore temperature controllers use a 3-digit keypad lock code for locking and unlocking the keypad. The factory default code is 123. To unlock the keypad manually, press and hold the Enter key for 10 seconds. Function [tc_lock_keyboard()](#tc_lock_keyboardlock) uses this code automatically.<br/>
-The function is not available for Termodat-11M6, 13KX3, Stanford Research PTC10.
+The function is not available for Termodat-11M6, 13KX3, Stanford Research PTC10, Scientific Instruments SCM10.
 ### tc_proportional(*prop)
 ```python3
 tc_proportional(*prop)

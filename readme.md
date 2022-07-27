@@ -137,6 +137,8 @@ Python is used to write an experimental script. Examples (with dummy data) can b
     11M6; 13KX3; Tested 04/2021
     - Stanford Research (TCP/IP Socket)
 	PTC10; Tested 07/2021
+	- Scientific Instruments (TCP/IP Socket, RS-232)
+	SCM10 Temperature Monitor; 07/2022
 
 #### [Lock-in Amplifiers](#lock-in-amplifiers-1)
 	- Stanford Research Lock-In Amplifier (GPIB, RS-232)
@@ -196,12 +198,14 @@ The original [C library](http://www.spincore.com/support/spinapi/using_spin_api_
 #### [Delay Generators](#delay-generators-1)
     - Stanford Research DG535 (GPIB); Untested
 
-#### [Balances](#balances-1)
+#### [Balance](#balances-1)
 	- CPWplus 150 (RS-232); Tested 01/2021
 
 #### [Other](#other-1)
-	- Solid-State Relay RODOS-10N (Ethernet); Tested 01/2021
-    - Discrete IO Module Owen-MK110-220.4DN.4R (RS-485); Tested 04/2021
+	- RODOS-10N Solid-State Relay (Ethernet); Tested 01/2021
+    - Owen-MK110-220.4DN.4R Discrete IO Module (RS-485); Tested 04/2021
+    - Cryomagnetics LM-510 Liquid Cryogen Monitor (TCP/IP Socket); Tested 07/2022
+    - Cryomech CPA2896, CPA1110 Digital Panels (RS-485); Tested 07/2022
 
 ## [Available general functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
 ```python3
@@ -466,22 +470,49 @@ delay_gen_output_polarity(*polarity)
 delay_gen_command(command)
 delay_gen_query(command)
 ```
-### [Balances](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)
+### [Balance](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)
 ```python3
 balance_weight()
 ```
 ### [Other](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)
-#### Solid-sate Relay RODOS-10N (Ethernet)
+#### RODOS-10N Solid-sate Relay (Ethernet)
 ```python3
 relay_turn_on(number)
 relay_turn_off(number)
 ```
-#### Discrete IO Module Owen-MK110-220.4DN.4R (RS-485)
+#### Owen-MK110-220.4DN.4R Discrete IO Module (RS-485)
 ```python3
 discrete_io_input_counter(channel)
 discrete_io_input_counter_reset(channel)
 discrete_io_input_state()
 discrete_io_output_state(*state)
+```
+#### Cryomech CPA2896, CPA1110 Digital Panels (RS-485)
+```python3
+cryogenic_refrigerator_name()
+cryogenic_refrigerator_state(*state)
+cryogenic_refrigerator_status_data()
+cryogenic_refrigerator_warning_data()
+cryogenic_refrigerator_pressure_scale()
+cryogenic_refrigerator_temperature_scale()
+```
+#### Cryomagnetics LM-510 Liquid Cryogen Monitor (TCP/IP Socket)
+```python3
+level_monitor_name()
+level_monitor_select_channel(*channel)
+level_monitor_boost_mode(*mode)
+level_monitor_high_level_alarm(*level)
+level_monitor_low_level_alarm(*level)
+level_monitor_sensor_length()
+level_monitor_sample_mode(*mode)
+level_monitor_units(*units)
+level_monitor_measure(channel)
+level_monitor_sample_interval(*interval)
+level_monitor_hrc_target_pressure(*pressure)
+level_monitor_hrc_heater_power_limit(*limit)
+level_monitor_hrc_heater_enable(*state)
+level_monitor_command(command)
+level_monitor_query(command)
 ```
 
 ## Screenshots
