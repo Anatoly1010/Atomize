@@ -7,6 +7,7 @@ import time
 import socket
 from threading import Thread
 import configparser
+import numpy as np
 from atomize.main.client import LivePlotClient
 #from liveplot import LivePlotClient
 
@@ -171,9 +172,15 @@ def plot_remove(strname):
 
 def round_to_closest(x, y):
     """
-    A function to round x to divisible by y
+    A function to round x to be divisible by y
     """
     return int( y * ( ( x // y) + (x % y > 0) ) )
+
+def numpy_round(x, base):
+    """
+    A function to round x to be divisible by y
+    """
+    return base * np.round(x / base)
 
 def bot_message(*text):
     import telebot
