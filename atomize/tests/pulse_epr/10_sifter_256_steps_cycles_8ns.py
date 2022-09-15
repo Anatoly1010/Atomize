@@ -17,6 +17,7 @@ import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 POINTS = 160
 STEP = 2                  # in NS
 STEP8 = 8
+CYCLE8 = 12
 FIELD = 3446
 AVERAGES = 4
 SCANS = 1
@@ -163,7 +164,7 @@ file_handler.save_header(file_param, header = header, mode = 'w')
 for j in general.scans(SCANS):
 
     cycle_8 = 1 
-    while cycle_8 <= 12:
+    while cycle_8 <= CYCLE8:
 
         m = 1
         while m < cycle_8:
@@ -205,8 +206,8 @@ for j in general.scans(SCANS):
                              '-y', '+y', '-y', '+y', '+y', '-y', '+y', '-y', '-y', '+y', '-y', '+y', '+y', '-y', '+y', '-y', \
                              '-y', '+y', '-y', '+y', '+y', '-y', '+y', '-y', '-y', '+y', '-y', '+y', '+y', '-y', '+y', '-y', \
                              '-y', '+y', '-y', '+y', '+y', '-y', '+y', '-y', '-y', '+y', '-y', '+y', '+y', '-y', '+y', '-y'] )
-            data_x[i] = ( data_x[i] * (cycle_8 - 1 + (j - 1) * 8 ) + x ) / ( cycle_8 + (j - 1) * 8 )
-            data_y[i] = ( data_y[i] * (cycle_8 - 1 + (j - 1) * 8 ) + y ) / ( cycle_8 + (j - 1) * 8 )
+            data_x[i] = ( data_x[i] * (cycle_8 - 1 + (j - 1) * CYCLE8 ) + x ) / ( cycle_8 + (j - 1) * CYCLE8 )
+            data_y[i] = ( data_y[i] * (cycle_8 - 1 + (j - 1) * CYCLE8 ) + y ) / ( cycle_8 + (j - 1) * CYCLE8 )
             
             process = general.plot_1d(EXP_NAME, x_axis, ( data_x, data_y ), xname = 'Delay',\
                 xscale = 'ns', yname = 'Area', yscale = 'V*s', timeaxis = 'False', label = CURVE_NAME, \

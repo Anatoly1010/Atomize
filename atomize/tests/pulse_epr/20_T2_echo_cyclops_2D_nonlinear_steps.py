@@ -21,18 +21,18 @@ nonlinear_time = np.unique( general.numpy_round( nonlinear_time_raw, 2 ) ).astyp
 # the real number of points after rounding to 2 ns and removing repeated values
 POINTS = len( nonlinear_time )
 
-FIELD = 3440
-AVERAGES = 4096
-SCANS = 2
+FIELD = 3440.3
+AVERAGES = 512
+SCANS = 6
 process = 'None'
 
 # PULSES
-REP_RATE = '1000 Hz'
-PULSE_1_LENGTH = '22 ns'
-PULSE_2_LENGTH = '44 ns'
+REP_RATE = '10000 Hz'
+PULSE_1_LENGTH = '18 ns'
+PULSE_2_LENGTH = '36 ns'
 PULSE_1_START = '0 ns'
-PULSE_2_START = '130 ns'
-PULSE_SIGNAL_START = '260 ns'
+PULSE_2_START = '170 ns'
+PULSE_SIGNAL_START = '340 ns'
 PHASE_CYCLE = 16
 
 # NAMES
@@ -85,7 +85,7 @@ header = 'Date: ' + str(datetime.datetime.now().strftime("%d-%m-%Y %H-%M-%S")) +
           str(mw.mw_bridge_att_prm()) + '\n' + str(mw.mw_bridge_att1_prd()) + '\n' + str(mw.mw_bridge_synthesizer()) + '\n' + \
           'Repetition Rate: ' + str(pb.pulser_repetition_rate()) + '\n' + 'Number of Scans: ' + str(SCANS) + '\n' +\
           'Averages: ' + str(AVERAGES) + '\n' + 'Points: ' + str(POINTS) + '\n' + 'Window: ' + str(wind * time_res) + ' ns\n' \
-          + 'Horizontal Resolution: ' + str(time_res) + ' ns\n' + 'Vertical Resolution: ' + str( (2*np.insert(nonlinear_time , 0, 0))[:-1] ) + ' ns\n' \
+          + 'Horizontal Resolution: ' + str(time_res) + ' ns\n' + 'Vertical Resolution:\n' + str( (2*np.insert(nonlinear_time , 0, 0))[:-1] ) + ' ns\n' \
           + 'Temperature: ' + str(ptc10.tc_temperature('2A')) + ' K\n' +\
           'Pulse List: ' + '\n' + str(pb.pulser_pulse_list()) + '2D Data'
 

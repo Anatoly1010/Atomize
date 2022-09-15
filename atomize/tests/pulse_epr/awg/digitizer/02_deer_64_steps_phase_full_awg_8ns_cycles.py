@@ -35,17 +35,20 @@ signal.signal(signal.SIGTERM, cleanup)
 POINTS = 300
 STEP = 4                  # in NS; delta_start for PUMP pulse; # delta_start = str(STEP) + ' ns' -> delta_start = '4 ns'
 STEP8 = 8
-FIELD = 3448
-AVERAGES = 2
+FIELD = 3426.5
+AVERAGES = 8
 SCANS = 1
 process = 'None'
+coef = 6.67
+f1 = '100 MHz'
+f2 = '183 MHz'
 
 # PULSES
-REP_RATE = '2000 Hz'
-PULSE_1_LENGTH = '16 ns'
-PULSE_2_LENGTH = '32 ns'
-PULSE_3_LENGTH = '32 ns'
-PULSE_PUMP_LENGTH = '18 ns'
+REP_RATE = '1000 Hz'
+PULSE_1_LENGTH = '24 ns'
+PULSE_2_LENGTH = '48 ns'
+PULSE_3_LENGTH = '48 ns'
+PULSE_PUMP_LENGTH = '12 ns'
 # 398 ns is delay from AWG trigger 1.25 GHz
 # 494 ns is delay from AWG trigger 1.00 GHz
 PULSE_1_AWG_START = '0 ns'
@@ -79,26 +82,26 @@ data = np.zeros( (2, int(wind), POINTS) )
 pb.pulser_pulse(name = 'P0', channel = 'TRIGGER_AWG', start = '0 ns', length = '20 ns')
 
 pb.pulser_pulse(name = 'P1', channel = 'AWG', start = PULSE_1_START, length = PULSE_1_LENGTH)
-awg.awg_pulse(name = 'P2', channel = 'CH0', func = 'SINE', frequency = '100 MHz', phase = 0, \
+awg.awg_pulse(name = 'P2', channel = 'CH0', func = 'SINE', frequency = f1, phase = 0, \
             length = PULSE_1_LENGTH, sigma = PULSE_1_LENGTH, start = PULSE_1_AWG_START, \
             phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x',\
                           '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y',\
                           '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x',\
                           '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y'], \
-                          d_coef = 3.448)
+                          d_coef = coef)
 
 pb.pulser_pulse(name = 'P3', channel = 'AWG', start = PULSE_2_START, length = PULSE_2_LENGTH, delta_start = str( int(STEP8) ) + ' ns')
-awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'SINE', frequency = '100 MHz', phase = 0, delta_start = str( int(STEP8) ) + ' ns', \
+awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'SINE', frequency = f1, phase = 0, delta_start = str( int(STEP8) ) + ' ns', \
             length = PULSE_2_LENGTH, sigma = PULSE_2_LENGTH, start = PULSE_2_AWG_START, \
             phase_list = ['+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
                           '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
                           '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
                           '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y'], \
-                          d_coef = 3.448)
+                          d_coef = coef)
 
 #PUMP
 pb.pulser_pulse(name = 'P7', channel = 'AWG', start = PULSE_PUMP_START, length = PULSE_PUMP_LENGTH, delta_start = str(STEP) + ' ns')
-awg.awg_pulse(name = 'P8', channel = 'CH0', func = 'SINE', frequency = '170 MHz', phase = 0, \
+awg.awg_pulse(name = 'P8', channel = 'CH0', func = 'SINE', frequency = f2, phase = 0, \
             length = PULSE_PUMP_LENGTH, sigma = PULSE_PUMP_LENGTH, start = PULSE_AWG_PUMP_START, delta_start = str(STEP) + ' ns', \
             phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x',\
                           '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x',\
@@ -106,13 +109,13 @@ awg.awg_pulse(name = 'P8', channel = 'CH0', func = 'SINE', frequency = '170 MHz'
                           '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x'] )
 
 pb.pulser_pulse(name = 'P5', channel = 'AWG', start = PULSE_3_START, length = PULSE_3_LENGTH, delta_start = str( int(STEP8*2) ) + ' ns',)
-awg.awg_pulse(name = 'P6', channel = 'CH0', func = 'SINE', frequency = '100 MHz', phase = 0, delta_start = str( int(STEP8*2) ) + ' ns', \
+awg.awg_pulse(name = 'P6', channel = 'CH0', func = 'SINE', frequency = f1, phase = 0, delta_start = str( int(STEP8*2) ) + ' ns', \
             length = PULSE_3_LENGTH, sigma = PULSE_3_LENGTH, start = PULSE_3_AWG_START, \
             phase_list = ['+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
                           '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
                           '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
                           '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y'], \
-                          d_coef = 3.448)
+                          d_coef = coef)
 
 # 398 ns is delay from AWG trigger 1.25 GHz
 # 494 ns is delay from AWG trigger 1.00 GHz

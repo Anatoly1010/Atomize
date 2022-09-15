@@ -38,6 +38,7 @@ signal.signal(signal.SIGTERM, cleanup)
 POINTS = 160
 STEP = 2                  # in NS
 STEP8 = 8
+CYCLE8 = 12
 FIELD = 3446
 AVERAGES = 64
 SCANS = 1
@@ -138,7 +139,7 @@ file_handler.save_header(file_param, header = header, mode = 'w')
 for j in general.scans(SCANS):
 
     cycle_8 = 1 
-    while cycle_8 <= 12:
+    while cycle_8 <= CYCLE8:
 
         m = 1
         while m < cycle_8:
@@ -176,8 +177,8 @@ for j in general.scans(SCANS):
             x, y = pb.pulser_acquisition_cycle(cycle_data_x, cycle_data_y, \
                     acq_cycle = ['+', '-', '+', '-', '+', '-', '+', '-', '+', '-', '+', '-', '+', '-', '+', '-'])
 
-            data[0, :, i] = ( data[0, :, i] * (cycle_8 - 1 + (j - 1) * 8 ) + x ) / ( cycle_8 + (j - 1) * 8 )
-            data[1, :, i] = ( data[1, :, i] * (cycle_8 - 1 + (j - 1) * 8 ) + y ) / ( cycle_8 + (j - 1) * 8 )
+            data[0, :, i] = ( data[0, :, i] * (cycle_8 - 1 + (j - 1) * CYCLE8 ) + x ) / ( cycle_8 + (j - 1) * CYCLE8 )
+            data[1, :, i] = ( data[1, :, i] * (cycle_8 - 1 + (j - 1) * CYCLE8 ) + y ) / ( cycle_8 + (j - 1) * CYCLE8 )
 
             process = general.plot_2d(EXP_NAME, data, start_step = ( (0, time_res), (0, 2* STEP) ), xname = 'Time',\
                 xscale = 'ns', yname = 'Delay', yscale = 'ns', zname = 'Intensity', zscale = 'V', pr = process, \
