@@ -4,6 +4,7 @@ Available devices:
 - Keysight InfiniiVision 2000 X-Series (Ethernet); Untested
 - Keysight InfiniiVision 3000 X-Series (Ethernet); Tested 06/2021
 - Keysight InfiniiVision 4000 X-Series (Ethernet); Untested
+- Tektronix 3000 Series (Ethernet); Untested
 - Tektronix 4000 Series (Ethernet); Tested 01/2021
 
 Functions:
@@ -47,6 +48,7 @@ This function queries or sets the number of waveform points to be transferred us
 If one would like to use Keysight oscilloscopes without averaging (in normal, peak or high-resolution mode), the number of points in the waveform is usually [100, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000]. The maximum available number of points depends on the timescale and can be substantially lower than 100000.<br/>
 In the average mode the number of points in the waveform is not the one specified in the programming manual. For Keysight 3000 X-series the correct array is [100, 250, 500, 1000, 2000, 4000, 8000]. For Keysight 2000 X-series: [99, 247, 479, 959, 1919, 3839, 7679]. For Keysight 4000 X-series the number of points for the average mode should be checked.<br/>
 To handle this situation more or less correctly, two different arrays (for average and all other modes) of available number of points are used in the modules for Keysight oscilloscopes.<br/>
+Fot Tektronix 3000 Series the available number of points is [500, 10000].<br/>
 Fot Tektronix 4000 Series the available number of points is [1000, 10000, 100000, 1000000, 10000000].<br/>
 ### oscilloscope_acquisition_type(*ac_type)
 ```python3
@@ -57,6 +59,7 @@ Example: oscilloscope_acquisition_type('Average') sets the acquisition type to t
 This function queries or sets the acquisition type. If there is no argument the function will return the current acquisition type. The type should be from the following array:<br/>
 ['Normal', 'Average', 'Hres', 'Peak']<br/>
 High-resolution (also known as smoothing) mode is used to reduce noise at slower sweep speeds where the digitizer samples faster than needed to fill memory for the displayed time range.<br/>
+Fot Tektronix 3000 Series 'Hres' option is not available.<br/>
 ### oscilloscope_number_of_averages(*number_of_averages)
 ```python3
 oscilloscope_number_of_averages(*number_of_averages)
@@ -72,6 +75,7 @@ Example: oscilloscope_timebase('20 us') sets the full-scale horizontal time to 2
 (2 us per divison).
 ```
 This function queries or sets the full-scale horizontal time for the main window. The range is 10 times the current time-per-division setting. If there is no argument the function will return the full-scale horizontal time in us. If there is an argument the specified full-scale horizontal time will be set.<br/>
+For Tektronix 3000 X-series the horizontal scale is discrete and can take on a value in the range of 10 s to 1, 2, or 4 ns (depending on model), in a 1-2-4 sequence.<br/>
 For Tektronix 4000 X-series (at least for the device used for testing), the horizontal scale is discrete and can take on a value from the following array: [1, 2, 4, 10, 20, 40, 100, 200, 400] for ns, us, ms, and s scaling. In addtition timescale equals to 800 ns also can be set. If there is no timebase setting fitting the argument the nearest available value is used and warning is printed.<br/>
 ### oscilloscope_define_window(**kargs)
 ```python3
@@ -194,6 +198,7 @@ Examples: oscilloscope_trigger_channel('CH3') sets the trigger channel to 3.
 The function queries or sets the trigger channel of the oscilloscope. If there is no argument the function will return the current trigger channel ( CHAN<n>, EXT, LINE, WGEN, NONE). If all channels are off, the query returns NONE. If there is an argument the specified trigger channel will be set.<br/>
 Argument Ext triggers on the rear panel EXT TRIG IN signal. Argument Line triggers at the 50% level of the rising or falling edge of the AC power source signal. Argument Wgen triggers at the 50% level of the rising edge of the waveform generator output signal. This option is not available when the DC, NOISe, or CARDiac waveforms of the waveform generator are selected.<br/>
 For Keysight 4000 X-series arguments 'WGen1' and 'WGen2' can be used.<br/>
+For Tektronix 3000 Series argument 'WGen' is not available, whereas there is an additional option of the external trigger mode: 'Ext10'. The 'Ext' option sets the trigger source to the regular external trigger input connector with a signal input range of -0.8 V to +0.8 V. Please, note that 'Ext' is not available in 4 channel TDS3000 Series instruments. The 'Ext10' option sets the trigger source to the reduced external trigger with a signal input range of -8 V to +8 V. It is also not available in 4 channel TDS3000 Series instruments.<br/>
 For Tektronix 4000 Series arguments 'Ext' and 'WGen' are not available.<br/>
 ### oscilloscope_trigger_low_level(*level)
 ```python3
@@ -205,7 +210,8 @@ voltage level of the channel 2 to 500 mV. oscilloscope_trigger_low_level('CH2')
 returns the current low trigger voltage level of the channel 2.
 ```
 The function queries (if called with one argument) or sets (if called with two arguments) the low trigger voltage level voltage of one of the channels of the oscilloscope. If there is a second argument it will be set as a new low trigger voltage level. If there is no second argument the current low trigger voltage level for the specified channel is returned.<br/>
-For Tektronix 4000 Series also presets 'ECL' and 'TTL' can be used as the first argument. ECL sets the threshold level to a preset ECL high level of -1.3 V. TTL sets the threshold level to a preset TTL high level of 1.4 V.<br/>
+For Tektronix 3000 Series the 'channel string' has no meaning and is kept only for consistency.<br/>
+For Tektronix 3000 and 4000 Series also presets 'ECL' and 'TTL' can be used as the first argument. ECL sets the threshold level to a preset ECL high level of -1.3 V. TTL sets the threshold level to a preset TTL high level of 1.4 V.<br/>
 ### oscilloscope_command(command)
 ```python3
 oscilloscope_command(command)

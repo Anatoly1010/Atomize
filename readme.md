@@ -150,6 +150,7 @@ Python is used to write an experimental script. Examples (with dummy data) can b
 	- Keysight InfiniiVision 2000 X-Series (Ethernet); Untested
 	- Keysight InfiniiVision 3000 X-Series (Ethernet); Tested 06/2021
 	- Keysight InfiniiVision 4000 X-Series (Ethernet); Untested
+	- Tektronix 3000 Series (Ethernet); Untested
 	- Tektronix 4000 Series (Ethernet); Tested 01/2021
 
 #### [Digitizers](#digitizers-1)
