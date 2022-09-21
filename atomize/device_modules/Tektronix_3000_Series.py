@@ -29,13 +29,13 @@ class Tektronix_3000_Series:
 
         self.number_averag_list = [2, 4, 8, 16, 32, 64, 128, 256, 512]
         self.points_list = [500, 10000]
-        #self.timebase_dict = {'s': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000, }
+        self.timebase_dict = {'s': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000, }
         self.timebase_helper_list = [1, 2, 4, 10, 20, 40, 100, 200, 400, 1000, 2000, 4000, 10000, \
                                     20000, 40000, 100000, 200000, 400000, 1000000, 2000000, 4000000, \
                                     10000000, 20000000, 40000000, 100000000, 200000000, 400000000, \
                                     1000000000, 2000000000, 4000000000, 10000000000]
         self.scale_dict = {'V': 1, 'mV': 1000, }
-        self.ac_type_dic = {'Normal': "SAMple", 'Average': "AVErage", 'Peak': "PEAKdetect", }
+        self.ac_type_dic = {'Normal': "SAM", 'Average': "AVE", 'Peak': "PEAK", }
 
         # Ranges and limits
         self.analog_channels = int(self.specific_parameters['analog_channels'])
@@ -89,7 +89,7 @@ class Tektronix_3000_Series:
         elif self.test_flag == 'test':
             self.test_start = 1
             self.test_stop = 1000
-            self.test_record_length = 2000
+            self.test_record_length = 10000
             self.test_impedance = '1 M'
             self.test_acquisition_type = 'Normal'
             self.test_num_aver = 2
@@ -100,6 +100,7 @@ class Tektronix_3000_Series:
             self.test_tr_mode = 'Normal'
             self.test_tr_channel = 'CH1'
             self.test_trigger_level = 0.
+            self.test_delay = 10.
 
     def close_connection(self):
         if self.test_flag != 'test':
@@ -137,7 +138,7 @@ class Tektronix_3000_Series:
 
     def device_read_binary(self, command):
         if self.status_flag == 1:
-            answer = self.device.query_binary_values(command, 'b', is_big_endian=True, container=np.array)
+            answer = self.device.query_binary_values(command, 'h', is_big_endian=True, container=np.array)
             # RPBinary, value from 0 to 255. 'b'
             # Endianness is primarily expressed as big-endian (BE) or little-endian (LE).
             # A big-endian system stores the most significant byte of a word at the smallest memory address 
@@ -179,8 +180,8 @@ class Tektronix_3000_Series:
             try:
                 st = int(kargs['start'])
                 stop = int(kargs['stop'])
-                points = self.oscilloscope_record_length()
-                assert(stop <= points or st > points), 'Invalid window'
+                ##points = self.oscilloscope_record_length()
+                ##assert(stop <= points or st > points), 'Invalid window'
             except KeyError:
                 answer1 = self.test_start
                 answer2 = self.test_stop
@@ -251,11 +252,11 @@ class Tektronix_3000_Series:
                 if int(numave) != temp:
                     general.message("Desired number of averages cannot be set, the nearest available value is used")
                 ac = self.oscilloscope_acquisition_type()
-                if ac == 'AVE':
+                if ac == 'Average':
                     self.device_write("ACQuire:NUMAVg " + str(numave))
-                elif ac == 'SAM':
+                elif ac == 'Sample':
                     general.message("Your are in SAMple mode")
-                elif ac == 'PEAK':
+                elif ac == 'Peak':
                     general.message("Your are in PEAK mode")
             elif len(number_of_averages) == 0:
                 answer = int(self.device_query("ACQuire:NUMAVg?"))
@@ -339,7 +340,7 @@ class Tektronix_3000_Series:
             answer = 1000000*float(self.device_query("HORizontal:SCAle?"))/points
             return answer
         elif self.test_flag == 'test':
-            answer = 1000000*float(self.test_timebase.split(' ')[0])/self.test_record_length
+            answer = 1000000*float(self.test_timebase)/self.test_record_length
             return answer
 
     def oscilloscope_start_acquisition(self):
@@ -401,13 +402,13 @@ class Tektronix_3000_Series:
                 if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
                     self.device_write('DATa:SOUrce ' + str(flag))
                     self.device_write('DATa:ENCdg RIBinary')
-                    self.device_write('DATa:WIDth ' + 2) #?
+                    self.device_write('DATa:WIDth ' + '2') #?
 
                     array_y = self.device_read_binary('CURVe?')
                     #x_orig=float(self.device_query("WFMPre:XZEro?"))
                     #x_inc=float(self.device_query("WFMPre:XINcr?"))
                     #general.message(preamble)
-                    y_ref = float(self.device_query("WFMPre:YOFf"))
+                    y_ref = float(self.device_query("WFMPre:YOFf?"))
                     y_inc = float(self.device_query("WFMPre:YMUlt?"))
                     y_orig = float(self.device_query("WFMPre:YZEro?"))
                     #general.message(y_inc)
@@ -595,7 +596,7 @@ class Tektronix_3000_Series:
                     general.message("Incorrect horizontal offset")
                     sys.exit()
             elif len(h_offset) == 0:
-                answer = float(self.device_query("HORizontal:DELay:TIMe?"))*1000000
+                answer = round(float(self.device_query("HORizontal:DELay:TIMe?"))*1000000, 3)
                 return answer
             else:
                 general.message("Invalid argument")
@@ -610,8 +611,8 @@ class Tektronix_3000_Series:
                     coef = self.timebase_dict[scaling]
                 else:
                     assert(1 == 2), "Incorrect horizontal offset"
-            elif len(delay) == 0:
-                answer = test_delay
+            elif len(h_offset) == 0:
+                answer = self.test_delay
                 return answer
             else:
                 assert(1 == 2), "Incorrect horizontal offset argument"
@@ -818,13 +819,20 @@ class Tektronix_3000_Series:
                 lvl = level[1]
 
                 if lvl != 'ECL' and lvl != 'TTL':
-                    lvl = float(level[1])
+                    lvl_value = float((lvl.split(" "))[0])
+                    if str((lvl.split(" "))[1]) == 'V':
+                        pass
+                    elif str((lvl.split(" "))[1]) == 'mV':
+                        lvl_value = lvl_value / 1000
+                    else:
+                        general.message("Invalid dimension")
+                        sys.exit()
 
-                self.device_write("TRIGger:A:LEVel:" + str(lvl))
+                self.device_write("TRIGger:A:LEVel " + str(lvl_value))
 
             elif len(level) == 1:
                 ch = str(level[0])
-                answer = self.device_query('TRIGger:A:LEVel?')
+                answer = float(self.device_query('TRIGger:A:LEVel?'))
                 return answer
 
             else:
@@ -836,7 +844,8 @@ class Tektronix_3000_Series:
                 ch = str(level[0])
                 lvl = level[1]
                 if lvl != 'ECL' and lvl != 'TTL':
-                    lvl = float(level[1])
+                    lvl_value = (lvl.split(" "))[0]
+                    assert( str((lvl.split(" "))[1]) in self.scale_dict ), "Incorrect dimension"
                 else:
                     pass
             elif len(level) == 1:

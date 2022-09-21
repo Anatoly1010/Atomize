@@ -4,7 +4,7 @@ Available devices:
 - Keysight InfiniiVision 2000 X-Series (Ethernet); Untested
 - Keysight InfiniiVision 3000 X-Series (Ethernet); Tested 06/2021
 - Keysight InfiniiVision 4000 X-Series (Ethernet); Untested
-- Tektronix 3000 Series (Ethernet); Untested
+- Tektronix 3000 Series (Ethernet); Tested 09/2022
 - Tektronix 4000 Series (Ethernet); Tested 01/2021
 
 Functions:
@@ -207,9 +207,9 @@ Arguments: level = string + float ('channel string' ['CH1, CH2, CH3, CH4'],
 float level in V) or one string ('channel string'); Output: float.
 Examples: oscilloscope_trigger_low_level('CH2', 0.5) sets the low trigger 
 voltage level of the channel 2 to 500 mV. oscilloscope_trigger_low_level('CH2')
-returns the current low trigger voltage level of the channel 2.
+returns the current low trigger voltage level of the channel 2 in V.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the low trigger voltage level voltage of one of the channels of the oscilloscope. If there is a second argument it will be set as a new low trigger voltage level. If there is no second argument the current low trigger voltage level for the specified channel is returned.<br/>
+The function queries (if called with one argument) or sets (if called with two arguments) the low trigger voltage level voltage of one of the channels of the oscilloscope. If there is a second argument it will be set as a new low trigger voltage level. If there is no second argument the current low trigger voltage level for the specified channel is returned in Volts.<br/>
 For Tektronix 3000 Series the 'channel string' has no meaning and is kept only for consistency.<br/>
 For Tektronix 3000 and 4000 Series also presets 'ECL' and 'TTL' can be used as the first argument. ECL sets the threshold level to a preset ECL high level of -1.3 V. TTL sets the threshold level to a preset TTL high level of 1.4 V.<br/>
 ### oscilloscope_command(command)
