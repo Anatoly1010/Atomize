@@ -80,14 +80,14 @@ digitizer_number_of_points(*points)
 Arguments: points = integer (divisible by 16); Output: integer.
 Example: digitizer_number_of_points(128) sets the number of points to 128.
 ```
-This function queries or sets the number of points in samples in the returned oscillogram. The number of points should be divisible by 16 samples, the minimum available value is 32 samples. If there is no setting fitting the argument the nearest available value is used and warning is printed. Default value is 128.<br/>
+This function queries or sets the number of points in samples in the returned oscillogram. The number of points should be divisible by 16 samples, the minimum available value is 32 samples. If there is no setting fitting the argument the nearest available value is used and warning is printed. Default value is 128. The difference between number of points and [posttrigger points](#digitizer_posttrigger) should be less than 8000. If it is not the case the nearest available number of points is used and warning is printed.<br/>
 ###digitizer_posttrigger(*post_points)
 ```python3
 digitizer_posttrigger(*post_points)
 Arguments: post_points = integer (divisible by 16); Output: integer.
 Example: digitizer_posttrigger(64) sets the number of posttrigger points to 64.
 ```
-This function queries or sets the number of posttriger (horizontal offset) points in samples in the returned oscillogram. The number of posttriger points should be divisible by 16 samples, the minimum available value is 16 samples. In the ['Average'](#digitizer_card_modemode) card mode, the maximum available value is [the number of points](#digitizer_number_of_pointspoints) in the oscillogram minus 16 samples. If there is no setting fitting the argument the nearest available value is used and warning is printed. Default value is 64.<br/>
+This function queries or sets the number of posttriger (horizontal offset) points in samples in the returned oscillogram. The number of posttriger points should be divisible by 16 samples, the minimum available value is 16 samples. In the ['Average'](#digitizer_card_modemode) card mode, the maximum available value is [number of points](#digitizer_number_of_pointspoints) in the oscillogram minus 16 samples. If there is no setting fitting the argument the nearest available value is used and warning is printed. Default value is 64. The difference between [number of points](#digitizer_number_of_pointspoints) and posttrigger points should be less than 8000. If it is not the case the nearest available value of posttrigger points is used and warning is printed.<br/>
 ### digitizer_channel(*channel)
 ```python3
 digitizer_channel(*channel)

@@ -632,6 +632,11 @@ class Spectrum_M4I_4450_X8:
                 else:
                     self.points = pnts
 
+                if ( self.points - self.posttrig_points ) > 8000:
+                    general.message('Difference between number of points and posttrigger points should be less than 8000; \
+                        The closest avalaibale number of points is used')
+                    self.points = self.posttrig_points + 8000 
+
             elif len(points) == 0:
                 return self.points
 
@@ -677,6 +682,11 @@ class Spectrum_M4I_4450_X8:
                 else:
                     self.points = pnts
 
+                if ( self.points - self.posttrig_points ) > 8000:
+                    #general.message('Difference between number of points and posttrigger points should be less than 8000; \
+                    #    The closest avalaibale number of points is used')
+                    self.points = self.posttrig_points + 8000                     
+
             elif len(points) == 0:
                 return self.points #############
             else:
@@ -703,10 +713,16 @@ class Spectrum_M4I_4450_X8:
                     self.posttrig_points = self.round_to_closest(pnts, 16)
                 else:
                     self.posttrig_points = pnts
+                
                 if self.posttrig_points > self.points:
                     general.message('Number of posttrigger points should be less than number of points; The closest avalaibale number is used')
                     self.posttrig_points = self.points
             
+                if ( self.points - self.posttrig_points ) > 8000:
+                    general.message('Difference between number of points and posttrigger points should be less than 8000; \
+                        The closest avalaibale number of posttrigger points is used')
+                    self.posttrig_points = self.points - 8000 
+
             elif len(post_points) == 0:
                 return self.posttrig_points
 
@@ -730,11 +746,15 @@ class Spectrum_M4I_4450_X8:
                 else:
                     self.posttrig_points = pnts
                 if self.posttrig_points >= ( self.points - 16 ):
-                    general.message('Number of posttrigger points should be less than number of points - 16 samlpes; The closest avalaibale number is used')
+                    #general.message('Number of posttrigger points should be less than number of points - 16 samlpes; The closest avalaibale number is used')
                     self.posttrig_points = self.points - 16
+                if ( self.points - self.posttrig_points ) > 8000:
+                    #general.message('Difference between number of points and posttrigger points should be less than 8000; \
+                    #    The closest avalaibale number of posttrigger points is used')
+                    self.posttrig_points = self.points - 8000
 
             elif len(post_points) == 0:
-                return self.test_posttrig_points    
+                return self.posttrig_points    
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
     
