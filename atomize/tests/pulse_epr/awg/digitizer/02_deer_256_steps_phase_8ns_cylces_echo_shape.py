@@ -157,7 +157,7 @@ awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = f1, phase
 #DETECTION
 pb.pulser_pulse(name = 'P6', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str( int(STEP8*2) ) + ' ns')
 
-#pb.pulser_instruction_from_file(1)
+#pb.pulser_instruction_from_file(1, filename = 'instructions.out')
 
 bh15.magnet_setup(FIELD, 1)
 bh15.magnet_field(FIELD)
@@ -248,7 +248,7 @@ for j in general.scans(SCANS):
             pb.pulser_shift('P3','P4')
 
         awg.awg_pulse_reset()
-        pb.pulser_reset()
+        pb.pulser_reset(interal_cycle = 'True')
         cycle_8 += 1
     
     awg.awg_pulse_reset()

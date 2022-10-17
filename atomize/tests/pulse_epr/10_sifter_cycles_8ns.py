@@ -140,7 +140,7 @@ for j in general.scans(SCANS):
 
             pb.pulser_shift('P1', 'P2', 'P3')
 
-        pb.pulser_pulse_reset()
+        pb.pulser_reset(interal_cycle = 'True')
         cycle_8 += 1
 
     pb.pulser_reset()

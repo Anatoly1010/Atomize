@@ -9,7 +9,7 @@ import atomize.device_modules.Spectrum_M4I_4450_X8 as spectrum_dig
 import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.SR_PTC_10 as sr
 import atomize.device_modules.BH_15 as bh
-import atomize.general_modules.csv_opener_saver as openfile
+import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 
 # initialization of the devices
 file_handler = openfile.Saver_Opener()
@@ -32,24 +32,28 @@ def cleanup(*args):
 signal.signal(signal.SIGTERM, cleanup)
 
 ### Experimental parameters
-POINTS = 2201
-STEP = 8                  # in NS;
-FIELD = 3469
-AVERAGES = 10
-SCANS = 1
+POINTS = 1001
+STEP = 16                  # in NS;
+FIELD = 3447
+AVERAGES = 20
+SCANS = 4
 process = 'None'
 
 # PULSES
 REP_RATE = '500 Hz'
-PULSE_1_LENGTH = '16 ns'
-PULSE_2_LENGTH = '32 ns'
+PULSE_1_LENGTH = '50 ns'
+PULSE_2_LENGTH = '100 ns'
 # 398 ns is delay from AWG trigger 1.25 GHz
 # 494 ns is delay from AWG trigger 1.00 GHz
-PULSE_1_START = '494 ns'
-PULSE_2_START = '794 ns'
-PULSE_SIGNAL_START = '1028 ns'
 PULSE_AWG_1_START = '0 ns'
-PULSE_AWG_2_START = '300 ns'
+PULSE_AWG_2_START = '400 ns'
+PULSE_DETECTION = '800 ns'
+PULSE_1_START = general.const_shift(PULSE_AWG_1_START, 494)
+PULSE_2_START = general.const_shift(PULSE_AWG_2_START, 494)
+PULSE_SIGNAL_START = general.const_shift(PULSE_DETECTION, 494)
+
+SHAPE = 'SINE'
+FREQ = '80 MHz'
 
 # NAMES
 EXP_NAME = 'T2_AWG'
@@ -62,9 +66,9 @@ pb.pulser_pulse(name = 'P1', channel = 'AWG', start = PULSE_1_START, length = PU
 pb.pulser_pulse(name = 'P2', channel = 'AWG', start = PULSE_2_START, length = PULSE_2_LENGTH, delta_start = str(int(STEP/2)) + ' ns')
 
 pb.pulser_pulse(name = 'P3', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str(STEP) + ' ns')
-awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'SINE', frequency = '10 MHz', phase = 0, \
+awg.awg_pulse(name = 'P4', channel = 'CH0', func = SHAPE, frequency = FREQ, phase = 0, \
             length = PULSE_1_LENGTH, sigma = PULSE_1_LENGTH, start = PULSE_AWG_1_START, phase_list = ['+x', '-x'])
-awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'SINE', frequency = '10 MHz', phase = 0, \
+awg.awg_pulse(name = 'P5', channel = 'CH0', func = SHAPE, frequency = FREQ, phase = 0, \
             length = PULSE_2_LENGTH, sigma = PULSE_2_LENGTH, start = PULSE_AWG_2_START, delta_start = str(int(STEP/2)) + ' ns', phase_list = ['+x', '+x'])
 
 

@@ -969,7 +969,7 @@ class PB_ESR_500_Pro:
         """
         self.current_phase_index = 0
 
-    def pulser_reset(self):
+    def pulser_reset(self, interal_cycle = 'False'):
         """
         Reset all pulses to the initial state it was in at the start of the experiment.
         It includes the complete functionality of pulser_pulse_reset(), but also immediately
@@ -990,11 +990,15 @@ class PB_ESR_500_Pro:
             # using a special functions for convertion to instructions
             # we get two return arrays because of pulser_visualizer. It is not the case for test flag.
             #temp, visualizer = self.convert_to_bit_pulse( self.pulse_array )
+            if interal_cycle == 'False':
+                self.iterator_of_updates = 0
+            elif interal_cycle == 'True':
+                pass
 
             if self.instr_from_file == 0:
                 to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
             elif self.instr_from_file == 1:
-                self.iterator_of_updates = 0
+                #self.iterator_of_updates = 0
                 raw_data = np.fromstring( self.raw_instructions[self.iterator_of_updates], dtype = int, sep = ',' )
                 to_spinapi = raw_data.reshape( (int(len(raw_data)/3), 3 ) ).tolist()
 
@@ -1072,7 +1076,7 @@ class PB_ESR_500_Pro:
             self.shift_count = 0
             self.current_phase_index = 0
 
-    def pulser_pulse_reset(self, *pulses):
+    def pulser_pulse_reset(self, *pulses, interal_cycle = 'False'):
         """
         Reset all pulses to the initial state it was in at the start of the experiment.
         It does not update the pulser, if you want to reset all pulses and and also update 
@@ -1085,8 +1089,10 @@ class PB_ESR_500_Pro:
                 self.increment_count = 0
                 self.shift_count = 0
                 self.current_phase_index = 0
-
-                self.iterator_of_updates = 0
+                if interal_cycle == 'False':
+                    self.iterator_of_updates = 0
+                elif interal_cycle == 'True':
+                    pass
 
             else:
                 set_from_list = set(pulses)
@@ -1280,14 +1286,14 @@ class PB_ESR_500_Pro:
             return (answer.real / len(acq_cycle))[0], (answer.imag / len(acq_cycle))[0]
     
     #UNDOCUMENTED
-    def pulser_instruction_from_file(self, flag):
+    def pulser_instruction_from_file(self, flag, filename = 'instructions.out'):
         """
         Special function to read instructions from the .txt file
         """
         if self.test_flag != 'test':
             if flag == 1:
                 self.instr_from_file = 1
-                f = open('instructions.out')
+                f = open(filename)
                 self.raw_instructions = f.read().splitlines()
                 f.close()
             elif flag == 0:

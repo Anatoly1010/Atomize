@@ -147,6 +147,8 @@ pb.pulser_pulse(name = 'P3', channel = 'MW', start = PULSE_4_START, length = PUL
                               '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y'])
 pb.pulser_pulse(name = 'P4', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str( int(STEP8 * 4) ) + ' ns')
 
+#pb.pulser_instruction_from_file(1, filename = 'instructions.out')
+
 pb.pulser_repetition_rate( REP_RATE )
 
 # Data saving
@@ -215,7 +217,7 @@ for j in general.scans(SCANS):
 
             pb.pulser_shift('P1', 'P2', 'P3')
 
-        pb.pulser_pulse_reset()
+        pb.pulser_reset(interal_cycle = 'True')
         cycle_8 += 1
 
     pb.pulser_reset()

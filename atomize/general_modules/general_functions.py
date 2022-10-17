@@ -176,6 +176,13 @@ def round_to_closest(x, y):
     """
     return int( y * ( ( x // y) + (x % y > 0) ) )
 
+def const_shift(x, shift):
+    """
+    A function to add a specified shift to x
+    """
+    #'800 ns' -> '1294 ns'
+    return str( int(x.split(' ')[0]) + shift ) + ' ns'
+
 def numpy_round(x, base):
     """
     A function to round x to be divisible by y
