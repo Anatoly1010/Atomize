@@ -24,7 +24,7 @@ Functions:
 - [awg_redefine_phase(*, name, phase)](#awg_redefine_phase-name-phase)<br/>
 - [awg_redefine_frequency(*, name, freq)](#awg_redefine_frequency-name-freq)<br/>
 - [awg_redefine_delta_start(*, name, delta_start)](#awg_redefine_delta_start-name-delta_start)<br/>
-- [awg_redefine_increment(*, name, increment)](#awg_redefine_increment-name-increment)<br/>
+- [awg_redefine_length_increment(*, name, length_increment)](#awg_redefine_length_increment-name-length_increment)<br/>
 - [awg_add_phase(*, name, add_phase)](#awg_add_phase-name-add_phase)<br/>
 - [awg_reset()](#awg_reset)<br/>
 - [awg_pulse_reset(*pulses)](#awg_pulse_resetpulses)<br/>
@@ -107,7 +107,7 @@ delta_phase = 0 specifies a phase increment of the pulse (in radians) for
 'Single' and 'Multi' card mode
 length = '16 ns' specifies a pulse length (['ns','us','ms'])
 sigma = '16 ns' specifies a sigma value for GAUSS pulses (['ns','us','ms'])
-increment = '0 ns' specifies a pulse length and sigma increment (['ns','us','ms'])
+length_increment = '0 ns' specifies a pulse length and sigma increment (['ns','us','ms'])
 start = '0 ns' specifies a pulse start (['ns','us','ms']) for the 'Single 
 Joined' card mode
 delta_start = '0 ns' specifies a pulse delta start (['ns','us','ms']) for the
@@ -117,11 +117,11 @@ n = 1 specifies a special coefficient for WURST pulse determining the steepness
 of the amplitude function
 Output: none.
 Example: awg_pulse(name = 'P0', channel = 'CH0', func = 'SINE', frequency =
-'200 MHz', phase = pi/2, length = '40 ns', sigma = '16 ns') sets the 40 ns
+'200 MHz', phase = pi/2, length = '40 ns') sets the 40 ns
 length 200 MHz sine pulse with pi/2 phase.
 ```
 The function sets a pulse with specified parameters for 'Single', 'Multi', and 'Single Joined' card mode. The AWG card buffer will be filled according to key arguments of the awg_pulse() function. The default argument is the following: 
-name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = 0, length = '16 ns', sigma = '16 ns', increment = '0 ns', start = '0 ns', delta_start = '0 ns', d_coef = 1, n = 1, phase_list = []. A channel should be one of the following ['CH0','CH1']. The frequency should be in MHz, the minimum value is 0 MHz, maximum is 280 MHz. For WURST pulse the frequency argument should be a tuple ('center_freq MHz', 'sweep_range MHz'), i.e. ('0 MHz', '100 MHz'). The scaling factor for length and sigma key arguments should be one of the following ['ns','us','ms']. The minimum available length and sigma of the pulse is 0 ns. The maximum available length and sigma of the pulse is 1900 ns. The available functions are ['SINE','GAUSS','SINC','BLANK','WURST']. For 'SINE', 'BLANK', and 'WURST' function parameter sigma has no meaning. For 'GAUSS' function parameter sigma is a sigma of Gaussian. For 'SINC' function a combination of parameters length and sigma specifies the width of the SINC pulse, i.e. length = '40 ns' and sigma = '10 ns' means that SINC pulse will be from -4pi to +4pi. Function 'BLANK' is an empty pulse. Function 'WURST' is a wideband, uniform rate, smooth truncation pulse. The increment keyword affects both the length and sigma of the pulse. The scaling factor for start and delta_start key arguments should be one of the following ['ns','us','ms']. The [amplitudes](#awg_amplitudeamplitude) of the AWG card channels will be divided by the value of the d_coef parameter, which ultimately determines the final amplitude of each pulse. The d_coef parameter should be more or equal to 1. The n parameter determines the steepness of the amplitude function of the WURST pulse. For other functions it has no meaning.<br/>
+name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = 0, length = '16 ns', sigma = '0 ns', length_increment = '0 ns', start = '0 ns', delta_start = '0 ns', d_coef = 1, n = 1, phase_list = []. A channel should be one of the following ['CH0','CH1']. The frequency should be in MHz, the minimum value is 0 MHz, maximum is 280 MHz. For WURST pulse the frequency argument should be a tuple ('center_freq MHz', 'sweep_range MHz'), i.e. ('0 MHz', '100 MHz'). The scaling factor for length and sigma key arguments should be one of the following ['ns','us','ms']. The minimum available length and sigma of the pulse is 0 ns. The maximum available length and sigma of the pulse is 1900 ns. The available functions are ['SINE','GAUSS','SINC','BLANK','WURST']. For 'SINE', 'BLANK', and 'WURST' function parameter sigma has no meaning. For 'GAUSS' function parameter sigma is a sigma of Gaussian. For 'SINC' function a combination of parameters length and sigma specifies the width of the SINC pulse, i.e. length = '40 ns' and sigma = '10 ns' means that SINC pulse will be from -4pi to +4pi. Function 'BLANK' is an empty pulse. Function 'WURST' is a wideband, uniform rate, smooth truncation pulse. The length_increment keyword affects both the length and sigma of the pulse. The scaling factor for start and delta_start key arguments should be one of the following ['ns','us','ms']. The [amplitudes](#awg_amplitudeamplitude) of the AWG card channels will be divided by the value of the d_coef parameter, which ultimately determines the final amplitude of each pulse. The d_coef parameter should be more or equal to 1. The n parameter determines the steepness of the amplitude function of the WURST pulse. For other functions it has no meaning.<br/>
 It is recommended to first define all pulses and then define the settings of the AWG card. To write the settings [awg_setup()](#awg_setup) function should be called. To run specified pulses the [awg_update()](#awg_update) function should be called.<br/>
 Key argument delta_phase define a pulse phase shift and has no meaning for 'Single Joined' card mode, since the phase of the pulse will be calculated automatically. Key arguments start and delta_start define a pulse position for 'Single Joined' card mode and has no meaning for 'Single' or 'Multi' card mode.<br/>
 ### awg_pulse_sequence(kargs)
@@ -209,14 +209,14 @@ Output: none.
 Example: awg_redefine_delta_start(name = 'P0', delta_start = '10 ns') changes delta_start setting of the 'P0' pulse to 10 ns.
 ```
 This function should be called with two keyword arguments, namely name and delta_start. The first argument specifies the name of the pulse as a string. The second argument defines a new value of delta_start as a string in the format value + dimension (i.e. '10 ns'). The main purpose of the function is non-uniform sampling. Please note, that the function does not update the AWG card. [awg_update()](#awg_update) should be called to apply changes. The function has no meaning for the 'Single', 'Multi', and 'Sequence' card mode, since in these modes the start of the pulse is determined by the trigger event.
-### awg_redefine_increment(*, name, increment)
+### awg_redefine_increment(*, name, length_increment)
 ```python3
-awg_redefine_increment(*, name, increment)
-Arguments: name = 'Pulse name', increment = a new increment (as a string);
+awg_redefine_length_increment(*, name, length_increment)
+Arguments: name = 'Pulse name', length_increment = a new length increment (as a string);
 Output: none.
-Example: awg_redefine_increment(name = 'P2', increment = '10 ns') changes increment setting of the 'P2' pulse to 10 ns.
+Example: awg_redefine_length_increment(name = 'P2', length_increment = '10 ns') length increment setting of the 'P2' pulse to 10 ns.
 ```
-This function should be called with two keyword arguments, namely name and increment. The first argument specifies the name of the pulse as a string. The second argument defines a new value of increment as a string in the format value + dimension (i.e. '100 ns'). The main purpose of the function is non-uniform sampling. Please note, that the function does not update the AWG card. [awg_update()](#awg_update) should be called to apply changes. The function has no meaning for the 'Sequence' card mode. One should redefine all the sequence instead.
+This function should be called with two keyword arguments, namely name and length increment. The first argument specifies the name of the pulse as a string. The second argument defines a new value of length increment as a string in the format value + dimension (i.e. '100 ns'). The main purpose of the function is non-uniform sampling. Please note, that the function does not update the AWG card. [awg_update()](#awg_update) should be called to apply changes. The function has no meaning for the 'Sequence' card mode. One should redefine all the sequence instead.
 ### awg_add_phase(*, name, add_phase)
 ```python3
 awg_add_phase(*, name, add_phase)

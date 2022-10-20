@@ -15,6 +15,7 @@
 - [bot_message('message')](#send-a-message-via-telegram-bot)<br/>
 - [wait('10 ms')](#wait-for-the-specified-amount-of-time)<br/>
 - [to_infinity()](#infinite-loop)<br/>
+- [const_shift(x, shift)](#constant-shift)<br/>
 - [open_1D(path, header = 0)](#open_1D)<br/>
 - [open_1D_dialog(self, directory = '', header = 0)](#open_1D_dialog)<br/>
 - [save_1D_dialog(data, directory = '', header = '')](#save_1D_dialog)<br/>
@@ -65,7 +66,7 @@ for i in general.to_infinity():
         break
 ```
 ## Repeating scans in an experimental script
-In addition to an infinite loop, a standard Python loop with repeating scans will also waste extra time in the test mode. To tackle it, one can use a special function general.scans( number_of_scans ). This function imitates a standard loop for which only the first loop will be checked in the test run. Please, note that in this case there is no need to declare and iterate a loop iterator, i.e. i. See the example below for more details.
+In addition to an infinite loop, a standard Python loop with repeating scans will also waste extra time in the test mode. To tackle it, one can use a special function general.scans( number_of_scans ). This function imitates a standard loop for which only the first loop will be checked in the test run. Please, note that in this case there is no need to declare and iterate a loop iterator, i.e. See the example below for more details.
 ```python3
 import atomize.general_modules.general_functions as general
 
@@ -74,6 +75,14 @@ for i in general.scans( 10 ):
 	# DO MEASUREMENTS
     general.message(i)
     # the output will be from 1 to 10
+```
+## Constant shift
+To match the timescales of the DAC and the pulse generator a function general.сonst_shift( str(initial_position) + ['ns', 'ms', 'us'], shift_in_ns ) can be used as follows:
+```python3
+import atomize.general_modules.general_functions as general
+PULSE_AWG_2_START = '250 ns'
+# SHIFT THE PULSE POSITION FROM 494 NS TO 744 NS
+PULSE_2_START = general.const_shift(PULSE_AWG_2_START, 494)
 ```
 ## File handling
 To open or save raw experimental data one can use a special module based on Tkinter / PyQt.

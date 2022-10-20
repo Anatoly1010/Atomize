@@ -522,7 +522,7 @@ class Spectrum_M4I_6631_X8:
             pass
 
     def awg_pulse(self, name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0,\
-     delta_phase = 0, phase_list = [], length = '16 ns', sigma = '16 ns', increment = '0 ns', start = '0 ns', delta_start = '0 ns', d_coef = 1, n = 1):
+     delta_phase = 0, phase_list = [], length = '16 ns', sigma = '0 ns', length_increment = '0 ns', start = '0 ns', delta_start = '0 ns', d_coef = 1, n = 1):
         """
         A function for awg pulse creation;
         The possible arguments:
@@ -544,7 +544,7 @@ class Spectrum_M4I_6631_X8:
         """
         if self.test_flag != 'test':
             pulse = {'name': name, 'channel': channel, 'function': func, 'frequency': frequency, 'phase' : phase,\
-             'delta_phase': delta_phase, 'length': length, 'sigma': sigma, 'increment': increment, 'start': start,\
+             'delta_phase': delta_phase, 'length': length, 'sigma': sigma, 'length_increment': increment, 'start': start,\
               'delta_start': delta_start, 'amp': d_coef, 'phase_list': phase_list, 'n': n }
 
             self.pulse_array.append( pulse )
@@ -568,7 +568,7 @@ class Spectrum_M4I_6631_X8:
             
         elif self.test_flag == 'test':
             pulse = {'name': name, 'channel': channel, 'function': func, 'frequency': frequency, 'phase' : phase,\
-             'delta_phase' : delta_phase, 'length': length, 'sigma': sigma, 'increment': increment, 'start': start,\
+             'delta_phase' : delta_phase, 'length': length, 'sigma': sigma, 'length_increment': increment, 'start': start,\
               'delta_start': delta_start, 'amp': d_coef, 'phase_list': phase_list, 'n': n }
 
             if channel == 'CH0':
@@ -959,10 +959,10 @@ class Spectrum_M4I_6631_X8:
 
             #self.awg_update_test()
 
-    def awg_redefine_increment(self, *, name, increment):
+    def awg_redefine_length_increment(self, *, name, length_increment):
         """
-        A function for redefining increment of the specified pulse.
-        awg_redefine_increment(name = 'P0', increment = '10 ns') changes increment of the 'P0' pulse to '10 ns'.
+        A function for redefining length increment of the specified pulse.
+        awg_redefine_increment(name = 'P0', length_increment = '10 ns') changes length increment of the 'P0' pulse to '10 ns'.
         The main purpose of the function is non-uniform sampling.
 
         def func(*, name1, name2): defines a function without default values of key arguments
@@ -973,7 +973,7 @@ class Spectrum_M4I_6631_X8:
 
             while i < len( self.pulse_array ):
                 if name == self.pulse_array[i]['name']:
-                    self.pulse_array[i]['increment'] = str(increment)
+                    self.pulse_array[i]['length_increment'] = str(length_increment)
                     self.increment_count = 1
                 else:
                     pass
@@ -987,7 +987,7 @@ class Spectrum_M4I_6631_X8:
             while i < len( self.pulse_array ):
                 if name == self.pulse_array[i]['name']:
                     # checks
-                    temp_increment = increment.split(" ")
+                    temp_increment = length_increment.split(" ")
                     if temp_increment[1] in self.timebase_dict:
                         coef = self.timebase_dict[temp_increment[1]]
                         p_increment = coef*float(temp_increment[0])
@@ -996,7 +996,7 @@ class Spectrum_M4I_6631_X8:
                     else:
                         assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
 
-                    self.pulse_array[i]['increment'] = str(increment)
+                    self.pulse_array[i]['length_increment'] = str(length_increment)
                     self.increment_count = 1
                 else:
                     pass
@@ -1195,11 +1195,11 @@ class Spectrum_M4I_6631_X8:
             if len(pulses) == 0:
                 i = 0
                 while i < len( self.pulse_array ):
-                    if int( self.pulse_array[i]['increment'][:-3] ) == 0:
+                    if int( self.pulse_array[i]['length_increment'][:-3] ) == 0:
                         pass
                     else:
                         # convertion to ns
-                        temp = self.pulse_array[i]['increment'].split(' ')
+                        temp = self.pulse_array[i]['length_increment'].split(' ')
                         if temp[1] in self.timebase_dict:
                             flag = self.timebase_dict[temp[1]]
                             d_length = int(float(temp[0]))*flag
@@ -1239,11 +1239,11 @@ class Spectrum_M4I_6631_X8:
                     if element in self.pulse_name_array:
                         pulse_index = self.pulse_name_array.index(element)
 
-                        if int( self.pulse_array[pulse_index]['increment'][:-3] ) == 0:
+                        if int( self.pulse_array[pulse_index]['length_increment'][:-3] ) == 0:
                             pass
                         else:
                             # convertion to ns
-                            temp = self.pulse_array[pulse_index]['increment'].split(' ')
+                            temp = self.pulse_array[pulse_index]['length_increment'].split(' ')
                             if temp[1] in self.timebase_dict:
                                 flag = self.timebase_dict[temp[1]]
                                 d_length = int(float(temp[0]))*flag
@@ -1264,13 +1264,13 @@ class Spectrum_M4I_6631_X8:
                             else:
                                 pass
 
-                            if self.pulse_array[i]['function'] == 'SINE':
-                                self.pulse_array[i]['length'] = str( leng + d_length ) + ' ns'
-                                self.pulse_array[i]['sigma'] = str( sigm + d_length ) + ' ns'
-                            elif self.pulse_array[i]['function'] == 'GAUSS' or self.pulse_array[i]['function'] == 'SINC':
+                            if self.pulse_array[pulse_index]['function'] == 'SINE':
+                                self.pulse_array[pulse_index]['length'] = str( leng + d_length ) + ' ns'
+                                self.pulse_array[pulse_index]['sigma'] = str( sigm + d_length ) + ' ns'
+                            elif self.pulse_array[pulse_index]['function'] == 'GAUSS' or self.pulse_array[i]['function'] == 'SINC':
                                 ratio = leng/sigm
-                                self.pulse_array[i]['length'] = str( leng + ratio*d_length ) + ' ns'
-                                self.pulse_array[i]['sigma'] = str( sigm + d_length ) + ' ns'
+                                self.pulse_array[pulse_index]['length'] = str( leng + ratio*d_length ) + ' ns'
+                                self.pulse_array[pulse_index]['sigma'] = str( sigm + d_length ) + ' ns'
 
                         self.increment_count = 1
                         self.current_phase_index = 0
@@ -1280,11 +1280,11 @@ class Spectrum_M4I_6631_X8:
             if len(pulses) == 0:
                 i = 0
                 while i < len( self.pulse_array ):
-                    if int( self.pulse_array[i]['increment'][:-3] ) == 0:
+                    if int( self.pulse_array[i]['length_increment'][:-3] ) == 0:
                         pass
                     else:
                         # convertion to ns
-                        temp = self.pulse_array[i]['increment'].split(' ')
+                        temp = self.pulse_array[i]['length_increment'].split(' ')
                         if temp[1] in self.timebase_dict:
                             flag = self.timebase_dict[temp[1]]
                             d_length = int(float(temp[0]))*flag
@@ -1307,9 +1307,15 @@ class Spectrum_M4I_6631_X8:
                         
                         ratio = leng/sigm
                         if ( leng + ratio*d_length ) <= self.max_pulse_length:
-                            self.pulse_array[i]['length'] = str( leng + d_length ) + ' ns'
+                            if self.pulse_array[i]['function'] == 'SINE':
+                                self.pulse_array[i]['length'] = str( leng + d_length ) + ' ns'
+                                self.pulse_array[i]['sigma'] = str( sigm + d_length ) + ' ns'
+                            elif self.pulse_array[i]['function'] == 'GAUSS' or self.pulse_array[i]['function'] == 'SINC':
+                                #ratio = leng/sigm
+                                self.pulse_array[i]['length'] = str( leng + ratio*d_length ) + ' ns'
+                                self.pulse_array[i]['sigma'] = str( sigm + d_length ) + ' ns'
                         else:
-                            assert(1 == 2), 'Exceeded maximum pulse length (1900 ns) when increment the pulse'
+                            assert(1 == 2), 'Exceeded maximum pulse length' + str(self.max_pulse_length) + 'when increment the pulse'
 
                     i += 1
 
@@ -1322,11 +1328,11 @@ class Spectrum_M4I_6631_X8:
                     if element in self.pulse_name_array:
 
                         pulse_index = self.pulse_name_array.index(element)
-                        if int( self.pulse_array[pulse_index]['increment'][:-3] ) == 0:
+                        if int( self.pulse_array[pulse_index]['length_increment'][:-3] ) == 0:
                             pass
                         else:
                             # convertion to ns
-                            temp = self.pulse_array[pulse_index]['increment'].split(' ')
+                            temp = self.pulse_array[pulse_index]['length_increment'].split(' ')
                             if temp[1] in self.timebase_dict:
                                 flag = self.timebase_dict[temp[1]]
                                 d_length = int(float(temp[0]))*flag
@@ -1349,9 +1355,15 @@ class Spectrum_M4I_6631_X8:
 
                             ratio = leng/sigm
                             if ( leng + ratio*d_length ) <= self.max_pulse_length:
-                                self.pulse_array[pulse_index]['length'] = str( leng + d_length ) + ' ns'
+                                if self.pulse_array[pulse_index]['function'] == 'SINE':
+                                    self.pulse_array[pulse_index]['length'] = str( leng + d_length ) + ' ns'
+                                    self.pulse_array[pulse_index]['sigma'] = str( sigm + d_length ) + ' ns'
+                                elif self.pulse_array[pulse_index]['function'] == 'GAUSS' or self.pulse_array[i]['function'] == 'SINC':
+                                    #ratio = leng/sigm
+                                    self.pulse_array[pulse_index]['length'] = str( leng + ratio*d_length ) + ' ns'
+                                    self.pulse_array[pulse_index]['sigma'] = str( sigm + d_length ) + ' ns'
                             else:
-                                assert(1 == 2), 'Exceeded maximum pulse length (1900 ns) when increment the pulse'
+                                assert(1 == 2), 'Exceeded maximum pulse length' + str(self.max_pulse_length) + 'when increment the pulse'
 
                         self.increment_count = 1
                         self.current_phase_index = 0
@@ -2454,11 +2466,11 @@ class Spectrum_M4I_6631_X8:
             # pulse length. It is better to define the same buffer length 
             # for each segment, since in this case we should not worry about
             # saving the information about memory size for each segments
-            self.max_pulse_length = max( pulse_length_smp )
+            max_pulse_length = max( pulse_length_smp )
             max_start = max( pulse_start_smp )
             max_delta_start = max( pulse_delta_start_smp )
             # buffer length is defined from the largest delay
-            #segment_length = self.closest_power_of_two( max_start + self.max_pulse_length + max_delta_start*arguments_array[7] )
+            #segment_length = self.closest_power_of_two( max_start + max_pulse_length + max_delta_start*arguments_array[7] )
             # buffer length is defined from the repetiton rate
             segment_length = seq_rep_rate
 
@@ -3224,9 +3236,9 @@ class Spectrum_M4I_6631_X8:
             #    assert(1 == 2), 'Number of segments are not equal to the number of AWG pulses'
 
             # finding the maximum pulse length to create a buffer
-            self.max_pulse_length = max( max_length_array )
-            #buffer_per_max_pulse = self.closest_power_of_two( self.max_pulse_length )
-            buffer_per_max_pulse = self.round_to_closest( self.max_pulse_length , 32 )
+            max_pulse_length = max( max_length_array )
+            #buffer_per_max_pulse = self.closest_power_of_two( max_pulse_length )
+            buffer_per_max_pulse = self.round_to_closest( max_pulse_length , 32 )
             if buffer_per_max_pulse < 32:
                 buffer_per_max_pulse = 32
                 general.message('Buffer size was rounded to the minimal available value (32 samples)')
@@ -3259,9 +3271,9 @@ class Spectrum_M4I_6631_X8:
                 assert(1 == 2), 'Number of segments are not equal to the number of AWG pulses'
 
             # finding the maximum pulse length to create a buffer
-            self.max_pulse_length = max( max_length_array )
-            #buffer_per_max_pulse = self.closest_power_of_two( self.max_pulse_length )
-            buffer_per_max_pulse = self.round_to_closest( self.max_pulse_length , 32 )
+            max_pulse_length = max( max_length_array )
+            #buffer_per_max_pulse = self.closest_power_of_two( max_pulse_length )
+            buffer_per_max_pulse = self.round_to_closest( max_pulse_length , 32 )
             if buffer_per_max_pulse < 32:
                 buffer_per_max_pulse = 32
                 general.message('Buffer size was rounded to the minimal available value (32 samples)')
@@ -3462,9 +3474,9 @@ class Spectrum_M4I_6631_X8:
                 max_length_array.append( max( element[:,4] ))
 
             # finding the maximum pulse length to create a buffer
-            self.max_pulse_length = max( max_length_array )
-            #buffer_per_max_pulse = self.closest_power_of_two( self.max_pulse_length )
-            buffer_per_max_pulse = self.round_to_closest( self.max_pulse_length , 32 )
+            max_pulse_length = max( max_length_array )
+            #buffer_per_max_pulse = self.closest_power_of_two( max_pulse_length )
+            buffer_per_max_pulse = self.round_to_closest( max_pulse_length , 32 )
             if buffer_per_max_pulse < 32:
                 buffer_per_max_pulse = 32
                 general.message('Buffer size was rounded to the minimal available value (32 samples)')
@@ -3503,9 +3515,9 @@ class Spectrum_M4I_6631_X8:
             for index, element in enumerate(pulses):
                 max_length_array.append( max( element[:,4] ))
 
-            self.max_pulse_length = max( max_length_array )
-            #buffer_per_max_pulse = self.closest_power_of_two( self.max_pulse_length )
-            buffer_per_max_pulse = self.round_to_closest( self.max_pulse_length , 32 )
+            max_pulse_length = max( max_length_array )
+            #buffer_per_max_pulse = self.closest_power_of_two( max_pulse_length )
+            buffer_per_max_pulse = self.round_to_closest( max_pulse_length , 32 )
             if buffer_per_max_pulse < 32:
                 buffer_per_max_pulse = 32
                 general.message('Buffer size was rounded to the minimal available value (32 samples)')
