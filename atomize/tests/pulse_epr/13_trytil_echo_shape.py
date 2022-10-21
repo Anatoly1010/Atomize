@@ -64,7 +64,7 @@ data = np.zeros( (8, int(wind), POINTS) )
 
 # Setting pulses
 pb.pulser_pulse(name = 'P0', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH, phase_list = ['+x', '-x', '+y', '-y'])
-pb.pulser_pulse(name = 'P1', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', phase_list = ['+x', '+x', '+x', '+x'])
+pb.pulser_pulse(name = 'P1', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns',)
 
 pb.pulser_repetition_rate( REP_RATE )
 

@@ -77,7 +77,7 @@ tb = dig4450.digitizer_window()
 # Setting pulses
 pb.pulser_pulse(name = 'P0', channel = 'MW', start = PULSE_1_START, length = PULSE_1_LENGTH, phase_list = ['+x', '-x'])
 pb.pulser_pulse(name = 'P1', channel = 'MW', start = PULSE_2_START, length = PULSE_2_LENGTH, delta_start = str( nonlinear_time_shift[0] ) + ' ns', phase_list = ['+x', '+x'])
-pb.pulser_pulse(name = 'P2', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str( int(2 * nonlinear_time_shift[0]) ) + ' ns', phase_list = ['+x', '+x'])
+pb.pulser_pulse(name = 'P2', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str( int(2 * nonlinear_time_shift[0]) ) + ' ns')
 
 pb.pulser_repetition_rate( REP_RATE )
 

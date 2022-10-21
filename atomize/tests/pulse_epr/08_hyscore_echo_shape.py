@@ -77,8 +77,7 @@ pb.pulser_pulse(name = 'P2', channel = 'MW', start = PULSE_3_START, length = PUL
                 phase_list = ['+x', '+x', '-x', '-x', '+x', '+x', '-x', '-x', '+x', '+x', '-x', '-x', '+x', '+x', '-x', '-x'], delta_start = str(STEP) + ' ns')
 pb.pulser_pulse(name = 'P3', channel = 'MW', start = PULSE_4_START, length = PULSE_4_LENGTH, \
                 phase_list = ['+x', '-x', '+x', '-x', '+x', '-x', '+x', '-x', '+x', '-x', '+x', '-x', '+x', '-x', '+x', '-x'], delta_start = str(STEP) + ' ns')
-pb.pulser_pulse(name = 'P4', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', \
-                phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x'], delta_start = str(STEP) + ' ns')
+pb.pulser_pulse(name = 'P4', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns', delta_start = str(STEP) + ' ns')
 
 pb.pulser_repetition_rate( REP_RATE )
 

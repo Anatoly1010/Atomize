@@ -185,6 +185,8 @@ class PB_ESR_500_Pro:
             # phase_list's length
             if channel == 'MW':
                 self.phase_array_length.append(len(list(phase_list)))
+            elif channel == 'TRIGGER':
+                assert( len(list(phase_list)) ) == 0, 'TRIGGER pulse should not have phase'
 
             # Checks
             # two equal names
