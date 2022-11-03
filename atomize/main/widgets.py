@@ -255,6 +255,10 @@ class CrosshairDock(CloseableDock):
                 else:
                     kwargs['pen'] = self.used_colors[name]
                     self.curves[name].setData(*args, **kwargs)
+                    # Text label above the graph
+                    temp = kwargs.get('text', '')
+                    if temp != '':
+                        self.setTitle( temp )
 
                 # vertical lines
                 if vline_arg != 'False':
@@ -325,7 +329,11 @@ class CrosshairDock(CloseableDock):
                 else:
                     kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
                     self.curves[name] = self.plot_widget.plot(*args, **kwargs)
-                
+                    # Text label above the graph
+                    temp = kwargs.get('text', '')
+                    if temp != '':
+                        self.setTitle( temp )
+                    
                 # vertical lines
                 if vline_arg != 'False':
                     try:

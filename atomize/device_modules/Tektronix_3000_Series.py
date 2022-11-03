@@ -88,7 +88,7 @@ class Tektronix_3000_Series:
 
         elif self.test_flag == 'test':
             self.test_start = 1
-            self.test_stop = 1000
+            self.test_stop = 10000
             self.test_record_length = 10000
             self.test_impedance = '1 M'
             self.test_acquisition_type = 'Normal'

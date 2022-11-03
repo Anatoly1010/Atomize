@@ -544,7 +544,7 @@ class Spectrum_M4I_6631_X8:
         """
         if self.test_flag != 'test':
             pulse = {'name': name, 'channel': channel, 'function': func, 'frequency': frequency, 'phase' : phase,\
-             'delta_phase': delta_phase, 'length': length, 'sigma': sigma, 'length_increment': increment, 'start': start,\
+             'delta_phase': delta_phase, 'length': length, 'sigma': sigma, 'length_increment': length_increment, 'start': start,\
               'delta_start': delta_start, 'amp': d_coef, 'phase_list': phase_list, 'n': n }
 
             self.pulse_array.append( pulse )
@@ -568,7 +568,7 @@ class Spectrum_M4I_6631_X8:
             
         elif self.test_flag == 'test':
             pulse = {'name': name, 'channel': channel, 'function': func, 'frequency': frequency, 'phase' : phase,\
-             'delta_phase' : delta_phase, 'length': length, 'sigma': sigma, 'length_increment': increment, 'start': start,\
+             'delta_phase' : delta_phase, 'length': length, 'sigma': sigma, 'length_increment': length_increment, 'start': start,\
               'delta_start': delta_start, 'amp': d_coef, 'phase_list': phase_list, 'n': n }
 
             if channel == 'CH0':
@@ -646,7 +646,7 @@ class Spectrum_M4I_6631_X8:
             assert( p_length >= p_sigma ), 'Pulse length should be longer or equal to sigma'
 
             # increment
-            temp_increment = increment.split(" ")
+            temp_increment = length_increment.split(" ")
             if temp_increment[1] in self.timebase_dict:
                 coef = self.timebase_dict[temp_increment[1]]
                 p_increment = coef*float(temp_increment[0])
