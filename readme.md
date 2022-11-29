@@ -187,6 +187,7 @@ The original [C library](http://www.spincore.com/support/spinapi/using_spin_api_
 
 #### [Microwave Bridge Controllers](#microwave-bridge-controllers-1)
 	- Mikran X-band MW Bridge (TCP/IP Socket); Tested 06/2021
+	- Mikran X-band MW Bridge v2 (TCP/IP Socket); Tested 12/2022
 
 #### [Gaussmeters](#gaussmeters-1)
 	- Lakeshore 455 DSP (RS-232); Tested 01/2021
@@ -432,8 +433,10 @@ mw_bridge_att2_prd(*atten)
 mw_bridge_fv_ctrl(*phase)
 mw_bridge_fv_prm(*phase)
 mw_bridge_att_prm(*atten)
+mw_bridge_att2_prm(*atten)
 mw_bridge_k_prm(*amplif)
 mw_bridge_cut_off(*cutoff)
+mw_bridge_rotary_vane(*atten, mode)
 mw_bridge_telemetry()
 mw_bridge_initialize()
 ```

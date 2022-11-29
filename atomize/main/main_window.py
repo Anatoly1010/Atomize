@@ -657,7 +657,8 @@ class MainWindow(QtWidgets.QMainWindow):
 class NameList(QDockWidget):
     def __init__(self, window):
         super(NameList, self).__init__('Current Plots:')
-
+        self.setFeatures(QDockWidget.DockWidgetFeature.NoDockWidgetFeatures)
+        
         #directories
         path_to_main = os.path.abspath(os.getcwd())
         # configuration data

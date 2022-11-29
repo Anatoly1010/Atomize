@@ -76,7 +76,8 @@ The device is available via ctypes. [The original C library](http://www.spincore
 
 ## Microwave Bridge Controllers
 - Mikran X-band MW Bridge (TCP/IP Socket); Tested 06/2021
-
+- Mikran X-band MW Bridge v2 (TCP/IP Socket); Tested 12/2022
+- 
 ## Gaussmeters
 - Lakeshore 455 DSP (RS-232); Tested 01/2021
 

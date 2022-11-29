@@ -6,23 +6,32 @@ import sys
 import struct
 import datetime
 import socket
+from math import exp, sqrt
+from threading import Thread
+import numpy as np
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
-class Mikran_X_band_MW_bridge:
+class Mikran_X_band_MW_bridge_v2:
     #### Basic interaction functions
     def __init__(self):
 
         #### Inizialization
         # setting path to *.ini file
         self.path_current_directory = os.path.dirname(__file__)
-        self.path_config_file = os.path.join(self.path_current_directory, 'config','Mikran_x_band_mw_bridge_config.ini')
+        self.path_config_file = os.path.join(self.path_current_directory, 'config','Mikran_x_band_mw_bridge_v2_config.ini')
 
         # configuration data
         #config = cutil.read_conf_util(self.path_config_file)
         self.specific_parameters = cutil.read_specific_parameters(self.path_config_file)
 
         # auxilary dictionaries
+        self.curr_dB = 60
+        self.prev_dB = 60
+        # first initialization
+        self.flag = 0
+        self.mode_list = ['Limit', 'Arbitrary']
+        self.p1 = 'None'
 
         # Ranges and limits
         self.UDP_IP = str(self.specific_parameters['udp_ip'])
@@ -48,11 +57,13 @@ class Mikran_X_band_MW_bridge:
             self.test_phase = '0 deg'
             self.test_cut_off = '300 MHz'
 
+        #self.mw_bridge_rotary_vane(60, mode = 'Limit')
+
     def device_query(self, command, bytes_to_recieve):
         # MW bridge answers every command
         try:
             self.sock = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
-            # timeout
+            # timeout in sec
             self.sock.settimeout(10) 
             self.sock.connect( (self.TCP_IP, self.TCP_PORT) )
 
@@ -142,7 +153,7 @@ class Mikran_X_band_MW_bridge:
                 # 3 bytes to recieve
                 data_raw = self.device_query( MESSAGE, 3)
 
-                answer = 'Attenuator PRD1: ' + str(data_raw[2]/2) + ' dB'
+                answer = 'Attenuator RECT: ' + str(data_raw[2]/2) + ' dB'
 
                 return answer
 
@@ -174,7 +185,7 @@ class Mikran_X_band_MW_bridge:
                 # 3 bytes to recieve
                 data_raw = self.device_query( MESSAGE, 3)
 
-                answer = 'Attenuator PRD2: ' + str(data_raw[2]/2) + ' dB'
+                answer = 'Attenuator AWG: ' + str(data_raw[2]/2) + ' dB'
 
                 return answer
 
@@ -270,7 +281,7 @@ class Mikran_X_band_MW_bridge:
                 # 3 bytes to recieve
                 data_raw = self.device_query( MESSAGE, 3)
 
-                answer = 'Video Attenuation: ' + str(data_raw[2]*2) + ' dB'
+                answer = 'Video Attenuation 1: ' + str(data_raw[2]*2) + ' dB'
 
                 return answer
 
@@ -284,35 +295,35 @@ class Mikran_X_band_MW_bridge:
 
                 return self.test_attenuation
 
-    def mw_bridge_k_prm(self, *amplif):
+    def mw_bridge_att2_prm(self, *atten):
         if self.test_flag != 'test':
-            if len(amplif) == 1:
+            if len(atten) == 1:
 
-                temp = float(amplif[0])/22
+                temp = 2*float(atten[0])
                 if int(temp) != temp:
-                    general.message('Amplification value is rounded to the nearest available ' + str(int(temp)*22) + 'dB')
+                    general.message('Attenuation value is rounded to the nearest available ' + str(int(temp)/2) + 'dB')
 
                 MESSAGE = b'\x1a' + b'\x01' + struct.pack(">B", int(temp))
                 # 3 bytes to recieve
                 garb = self.device_query( MESSAGE, 3)
 
-            elif len(amplif) == 0:
+            elif len(atten) == 0:
 
                 MESSAGE = b'\x24' + b'\x01' + b'\x00'
                 # 3 bytes to recieve
                 data_raw = self.device_query( MESSAGE, 3)
 
-                answer = 'Amplification PRM: ' + str(data_raw[2]*22) + ' dB'
+                answer = 'Video Attenuation 2: ' + str(data_raw[2]/2) + ' dB'
 
                 return answer
 
         elif self.test_flag == 'test':
-            if len(amplif) == 1:
+            if len(atten) == 1:
 
-                temp = float(amplif[0])
-                assert(temp >= 0 and temp <= 22), 'Incorrect amplification'
+                temp = float(atten[0])
+                assert(temp >= 0 and temp <= 31.5), 'Incorrect attenuation'
 
-            elif len(amplif) == 0:
+            elif len(atten) == 0:
 
                 return self.test_attenuation
 
@@ -359,6 +370,116 @@ class Mikran_X_band_MW_bridge:
 
                 return self.test_cut_off
 
+    def mw_bridge_rotary_vane(self, *atten, mode = 'Arbitrary'):
+        if self.test_flag != 'test':
+            if len(atten) == 1:
+                #self.mode_list = ['Limit', 'Arbitrary']
+                if mode == 'Arbitrary':
+                    self.curr_dB = round( float( atten[0] ), 1 )
+                    step = int( self.calibration( self.curr_dB ) ) - int( self.calibration( self.prev_dB ) )
+
+                    try:
+                        self.p1.join()
+                    except ( AttributeError, NameError, TypeError ):
+                        pass
+
+                    MESSAGE = b'\x0e' + b'\x04' + b'\x01' + b'\x02' + ( step ).to_bytes( 2, byteorder = 'big', signed = True )
+                    # 6 bytes to recieve
+                    garb = self.device_query( MESSAGE, 6)
+                    
+                    # 36 is a manual calibration
+                    time_to_wait = abs( 36 * step )
+
+                    self.p1 = Thread(target = general.wait, args = (str(time_to_wait) + ' ms', ) )
+                    self.p1.start()
+
+                    self.prev_dB = self.curr_dB
+
+                elif mode == 'Limit':
+                    temp = round( float( atten[0] ), 1 )
+                    self.curr_dB = int( general.numpy_round( temp, 60 ) )
+
+                    if int(temp) != self.curr_dB:
+                        general.message('Attenuation value is rounded to the nearest available ' + str( self.curr_dB ) + 'dB')
+
+                    if self.curr_dB == 60: 
+                        try:
+                            self.p1.join()
+                        except ( AttributeError, NameError, TypeError ):
+                            pass
+
+                        MESSAGE = b'\x0e' + b'\x04' + b'\x01' + b'\x01' + (3).to_bytes( 2, byteorder = 'big', signed = False )
+                        garb = self.device_query( MESSAGE, 6)
+
+                        step = int( self.calibration( self.curr_dB ) ) - int( self.calibration( self.prev_dB ) )
+                        
+                        # 36 is a manual calibration
+                        if self.flag == 0:
+                            time_to_wait = 7000
+                        else:
+                            time_to_wait = abs( 36 * step )
+
+                        self.p1 = Thread(target = general.wait, args = (str(time_to_wait) + ' ms', ) )
+                        self.p1.start()
+
+                        self.prev_dB = self.curr_dB
+                        self.flag = 1
+
+                    elif self.curr_dB == 0:
+                        try:
+                            self.p1.join()
+                        except ( AttributeError, NameError, TypeError ):
+                            pass
+
+                        MESSAGE = b'\x0e' + b'\x04' + b'\x01' + b'\x01' + (2).to_bytes( 2, byteorder = 'big', signed = False )
+                        garb = self.device_query( MESSAGE, 6)
+                        
+                        step = int( self.calibration( self.curr_dB ) ) - int( self.calibration( self.prev_dB ) )
+                        
+                        # 36 is a manual calibration
+                        if self.flag == 0:
+                            time_to_wait = 7000
+                        else:
+                            time_to_wait = abs( 36 * step )
+
+                        self.p1 = Thread(target = general.wait, args = (str(time_to_wait) + ' ms', ) )
+                        self.p1.start()
+
+                        self.prev_dB = self.curr_dB
+                        self.flag = 1
+
+                else:
+                    general.message('Incorrect rotary vane attenuator mode')
+                    sys.exit()
+
+            elif len(atten) == 0:
+
+                #MESSAGE = b'\x24' + b'\x01' + b'\x00'
+                # 6 bytes to recieve
+                # check
+                #data_raw = self.device_query( MESSAGE, 6)
+
+                answer = 'Rotary Vane Attenuation: ' + str( self.curr_dB ) + ' dB'
+
+                return answer
+
+        elif self.test_flag == 'test':
+            if len( atten ) == 1:
+
+                assert( mode in self.mode_list ), 'Incorrect rotary vane attenuator mode'
+                if mode == 'Arbitrary':
+                    temp = round( float( atten[0] ), 1 )
+                    assert( temp >= 0 and temp <= 60 ), 'Incorrect attenuation'
+                elif mode == 'Limit':
+                    temp = round( float( atten[0] ), 1 )
+                    temp = int( general.numpy_round( temp, 60 ) )
+
+                    assert( temp >= 0 and temp <= 60 ), 'Incorrect attenuation'
+
+            elif len(atten) == 0:
+
+                return self.test_attenuation
+
     def mw_bridge_telemetry(self):
         if self.test_flag != 'test':
 
@@ -394,9 +515,21 @@ class Mikran_X_band_MW_bridge:
         elif self.test_flag == 'test':
             pass
 
+    # device specific function
+    def calibration(self, x):
+        # approximation curve
+        # step to dB
+        return -4409.48 + 676.179 * exp( -0.0508708 * x ) + 2847.41 * exp( 0.00768761 * x ) - 0.345934 * x ** 2 + 2847.41 * exp( 0.00768761 * x ) - 440.034 * sqrt( x )
+    
+    def numpy_round(x, base):
+        """
+        A function to round x to be divisible by y
+        """
+        return base * np.round(x / base)
 
 def main():
     pass
 
 if __name__ == "__main__":
     main()
+
