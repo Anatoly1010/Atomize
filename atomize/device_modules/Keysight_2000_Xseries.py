@@ -37,7 +37,7 @@ class Keysight_2000_Xseries:
         self.frequency_dict = {'MHz': 1000000, 'kHz': 1000, 'Hz': 1, 'mHz': 0.001,};
         self.wavefunction_dic = {'Sin': 'SINusoid', 'Sq': 'SQUare', 'Ramp': 'RAMP', 'Pulse': 'PULSe',
                             'DC': 'DC', 'Noise': 'NOISe',};
-        self.ac_type_dic = {'Normal': "NORMal", 'Aveage': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
+        self.ac_type_dic = {'Normal': "NORMal", 'Average': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
 
         # Limits and Ranges:
         self.analog_channels = int(self.specific_parameters['analog_channels'])
