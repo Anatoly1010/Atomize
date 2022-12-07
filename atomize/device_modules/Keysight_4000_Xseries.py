@@ -554,7 +554,7 @@ class Keysight_4000_Xseries:
 
         elif self.test_flag == 'test':
             if len(h_offset) == 1:
-                temp = delay[0].split(" ")
+                temp = h_offset[0].split(" ")
                 offset = float(temp[0])
                 scaling = temp[1]
                 if scaling in self.timebase_dict:

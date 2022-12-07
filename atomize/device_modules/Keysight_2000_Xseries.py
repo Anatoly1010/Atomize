@@ -24,7 +24,8 @@ class Keysight_2000_Xseries:
 
         # auxilary dictionaries
         self.points_list = [100, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000]
-        self.points_list_average = [99, 247, 479, 959, 1919, 3839, 7679]
+        #self.points_list_average = [99, 247, 479, 959, 1919, 3839, 7679]
+        self.points_list_average = [100, 250, 500, 1000, 2500, 4000, 8000, 16000]
         # Number of point is different for Average mode and three other modes
 
         self.channel_dict = {'CH1': 'CHAN1', 'CH2': 'CHAN2', 'CH3': 'CHAN3', 'CH4': 'CHAN4',}
@@ -41,7 +42,7 @@ class Keysight_2000_Xseries:
 
         # Limits and Ranges:
         self.analog_channels = int(self.specific_parameters['analog_channels'])
-        self.self.numave_min = 2
+        self.numave_min = 2
         self.numave_max = 65536
         self.timebase_max = float(self.specific_parameters['timebase_max'])
         self.timebase_min = float(self.specific_parameters['timebase_min'])
@@ -219,7 +220,7 @@ class Keysight_2000_Xseries:
         if self.test_flag != 'test':
             if len(number_of_averages) == 1:
                 numave = int(number_of_averages[0])
-                if numave >= self.self.numave_min and numave <= self.numave_max:
+                if numave >= self.numave_min and numave <= self.numave_max:
                     ac = self.oscilloscope_acquisition_type()
                     if ac == "Average":
                         self.device_write(":ACQuire:COUNt " + str(numave))
@@ -304,7 +305,7 @@ class Keysight_2000_Xseries:
             self.device_query('*ESR?;:DIGitize;*OPC?') # return 1, if everything is ok;
             # the whole sequence is the following 1-binary format; 2-clearing; 3-digitizing; 4-checking of the completness
             #end_time=datetime.now()
-            general.message('Acquisition completed')
+            #general.message('Acquisition completed')
             #print("Duration of Acquisition: {}".format(end_time - start_time))
         elif self.test_flag == 'test':
             pass
@@ -548,7 +549,7 @@ class Keysight_2000_Xseries:
 
         elif self.test_flag == 'test':
             if len(h_offset) == 1:
-                temp = delay[0].split(" ")
+                temp = h_offset[0].split(" ")
                 offset = float(temp[0])
                 scaling = temp[1]
                 if scaling in self.timebase_dict:
