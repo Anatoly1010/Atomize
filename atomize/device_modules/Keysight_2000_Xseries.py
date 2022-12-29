@@ -51,6 +51,10 @@ class Keysight_2000_Xseries:
         self.wave_gen_freq_max = float(self.specific_parameters['wave_gen_freq_max'])
         self.wave_gen_freq_min = float(self.specific_parameters['wave_gen_freq_min'])
 
+        #integration window
+        self.win_left = 0
+        self.win_right = 1
+
         # Test run parameters
         # These values are returned by the modules in the test run 
         if len(sys.argv) > 1:
@@ -356,7 +360,7 @@ class Keysight_2000_Xseries:
         elif self.test_flag == 'test':
             pass
 
-    def oscilloscope_get_curve(self, channel):
+    def oscilloscope_get_curve(self, channel, integral = False):
         if self.test_flag != 'test':
             ch = str(channel)
             if ch in self.channel_dict:
@@ -375,7 +379,12 @@ class Keysight_2000_Xseries:
                     array_y = (array_y - y_ref)*y_inc + y_orig
                     #array_x = list(map(lambda x: resolution*(x+1) + 1000000*x_orig, list(range(points))))
                     #final_data = list(zip(array_x,array_y))
-                    return array_y
+                    if integral == False:
+                        return array_y
+                    elif integral == True:
+                        integ = np.sum( array_y[self.win_left:self.win_right] ) * ( 10**(-6) * self.oscilloscope_time_resolution() )
+                        return integ
+
                 else:
                     general.message("Invalid channel is given")
                     sys.exit()
@@ -391,7 +400,11 @@ class Keysight_2000_Xseries:
                 assert(1 == 2), 'Invalid channel is given'
             else:
                 array_y = np.arange(self.test_record_length)
-                return array_y
+                if integral == False:
+                    return array_y
+                elif integral == True:
+                    integ = np.sum( array_y[self.win_left:self.win_right] ) * ( 10**(-6) * self.oscilloscope_time_resolution() )
+                    return integ
 
     def oscilloscope_sensitivity(self, *channel):
         if self.test_flag != 'test':
@@ -801,6 +814,75 @@ class Keysight_2000_Xseries:
         elif self.test_flag == 'test':
             answer = None
             return answer
+
+    # UNDOCUMENTED
+    def oscilloscope_window(self):
+        """
+        Special function for reading integration window
+        """
+        return ( self.win_right - self.win_left ) * ( 1000 * self.oscilloscope_time_resolution() )
+
+    # UNDOCUMENTED
+    def oscilloscope_read_settings(self):
+        """
+        Special function for reading settings of the oscilloscope from the special file
+        """
+        if self.test_flag != 'test':
+
+            path_to_main = os.path.abspath( os.getcwd() )
+            path_file = os.path.join(path_to_main, 'atomize/control_center/digitizer.param')
+            #path_file = os.path.join(path_to_main, '../../atomize/control_center/digitizer.param')
+            file_to_read = open(path_file, 'r')
+
+            text_from_file = file_to_read.read().split('\n')
+            # ['Points: 224', 'Sample Rate: 250', 'Posstriger: 16', 'Range: 500', 'CH0 Offset: 0', 'CH1 Offset: 0', 
+            # 'Window Left: 0', 'Window Right: 0', '']
+
+            #self.points = int( text_from_file[0].split(' ')[1] )
+            
+            #self.sample_rate = int( text_from_file[1].split(' ')[2] )
+            
+            #self.posttrig_points = int( text_from_file[2].split(' ')[1] )
+            
+            #self.amplitude_0 = int( text_from_file[3].split(' ')[1] )
+            #self.amplitude_1 = int( text_from_file[3].split(' ')[1] )
+            
+            #self.offset_0 = int( text_from_file[4].split(' ')[2] )
+            #self.offset_1 = int( text_from_file[5].split(' ')[2] )
+            
+            self.win_left = int( text_from_file[6].split(' ')[2] )
+            self.win_right = 1 + int( text_from_file[7].split(' ')[2] )
+
+            #self.digitizer_setup()
+
+        elif self.test_flag == 'test':
+            
+            path_to_main = os.path.abspath( os.getcwd() )
+            path_file = os.path.join(path_to_main, 'atomize/control_center/digitizer.param')
+            file_to_read = open(path_file, 'r')
+
+            text_from_file = file_to_read.read().split('\n')
+            # ['Points: 224', 'Sample Rate: 250', 'Posstriger: 16', 'Range: 500', 'CH0 Offset: 0', 'CH1 Offset: 0', 
+            # 'Window Left: 0', 'Window Right: 0', '']
+
+            #points = int( text_from_file[0].split(' ')[1] )
+            #self.digitizer_number_of_points( points )
+
+            #sample_rate = int( text_from_file[1].split(' ')[2] )
+            #self.digitizer_sample_rate( sample_rate )
+
+            #posttrigger = int( text_from_file[2].split(' ')[1] )
+            #self.digitizer_posttrigger( posttrigger )
+
+            #amplitude = int( text_from_file[3].split(' ')[1] )
+            #self.digitizer_amplitude( amplitude )
+
+            #ch0_offset = int( text_from_file[4].split(' ')[2] )
+            #ch1_offset = int( text_from_file[5].split(' ')[2] )
+            #self.digitizer_offset('CH0', ch0_offset, 'CH1', ch1_offset)
+
+            self.win_left = int( text_from_file[6].split(' ')[2] )
+            self.win_right = 1 + int( text_from_file[7].split(' ')[2] )
 
     #### Functions of wave generator
     def wave_gen_name(self):
