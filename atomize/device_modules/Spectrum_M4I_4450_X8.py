@@ -1247,7 +1247,7 @@ class Spectrum_M4I_4450_X8:
         Set or query range of the channels in mV;
         Input: digitizer_amplitude(500);
         Buffered range is [200, 500, 1000, 2000, 5000, 10000]
-        HF range is [500, 1000, 25200, 5000]
+        HF range is [500, 1000, 2500, 5000]
         The specified range will be used for both channels.
         Default: '500';
         Output: 'CH0: 500 mV; CH1: 500 mV'

@@ -2,6 +2,7 @@
 
 Available devices:
 - Spectrum M4I 4450 X8; Tested 08/2021
+- Spectrum M4I 2211 X8; Tested 01/2023
 The original [library](https://spectrum-instrumentation.com/en/m4i4450-x8) was written by Spectrum. The library header files (pyspcm.py, spcm_tools.py) should be added to the path directly in the module file: 
 ```python3
 sys.path.append('/path/to/python/header/of/Spectrum/library')
@@ -45,7 +46,7 @@ digitizer_setup()
 Arguments: none; Output: none.
 Examples: digitizer_setup() writes all the settings into the digitizer.
 ```
-This function writes all the settings modified by other functions to the digitizer. The function should be called only without arguments. One must initialize the settings before calling [digitizer_get_curve()](#digitizer_get_curve). The default settings (if no other function was called) are the following: Sample clock is 500 MHz; Clock mode is 'Internal'; Reference clock is 100 MHz; Card mode is 'Single'; Trigger channel is 'External'; Trigger mode is 'Positive'; Number of averages is 2; Trigger delay is 0; Enabled channels are CH0 and CH1; Input mode is 'HF'; Coupling of CH0 and CH1 is 'DC'; Impedance of CH0 and CH1 is '50'; Horizontal offset of CH0 and CH1 is 0%; Range of CH0 is '500 mV'; Range of CH1 is '500 mV'; Number of points is 128; Posttriger points is 64.<br/>
+This function writes all the settings modified by other functions to the digitizer. The function should be called only without arguments. One must initialize the settings before calling [digitizer_get_curve()](#digitizer_get_curve). The default settings (if no other function was called) are the following: Sample clock is 500 MHz (M4I 4450 X8) or 1250 MHz (M4I 2211 X8); Clock mode is 'Internal'; Reference clock is 100 MHz; Card mode is 'Single'; Trigger channel is 'External'; Trigger mode is 'Positive'; Number of averages is 2; Trigger delay is 0; Enabled channels are CH0 and CH1; Input mode is 'HF' (M4I 4450 X8); Coupling of CH0 and CH1 is 'DC'; Impedance of CH0 and CH1 is '50'; Horizontal offset of CH0 and CH1 is 0%; Range of CH0 is '500 mV'; Range of CH1 is '500 mV'; Number of points is 128 (M4I 4450 X8) or 256 (M4I 2211 X8); Posttrigger points is 64.<br/>
 ### digitizer_get_curve()
 ```python3
 digitizer_get_curve()
@@ -77,17 +78,17 @@ This function stops the digitizer and should be called only without arguments. T
 ###digitizer_number_of_points(*points)
 ```python3
 digitizer_number_of_points(*points)
-Arguments: points = integer (divisible by 16); Output: integer.
+Arguments: points = integer (divisible by 16 or 32); Output: integer.
 Example: digitizer_number_of_points(128) sets the number of points to 128.
 ```
-This function queries or sets the number of points in samples in the returned oscillogram. The number of points should be divisible by 16 samples, the minimum available value is 32 samples. If there is no setting fitting the argument the nearest available value is used and warning is printed. Default value is 128. The difference between number of points and [posttrigger points](#digitizer_posttrigger) should be less than 8000. If it is not the case the nearest available number of points is used and warning is printed.<br/>
+This function queries or sets the number of points in samples in the returned oscillogram. The number of points should be divisible by 16 samples (M4I 4450 X8) or by 32 samples (M4I 2211 X8), the minimum available value is 32 samples (M4I 4450 X8) or 64 samples (M4I 2211 X8). If there is no setting fitting the argument the nearest available value is used and warning is printed. Default value is 128 (M4I 4450 X8) or 256 (M4I 2211 X8). The difference between number of points and [posttrigger points](#digitizer_posttrigger) should be less than 8000. If it is not the case the nearest available number of points is used and warning is printed.<br/>
 ###digitizer_posttrigger(*post_points)
 ```python3
 digitizer_posttrigger(*post_points)
-Arguments: post_points = integer (divisible by 16); Output: integer.
+Arguments: post_points = integer (divisible by 16 or 32); Output: integer.
 Example: digitizer_posttrigger(64) sets the number of posttrigger points to 64.
 ```
-This function queries or sets the number of posttriger (horizontal offset) points in samples in the returned oscillogram. The number of posttriger points should be divisible by 16 samples, the minimum available value is 16 samples. In the ['Average'](#digitizer_card_modemode) card mode, the maximum available value is [number of points](#digitizer_number_of_pointspoints) in the oscillogram minus 16 samples. If there is no setting fitting the argument the nearest available value is used and warning is printed. Default value is 64. The difference between [number of points](#digitizer_number_of_pointspoints) and posttrigger points should be less than 8000. If it is not the case the nearest available value of posttrigger points is used and warning is printed.<br/>
+This function queries or sets the number of posttriger (horizontal offset) points in samples in the returned oscillogram. The number of posttriger points should be divisible by 16 samples (M4I 4450 X8) or by 32 samples (M4I 2211 X8), the minimum available value is 16 samples (M4I 4450 X8) or 32 samples (M4I 2211 X8). In the ['Average'](#digitizer_card_modemode) card mode, the maximum available value is [number of points](#digitizer_number_of_pointspoints) in the oscillogram minus 16 samples (M4I 4450 X8) or minus 32 samples (M4I 2211 X8). If there is no setting fitting the argument the nearest available value is used and warning is printed. Default value is 64. The difference between [number of points](#digitizer_number_of_pointspoints) and posttrigger points should be less than 8000. If it is not the case the nearest available value of posttrigger points is used and warning is printed.<br/>
 ### digitizer_channel(*channel)
 ```python3
 digitizer_channel(*channel)
@@ -101,7 +102,7 @@ digitizer_sample_rate(*s_rate)
 Arguments: s_rate = integer (in MHz); Output: integer.
 Example: digitizer_sample_rate('500') sets the digitizer sample rate to 500 MHz.
 ```
-This function queries or sets the digitizer sample rate (in MHz). If there is no argument the function will return the current sample rate. If there is an argument the specified sample rate will be set. The minimum available sample rate is 1.907 kHz. The maximum available sample rate is 500 MHz. The available sample rate should be from the following array: [500, 250, 125, ..., 0.001907]. If there is no setting fitting the argument the nearest available value is used and warning is printed. Default value is 500 MHz.<br/>
+This function queries or sets the digitizer sample rate (in MHz). If there is no argument the function will return the current sample rate. If there is an argument the specified sample rate will be set. The minimum available sample rate is 1.907 kHz (M4I 4450 X8) or 9.536 kHz (M4I 2211 X8). The maximum available sample rate is 500 MHz (M4I 4450 X8) or 1250 MHz (M4I 2211 X8). The available sample rate should be from the following array: [500, 250, 125, ..., 0.001907] for M4I 4450 X8 or [1250, 625, 312.5, ..., 0.009536] for M4I 2211 X8. If there is no setting fitting the argument the nearest available value is used and warning is printed. Default value is 500 MHz (M4I 4450 X8) or 1250 MHz (M4I 2211 X8).<br/>
 ### digitizer_clock_mode(*mode)
 ```python3
 digitizer_clock_mode(*mode)
@@ -150,21 +151,24 @@ digitizer_trigger_delay(*delay)
 Arguments: delay = value + dimension (['ms','us','ns']); Output: string.
 Example: digitizer_trigger_delay('32 ns') sets the trigger delay to 32 ns.
 ```
-This function queries or sets the digitizer trigger delay. If there is no argument the function will return the current trigger delay. If there is an argument the specified trigger delay will be set. The delay step is 16 samples. If an input is not divisible by 16 samples the delay will be rounded and a warning message will be printed. Default value is '0 ns'.<br/>
+This function queries or sets the digitizer trigger delay. If there is no argument the function will return the current trigger delay. If there is an argument the specified trigger delay will be set. The delay step is 16 samples (M4I 4450 X8) or 32 samples (M4I 2211 X8). If an input is not divisible by 16 samples (M4I 4450 X8) or by 32 samples (M4I 2211 X8) the delay will be rounded and a warning message will be printed. Default value is '0 ns'.<br/>
 ### digitizer_input_mode(*mode)
 ```python3
 digitizer_input_mode(*mode)
 Arguments: mode = string (['HF','Buffered']); Output: string.
 Example: digitizer_input_mode('HF') sets the HF input mode.
 ```
-This function queries or sets the input mode for the channels of the digitizer. If there is no argument the function will return the current input mode. If there is an argument the specified input mode will be set. The input mode will be used for both channels. According to the documentation, HF mode allows using a high frequency 50 Ohm path to have full bandwidth and best dynamic performance. Buffered mode allows using a buffered path with all features but limited bandwidth and dynamic performance. Default value is 'HF'.<br/>
+This function queries or sets the input mode for the channels of the digitizer. If there is no argument the function will return the current input mode. If there is an argument the specified input mode will be set. The input mode will be used for both channels. According to the documentation, HF mode allows using a high frequency 50 Ohm path to have full bandwidth and best dynamic performance. Buffered mode allows using a buffered path with all features but limited bandwidth and dynamic performance. Default value is 'HF'.
+This function is not available for M4I 2211 X8.<br/>
 ### digitizer_amplitude(*ampl)
 ```python3
 digitizer_amplitude(*ampl)
 Arguments: ampl = integer (in mV); Output: string.
 Example: digitizer_amplitude(500) sets the range of the digitizer channels to ±500 mV.
 ```
-This function queries or sets the input ranges of the digitizer channels. If there is no argument the function will return the range of the digitizer channels. If there is an argument the specified range (in mV) will be set. The given range will be used for both channels. In the ['Buffered' input mode](#digitizer_input_modemode) the range should be one of the following: [200, 500, 1000, 2000, 5000, 10000]. In the ['HF' input mode](#digitizer_input_modemode) the range should be one of the following: [500, 1000, 2500, 5000]. If there is no range setting fitting the argument the nearest available value is used and warning is printed. Default value is '500 mV'.<br/>
+This function queries or sets the input ranges of the digitizer channels. If there is no argument the function will return the range of the digitizer channels. If there is an argument the specified range (in mV) will be set. The given range will be used for both channels. In the ['Buffered' input mode](#digitizer_input_modemode) the range for M4I 4450 X8 should be one of the following: [200, 500, 1000, 2000, 5000, 10000]. In the ['HF' input mode](#digitizer_input_modemode) the range should be one of the following: [500, 1000, 2500, 5000]. 
+For M4I 2211 X8 the range should be one of the following: [200, 500, 1000, 2500].
+If there is no range setting fitting the argument the nearest available value is used and warning is printed. Default value is '500 mV'.<br/>
 ### digitizer_offset(*offset)
 ```python3
 digitizer_offset(*ampl)
@@ -172,7 +176,7 @@ Arguments: offset = integer (in percentage); Output: string.
 Example: digitizer_offset('CH0', '1', 'CH1', '50') sets the offset of the CH0 to 1% of 
 the input range and the offset of the CH1 to 50% of the input range.
 ```
-This function queries or sets the vertical offset of the digitizer channels. If there is no argument the function will return the offset of the both digitizer channels. If there is an argument the specified offset (as a percentage of the input range) will be set for the specified channel. The value of the offset (range * argument) is ALWAYS substracted from the signal. The step is 1%. According to the digitizer documentation, no offset can be used for 1000 mV and 10000 mV range in the ['Buffered' input mode](#digitizer_input_modemode). Default value is '0' for both channels.<br/>
+This function queries or sets the vertical offset of the digitizer channels. If there is no argument the function will return the offset of the both digitizer channels. If there is an argument the specified offset (as a percentage of the input range) will be set for the specified channel. For M4I 4450 X8 the value of the offset (range * argument) is ALWAYS substracted from the signal. The step is 1%. According to the M4I 4450 X8 documentation, no offset can be used for 1000 mV and 10000 mV range in the ['Buffered' input mode](#digitizer_input_modemode). Default value is '0' for both channels.<br/>
 ### digitizer_coupling(*coupling)
 ```python3
 digitizer_coupling(*coupling)
@@ -188,4 +192,5 @@ Arguments: impedance = string (['1 M','50']); Output: string.
 Example: digitizer_impedance('CH0', '50', 'CH1', '1 M') sets the impedance of the CH0 to 50 Ohm
 and the impedance of the CH1 to 1 MOhm.
 ```
-This function queries or sets the impedance of the digitizer channels. If there is no argument the function will return the impedance of the both digitizer channels. If there is an argument the specified impedance will be set for the specified channel. The impedance should be one of the following: ['1 M','50']. Please note that in the [HF input mode](#digitizer_input_modemode) impedance is fixed at 50 Ohm. Default value is '50' for both channels.<br/>
+This function queries or sets the impedance of the digitizer channels. If there is no argument the function will return the impedance of the both digitizer channels. If there is an argument the specified impedance will be set for the specified channel. The impedance should be one of the following: ['1 M','50']. Please note that in the [HF input mode](#digitizer_input_modemode) impedance is fixed at 50 Ohm. Default value is '50' for both channels.
+This function is not available for M4I 2211 X8. For this digitizer the impedance is fixed at 50 Ohm.<br/>

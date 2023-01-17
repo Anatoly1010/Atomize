@@ -45,6 +45,7 @@ MSO-X 4022A; MSO-X 4024A; DSO-X 4022A; DSO-X 4024A; MSO-X 4032A; MSO-X 4034A; DS
 
 ## Digitizers
 - Spectrum M4I 4450 X8; Tested 08/2021
+- Spectrum M4I 2211 X8; Tested 01/2023
 The original [library](https://spectrum-instrumentation.com/en/m4i4450-x8) was written by Spectrum.
 
 ## Oscilloscope Wave Generators

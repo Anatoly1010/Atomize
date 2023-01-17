@@ -155,6 +155,7 @@ Python is used to write an experimental script. Examples (with dummy data) can b
 
 #### [Digitizers](#digitizers-1)
 	- Spectrum M4I 4450 X8; Tested 08/2021
+	- Spectrum M4I 2211 X8; Tested 01/2021
 The original [library](https://spectrum-instrumentation.com/en/m4i4450-x8) was written by Spectrum.
 
 #### [Oscilloscope Wave Generators](#oscilloscope-wave-generators-1)
