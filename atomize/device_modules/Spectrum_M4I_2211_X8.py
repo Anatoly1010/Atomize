@@ -9,6 +9,7 @@ sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
 ###sys.path.append('/home/anatoly/AWG/spcm_examples/python')
 #sys.path.append('/home/anatoly/awg_files/python')
 #sys.path.append('C:/Users/User/Desktop/Examples/python')
+#sys.path.append('/home/bruker-awg/Sources/awg_kernel/Examples/python')
 import numpy as np
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
@@ -74,7 +75,7 @@ class Spectrum_M4I_2211_X8:
             self.clock_mode = 1 # 1 is Internal; 32 is External
             self.reference_clock = 100 # MHz
             self.card_mode = 1 # 1 is Single; 2 is Average (Multi);
-            self.trigger_ch = 2 # 1 is Software; 2 is External
+            self.trigger_ch = 1 # 1 is Software; 2 is External
             self.trigger_mode = 1 # 1 is Positive; 2 is Negative; 8 is High; 10 is Low
             self.aver = 2 # 0 is infinity
             self.delay = 0 # in sample rate; step is 32; rounded
@@ -82,8 +83,8 @@ class Spectrum_M4I_2211_X8:
             self.points = 256 # number of points
             self.posttrig_points = 64 # number of posttrigger points
 
-            self.amplitude_0 = 500 # amlitude for CH0 in mV
-            self.amplitude_1 = 500 # amlitude for CH1 in mV
+            self.amplitude_0 = 200 # amlitude for CH0 in mV
+            self.amplitude_1 = 200 # amlitude for CH1 in mV
             self.offset_0 = 0 # offset for CH0 in percentage
             self.offset_1 = 0 # offset for CH1 in percentage
             self.coupling_0 = 0 # coupling for CH0; AC is 1; DC is 0
@@ -226,7 +227,8 @@ class Spectrum_M4I_2211_X8:
             # define the memory size / max amplitude
             #llMemSamples = int64 (self.memsize)
             #lBytesPerSample = int32(0)
-            #spcm_dwGetParam_i32 (hCard, SPC_MIINST_BYTESPERSAMPLE,  byref(lBytesPerSample))
+            #spcm_dwGetParam_i32 (self.hCard, SPC_MIINST_BYTESPERSAMPLE,  byref(lBytesPerSample))
+            #general.message(lBytesPerSample.value)
             #lSetChannels = int32 (0)
             #spcm_dwGetParam_i32 (hCard, SPC_CHCOUNT, byref (lSetChannels))
 
@@ -245,16 +247,16 @@ class Spectrum_M4I_2211_X8:
             if self.channel == 1 or self.channel == 2:
                 
                 if self.card_mode == 1:
-                    self.qwBufferSize = uint64 (self.points * 2 * 1) # in bytes. samples with 2 bytes each, one channel active
+                    self.qwBufferSize = uint64 (self.points * 1 * 1) # in bytes. samples with 1 bytes each, one channel active
                 elif self.card_mode == 2:
-                    self.qwBufferSize = uint64 (int( self.points * self.aver ) * 2 * 1)
+                    self.qwBufferSize = uint64 (int( self.points * self.aver ) * 1 * 1)
 
             elif self.channel == 3:
 
                 if self.card_mode == 1:
-                    self.qwBufferSize = uint64 (self.points * 2 * 2) # in bytes. samples with 2 bytes each
+                    self.qwBufferSize = uint64 (self.points * 1 * 2) # in bytes. samples with 1 bytes each
                 elif self.card_mode == 2:
-                    self.qwBufferSize = uint64 (int( self.points * self.aver ) * 2 * 2)
+                    self.qwBufferSize = uint64 (int( self.points * self.aver ) * 1 * 2)
 
             self.lNotifySize = int32 (0) # driver should notify program after all data has been transfered
 
@@ -308,9 +310,10 @@ class Spectrum_M4I_2211_X8:
 
             # this is the point to do anything with the data
             lBitsPerSample = int32 (0)
-            spcm_dwGetParam_i32 (self.hCard, SPC_MIINST_BITSPERSAMPLE, byref (lBitsPerSample)) # lBitsPerSample.value = 14
+            spcm_dwGetParam_i32 (self.hCard, SPC_MIINST_BITSPERSAMPLE, byref (lBitsPerSample)) # lBitsPerSample.value = 8
+            #general.message(lBitsPerSample.value)
 
-            pnData = cast  (pvBuffer, ptr16) # cast to pointer to 16bit integer
+            pnData = cast  (pvBuffer, ptr8) # cast to pointer to 16bit integer
             # test of memory leak
             #pnData = np.ctypeslib.as_array(pnData, shape = (2*6500*100, ))
             #pnData = np.random.rand(2*6500*100)
@@ -322,10 +325,10 @@ class Spectrum_M4I_2211_X8:
                 if self.card_mode == 1:
 
                     if self.channel == 1:
-                        data = ( self.amplitude_0 / 1000) * np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 2 ), )) / self.lMaxDACValue.value
+                        data = ( self.amplitude_0 / 1000) * np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 1 ), )) / self.lMaxDACValue.value
 
                     elif self.channel == 2:
-                        data = ( self.amplitude_1 / 1000) * np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 2 ), )) / self.lMaxDACValue.value
+                        data = ( self.amplitude_1 / 1000) * np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 1 ), )) / self.lMaxDACValue.value
 
                     xs = np.arange( len(data) ) / (self.sample_rate * 1000000)
 
@@ -344,13 +347,13 @@ class Spectrum_M4I_2211_X8:
                     if integral == False:
                         if self.channel == 1:
                             data = ( self.amplitude_0 / 1000) * np.ctypeslib.as_array(pnData, \
-                                    shape = (int( self.qwBufferSize.value / 4 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
+                                    shape = (int( self.qwBufferSize.value / 2 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
                             #data_ave = np.sum( data, axis = 0 ) / self.aver
                             data_ave = np.average( data, axis = 0 )
 
                         elif self.channel == 2:
                             data = ( self.amplitude_1 / 1000) * np.ctypeslib.as_array(pnData, \
-                                    shape = (int( self.qwBufferSize.value / 4 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
+                                    shape = (int( self.qwBufferSize.value / 2 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
                             #data_ave = np.sum( data, axis = 0 ) / self.aver
                             data_ave = np.average( data, axis = 0 )
 
@@ -370,7 +373,7 @@ class Spectrum_M4I_2211_X8:
                         if self.read == 1:
                             if self.channel == 1:
                                 data = ( self.amplitude_0 / 1000) * np.ctypeslib.as_array(pnData, \
-                                    shape = (int( self.qwBufferSize.value / 4 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
+                                    shape = (int( self.qwBufferSize.value / 2 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
                                 #data_ave = np.sum( data, axis = 0 ) / self.aver
                                 data_ave = np.average( data, axis = 0 )
                                 
@@ -379,7 +382,7 @@ class Spectrum_M4I_2211_X8:
 
                             elif self.channel == 2:
                                 data = ( self.amplitude_1 / 1000) * np.ctypeslib.as_array(pnData, \
-                                    shape = (int( self.qwBufferSize.value / 4 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
+                                    shape = (int( self.qwBufferSize.value / 2 ), )).reshape((self.aver, self.points)) / self.lMaxDACValue.value
                                 #data_ave = np.sum( data, axis = 0 ) / self.aver
                                 data_ave = np.average( data, axis = 0 )
 
@@ -388,12 +391,12 @@ class Spectrum_M4I_2211_X8:
                         else:
                             if self.channel == 1:
                                 integ = ( self.amplitude_0 / 1000) * np.sum( np.ctypeslib.as_array(pnData, \
-                                        shape = (int( self.qwBufferSize.value / 4 ), )) ) * ( 10**(-6) / self.sample_rate ) / ( self.lMaxDACValue.value * self.aver )
+                                        shape = (int( self.qwBufferSize.value / 2 ), )) ) * ( 10**(-6) / self.sample_rate ) / ( self.lMaxDACValue.value * self.aver )
                                 # integral in V*s
 
                             elif self.channel == 2:
                                 integ = ( self.amplitude_1 / 1000) * np.sum( np.ctypeslib.as_array(pnData, \
-                                        shape = (int( self.qwBufferSize.value / 4 ), )) ) * ( 10**(-6) / self.sample_rate ) / ( self.lMaxDACValue.value * self.aver )
+                                        shape = (int( self.qwBufferSize.value / 2 ), )) ) * ( 10**(-6) / self.sample_rate ) / ( self.lMaxDACValue.value * self.aver )
                                 # integral in V*s                            
 
                         del pnData
@@ -410,7 +413,7 @@ class Spectrum_M4I_2211_X8:
 
                 if self.card_mode == 1:
 
-                    data = np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 2 ), ))
+                    data = np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 1 ), ))
                     # / 1000 convertion in V
                     # CH0
                     data1 = ( data[0::2] * ( self.amplitude_0 / 1000) ) / self.lMaxDACValue.value
@@ -432,7 +435,7 @@ class Spectrum_M4I_2211_X8:
                 elif self.card_mode == 2:
                     if integral == False:
                         data = np.ctypeslib.as_array(pnData, \
-                                shape = (int( self.qwBufferSize.value / 2 ), )).reshape((self.aver, 2 * self.points))
+                                shape = (int( self.qwBufferSize.value / 1 ), )).reshape((self.aver, 2 * self.points))
                         #data_ave = np.sum( data, axis = 0 ) / self.aver
                         data_ave = np.average( data, axis = 0 )
                         
@@ -456,7 +459,7 @@ class Spectrum_M4I_2211_X8:
                     elif integral == True:
                         if self.read == 1:
                             data = np.ctypeslib.as_array(pnData, \
-                                shape = (int( self.qwBufferSize.value / 2 ), )).reshape((self.aver, 2 * self.points))
+                                shape = (int( self.qwBufferSize.value / 1 ), )).reshape((self.aver, 2 * self.points))
                             #data_ave = np.sum( data, axis = 0 ) / self.aver
                             data_ave = np.average( data, axis = 0 )
 
@@ -475,7 +478,7 @@ class Spectrum_M4I_2211_X8:
 
                             return data1, data2
                         else:
-                            data = np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 2 ), ))
+                            data = np.ctypeslib.as_array(pnData, shape = (int( self.qwBufferSize.value / 1 ), ))
 
                             # CH0
                             data1 = ( np.sum( data[0::2] ) * ( 10**(-6) / self.sample_rate ) * ( self.amplitude_0 / 1000) ) / ( self.lMaxDACValue.value * self.aver )
@@ -494,7 +497,7 @@ class Spectrum_M4I_2211_X8:
 
                     elif integral == 'Both':
                         data = np.ctypeslib.as_array(pnData, \
-                                shape = (int( self.qwBufferSize.value / 2 ), )).reshape((self.aver, 2 * self.points))
+                                shape = (int( self.qwBufferSize.value / 1 ), )).reshape((self.aver, 2 * self.points))
                         #data_ave = np.sum( data, axis = 0 ) / self.aver
                         data_ave = np.average( data, axis = 0 )
                         
@@ -636,16 +639,16 @@ class Spectrum_M4I_2211_X8:
                 if self.channel == 1 or self.channel == 2:
                 
                     if self.card_mode == 1:
-                        self.qwBufferSize = uint64 (self.points * 2 * 1) # in bytes. samples with 2 bytes each, one channel active
+                        self.qwBufferSize = uint64 (self.points * 1 * 1) # in bytes. samples with 1 bytes each, one channel active
                     elif self.card_mode == 2:
-                        self.qwBufferSize = uint64 (int( self.points * self.aver ) * 2 * 1)
+                        self.qwBufferSize = uint64 (int( self.points * self.aver ) * 1 * 1)
 
                 elif self.channel == 3:
 
                     if self.card_mode == 1:
-                        self.qwBufferSize = uint64 (self.points * 2 * 2) # in bytes. samples with 2 bytes each
+                        self.qwBufferSize = uint64 (self.points * 1 * 2) # in bytes. samples with 1 bytes each
                     elif self.card_mode == 2:
-                        self.qwBufferSize = uint64 (int( self.points * self.aver ) * 2 * 2)
+                        self.qwBufferSize = uint64 (int( self.points * self.aver ) * 1 * 2)
 
                 spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
 
@@ -1095,12 +1098,12 @@ class Spectrum_M4I_2211_X8:
                 if self.channel == 1 or self.channel == 2:
                 
                     if self.card_mode == 2:
-                        self.qwBufferSize = uint64 (int( self.points * self.aver ) * 2 * 1)
+                        self.qwBufferSize = uint64 (int( self.points * self.aver ) * 1 * 1)
 
                 elif self.channel == 3:
 
                     if self.card_mode == 2:
-                        self.qwBufferSize = uint64 (int( self.points * self.aver ) * 2 * 2)
+                        self.qwBufferSize = uint64 (int( self.points * self.aver ) * 1 * 2)
 
                 spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
 
@@ -1194,11 +1197,9 @@ class Spectrum_M4I_2211_X8:
                 closest_available = min(self.range_list, key = lambda x: abs(x - amp))
                 if closest_available != amp:
                     general.message("Desired amplitude cannot be set, the nearest available value " + str(closest_available) + " mV is used")
+                
                 self.amplitude_0 = closest_available
                 self.amplitude_1 = closest_available
-                else:
-                    general.message('Incorrect amplitude')
-                    sys.exit()
 
             elif len(ampl) == 0:
                 return 'CH0: ' + str(self.amplitude_0) + ' mV; ' + 'CH1: ' + str(self.amplitude_1) + ' mV'
@@ -1223,12 +1224,14 @@ class Spectrum_M4I_2211_X8:
                 if closest_available != amp:
                     general.message("Desired amplitude cannot be set, the nearest available value " + str(closest_available) + " mV is used")
                 self.amplitude_0 = closest_available
-                self.amplitude_1 = closest_available            
-                else:
-                    assert( 1 == 2), 'Incorrect amplitude'
+                self.amplitude_1 = closest_available    
+
 
             elif len(ampl) == 0:
                 return self.test_amplitude
+
+            else:
+                assert( 1 == 2), 'Incorrect amplitude'
 
     def digitizer_offset(self, *offset):
         """
