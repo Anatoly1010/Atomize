@@ -24,10 +24,10 @@ x = 2*pi*(init_distance + 0.8)*200/1000
 awg = spectrum.Spectrum_M4I_6631_X8()
 
 ##awg.awg_pulse(name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = pi/2, length = '80 ns', sigma = '16 ns', start = '300 ns')
-awg.awg_pulse(name = 'P1', channel = 'CH0', func = 'WURST', frequency = ('0 MHz', '191 MHz'), phase = 0, length = '200 ns', sigma = '200 ns', start = '0 ns', delta_start = '2 ns', n = 10)
+awg.awg_pulse(name = 'P1', channel = 'CH0', func = 'SECH/TANH', frequency = ('0 MHz', '50 MHz'), phase = pi/2, length = '400 ns', start = '0 ns', delta_start = '2 ns', n = 6, b = 0.02)
 #awg.awg_pulse(name = 'P2', channel = 'CH0', func = 'SINC', frequency = '200 MHz', phase = 0, length = '64 ns', sigma = '16 ns', start = '500 ns', increment = '2 ns')
 
-awg.awg_pulse(name = 'P3', channel = 'CH1', func = 'GAUSS', frequency = '200 MHz', phase = pi/2, length = '64 ns', sigma = '16 ns', increment = '10 ns')
+awg.awg_pulse(name = 'P3', channel = 'CH1', func = 'GAUSS', frequency = '200 MHz', phase = pi/2, length = '64 ns', sigma = '16 ns', length_increment = '10 ns')
 ##awg.awg_pulse(name = 'P4', channel = 'CH1', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = pi/2, length = '64 ns', sigma = '16 ns')
 #awg.awg_pulse(name = 'P5', channel = 'CH1', func = 'SINE', frequency = '200 MHz', phase = 0, length = '64 ns', sigma = '16 ns')
 

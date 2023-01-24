@@ -13,8 +13,9 @@ awg.awg_channel('CH0', 'CH1')
 
 start_time = time.time()
 # 3 ms per point for three pulses
-awg.awg_pulse_sequence(pulse_type = ['SINE', 'GAUSS', 'SINE', 'SINE'], pulse_start = [0, 160, 320, 780], pulse_delta_start = [0, 0, 40, 0], pulse_length = [40, 120, 40, 40], \
-		pulse_phase = ['+x', '+x', '+x', '+x'], pulse_sigma = [40, 20, 40, 40], pulse_frequency = [50, 200, 40, 80], number_of_points = 10, loop = 200, rep_rate = 2000)
+awg.awg_pulse_sequence(pulse_type = ['SECH/TANH', 'SECH/TANH', 'SINE', 'SINE'], pulse_start = [0, 500, 900, 980], pulse_delta_start = [0, 0, 40, 0], pulse_length = [400, 400, 40, 40], \
+		pulse_phase = ['+x', '+x', '+x', '+x'], pulse_sigma = [40, 20, 40, 40], pulse_frequency = [(30, 50), (30, 50), 40, 80], number_of_points = 10, loop = 200, rep_rate = 2000, \
+        n = [6, 6, 6, 6], b_sech = [0.02, 0.02, 0.02, 0.02] )
 
 #awg.awg_pulse_sequence(pulse_type = ['SINE'], pulse_start = [0], pulse_delta_start = [0], pulse_length = [100], \
 #		pulse_phase = ['+x'], pulse_sigma = [40], pulse_frequency = [100], number_of_points = 5, loop = 100, rep_rate = 200)
@@ -25,12 +26,12 @@ awg.awg_pulse_sequence(pulse_type = ['SINE', 'GAUSS', 'SINE', 'SINE'], pulse_sta
 general.message(str(time.time() - start_time))
 
 awg.awg_card_mode('Sequence')
-awg.awg_setup()
+#awg.awg_setup()
 
-awg.awg_update()
-awg.awg_stop()
+#awg.awg_update()
+#awg.awg_stop()
 
-#awg.awg_visualize()
+awg.awg_visualize()
 
 # A possible way of phase cycling
 #for i in range(2):

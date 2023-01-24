@@ -99,7 +99,7 @@ awg_pulse(*kagrs)
 Arguments:
 name = 'P0' specifies a name of the pulse
 channel = 'CH0' specifies a channel string (['CH0','CH1'])
-func = 'SINE' specifies a type of the function for a pulse (['SINE','GAUSS','SINC','BLANK', 'WURST'])
+func = 'SINE' specifies a type of the function for a pulse (['SINE','GAUSS','SINC','BLANK','WURST','SECH/TANH'])
 frequency = '200 MHz' specifies a frequency of the pulse (['0-280 MHz'])
 phase = 0 specifies a phase of the pulse (in radians)
 phase_list = [] specifies a phase cycling sequence (['+x', '-x', '+y', '-y'])
@@ -113,22 +113,23 @@ Joined' card mode
 delta_start = '0 ns' specifies a pulse delta start (['ns','us','ms']) for the
 'Single Joined' card mode
 d_coef = 1 specifies an additional coefficient for adjusting pulse amplitudes
-n = 1 specifies a special coefficient for WURST pulse determining the steepness
+n = 1 specifies a special coefficient for WURST and SECH/TANH pulse determining the steepness
 of the amplitude function
+b = 0.02 specifies a special parameter for SECH/TANH pulse determining the truncation parameter in 1/ns
 Output: none.
 Example: awg_pulse(name = 'P0', channel = 'CH0', func = 'SINE', frequency =
 '200 MHz', phase = pi/2, length = '40 ns') sets the 40 ns
 length 200 MHz sine pulse with pi/2 phase.
 ```
 The function sets a pulse with specified parameters for 'Single', 'Multi', and 'Single Joined' card mode. The AWG card buffer will be filled according to key arguments of the awg_pulse() function. The default argument is the following: 
-name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = 0, length = '16 ns', sigma = '0 ns', length_increment = '0 ns', start = '0 ns', delta_start = '0 ns', d_coef = 1, n = 1, phase_list = []. A channel should be one of the following ['CH0','CH1']. The frequency should be in MHz, the minimum value is 0 MHz, maximum is 280 MHz. For WURST pulse the frequency argument should be a tuple ('center_freq MHz', 'sweep_range MHz'), i.e. ('0 MHz', '100 MHz'). The scaling factor for length and sigma key arguments should be one of the following ['ns','us','ms']. The minimum available length and sigma of the pulse is 0 ns. The maximum available length and sigma of the pulse is 1900 ns. The available functions are ['SINE','GAUSS','SINC','BLANK','WURST']. For 'SINE', 'BLANK', and 'WURST' function parameter sigma has no meaning. For 'GAUSS' function parameter sigma is a sigma of Gaussian. For 'SINC' function a combination of parameters length and sigma specifies the width of the SINC pulse, i.e. length = '40 ns' and sigma = '10 ns' means that SINC pulse will be from -4pi to +4pi. Function 'BLANK' is an empty pulse. Function 'WURST' is a wideband, uniform rate, smooth truncation pulse. The length_increment keyword affects both the length and sigma of the pulse. The scaling factor for start and delta_start key arguments should be one of the following ['ns','us','ms']. The [amplitudes](#awg_amplitudeamplitude) of the AWG card channels will be divided by the value of the d_coef parameter, which ultimately determines the final amplitude of each pulse. The d_coef parameter should be more or equal to 1. The n parameter determines the steepness of the amplitude function of the WURST pulse. For other functions it has no meaning.<br/>
+name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = 0, length = '16 ns', sigma = '0 ns', length_increment = '0 ns', start = '0 ns', delta_start = '0 ns', d_coef = 1, n = 1, phase_list = []. A channel should be one of the following ['CH0','CH1']. The frequency should be in MHz, the minimum value is 0 MHz, maximum is 280 MHz. For WURST and SECH/TANH pulse the frequency argument should be a tuple ('center_freq MHz', 'sweep_range MHz'), i.e. ('0 MHz', '100 MHz'). The scaling factor for length and sigma key arguments should be one of the following ['ns','us','ms']. The minimum available length and sigma of the pulse is 0 ns. The maximum available length and sigma of the pulse is 1900 ns. The available functions are ['SINE','GAUSS','SINC','BLANK','WURST','SECH/TANH']. For 'SINE', 'BLANK', 'WURST', and SECH/TANH function parameter sigma has no meaning. For 'GAUSS' function parameter sigma is a sigma of Gaussian. For 'SINC' function a combination of parameters length and sigma specifies the width of the SINC pulse, i.e. length = '40 ns' and sigma = '10 ns' means that SINC pulse will be from -4pi to +4pi. Function 'BLANK' is an empty pulse. Function 'WURST' is a wideband, uniform rate, smooth truncation pulse. Function 'SECH/TANH' is a wideband sech/tanh pulse. The length_increment keyword affects both the length and sigma of the pulse. The scaling factor for start and delta_start key arguments should be one of the following ['ns','us','ms']. The [amplitudes](#awg_amplitudeamplitude) of the AWG card channels will be divided by the value of the d_coef parameter, which ultimately determines the final amplitude of each pulse. The d_coef parameter should be more or equal to 1. The n parameter determines the steepness of the amplitude function of the WURST and SECH/TANH pulses. For other functions it has no meaning. The b parameter (in 1/ns) determines the truncation parameter of the SECH/TANH pulse. For other functions it has no meaning.<br/>
 It is recommended to first define all pulses and then define the settings of the AWG card. To write the settings [awg_setup()](#awg_setup) function should be called. To run specified pulses the [awg_update()](#awg_update) function should be called.<br/>
 Key argument delta_phase define a pulse phase shift and has no meaning for 'Single Joined' card mode, since the phase of the pulse will be calculated automatically. Key arguments start and delta_start define a pulse position for 'Single Joined' card mode and has no meaning for 'Single' or 'Multi' card mode.<br/>
 ### awg_pulse_sequence(kargs)
 ```python3
 awg_pulse_sequence(kagrs)
 Arguments:
-pulse_type = ['SINE','GAUSS','SINC','BLANK','WURST']
+pulse_type = ['SINE','GAUSS','SINC','BLANK','WURST','SECH/TANH']
 pulse_start = [pulse 1 start in ns, pulse 2 start in ns, ...]
 pulse_delta_start = [pulse 1 delta start in ns, pulse 2 delat start in ns, ...]
 pulse_length = [pulse 1 length in ns, pulse 2 length in ns, ...]
@@ -139,17 +140,18 @@ number_of_points = total number of points in a pulse sequence, taking into
 account shifting of the pulses
 loop = number of repetition of each point
 rep_rate = repetition rate of the pulse sequence in Hz
-n_wurst = [pulse 1 n_wurst parameter in arb. u., n_wurst parameter in arb. u., ...]
+n = [pulse 1 n parameter in arb. u., n parameter in arb. u., ...]
+b = [pulse 1 b parameter in 1/ns, b parameter in 1/ns., ...]
 Output: none.
 Example: awg_pulse_sequence(pulse_type = ['SINE', 'GAUSS', 'SINE'],
 pulse_start = [0, 160, 320], pulse_delta_start = [0, 0, 40],
 pulse_length = [40, 120, 40], pulse_phase = ['+x', '+x', '+x'],
-pulse_sigma = [40, 20, 40], pulse_frequency = [50, 200, 40], n_wurst = [20, 20, 20],
-number_of_points = 800, loop = 10, rep_rate = 10000) sets a pulse train of
+pulse_sigma = [40, 20, 40], pulse_frequency = [50, 200, 40], n = [20, 20, 20], 
+b = [0.02, 0.02, 0.02], number_of_points = 800, loop = 10, rep_rate = 10000) sets a pulse train of
 three pulses with 10 kHz repetition rate and a third pulse shifting by 40 ns at
 each of 800 points.
 ```
-The function sets a pulse sequence with specified parameters for 'Sequence' card [mode](#awg_cardmode). The AWG card buffer will be filled according to key arguments of the awg_pulse_sequence() function. There is no default arguments, that is why all keywords must be specified. The minimum available length and sigma of the pulse is 0 ns. The maximum available length and sigma of the pulse is 1900 ns. For WURST pulse the frequency should be a tuple ('Center_freq MHz', 'sweep_freq MHz'), i.e. ('0 MHz', '100 MHz'). The available functions are ['SINE','GAUSS','SINC','BLANK','WURST']. For 'SINE', 'BLANK', and 'WURST' functions parameter sigma has no meaning. For 'GAUSS' function parameter sigma is a sigma of Gaussian. For 'SINC' function a combination of parameters length and sigma specifies the width of the SINC pulse in the same manner as the function [awg_pulse()](#awg_pulsekargs). Function 'BLANK' is an empty pulse. Function 'WURST' is a wideband, uniform rate, smooth truncation pulse. The n_wurst parameter determines the steepness of the amplitude function of the WURST pulse. For other functions it has no meaning.<br/>
+The function sets a pulse sequence with specified parameters for 'Sequence' card [mode](#awg_cardmode). The AWG card buffer will be filled according to key arguments of the awg_pulse_sequence() function. There is no default arguments, that is why all keywords must be specified. The minimum available length and sigma of the pulse is 0 ns. The maximum available length and sigma of the pulse is 1900 ns. For WURST and SECH/TANH pulses the frequency should be a tuple ('Center_freq MHz', 'sweep_freq MHz'), i.e. ('0 MHz', '100 MHz'). The available functions are ['SINE','GAUSS','SINC','BLANK','WURST','SECH/TANH']. For 'SINE', 'BLANK', 'WURST', and 'SECH/TANH' functions parameter sigma has no meaning. For 'GAUSS' function parameter sigma is a sigma of Gaussian. For 'SINC' function a combination of parameters length and sigma specifies the width of the SINC pulse in the same manner as the function [awg_pulse()](#awg_pulsekargs). Function 'BLANK' is an empty pulse. Function 'WURST' is a wideband, uniform rate, smooth truncation pulse. Function 'SECH/TANH' is a wideband sech/tanh pulse. The n parameter determines the steepness of the amplitude function of the WURST and SECH/TANH pulse. For other functions it has no meaning. The b parameter (in 1/ns) determines the truncation parameter of the SECH/TANH pulse. For other functions it has no meaning.<br/>
 Please note, that each new call of the [awg_pulse_sequence()](#awg_pulse_sequencekargs) function will redefine the pulse sequence. Pulse_start array must be sorted. A number of enabled channels should be defined before [awg_pulse_sequence()](#awg_pulse_sequencekargs).<br/>
 To write the settings [awg_setup()](#awg_setup) function should be called. To run a specified pulse sequence the [awg_update()](#awg_update) function should be called. After going through all the buffer the AWG card will be stopped.<br/>
 ### awg_shift(*pulses)
@@ -200,7 +202,7 @@ Arguments: name = 'Pulse name', freq = a new frequency as a string ('100 MHz'; o
 Output: none.
 Example: awg_redefine_frequency(name = 'P0', freq = '10 MHz') changes frequency setting of the 'P0' pulse to '10 MHz'.
 ```
-This function should be called with two keyword arguments, namely name and frequency. The first argument specifies the name of the pulse as a string. The second argument defines a new value of frequency as a string, i.e. '100 MHz' or a list of string ('0 MHz', '100' MHz) for WURST pulses, see [awg_pulse()](#awg_pulse) for more details.Please note, that the function does not update the AWG card. [awg_update()](#awg_update) should be called to apply changes. The function has no meaning for the 'Sequence' card mode. One should redefine all the sequence instead.
+This function should be called with two keyword arguments, namely name and frequency. The first argument specifies the name of the pulse as a string. The second argument defines a new value of frequency as a string, i.e. '100 MHz' or a list of string ('0 MHz', '100' MHz) for WURST and SECH/TANH pulses, see [awg_pulse()](#awg_pulse) for more details. Please note, that the function does not update the AWG card. [awg_update()](#awg_update) should be called to apply changes. The function has no meaning for the 'Sequence' card mode. One should redefine all the sequence instead.
 ### awg_redefine_delta_start(*, name, delta_start)
 ```python3
 awg_redefine_delta_start(*, name, delta_start)
