@@ -79,7 +79,7 @@ class ER_031M:
         if self.status_flag == 1:
             general.wait('900 ms') # very important to have timeout here
             command = str(command)
-            self.device.write(command.encode())
+            self.device.write(command()) #.encode
         else:
             self.status_flag = 0
             general.message("No Connection")
@@ -110,6 +110,7 @@ class ER_031M:
     def magnet_field(self, *field):
         if self.test_flag != 'test':
             if len(field) == 1:
+                field = field[0]
                 if field <= self.max_field and field >= self.min_field:
                     #field_controller_write('cf'+str(field)+'\r')
                     self.device_write('cf' + str(field))
@@ -126,6 +127,7 @@ class ER_031M:
 
         elif self.test_flag == 'test':
             if len(field) == 1:
+                field = field[0]
                 assert(field <= self.max_field and field >= self.min_field), 'Incorrect field range'
                 self.field = field
             elif len(field) == 0:

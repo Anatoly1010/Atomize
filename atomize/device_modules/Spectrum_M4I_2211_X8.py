@@ -616,8 +616,7 @@ class Spectrum_M4I_2211_X8:
                     self.points = pnts
 
                 if ( self.points - self.posttrig_points ) > 8000:
-                    general.message('Difference between number of points and posttrigger points should be less than 8000; \
-                        The closest avalaibale number of points is used')
+                    general.message('Difference between number of points and posttrigger points should be less than 8000; The closest avalaibale number of points is used')
                     self.points = self.posttrig_points + 8000 
 
             elif len(points) == 0:
