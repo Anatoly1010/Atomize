@@ -67,7 +67,7 @@ class IVG_1_1:
                 sys.exit()
 
         elif self.test_flag == 'test':
-            self.test_moisture = 1
+            self.test_moisture = [ -49.9, 40.12, 29.1, 25.1 ]
 
     def close_connection(self):
         if self.test_flag != 'test':

@@ -33,6 +33,7 @@ At the moment, Atomize has been tested and is currently used for controlling sev
     - [Gaussmeters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/gaussmeter_functions.md)<br/>
     - [Power Supplies](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/power_supply_functions.md)<br/>
     - [Delay Generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/delay_generator_functions.md)<br/>
+    - [Moisture Meters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/moisture_meter_functions.md)<br/>
     - [Balances](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)<br/>
     - [Other](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)<br/>
 - [Function for devices](#available-function-for-devices)<br/>
@@ -178,6 +179,7 @@ The original [C library](http://www.spincore.com/support/spinapi/using_spin_api_
 #### [Frequency Counters](#frequency-counters-1)
 	- Agilent Frequency Counter (GPIB, RS-232)
 	53181A; 53131A/132A; Tested 02/2021
+	5343A; GPIB, Tested 02/2023
 	- Keysight Frequency Counter (GPIB, RS-232, Ethernet)
 	53230A/220A; Untested
 
@@ -200,6 +202,9 @@ The original [C library](http://www.spincore.com/support/spinapi/using_spin_api_
 
 #### [Delay Generators](#delay-generators-1)
     - Stanford Research DG535 (GPIB); Untested
+
+#### [Moisture Meters](#moisture-meters-1)
+	- IVG-1/1 (RS-485); Tested 02/2023
 
 #### [Balance](#balances-1)
 	- CPWplus 150 (RS-232); Tested 01/2021
@@ -475,6 +480,11 @@ delay_gen_amplitude_offset(*amplitude_offset)
 delay_gen_output_polarity(*polarity)
 delay_gen_command(command)
 delay_gen_query(command)
+```
+### [Moisture Meters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/moisture_meter_functions.md)
+```python3
+moisture_meter_name()
+moisture_meter_moisture()
 ```
 ### [Balance](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)
 ```python3

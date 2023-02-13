@@ -58,4 +58,4 @@ First of all you need to install gpib library on your computer. For linux one ca
     Board = 0
     Address = 12
 
-A detailed instruction for the linux-gpib library installation will be available later.
+The timeout option corresponds to the following dictionarey: { 'Never': 0, '10 us': 1, '30 us': 2, '100 us': 3, '300 us': 4, '1 ms': 5, '3 ms': 6, '10 ms': 7, '30 ms': 8, '100 ms': 9, '300 ms': 10, '1 s': 11, '3 s': 12, '10 s': 13, '30 s': 14, '100 s': 15, '300 s': 16, '1000 s': 17}. A detailed instruction for the linux-gpib library installation will be available later.

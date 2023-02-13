@@ -14,6 +14,7 @@
 - [Gaussmeters](#gaussmeters)<br/>
 - [Power Supplies](#power-supplies)<br/>
 - [Delay Generators](#delay-generators)<br/>
+- [Moisture Meters](#moisture-meters)<br/>
 - [Balance](#balances)<br/>
 - [Other](#other)<br/>
 
@@ -67,6 +68,7 @@ The device is available via ctypes. [The original C library](http://www.spincore
 ## Frequency Counters
 - Agilent Frequency Counter (GPIB, RS-232)
 53181A; 53131A/132A; Tested 01/2021
+5343A; GPIB, Tested 02/2023
 - Keysight Frequency Counter (GPIB, RS-232, Ethernet)
 53230A/220A; Untested
 
@@ -90,6 +92,9 @@ PS310, PS325 (GPIB); PS350, PS355, PS365, PS370, PS375 (RS-232, GPIB)
 
 ## Delay Generators
 - Stanford Research DG535 (GPIB); Untested
+
+## Moisture Meters
+- IVG-1/1 (RS-485); Tested 02/2023
 
 ## Balance
 - CPWplus 150 (RS-232); Tested 01/2021
