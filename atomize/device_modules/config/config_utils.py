@@ -10,10 +10,21 @@ def read_conf_util(path_config_file):
     config = configparser.ConfigParser()
     config.read(path_config_file)
 
+    gpib_timeout_list = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100, 300, \
+                                1000, 3000, 10000, 30000, 100000, 300000, 1000000]
+
     # loading configuration parameters
     name = config['DEFAULT']['name']
     interface = config['DEFAULT']['type']
     timeout = int(config['DEFAULT']['timeout'])
+
+    if interface != 'gpib':
+        pass
+    else:
+        number_timeout = min(helper_gpib_timeout_list, key=lambda x: abs(x - timeout))
+        if int(number_timeout) != timeout:
+            general.message(f"Desired GPIB timeout cannot be set, the nearest available value {number_timeout} ms is used")
+        timeout = number_timeout
 
     board_address = int(config['GPIB']['board'])
     gpib_address = int(config['GPIB']['address'])

@@ -45,7 +45,8 @@ class Lakeshore_340:
                 try:
                     import Gpib
                     self.status_flag = 1
-                    self.device = Gpib.Gpib(self.config['board_address'], self.config['gpib_address'])
+                    self.device = Gpib.Gpib(self.config['board_address'], self.config['gpib_address'], \
+                                            timeout = self.config['timeout'])
                     try:
                         # test should be here
                         self.device_write('*CLS')

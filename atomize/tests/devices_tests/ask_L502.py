@@ -1,6 +1,6 @@
 import time
 import numpy as np
-import L_card_L502 as l502_api
+import atomize.device_modules.L_card_L502 as l502_api
 import atomize.general_modules.general_functions as general
 
 l502 = l502_api.L_card_L502()
