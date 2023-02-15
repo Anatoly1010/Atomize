@@ -3,6 +3,7 @@
 
 import configparser
 from pyvisa.constants import StopBits, Parity
+import atomize.general_modules.general_functions as general
 
 # read config data
 def read_conf_util(path_config_file):
@@ -21,7 +22,7 @@ def read_conf_util(path_config_file):
     if interface != 'gpib':
         pass
     else:
-        number_timeout = min(helper_gpib_timeout_list, key=lambda x: abs(x - timeout))
+        number_timeout = min(gpib_timeout_list, key=lambda x: abs(x - timeout))
         if int(number_timeout) != timeout:
             general.message(f"Desired GPIB timeout cannot be set, the nearest available value {number_timeout} ms is used")
         timeout = number_timeout
