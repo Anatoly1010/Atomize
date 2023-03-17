@@ -37,7 +37,7 @@ class SR_830:
         self.ref_mode_dict = {'Internal': 1, 'External': 0,}
         self.ref_slope_dict = {'Sine': 0, 'PosTTL': 1, 'NegTTL': 2}
         self.sync_dict = {'Off': 0, 'On': 1}
-        self.lp_fil_dict = {'6 db': 0, '12 dB': 1, "18 dB": 2, "24 dB": 3}
+        self.lp_fil_dict = {'6 dB': 0, '12 dB': 1, "18 dB": 2, "24 dB": 3}
 
         # Ranges and limits
         self.ref_freq_min = 0.001
