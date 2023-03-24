@@ -187,7 +187,12 @@ class Keysight_4000_Xseries:
         elif self.test_flag == 'test':
             if len(points) == 1:
                 temp = int(points[0])
-                poi = min(self.points_list, key = lambda x: abs(x - temp))
+                if self.test_acquisition_type == 'Average':
+                    poi = min(self.points_list, key = lambda x: abs(x - temp))
+                    self.test_record_length = poi
+                else:
+                    poi = min(self.points_list_average, key = lambda x: abs(x - temp))
+                    self.test_record_length = poi
             elif len(points) == 0:
                 answer = self.test_record_length
                 return answer
@@ -304,7 +309,7 @@ class Keysight_4000_Xseries:
             answer = 1000000*float(self.device_query(":TIMebase:RANGe?"))/points
             return answer
         elif self.test_flag == 'test':
-            answer = 1000000*float(self.test_timebase.split(' ')[0])/self.test_record_length
+            answer = 1000000*float(self.test_timebase)/self.test_record_length
             return answer
 
     def oscilloscope_start_acquisition(self):
