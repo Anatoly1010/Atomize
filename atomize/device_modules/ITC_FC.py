@@ -99,6 +99,7 @@ class ITC_FC:
             if start_field <= self.max_field and start_field >= self.min_field:
                 self.field = start_field
                 self.field_step = field_step
+                self.magnet_field(self.field)
             else:
                 general.message('Incorrect field range')
                 sys.exit()
@@ -106,14 +107,20 @@ class ITC_FC:
             assert(start_field <= self.max_field and start_field >= self.min_field), 'Incorrect field range'
             self.field = start_field
             self.field_step = field_step
+            self.magnet_field(self.field)
 
     def magnet_field(self, *field):
         if self.test_flag != 'test':
             if len(field) == 1:
                 field = field[0]
                 if field <= self.max_field and field >= self.min_field:
-                    self.device_write('field ' + str(field))
+                    self.device_write(f'CF {field} #13 #10')
                     self.field = field
+
+                    # it takes a lot to process the command
+                    #general.wait('50 ms')
+                    
+                    return self.field
                 else:
                     general.message('Incorrect field range')
                     sys.exit()
@@ -129,6 +136,7 @@ class ITC_FC:
                 field = field[0]
                 assert(field <= self.max_field and field >= self.min_field), 'Incorrect field range'
                 self.field = field
+                return self.field
             elif len(field) == 0:
                 answer = self.test_field
                 return answer

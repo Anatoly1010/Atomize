@@ -392,6 +392,10 @@ class Keysight_3000_Xseries:
                     elif integral == True:
                         integ = np.sum( array_y[self.win_left:self.win_right] ) * ( 10**(-6) * self.oscilloscope_time_resolution() )
                         return integ
+                    elif integral == 'Both':
+                        integ = np.sum( array_y[self.win_left:self.win_right] ) * ( 10**(-6) * self.oscilloscope_time_resolution() )
+                        xs = np.arange( len(array_y) ) * ( 10**(-6) * self.oscilloscope_time_resolution() )
+                        return xs, array_y, integ
 
                 else:
                     general.message("Invalid channel is given")
@@ -413,7 +417,11 @@ class Keysight_3000_Xseries:
                 elif integral == True:
                     integ = np.sum( array_y[self.win_left:self.win_right] ) * ( 10**(-6) * self.oscilloscope_time_resolution() )
                     return integ
-
+                elif integral == 'Both':
+                    integ = np.sum( array_y[self.win_left:self.win_right] ) * ( 10**(-6) * self.oscilloscope_time_resolution() )
+                    xs = np.arange( len(array_y) ) * ( 10**(-6) * self.oscilloscope_time_resolution() )
+                    return xs, array_y, integ
+    
     def oscilloscope_area(self, channel):
         if self.test_flag != 'test':
             ch = str(channel)

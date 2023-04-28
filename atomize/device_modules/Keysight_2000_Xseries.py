@@ -182,12 +182,7 @@ class Keysight_2000_Xseries:
         elif self.test_flag == 'test':
             if len(points) == 1:
                 temp = int(points[0])
-                if self.test_acquisition_type == 'Average':
-                    poi = min(self.points_list, key = lambda x: abs(x - temp))
-                    self.test_record_length = poi
-                else:
-                    poi = min(self.points_list_average, key = lambda x: abs(x - temp))
-                    self.test_record_length = poi
+                poi = min(self.points_list, key = lambda x: abs(x - temp))
             elif len(points) == 0:
                 answer = self.test_record_length
                 return answer
@@ -311,7 +306,7 @@ class Keysight_2000_Xseries:
         if self.test_flag != 'test':
             #start_time = datetime.now()
             self.device_write(':WAVeform:FORMat WORD')
-            self.device_query('*ESR?;:DIGitize;*OPC?') # return 1, if everything is ok;
+            self.device_write('*ESR?;:DIGitize;*OPC?') # return 1, if everything is ok; #;*OPC?
             # the whole sequence is the following 1-binary format; 2-clearing; 3-digitizing; 4-checking of the completness
             #end_time=datetime.now()
             #general.message('Acquisition completed')
@@ -389,6 +384,10 @@ class Keysight_2000_Xseries:
                     elif integral == True:
                         integ = np.sum( array_y[self.win_left:self.win_right] ) * ( 10**(-6) * self.oscilloscope_time_resolution() )
                         return integ
+                    elif integral == 'Both':
+                        integ = np.sum( array_y[self.win_left:self.win_right] ) * ( 10**(-6) * self.oscilloscope_time_resolution() )
+                        xs = np.arange( len(array_y) ) * ( 10**(-6) * self.oscilloscope_time_resolution() )
+                        return xs, array_y, integ
 
                 else:
                     general.message("Invalid channel is given")
@@ -410,6 +409,10 @@ class Keysight_2000_Xseries:
                 elif integral == True:
                     integ = np.sum( array_y[self.win_left:self.win_right] ) * ( 10**(-6) * self.oscilloscope_time_resolution() )
                     return integ
+                elif integral == 'Both':
+                    integ = np.sum( array_y[self.win_left:self.win_right] ) * ( 10**(-6) * self.oscilloscope_time_resolution() )
+                    xs = np.arange( len(array_y) ) * ( 10**(-6) * self.oscilloscope_time_resolution() )
+                    return xs, array_y, integ
 
     def oscilloscope_sensitivity(self, *channel):
         if self.test_flag != 'test':
