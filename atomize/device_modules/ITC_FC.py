@@ -112,13 +112,13 @@ class ITC_FC:
     def magnet_field(self, *field):
         if self.test_flag != 'test':
             if len(field) == 1:
-                field = field[0]
+                field = round( field[0], 3 )
                 if field <= self.max_field and field >= self.min_field:
                     self.device_write(f'CF {field} #13 #10')
                     self.field = field
 
                     # it takes a lot to process the command
-                    #general.wait('50 ms')
+                    #general.wait('70 ms')
                     
                     return self.field
                 else:
