@@ -13,6 +13,7 @@
 - [Microwave Bridge Controllers](#microwave-bridge-controllers)<br/>
 - [Gaussmeters](#gaussmeters)<br/>
 - [Power Supplies](#power-supplies)<br/>
+- [Magnet Power Supplies](#magnet-power-supplies)<br/>
 - [Delay Generators](#delay-generators)<br/>
 - [Moisture Meters](#moisture-meters)<br/>
 - [Balance](#balances)<br/>
@@ -43,6 +44,7 @@ MSO-X 3014A; MSO-X 3012A; DSO-X 3014A; DSO-X 3012A; MSO-X 3024A; DSO-X 3024A; MS
 MSO-X 4022A; MSO-X 4024A; DSO-X 4022A; DSO-X 4024A; MSO-X 4032A; MSO-X 4034A; DSO-X 4032A; DSO-X 4034A; MSO-X 4052A; MSO-X 4054A; DSO-X 4052A; DSO-X 4054A; MSO-X 4104A; DSO-X 4104A; MSO-X 4154A; DSO-X 4154A.
 - Tektronix 3000 Series (Ethernet); Tested 09/2022
 - Tektronix 4000 Series (Ethernet); Tested 01/2021
+- Tektronix 5 Series MSO (Ethernet); Untested
 
 ## Digitizers
 - Spectrum M4I 4450 X8; Tested 08/2021
@@ -90,6 +92,9 @@ The device is available via ctypes. [The original C library](http://www.spincore
 - Stanford Research PS300 High Voltage Series (RS-232, GPIB); Untested
 PS310, PS325 (GPIB); PS350, PS355, PS365, PS370, PS375 (RS-232, GPIB)
 
+## Magnet Power Supplies
+- Cryomagnetics 4G (Ethernet); Untested
+
 ## Delay Generators
 - Stanford Research DG535 (GPIB); Untested
 
@@ -104,5 +109,3 @@ PS310, PS325 (GPIB); PS350, PS355, PS365, PS370, PS375 (RS-232, GPIB)
 - Owen-MK110-220.4DN.4R Discrete IO Module (RS-485); Tested 04/2021
 - Cryomagnetics LM-510 Liquid Cryogen Monitor (TCP/IP Socket); Tested 07/2022
 - Cryomech CPA2896, CPA1110 Digital Panels (RS-485); Tested 07/2022
-
-

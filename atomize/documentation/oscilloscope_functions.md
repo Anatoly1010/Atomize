@@ -6,6 +6,7 @@ Available devices:
 - Keysight InfiniiVision 4000 X-Series (Ethernet); Untested
 - Tektronix 3000 Series (Ethernet); Tested 09/2022
 - Tektronix 4000 Series (Ethernet); Tested 01/2021
+- Tektronix 5 Series MSO (Ethernet); Untested
 
 Functions:
 - [oscilloscope_name()](#oscilloscope_name)<br/>

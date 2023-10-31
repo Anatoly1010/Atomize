@@ -51,7 +51,7 @@ Arguments: current = two strings ('channel string' ['CH1','CH2','CH3'], 'number 
 or one string ('channel string'); Output: float (in A).
 Example: power_supply_current('CH2', '100 mA') sets the current of the second channel to 100 mA.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the current of one of the channels of the power supply. If there is a second argument it will be set as a new current. If there is no second argument the current for specified the channel is returned in Ampers.<br/>
+The function queries (if called with one argument) or sets (if called with two arguments) the current of one of the channels of the power supply. If there is a second argument it will be set as a new current. If there is no second argument the current for specified the channel is returned in Amperes.<br/>
 This function is only supported by Rigol DP800 Series.
 ### power_supply_overvoltage(*voltage)
 ```python3
@@ -93,8 +93,8 @@ Arguments: channel = string ('channel string' ['CH1','CH2','CH3']); Output: arra
 Example: power_supply_measure('CH1') queries the voltage, current and power (optional) measured on the output 
 terminal of the channel 1.
 ```
-The function can be called only with one argument and queries the voltage, current and power measured on the output terminal of the specified channel. The function returns measured values in Volts, Ampers, Watts separeted by commas.<br/>
-Stanford Research PC300 high voltage supply series has only one channel, however, it should be listed as the first argument for consistency. For these devices the function returns measured values in Volts and Ampers separeted by commas.<br/>
+The function can be called only with one argument and queries the voltage, current and power measured on the output terminal of the specified channel. The function returns measured values in Volts, Amperes, Watts separated by commas.<br/>
+Stanford Research PC300 high voltage supply series has only one channel, however, it should be listed as the first argument for consistency. For these devices the function returns measured values in Volts and Amperes separated by commas.<br/>
 This function is not supported by Stanford Research DC205.
 ### power_supply_preset(preset)
 ```python3
@@ -112,7 +112,7 @@ Example: power_supply_range('10 V') sets the voltage range setting to 10 V.
 ```
 This function is only supported by Stanford Research DC205 and allows to set or query the voltage range setting. If there is an argument it will be set as a new voltage range setting. If there is no argument the current voltage range setting is returned as a string.<br/> 
 The argument should be from the following array: ['1 V', '10 V', '100 V'] and 
-corredponds to one of the three range settings: ±1 V, ±10 V, or ±100 V.
+corresponds to one of the three range settings: ±1 V, ±10 V, or ±100 V.
 ### power_supply_interlock()
 ```python3
 power_supply_interlock()

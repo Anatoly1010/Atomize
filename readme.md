@@ -8,7 +8,7 @@ Atomize uses [liveplot library](https://github.com/PhilReinhold/liveplot) based 
 
 [Python Programming Language](https://www.python.org/) is used inside experimental scripts, which opens up almost unlimited possibilities for raw experimental data treatment. In addition, with PyQt, one can create experimental scripts with a simple graphical interface, allowing users not familiar with Python to use it. Several examples of scripts (with dummy data) are provided in /atomize/tests/ directory, including a GUI script with extended comments inside. Also a variant of the Atomize with GUI Control Window extension can be found [here.](https://github.com/Anatoly1010/Atomize_NIOCH)<br/>
 
-Currently there are more than 200 device specific and general functions available for over 25 different devices, including 4 series of devices. If you would like to write a module for the device that is not currently available, please, read this short [instruction.](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/writing_modules.md)
+Currently there are more than 200 device specific and general functions available for over 27 different devices, including 6 series of devices. If you would like to write a module for the device that is not currently available, please, read this short [instruction.](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/writing_modules.md)
 
 Detailed documentation can be found [here.](https://github.com/Anatoly1010/Atomize/tree/master/atomize/documentation)
 
@@ -153,6 +153,7 @@ Python is used to write an experimental script. Examples (with dummy data) can b
 	- Keysight InfiniiVision 4000 X-Series (Ethernet); Untested
 	- Tektronix 3000 Series (Ethernet); Tested 09/2022
 	- Tektronix 4000 Series (Ethernet); Tested 01/2021
+	- Tektronix 5 Series MSO (Ethernet); Untested
 
 #### [Digitizers](#digitizers-1)
 	- Spectrum M4I 4450 X8; Tested 08/2021
@@ -200,6 +201,9 @@ The original [C library](http://www.spincore.com/support/spinapi/using_spin_api_
 	- Stanford Research DC205 (RS-232); Untested
     - Stanford Research PS300 High Voltage Series (RS-232, GPIB); Untested
 
+#### [Magnet Power Supplies](#magnet-power-supplies-1)
+	- Cryomagnetics 4G (Ethernet); Untested
+
 #### [Delay Generators](#delay-generators-1)
     - Stanford Research DG535 (GPIB); Untested
 
@@ -216,320 +220,27 @@ The original [C library](http://www.spincore.com/support/spinapi/using_spin_api_
     - Cryomech CPA2896, CPA1110 Digital Panels (RS-485); Tested 07/2022
 
 ## [Available general functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
-```python3
-message('A message to print')
-wait('number + scaling')
-to_infinity()
-const_shift('0 ns', shift)
-open_1D(path, header = 0)
-open_1D_dialog(self, directory = '', header = 0)
-save_1D_dialog(data, directory = '', header = '')
-open_2D(path, header = 0)
-open_2D_dialog(directory = '', header = 0)
-open_2D_appended(path, header = 0, chunk_size = 1)
-open_2D_appended_dialog(directory = '', header = 0, chunk_size = 1)
-save_2D_dialog(data, directory = '', header = '')
-create_file_parameters(add_name, directory = '')
-save_header(filename, header = '', mode = 'w')
-save_data(filename, data, header = '', mode = 'w')
-create_file_dialog(directory = '')
-create_file_parameters(add_name, directory = '')
-save_header(filename, header = '', mode = 'w')
-save_data(filename, data, header = '', mode = 'w')
-```
 
 ## [Available plotting functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
-```python3
-plot_1d('name', Xdata, Ydata, **args)
-plot_2d('name', data, start_step = ((Xstart, Xstep), (Ystart, Ystep)), **args)
-text_label('label', DynamicValue)
-plot_remove('name')
-```
+
 ## Available function for devices
 ### [Temperature controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/temperature_controller_functions.md)
-```python3
-tc_name()
-tc_temperature(channel)
-tc_setpoint(*temp)
-tc_heater_range(*heater)
-tc_heater_power()
-tc_heater_power_limit(power)
-tc_state(*mode)
-tc_sensor(*sensor)
-tc_gas_flow(*flow)
-tc_lock_keyboard(*lock)
-tc_proportional(*prop)]
-tc_derivative(*der)
-tc_integral(*integ)
-tc_command(command)
-tc_query(command)
-```
 ### [Oscilloscopes](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/oscilloscope_functions.md)
-```python3
-oscilloscope_name()
-oscilloscope_record_length(*points)
-oscilloscope_acquisition_type(*ac_type)
-oscilloscope_number_of_averages(*number_of_averages)
-oscilloscope_timebase(*timebase)
-oscilloscope_define_window(**kargs)
-oscilloscope_time_resolution()
-oscilloscope_start_acquisition()
-oscilloscope_preamble(channel)
-oscilloscope_area(channel)
-oscilloscope_stop()
-oscilloscope_run()
-oscilloscope_get_curve(channel)
-oscilloscope_sensitivity(*channel)
-oscilloscope_offset(*channel)
-oscilloscope_horizontal_offset(*h_offset)
-oscilloscope_coupling(*coupling)
-oscilloscope_impedance(*impedance)
-oscilloscope_trigger_mode(*mode)
-oscilloscope_trigger_channel(*channel)
-oscilloscope_trigger_low_level(*level)
-oscilloscope_command(command)
-oscilloscope_query(command)
-```
 ### [Digitizers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/digitizer_functions.md)
-```python3
-digitizer_name()
-digitizer_setup()
-digitizer_get_curve()
-digitizer_close()
-digitizer_stop()
-digitizer_number_of_points(*points)
-digitizer_posttrigger(*post_points)
-digitizer_channel(*channel)
-digitizer_sample_rate(*s_rate)
-digitizer_clock_mode(*mode)
-digitizer_reference_clock(*ref_clock)
-digitizer_card_mode(*mode)
-digitizer_trigger_channel(*ch)
-digitizer_trigger_mode(*mode)
-digitizer_number_of_averages(*averages)
-digitizer_trigger_delay(*delay)
-digitizer_input_mode(*mode)
-digitizer_amplitude(*ampl)
-digitizer_offset(*offset)
-digitizer_coupling(*coupling)
-digitizer_impedance(*impedance)
-```
 ### [Oscilloscope wave generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/oscilloscope_wave_generator_functions.md)
-```python3
-wave_gen_name()
-wave_gen_frequency(*frequency)
-wave_gen_pulse_width(*width)
-wave_gen_function(*function)
-wave_gen_amplitude(*amplitude)
-wave_gen_offset(*offset)
-wave_gen_impedance(*impedance)
-wave_gen_run()
-wave_gen_stop()
-wave_gen_arbitrary_function(list)
-wave_gen_arbitrary_clear()
-wave_gen_arbitrary_interpolation(*mode)
-wave_gen_arbitrary_points()
-wave_gen_command(command)
-wave_gen_query(command)
-```
 ### [Arbitrary wave generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/awg_functions.md)
-```python3
-awg_name()
-awg_setup()
-awg_update()
-awg_stop()
-awg_close()
-awg_pulse(*kargs)
-awg_pulse_sequence(kargs)
-awg_shift(*pulses)
-awg_increment(*pulses)
-awg_next_phase()
-awg_redefine_delta_phase(*, name, delta_phase)
-awg_redefine_phase(self, *, name, phase)
-awg_redefine_frequency(self, *, name, freq)
-awg_redefine_delta_start(self, *, name, delta_start)
-awg_redefine_length_increment(*, name, length_increment)
-awg_add_phase(*, name, add_phase)
-awg_reset()
-awg_pulse_reset(*pulses)
-awg_number_of_segments(*segments)
-awg_channel(*channel)
-awg_sample_rate(*s_rate)
-awg_clock_mode(*mode)
-awg_reference_clock(*ref_clock)
-awg_card_mode(*mode)
-awg_trigger_channel(*channel)
-awg_trigger_mode(*mode)
-awg_loop(*loop)
-awg_trigger_delay(*delay)
-awg_amplitude(*amplitude)
-awg_visualize()
-awg_pulse_list()
-```
 ### [Pulse programmers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/pulse_programmers_functions.md)
-```python3
-pulser_name()
-pulser_pulse(*kargs)
-pulser_update()
-pulser_next_phase()
-pulser_acquisition_cycle(data1, data2, acq_cycle = [])
-pulser_repetition_rate(*r_rate)
-pulser_shift(*pulses)
-pulser_increment(*pulses)
-pulser_redefine_start(*, name, start)
-pulser_redefine_delta_start(*, name, delta_start)
-pulser_redefine_length_increment(*, name, length_increment)
-pulser_reset()
-pulser_pulse_reset(*pulses)
-pulser_stop()
-pulser_state()
-pulser_visualize()
-pulser_pulse_list()
-```
 ### [Lock-in amplifiers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/lock_in_amplifier_functions.md)
-```python3
-lock_in_name()
-lock_in_ref_frequency(*frequency)
-lock_in_phase(*degree)
-lock_in_time_constant(*timeconstant)
-lock_in_ref_amplitude(*amplitude)
-lock_in_get_data(*channel)
-lock_in_sensitivity(*sensitivity)
-lock_in_ref_mode(*mode)
-lock_in_ref_slope(*mode)
-lock_in_sync_filter(*mode)
-lock_in_lp_filter(*mode)
-lock_in_harmonic(*harmonic)
-lock_in_command(command)
-lock_in_query(command)
-```
 ### [Frequency counters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/frequency_counter_functions.md)
-```python3
-freq_counter_name()
-freq_counter_frequency(channel)
-freq_counter_impedance(*impedance)
-freq_counter_coupling(*coupling)
-freq_counter_stop_mode(*mode)
-freq_counter_start_mode(*mode)
-freq_counter_gate_mode(*mode)
-freq_counter_digits(*digits)
-freq_counter_gate_time(*time)
-freq_counter_expected_freq(*frequency)
-freq_counter_period(channel)
-freq_counter_command(command)
-freq_counter_query(command)
-```
 ### [Magnetic field controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/magnet_functions.md)
-```python3
-magnet_name()
-magnet_setup(start_field, step_field)
-magnet_field(*field)
-magnet_sweep_up()
-magnet_sweep_down()
-magnet_reset_field()
-magnet_field_step_size(*step)
-magnet_command(command)
-```
 ### [Microwave bridge controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/microwave_bridge_functions.md)
-```python3
-mw_bridge_name()
-mw_bridge_synthesizer(*freq)
-mw_bridge_att1_prd(*atten)
-mw_bridge_att2_prd(*atten)
-mw_bridge_fv_ctrl(*phase)
-mw_bridge_fv_prm(*phase)
-mw_bridge_att_prm(*atten)
-mw_bridge_att2_prm(*atten)
-mw_bridge_k_prm(*amplif)
-mw_bridge_cut_off(*cutoff)
-mw_bridge_rotary_vane(*atten, mode)
-mw_bridge_telemetry()
-mw_bridge_initialize()
-```
 ### [Gaussmeters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/gaussmeter_functions.md)
-```python3
-gaussmeter_name()
-gaussmeter_field()
-gaussmeter_units(*units)
-gaussmeter_command(command)
-gaussmeter_query(command)
-```
 ### [Power supplies](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/power_supply_functions.md)
-```python3
-power_supply_name()
-power_supply_voltage(*voltage)
-power_supply_current(*current)
-power_supply_overvoltage(*voltage)
-power_supply_overcurrent(*current)
-power_supply_channel_state(*state)
-power_supply_measure(channel)
-power_supply_preset(preset)
-power_supply_range(*range)
-power_supply_interlock()
-power_supply_rear_mode(*mode)
-power_supply_command(command)
-power_supply_query(command)
-```
+### [Magnet power supplies](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/magnet_power_supply_functions.md)
 ### [Delay generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/delay_generator_functions.md)
-```python3
-delay_gen_name()
-delay_gen_delay(*delay)
-delay_gen_impedance(*impedance)
-delay_gen_output_mode(*mode)
-delay_gen_amplitude_offset(*amplitude_offset)
-delay_gen_output_polarity(*polarity)
-delay_gen_command(command)
-delay_gen_query(command)
-```
-### [Moisture Meters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/moisture_meter_functions.md)
-```python3
-moisture_meter_name()
-moisture_meter_moisture()
-```
+### [Moisture meters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/moisture_meter_functions.md)
 ### [Balance](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)
-```python3
-balance_weight()
-```
 ### [Other](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)
-#### RODOS-10N Solid-sate Relay (Ethernet)
-```python3
-relay_turn_on(number)
-relay_turn_off(number)
-```
-#### Owen-MK110-220.4DN.4R Discrete IO Module (RS-485)
-```python3
-discrete_io_input_counter(channel)
-discrete_io_input_counter_reset(channel)
-discrete_io_input_state()
-discrete_io_output_state(*state)
-```
-#### Cryomech CPA2896, CPA1110 Digital Panels (RS-485)
-```python3
-cryogenic_refrigerator_name()
-cryogenic_refrigerator_state(*state)
-cryogenic_refrigerator_status_data()
-cryogenic_refrigerator_warning_data()
-cryogenic_refrigerator_pressure_scale()
-cryogenic_refrigerator_temperature_scale()
-```
-#### Cryomagnetics LM-510 Liquid Cryogen Monitor (TCP/IP Socket)
-```python3
-level_monitor_name()
-level_monitor_select_channel(*channel)
-level_monitor_boost_mode(*mode)
-level_monitor_high_level_alarm(*level)
-level_monitor_low_level_alarm(*level)
-level_monitor_sensor_length()
-level_monitor_sample_mode(*mode)
-level_monitor_units(*units)
-level_monitor_measure(channel)
-level_monitor_sample_interval(*interval)
-level_monitor_hrc_target_pressure(*pressure)
-level_monitor_hrc_heater_power_limit(*limit)
-level_monitor_hrc_heater_enable(*state)
-level_monitor_command(command)
-level_monitor_query(command)
-```
 
 ## Screenshots
 ![](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot.png)
