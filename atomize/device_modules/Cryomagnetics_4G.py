@@ -5,6 +5,7 @@ import os
 import gc
 import sys
 import pyvisa
+import numpy as np
 from pyvisa.constants import StopBits, Parity
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
@@ -25,17 +26,22 @@ class Cryomagnetics_4G:
         # auxilary dictionaries
         self.persistent_switch_heater_dict = {'On': 'ON', 'Off': 'OFF', }
         self.sweep_dict = {'Up': 'UP', 'Down': 'DOWN', 'Pause': 'PAUSE', 'Zero': 'ZERO', 'Limit': 'LIMIT', }
+        self.control_mode_dict = {'Remote': 'REMOTE', 'Local': 'LOCAL', }
         self.sweep_mode_dict = {'Fast': 'FAST', 'Slow': 'SLOW', }
         self.units_dict = {'A': 'A', 'G': 'G', }
 
         # Ranges and limits
+
+        self.max_current = int(self.specific_parameters['max_current'])
+        self.min_current = int(self.specific_parameters['min_current'])
+
         self.range = str(self.specific_parameters['range']).split(" ")
         self.range = [float(i) for i in self.range]
         self.range_0 = self.range[0]
         self.range_1 = self.range[1]
         self.range_2 = self.range[2]
         self.range_3 = self.range[3]
-        self.range_4 = self.range[4]
+        self.range_4 = self.max_current
 
         self.rate = str(self.specific_parameters['rate']).split(" ")
         self.rate = [float(i) for i in self.rate]
@@ -47,12 +53,10 @@ class Cryomagnetics_4G:
 
         self.rate_fast = float(self.specific_parameters['rate_fast'])
         
-        self.max_current = int(self.specific_parameters['max_current'])
-        self.min_current = int(self.specific_parameters['min_current'])
-
         #### kG ?
-        self.max_field = self.max_current
-        self.min_field = self.min_current
+        self.conversion = float(self.specific_parameters['field/current'])
+        self.max_field = self.max_current * self.conversion / 1000 # kG
+        self.min_field = self.min_current * self.conversion / 1000 # kG
 
         self.units = str(self.specific_parameters['units'])
 
@@ -63,8 +67,8 @@ class Cryomagnetics_4G:
         self.max_channels = int(self.specific_parameters['max_channels'])
         self.channel = str(self.specific_parameters['channel'])
 
-        self.low_sweep_limit = 0
-        self.upper_sweep_limit = 0
+        self.low_sweep_limit = 0.0
+        self.upper_sweep_limit = 0.5
 
         self.current = 0.0
         #self.sweep_mode = 0 # 0 slow; 1 fast
@@ -128,13 +132,15 @@ class Cryomagnetics_4G:
             self.test_persistent_current = 10
 
         # Initial setup of the limits
-        self.magnet_power_supply_select_channel( self.channel )
-        self.magnet_power_supply_voltage_limit( self.voltage_limit )
-        self.magnet_power_supply_low_sweep_limit( self.low_sweep_limit )
-        self.magnet_power_supply_upper_sweep_limit( self.upper_sweep_limit )
-        self.magnet_power_supply_units( self.units )
-        self.magnet_power_supply_range( self.range_0, self.range_1, self.range_2, self.range_3 )
-        self.magnet_power_supply_sweep('Zero', 'Slow')
+        #self.magnet_power_supply_control_mode('Remote')
+        #self.magnet_power_supply_range( self.range_0, self.range_1, self.range_2, self.range_3 )
+        #self.magnet_power_supply_sweep_rate( self.rate_0, self.rate_1, self.rate_2, self.rate_3, self.rate_4, self.rate_fast )
+        #self.magnet_power_supply_voltage_limit( self.voltage_limit )
+        #self.magnet_power_supply_units( self.units )
+        #self.magnet_power_supply_select_channel( self.channel )
+        #self.magnet_power_supply_low_sweep_limit( self.low_sweep_limit )
+        #self.magnet_power_supply_upper_sweep_limit( self.upper_sweep_limit )
+        #self.magnet_power_supply_sweep('Zero', 'Slow')
 
     def close_connection(self):
         if self.test_flag != 'test':
@@ -173,20 +179,26 @@ class Cryomagnetics_4G:
     def magnet_power_supply_select_channel(self, *ch):
         if self.test_flag != 'test':
             if len( ch ) == 1:
-                if ch[0] == 'CH1':
-                    self.device_write('CHAN ' + '1')
-                elif ch[0] == 'CH2':
-                    self.device_write('CHAN ' + '2')
+                if self.max_channels == 2:
+                    if ch[0] == 'CH1':
+                        self.device_write('CHAN ' + '1')
+                    elif ch[0] == 'CH2':
+                        self.device_write('CHAN ' + '2')
+                elif self.max_channels == 1:
+                    general.message("Only one channel is available")
                 else:
                     general.message("Invalid channel")
                     sys.exit()
 
             elif len( ch ) == 0:
-                raw_answer = int( self.device_query('CHAN?') )
-                if raw_answer == 1:
+                if self.max_channels == 2:
+                    raw_answer = int( self.device_query('CHAN?') )
+                    if raw_answer == 1:
+                        return 'CH1'
+                    elif raw_answer == 2:
+                        return 'CH2'
+                elif self.max_channels == 1:
                     return 'CH1'
-                elif raw_answer == 2:
-                    return 'CH2'
             else:
                 general.message("Invalid Channel Argument")
                 sys.exit()
@@ -222,10 +234,8 @@ class Cryomagnetics_4G:
             if len( lmt ) == 1:
                 self.low_sweep_limit = float( lmt[0] )
                 assert( self.low_sweep_limit <= self.max_current and \
-                        self.low_sweep_limit >= self.min_current ), "Low sweep limit is out of range of\
-                         " + str(self.min_current) + " A to " + str(self.max_current) + " A"
-                assert( self.low_sweep_limit <= self.upper_sweep_limit ), "Low sweep limit should be lower\
-                         than Upper sweep limit that is " + str(self.upper_sweep_limit)
+                        self.low_sweep_limit >= self.min_current ), "Low sweep limit is out of range of " + str(self.min_current) + " A to " + str(self.max_current) + " A"
+                assert( self.low_sweep_limit <= self.upper_sweep_limit ), "Low sweep limit should be lower than Upper sweep limit that is " + str(self.upper_sweep_limit)
             elif len( lmt ) == 0:
                 return self.low_sweep_limit
             else:
@@ -251,10 +261,8 @@ class Cryomagnetics_4G:
             if len( lmt ) == 1:
                 self.upper_sweep_limit = float( lmt[0] )
                 assert( self.upper_sweep_limit <= self.max_current and \
-                        self.upper_sweep_limit >= self.min_current ), "Upper sweep limit is out of range of\
-                         " + str(self.min_current) + " A to " + str(self.max_current) + " A"
-                assert( self.upper_sweep_limit >= self.low_sweep_limit ), "Upper sweep limit should be greater\
-                         than Low sweep limit that is " + str(self.low_sweep_limit)
+                        self.upper_sweep_limit >= self.min_current ), "Upper sweep limit is out of range of " + str(self.min_current) + " A to " + str(self.max_current) + " A"
+                assert( self.upper_sweep_limit >= self.low_sweep_limit ), "Upper sweep limit should be greater than Low sweep limit that is " + str(self.low_sweep_limit)
             elif len( lmt ) == 0:
                 return self.upper_sweep_limit
             else:
@@ -279,8 +287,7 @@ class Cryomagnetics_4G:
             if len( lmt ) == 1:
                 self.voltage_limit = float( lmt[0] )
                 assert( self.voltage_limit <= self.max_voltage_limit and \
-                        self.voltage_limit >= self.min_voltage_limit ), "Voltage limit is out of range of\
-                         " + str(self.min_voltage_limit) + " V to " + str(self.max_voltage_limit) + " V"
+                        self.voltage_limit >= self.min_voltage_limit ), "Voltage limit is out of range of " + str(self.min_voltage_limit) + " V to " + str(self.max_voltage_limit) + " V"
             elif len( lmt ) == 0:
                 return self.voltage_limit
             else:
@@ -303,10 +310,6 @@ class Cryomagnetics_4G:
                 self.device_write('RATE 4 ' + str(self.rate_4))
                 self.device_write('RATE 5 ' + str(self.rate_fast))
 
-                else:
-                    general.message("Invalid rate arguments are given")
-                    sys.exit()
-
             elif len( rt ) == 0:
                 answer = np.zeros(6)
                 for i in range(6):
@@ -318,7 +321,7 @@ class Cryomagnetics_4G:
                 sys.exit()
 
         elif self.test_flag == 'test':
-            if len( rt ) == 4:
+            if len( rt ) == 6:
                 self.rate_0 = float( rt[0] )
                 self.rate_1 = float( rt[1] )
                 self.rate_2 = float( rt[2] )
@@ -335,7 +338,7 @@ class Cryomagnetics_4G:
             elif len( rt ) == 0:
                 return np.array([self.rate_0, self.rate_1, self.rate_2, self.rate_3, self.rate_4, self.rate_fast])
             else:
-                assert( 1 == 2 ), "Invalid range arguments are given. Five numbers are expected"
+                assert( 1 == 2 ), "Invalid range arguments are given. Six numbers are expected"
 
     def magnet_power_supply_range(self, *rng):
         if self.test_flag != 'test':
@@ -348,10 +351,6 @@ class Cryomagnetics_4G:
                 self.device_write('RANGE 1 ' + str(self.range_1))
                 self.device_write('RANGE 2 ' + str(self.range_2))
                 self.device_write('RANGE 3 ' + str(self.range_3))
-
-                else:
-                    general.message("Invalid range arguments are given")
-                    sys.exit()
 
             elif len( rng ) == 0:
                 answer = np.zeros(5)
@@ -491,12 +490,10 @@ class Cryomagnetics_4G:
                 value = float( vl[0] )
                 if self.units == 'A':
                     assert( value <= self.max_current and \
-                        value >= self.min_current ), "Persistent current is out of range of\
-                         " + str(self.min_current) + " A to " + str(self.max_current) + " A"
+                        value >= self.min_current ), "Persistent current is out of range of " + str(self.min_current) + " A to " + str(self.max_current) + " A"
                 elif self.units == 'G':
                     assert( value <= self.max_field and \
-                        value >= self.min_field ), "Persistent field is out of range of\
-                         " + str(self.min_field) + " kG to " + str(self.max_field) + " kG"
+                        value >= self.min_field ), "Persistent field is out of range of " + str(self.min_field) + " kG to " + str(self.max_field) + " kG"
 
             elif len( vl ) == 0:
                 return self.test_persistent_current
@@ -511,11 +508,28 @@ class Cryomagnetics_4G:
         elif self.test_flag == 'test':
             return self.test_mode  
 
+    def magnet_power_supply_control_mode(self, mode):
+        # remote or local; only set
+        if self.test_flag != 'test':
+            if mode in self.control_mode_dict:
+                flag = self.control_mode_dict[mode]
+                self.device_write(str(flag))
+            else:
+                general.message("Invalid control mode is given. Only 'Remote' and 'Local' are available.")
+                sys.exit()
+
+        elif self.test_flag == 'test':
+            assert( mode in self.control_mode_dict), "Invalid units is given"
+
     def magnet_power_supply_current(self):
         # only query; power supply current
         if self.test_flag != 'test':
             raw_answer = str( self.device_query('IOUT?') )
-            self.current = float( raw_answer.split(" ")[0] )
+            if raw_answer[-1] == 'G':
+                self.current = float( raw_answer.split("k")[0] )
+            elif raw_answer[-1] == 'A':
+                self.current = float( raw_answer.split("A")[0] )
+
             return raw_answer
         elif self.test_flag == 'test':
             return self.current        
