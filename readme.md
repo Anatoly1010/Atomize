@@ -32,6 +32,7 @@ At the moment, Atomize has been tested and is currently used for controlling sev
     - [Microwave Bridge Controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/microwave_bridge_functions.md)<br/>
     - [Gaussmeters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/gaussmeter_functions.md)<br/>
     - [Power Supplies](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/power_supply_functions.md)<br/>
+    - [Magnet Power Supplies](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/magnet_power_supply_functions.md)<br/>
     - [Delay Generators](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/delay_generator_functions.md)<br/>
     - [Moisture Meters](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/moisture_meter_functions.md)<br/>
     - [Balances](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)<br/>
@@ -223,7 +224,7 @@ The original [C library](http://www.spincore.com/support/spinapi/using_spin_api_
 
 ## [Available plotting functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
 
-## Available function for devices
+## Available functions for devices
 ### [Temperature controllers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/temperature_controller_functions.md)
 ### [Oscilloscopes](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/oscilloscope_functions.md)
 ### [Digitizers](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/digitizer_functions.md)
