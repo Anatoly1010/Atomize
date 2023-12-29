@@ -154,7 +154,7 @@ Python is used to write an experimental script. Examples (with dummy data) can b
 	- Keysight InfiniiVision 4000 X-Series (Ethernet); Untested
 	- Tektronix 3000 Series (Ethernet); Tested 09/2022
 	- Tektronix 4000 Series (Ethernet); Tested 01/2021
-	- Tektronix 5 Series MSO (Ethernet); Untested
+	- Tektronix 5 Series MSO (Ethernet); Tested 12/2023
 
 #### [Digitizers](#digitizers-1)
 	- Spectrum M4I 4450 X8; Tested 08/2021
@@ -175,8 +175,10 @@ The original [library](https://spectrum-instrumentation.com/en/m4i6631-x8) was w
 
 #### [Pulse Programmers](#pulse-programmers-1)
     - Pulse Blaster ESR 500 Pro; Tested 06/2021
-    The device is available via ctypes. 
+    The device is available via ctypes.
 The original [C library](http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml) was written by SpinCore Technologies.
+
+	- Pulse  Programmer Micran based on [Insys FMC126P](https://www.insys.ru/fmc/fmc126p); Tested 12/2023
 
 #### [Frequency Counters](#frequency-counters-1)
 	- Agilent Frequency Counter (GPIB, RS-232)
@@ -189,10 +191,12 @@ The original [C library](http://www.spincore.com/support/spinapi/using_spin_api_
 	- Bruker BH15 (GPIB); Tested 01/2021
 	- Bruker ER032M (GPIB); Available via BH15 module
 	- Bruker ER031M (RS-232 using arduino emulated keyboard); Tested 01/2021
+	- [Homemade](https://patents.google.com/patent/RU2799103C1/en?oq=RU2799103C1) magnetic field controller (RS-232); Tested 04/2023
 
 #### [Microwave Bridge Controllers](#microwave-bridge-controllers-1)
-	- Mikran X-band MW Bridge (TCP/IP Socket); Tested 06/2021
-	- Mikran X-band MW Bridge v2 (TCP/IP Socket); Tested 12/2022
+	- Micran X-band MW Bridge (TCP/IP Socket); Tested 06/2021
+	- Micran X-band MW Bridge v2 (TCP/IP Socket); Tested 12/2022
+	- Micran Q-band MW Bridge; Tested 12/2023
 
 #### [Gaussmeters](#gaussmeters-1)
 	- Lakeshore 455 DSP (RS-232); Tested 01/2021
@@ -203,7 +207,7 @@ The original [C library](http://www.spincore.com/support/spinapi/using_spin_api_
     - Stanford Research PS300 High Voltage Series (RS-232, GPIB); Untested
 
 #### [Magnet Power Supplies](#magnet-power-supplies-1)
-	- Cryomagnetics 4G (Ethernet); Untested
+	- Cryomagnetics 4G (Ethernet); Tested 11/2023
 
 #### [Delay Generators](#delay-generators-1)
     - Stanford Research DG535 (GPIB); Untested

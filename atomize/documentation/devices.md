@@ -44,7 +44,7 @@ MSO-X 3014A; MSO-X 3012A; DSO-X 3014A; DSO-X 3012A; MSO-X 3024A; DSO-X 3024A; MS
 MSO-X 4022A; MSO-X 4024A; DSO-X 4022A; DSO-X 4024A; MSO-X 4032A; MSO-X 4034A; DSO-X 4032A; DSO-X 4034A; MSO-X 4052A; MSO-X 4054A; DSO-X 4052A; DSO-X 4054A; MSO-X 4104A; DSO-X 4104A; MSO-X 4154A; DSO-X 4154A.
 - Tektronix 3000 Series (Ethernet); Tested 09/2022
 - Tektronix 4000 Series (Ethernet); Tested 01/2021
-- Tektronix 5 Series MSO (Ethernet); Untested
+- Tektronix 5 Series MSO (Ethernet); Tested 12/2023
 
 ## Digitizers
 - Spectrum M4I 4450 X8; Tested 08/2021
@@ -66,6 +66,7 @@ The original [library](https://spectrum-instrumentation.com/en/m4i6631-x8) was w
 ## Pulse Programmers
 - Pulse Blaster ESR 500 Pro; Tested 06/2021<br/>
 The device is available via ctypes. [The original C library](http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml) was written by SpinCore Technologies.
+- Pulse  Programmer Micran based on [Insys FMC126P](https://www.insys.ru/fmc/fmc126p); Tested 12/2023
 
 ## Frequency Counters
 - Agilent Frequency Counter (GPIB, RS-232)
@@ -78,11 +79,13 @@ The device is available via ctypes. [The original C library](http://www.spincore
 - Bruker BH15 (GPIB); Tested 01/2021
 - Bruker ER032M (GPIB); available via BH15 module
 - Bruker ER031M (RS-232 using arduino emulated keyboard); Tested 01/2021
+- [Homemade](https://patents.google.com/patent/RU2799103C1/en?oq=RU2799103C1) magnetic field controller (RS-232); Tested 04/2023
 
 ## Microwave Bridge Controllers
-- Mikran X-band MW Bridge (TCP/IP Socket); Tested 06/2021
-- Mikran X-band MW Bridge v2 (TCP/IP Socket); Tested 12/2022
-- 
+- Micran X-band MW Bridge (TCP/IP Socket); Tested 06/2021
+- Micran X-band MW Bridge v2 (TCP/IP Socket); Tested 12/2022
+- Micran Q-band MW Bridge; Tested 12/2023
+
 ## Gaussmeters
 - Lakeshore 455 DSP (RS-232); Tested 01/2021
 
@@ -93,7 +96,7 @@ The device is available via ctypes. [The original C library](http://www.spincore
 PS310, PS325 (GPIB); PS350, PS355, PS365, PS370, PS375 (RS-232, GPIB)
 
 ## Magnet Power Supplies
-- Cryomagnetics 4G (Ethernet); Untested
+- Cryomagnetics 4G (Ethernet); Testes 11/2023
 
 ## Delay Generators
 - Stanford Research DG535 (GPIB); Untested

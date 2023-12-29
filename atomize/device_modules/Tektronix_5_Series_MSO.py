@@ -16,7 +16,7 @@ class Tektronix_5_Series_MSO:
         #### Inizialization
         # setting path to *.ini file
         self.path_current_directory = os.path.dirname(__file__)
-    self.path_config_file = os.path.join(self.path_current_directory, 'config','Tektronix_MSO54_config.ini')
+        self.path_config_file = os.path.join(self.path_current_directory, 'config','Tektronix_MSO54_config.ini')
 
         # configuration data
         self.config = cutil.read_conf_util(self.path_config_file)
@@ -352,7 +352,7 @@ class Tektronix_5_Series_MSO:
             self.device_query('*OPC?') # return 1, if everything is ok;
             # the whole sequence is the following 1-clearing; 2-3-digitizing; 4-checking of the completness
             #end_time=time.time()
-            general.message('Acquisition completed') 
+            #general.message('Acquisition completed') 
             #general.message("Duration of Acquisition: {}".format(end_time - start_time))
         elif self.test_flag == 'test':
             pass
@@ -416,7 +416,7 @@ class Tektronix_5_Series_MSO:
                     #general.message(y_orig)
                     #general.message(y_ref)
                     #array_y = (array_y - y_ref)*y_inc + y_orig
-                    array_y = (array_y - t_ref)*y_inc
+                    array_y = (array_y - y_ref)*y_inc
                     #array_x= list(map(lambda x: x_inc*(x+1) + x_orig, list(range(len(array_y)))))
                     #final_data = np.asarray(list(zip(array_x,array_y)))
                     return array_y

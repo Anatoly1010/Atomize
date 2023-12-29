@@ -12,14 +12,14 @@ import numpy as np
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
-class Mikran_X_band_MW_bridge_v2:
+class Micran_X_band_MW_bridge_v2:
     #### Basic interaction functions
     def __init__(self):
 
         #### Inizialization
         # setting path to *.ini file
         self.path_current_directory = os.path.dirname(__file__)
-        self.path_config_file = os.path.join(self.path_current_directory, 'config','Mikran_x_band_mw_bridge_v2_config.ini')
+        self.path_config_file = os.path.join(self.path_current_directory, 'config','Micran_x_band_mw_bridge_v2_config.ini')
 
         # configuration data
         #config = cutil.read_conf_util(self.path_config_file)
