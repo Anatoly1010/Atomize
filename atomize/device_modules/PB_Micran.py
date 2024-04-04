@@ -636,6 +636,17 @@ class PB_Micran:
 
                 self.pulser_open()
 
+
+                # Stop pulses
+                self.device_write( 4, byte_to_write = 4, data_to_write = 56, type_of_systems = 2, shift = 0 )
+                # rep rate in clock
+                rep_time = rep_time // 4
+                self.device_write( 3, byte_to_write = 4, data_to_write = rep_time, type_of_systems = 10 )
+
+
+                self.pulse_write_stop(48, 0, 0, self.i_x , self.i_x_prev)
+                self.pulse_write_stop(16, 0, 0, self.i_y , self.i_y_prev)
+
                 for element in to_spinapi:
                     if element[0] == self.channel_dict['TRIGGER']:
                         self.i_trigger = self.i_trigger + 1
@@ -713,16 +724,8 @@ class PB_Micran:
                         self.pulse_write(288, element[1], element[2], self.i_laser_2 , self.i_laser_2_prev)
 
 
-                    self.pulse_write(48, 0, 0, self.i_x , self.i_x_prev)
-                    self.pulse_write(16, 0, 0, self.i_y , self.i_y_prev)
-
                 # Set params
                 self.device_write( 2, byte_to_write = 4, data_to_write = 1, type_of_systems = 2, shift = 0 )
-                # Stop pulses
-                self.device_write( 4, byte_to_write = 4, data_to_write = 56, type_of_systems = 2, shift = 1 )
-                # rep rate in clock
-                rep_time = rep_time // 4
-                self.device_write( 3, byte_to_write = 4, data_to_write = rep_time, type_of_systems = 10 )
 
                 while True:
                     # Check register
@@ -735,7 +738,7 @@ class PB_Micran:
                         break
 
                 # Start pulses
-                self.device_write( 4, byte_to_write = 4, data_to_write = 57, type_of_systems = 2, shift = 1 )
+                self.device_write( 4, byte_to_write = 4, data_to_write = 58, type_of_systems = 2, shift = 0 )
                 self.pulser_close()
 
                 self.i_trigger_prev = self.i_trigger
@@ -830,76 +833,76 @@ class PB_Micran:
                         self.i_trigger = self.i_trigger + 1
                         assert( self.i_trigger <= 1 ), 'Only 1 TRIGGER pulse allowed' 
 
-                        self.pulse_write(320, element[1], element[2], self.i_trigger , self.i_trigger_prev)
+                        #self.pulse_write(320, element[1], element[2], self.i_trigger , self.i_trigger_prev)
 
 
                     elif element[0] == self.channel_dict['AMP_ON']:
                         self.i_amp_on = self.i_amp_on + 1
                         assert( self.i_amp_on <= 16 ), 'Only 16 AMP_ON pulses allowed'
 
-                        self.pulse_write(176, element[1], element[2], self.i_amp_on , self.i_amp_on_prev)
+                        #self.pulse_write(176, element[1], element[2], self.i_amp_on , self.i_amp_on_prev)
 
                     elif element[0] == self.channel_dict['LNA_PROTECT']:
                         self.i_lna = self.i_lna + 1
                         assert( self.i_lna <= 16 ), 'Only 16 LNA_PROTECT pulses allowed'
 
-                        self.pulse_write(80, element[1], element[2], self.i_lna , self.i_lna_prev)
+                        #self.pulse_write(80, element[1], element[2], self.i_lna , self.i_lna_prev)
 
                     elif element[0] == self.channel_dict['MW']:
 
                         self.i_mw = self.i_mw + 1
                         assert( self.i_mw <= 16 ), 'Only 16 MW pulses allowed'
 
-                        self.pulse_write(112, element[1], element[2], self.i_mw , self.i_mw_prev)
+                        #self.pulse_write(112, element[1], element[2], self.i_mw , self.i_mw_prev)
 
                     elif element[0] == self.channel_dict['-X']:
                         self.i_x = self.i_x + 1
                         assert( self.i_x <= 16 ), 'Only 16 -X pulses allowed'
 
-                        self.pulse_write(48, element[1], element[2], self.i_x , self.i_x_prev)
+                        #self.pulse_write(48, element[1], element[2], self.i_x , self.i_x_prev)
 
                     elif element[0] == self.channel_dict['+Y']:
                         self.i_y = self.i_y + 1
                         assert( self.i_y <= 16 ), 'Only 16 +Y pulses allowed'
-                        self.pulse_write(16, element[1], element[2], self.i_y , self.i_y_prev)
+                        #self.pulse_write(16, element[1], element[2], self.i_y , self.i_y_prev)
 
                     elif element[0] == self.channel_dict['TRIGGER_AWG']:
                         self.i_trigger_awg = self.i_trigger_awg + 1
                         assert( self.i_trigger_awg <= 1 ), 'Only 1 TRIGGER AWG pulse allowed'
 
-                        self.pulse_write(304, element[1], element[2], self.i_trigger_awg , self.i_trigger_awg_prev)
+                        #self.pulse_write(304, element[1], element[2], self.i_trigger_awg , self.i_trigger_awg_prev)
 
 
                     elif element[0] == self.channel_dict['AWG']:
                         self.i_awg = self.i_awg + 1
                         assert( self.i_awg <= 16 ), 'Only 16 AWG pulses allowed'
 
-                        self.pulse_write(144, element[1], element[2], self.i_awg , self.i_awg_prev)
+                        #self.pulse_write(144, element[1], element[2], self.i_awg , self.i_awg_prev)
 
 
                     elif element[0] == self.channel_dict['LASER']:
                         self.i_laser = self.i_laser + 1
                         assert( self.i_laser <= 1 ), 'Only 1 LASER pulse allowed'
                         
-                        self.pulse_write(272, element[1], element[2], self.i_laser , self.i_laser_prev)
+                        #self.pulse_write(272, element[1], element[2], self.i_laser , self.i_laser_prev)
 
                     elif element[0] == self.channel_dict['SHAPER']:
                         self.i_shaper = self.i_shaper + 1
                         assert( self.i_shaper <= 16 ), 'Only 16 SHAPER pulses allowed'
 
-                        self.pulse_write(208, element[1], element[2], self.i_shaper , self.i_shaper_prev)
+                        #self.pulse_write(208, element[1], element[2], self.i_shaper , self.i_shaper_prev)
 
                     elif element[0] == self.channel_dict['VIDEO_PROTECT']:
                         self.i_video = self.i_video + 1
                         assert( self.i_video <= 16 ), 'Only 16 VIDEO_PROTECT pulses allowed'
 
-                        self.pulse_write(240, element[1], element[2], self.i_video , self.i_video_prev)
+                        #self.pulse_write(240, element[1], element[2], self.i_video , self.i_video_prev)
 
                     elif element[0] == self.channel_dict['LASER_2']:
                         self.i_laser_2 = self.i_laser_2 + 1
                         assert( self.i_laser_2 <= 1 ), 'Only 1 LASER_2 pulses allowed'
 
-                        self.pulse_write(288, element[1], element[2], self.i_laser_2 , self.i_laser_2_prev)
+                        #self.pulse_write(288, element[1], element[2], self.i_laser_2 , self.i_laser_2_prev)
 
                 self.i_trigger_prev = self.i_trigger
                 self.i_amp_on_prev = self.i_amp_on
@@ -1265,6 +1268,15 @@ class PB_Micran:
 
             self.pulser_open()
             
+            # Stop pulses
+            self.device_write( 4, byte_to_write = 4, data_to_write = 56, type_of_systems = 2, shift = 0 )
+            # rep rate in clock
+            rep_time = rep_time // 4
+            self.device_write( 3, byte_to_write = 4, data_to_write = rep_time, type_of_systems = 10 )
+
+            self.pulse_write_stop(48, 0, 0, self.i_x , self.i_x_prev)
+            self.pulse_write_stop(16, 0, 0, self.i_y , self.i_y_prev)
+
             for element in to_spinapi:
                 if element[0] == self.channel_dict['TRIGGER']:
                     self.i_trigger = self.i_trigger + 1
@@ -1342,16 +1354,8 @@ class PB_Micran:
                     self.pulse_write(288, element[1], element[2], self.i_laser_2 , self.i_laser_2_prev)
 
 
-                self.pulse_write(48, 0, 0, self.i_x , self.i_x_prev)
-                self.pulse_write(16, 0, 0, self.i_y , self.i_y_prev)
-
             # Set params
             self.device_write( 2, byte_to_write = 4, data_to_write = 1, type_of_systems = 2, shift = 0 )
-            # Stop pulses
-            self.device_write( 4, byte_to_write = 4, data_to_write = 56, type_of_systems = 2, shift = 1 )
-            # rep rate in clock
-            rep_time = rep_time // 4
-            self.device_write( 3, byte_to_write = 4, data_to_write = rep_time, type_of_systems = 10 )
 
             while True:
                 # Check register
@@ -1364,7 +1368,7 @@ class PB_Micran:
                     break
 
             # Start pulses
-            self.device_write( 4, byte_to_write = 4, data_to_write = 57, type_of_systems = 2, shift = 1 )
+            self.device_write( 4, byte_to_write = 4, data_to_write = 58, type_of_systems = 2, shift = 0 )
             self.pulser_close()
 
             self.i_trigger_prev = self.i_trigger
@@ -1443,33 +1447,33 @@ class PB_Micran:
                     self.i_trigger = self.i_trigger + 1
                     assert( self.i_trigger <= 1 ), 'Only 1 TRIGGER pulse allowed' 
 
-                    self.pulse_write(320, element[1], element[2], self.i_trigger , self.i_trigger_prev)
+                    #self.pulse_write(320, element[1], element[2], self.i_trigger , self.i_trigger_prev)
 
 
                 elif element[0] == self.channel_dict['AMP_ON']:
                     self.i_amp_on = self.i_amp_on + 1
                     assert( self.i_amp_on <= 16 ), 'Only 16 AMP_ON pulses allowed'
 
-                    self.pulse_write(176, element[1], element[2], self.i_amp_on , self.i_amp_on_prev)
+                    #self.pulse_write(176, element[1], element[2], self.i_amp_on , self.i_amp_on_prev)
 
                 elif element[0] == self.channel_dict['LNA_PROTECT']:
                     self.i_lna = self.i_lna + 1
                     assert( self.i_lna <= 16 ), 'Only 16 LNA_PROTECT pulses allowed'
 
-                    self.pulse_write(80, element[1], element[2], self.i_lna , self.i_lna_prev)
+                    #self.pulse_write(80, element[1], element[2], self.i_lna , self.i_lna_prev)
 
                 elif element[0] == self.channel_dict['MW']:
 
                     self.i_mw = self.i_mw + 1
                     assert( self.i_mw <= 16 ), 'Only 16 MW pulses allowed'
 
-                    self.pulse_write(112, element[1], element[2], self.i_mw , self.i_mw_prev)
+                    #self.pulse_write(112, element[1], element[2], self.i_mw , self.i_mw_prev)
 
                 elif element[0] == self.channel_dict['-X']:
                     self.i_x = self.i_x + 1
                     assert( self.i_x <= 16 ), 'Only 16 -X pulses allowed'
 
-                    self.pulse_write(48, element[1], element[2], self.i_x , self.i_x_prev)
+                    #self.pulse_write(48, element[1], element[2], self.i_x , self.i_x_prev)
 
                 elif element[0] == self.channel_dict['+Y']:
                     self.i_y = self.i_y + 1
@@ -1480,42 +1484,42 @@ class PB_Micran:
                     self.i_trigger_awg = self.i_trigger_awg + 1
                     assert( self.i_trigger_awg <= 1 ), 'Only 1 TRIGGER AWG pulse allowed'
 
-                    self.pulse_write(304, element[1], element[2], self.i_trigger_awg , self.i_trigger_awg_prev)
+                    #self.pulse_write(304, element[1], element[2], self.i_trigger_awg , self.i_trigger_awg_prev)
 
 
                 elif element[0] == self.channel_dict['AWG']:
                     self.i_awg = self.i_awg + 1
                     assert( self.i_awg <= 16 ), 'Only 16 AWG pulses allowed'
 
-                    self.pulse_write(144, element[1], element[2], self.i_awg , self.i_awg_prev)
+                    #self.pulse_write(144, element[1], element[2], self.i_awg , self.i_awg_prev)
 
 
                 elif element[0] == self.channel_dict['LASER']:
                     self.i_laser = self.i_laser + 1
                     assert( self.i_laser <= 1 ), 'Only 1 LASER pulse allowed'
                     
-                    self.pulse_write(272, element[1], element[2], self.i_laser , self.i_laser_prev)
+                    #self.pulse_write(272, element[1], element[2], self.i_laser , self.i_laser_prev)
 
                 elif element[0] == self.channel_dict['SHAPER']:
                     self.i_shaper = self.i_shaper + 1
                     assert( self.i_shaper <= 16 ), 'Only 16 SHAPER pulses allowed'
 
-                    self.pulse_write(208, element[1], element[2], self.i_shaper , self.i_shaper_prev)
+                    #self.pulse_write(208, element[1], element[2], self.i_shaper , self.i_shaper_prev)
 
                 elif element[0] == self.channel_dict['VIDEO_PROTECT']:
                     self.i_video = self.i_video + 1
                     assert( self.i_video <= 16 ), 'Only 16 VIDEO_PROTECT pulses allowed'
 
-                    self.pulse_write(240, element[1], element[2], self.i_video , self.i_video_prev)
+                    #self.pulse_write(240, element[1], element[2], self.i_video , self.i_video_prev)
 
                 elif element[0] == self.channel_dict['LASER_2']:
                     self.i_laser_2 = self.i_laser_2 + 1
                     assert( self.i_laser_2 <= 1 ), 'Only 1 LASER_2 pulses allowed'
 
-                    self.pulse_write(288, element[1], element[2], self.i_laser_2 , self.i_laser_2_prev)
+                    #self.pulse_write(288, element[1], element[2], self.i_laser_2 , self.i_laser_2_prev)
 
-                self.pulse_write(48, 0, 0, self.i_x , self.i_x_prev)
-                self.pulse_write(16, 0, 0, self.i_y , self.i_y_prev)
+                #self.pulse_write(48, 0, 0, self.i_x , self.i_x_prev)
+                #self.pulse_write(16, 0, 0, self.i_y , self.i_y_prev)
 
             self.i_trigger_prev = self.i_trigger
             self.i_amp_on_prev = self.i_amp_on
@@ -1602,7 +1606,7 @@ class PB_Micran:
         """
         if self.test_flag != 'test':
             self.pulser_open()
-            self.device_write( 4, byte_to_write = 4, data_to_write = 56, type_of_systems = 2, shift = 1 )
+            self.device_write( 4, byte_to_write = 4, data_to_write = 56, type_of_systems = 2, shift = 0 )
 
             self.pulse_write_full_stop(320, 0, 0, 1)
             self.pulse_write_full_stop(176, 0, 0, 16)
@@ -1647,7 +1651,7 @@ class PB_Micran:
                 rep_time = int(1000/float(rep_rate[:-4]))
 
             self.pulser_open()
-            self.device_write( 4, byte_to_write = 4, data_to_write = 56, type_of_systems = 2, shift = 1 )
+            self.device_write( 4, byte_to_write = 4, data_to_write = 56, type_of_systems = 2, shift = 0 )
 
             to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
             
@@ -1670,6 +1674,9 @@ class PB_Micran:
             self.i_shaper = 0
             self.i_video = 0
             self.i_laser_2 = 0
+
+            self.pulse_write_stop(48, 0, 0, self.i_x , self.i_x_prev)
+            self.pulse_write_stop(16, 0, 0, self.i_y , self.i_y_prev)
 
             for element in to_spinapi:
                 if element[0] == self.channel_dict['TRIGGER']:
@@ -1744,9 +1751,6 @@ class PB_Micran:
                     assert( self.i_laser_2 <= 1 ), 'Only 1 LASER_2 pulses allowed'
 
                     self.pulse_write_stop(288, element[1], element[2], self.i_laser_2 , self.i_laser_2_prev)
-
-                self.pulse_write_stop(48, 0, 0, self.i_x , self.i_x_prev)
-                self.pulse_write_stop(16, 0, 0, self.i_y , self.i_y_prev)
 
             self.i_trigger = 0
             self.i_amp_on = 0
@@ -1813,77 +1817,77 @@ class PB_Micran:
                     self.i_trigger = self.i_trigger + 1
                     assert( self.i_trigger <= 1 ), 'Only 1 TRIGGER pulse allowed' 
 
-                    self.pulse_write_stop(320, element[1], element[2], self.i_trigger , self.i_trigger_prev)
+                    #self.pulse_write_stop(320, element[1], element[2], self.i_trigger , self.i_trigger_prev)
 
                 elif element[0] == self.channel_dict['AMP_ON']:
                     self.i_amp_on = self.i_amp_on + 1
                     assert( self.i_amp_on <= 16 ), 'Only 16 AMP_ON pulses allowed'
 
-                    self.pulse_write_stop(176, element[1], element[2], self.i_amp_on , self.i_amp_on_prev)
+                    #self.pulse_write_stop(176, element[1], element[2], self.i_amp_on , self.i_amp_on_prev)
 
                 elif element[0] == self.channel_dict['LNA_PROTECT']:
                     self.i_lna = self.i_lna + 1
                     assert( self.i_lna <= 16 ), 'Only 16 LNA_PROTECT pulses allowed'
 
-                    self.pulse_write_stop(80, element[1], element[2], self.i_lna , self.i_lna_prev)
+                    #self.pulse_write_stop(80, element[1], element[2], self.i_lna , self.i_lna_prev)
 
                 elif element[0] == self.channel_dict['MW']:
 
                     self.i_mw = self.i_mw + 1
                     assert( self.i_mw <= 16 ), 'Only 16 MW pulses allowed'
 
-                    self.pulse_write_stop(112, element[1], element[2], self.i_mw , self.i_mw_prev)
+                    #self.pulse_write_stop(112, element[1], element[2], self.i_mw , self.i_mw_prev)
 
                 elif element[0] == self.channel_dict['-X']:
                     self.i_x = self.i_x + 1
                     assert( self.i_x <= 16 ), 'Only 16 -X pulses allowed'
 
-                    self.pulse_write_stop(48, element[1], element[2], self.i_x , self.i_x_prev)
+                    #self.pulse_write_stop(48, element[1], element[2], self.i_x , self.i_x_prev)
 
                 elif element[0] == self.channel_dict['+Y']:
                     self.i_y = self.i_y + 1
                     assert( self.i_y <= 16 ), 'Only 16 +Y pulses allowed'
-                    self.pulse_write_stop(16, element[1], element[2], self.i_y , self.i_y_prev)
+                    #self.pulse_write_stop(16, element[1], element[2], self.i_y , self.i_y_prev)
 
                 elif element[0] == self.channel_dict['TRIGGER_AWG']:
                     self.i_trigger_awg = self.i_trigger_awg + 1
                     assert( self.i_trigger_awg <= 1 ), 'Only 1 TRIGGER AWG pulse allowed'
 
-                    self.pulse_write_stop(304, element[1], element[2], self.i_trigger_awg , self.i_trigger_awg_prev)
+                    #self.pulse_write_stop(304, element[1], element[2], self.i_trigger_awg , self.i_trigger_awg_prev)
 
 
                 elif element[0] == self.channel_dict['AWG']:
                     self.i_awg = self.i_awg + 1
                     assert( self.i_awg <= 16 ), 'Only 16 AWG pulses allowed'
 
-                    self.pulse_write_stop(144, element[1], element[2], self.i_awg , self.i_awg_prev)
+                    #self.pulse_write_stop(144, element[1], element[2], self.i_awg , self.i_awg_prev)
 
                 elif element[0] == self.channel_dict['LASER']:
                     self.i_laser = self.i_laser + 1
                     assert( self.i_laser <= 1 ), 'Only 1 LASER pulse allowed'
                     
-                    self.pulse_write_stop(272, element[1], element[2], self.i_laser , self.i_laser_prev)
+                    #self.pulse_write_stop(272, element[1], element[2], self.i_laser , self.i_laser_prev)
 
                 elif element[0] == self.channel_dict['SHAPER']:
                     self.i_shaper = self.i_shaper + 1
                     assert( self.i_shaper <= 16 ), 'Only 16 SHAPER pulses allowed'
 
-                    self.pulse_write_stop(208, element[1], element[2], self.i_shaper , self.i_shaper_prev)
+                    #self.pulse_write_stop(208, element[1], element[2], self.i_shaper , self.i_shaper_prev)
 
                 elif element[0] == self.channel_dict['VIDEO_PROTECT']:
                     self.i_video = self.i_video + 1
                     assert( self.i_video <= 16 ), 'Only 16 VIDEO_PROTECT pulses allowed'
 
-                    self.pulse_write_stop(240, element[1], element[2], self.i_video , self.i_video_prev)
+                    #self.pulse_write_stop(240, element[1], element[2], self.i_video , self.i_video_prev)
 
                 elif element[0] == self.channel_dict['LASER_2']:
                     self.i_laser_2 = self.i_laser_2 + 1
                     assert( self.i_laser_2 <= 1 ), 'Only 1 LASER_2 pulses allowed'
 
-                    self.pulse_write_stop(288, element[1], element[2], self.i_laser_2 , self.i_laser_2_prev)
+                    #self.pulse_write_stop(288, element[1], element[2], self.i_laser_2 , self.i_laser_2_prev)
 
-                self.pulse_write_stop(48, 0, 0, self.i_x , self.i_x_prev)
-                self.pulse_write_stop(16, 0, 0, self.i_y , self.i_y_prev)
+                #self.pulse_write_stop(48, 0, 0, self.i_x , self.i_x_prev)
+               # self.pulse_write_stop(16, 0, 0, self.i_y , self.i_y_prev)
 
             self.i_trigger = 0
             self.i_amp_on = 0

@@ -200,6 +200,7 @@ The original [C library](http://www.spincore.com/support/spinapi/using_spin_api_
 
 #### [Gaussmeters](#gaussmeters-1)
 	- Lakeshore 455 DSP (RS-232); Tested 01/2021
+	- NMR Gaussmeter Sibir 1 (UDP/IP Socket); Tested 04/2024
 
 #### [Power Supplies](#power-supplies-1)
 	- Rigol DP800 Series (RS-232, Ethernet); Tested 01/2021
