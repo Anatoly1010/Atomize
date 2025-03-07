@@ -51,7 +51,7 @@ class PB_Micran:
         # that is why there is no -Y channel instead we add both -X and +Y pulses
         self.channel_dict = {self.ch1: 1, self.ch2: 2, self.ch3: 3, self.ch4: 4, self.ch5: 5, self.ch6: 6, \
                         self.ch7: 7, self.ch8: 8, self.ch9: 9, self.ch10: 10, self.ch11: 11, self.ch12: 12,\
-                        'CH12': 12, 'CH13': 13, 'CH14': 14, 'CH15': 15, 'CH16': 16, 'CH17': 17,\
+                        'CH13': 13, 'CH14': 14, 'CH15': 15, 'CH16': 16, 'CH17': 17,\
                         'CH18': 18, 'CH19': 19, 'CH20': 20, 'CH21': 21, }
 
         # Limits and Ranges (depends on the exact model):
@@ -304,7 +304,7 @@ class PB_Micran:
                     if temp_start[1] in self.timebase_dict:
                         coef = self.timebase_dict[temp_start[1]]
                         p_start = coef*float(temp_start[0])
-                        assert(p_start % 2 == 0), 'Pulse start should be divisible by 2'
+                        assert(p_start % 4 == 0), 'Pulse start should be divisible by 4'
                         assert(p_start >= 0), 'Pulse start is a negative number'
                     else:
                         assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
@@ -349,7 +349,7 @@ class PB_Micran:
                     if temp_delta_start[1] in self.timebase_dict:
                         coef = self.timebase_dict[temp_delta_start[1]]
                         p_delta_start = coef*float(temp_delta_start[0])
-                        assert(p_delta_start % 2 == 0), 'Pulse delta start should be divisible by 2'
+                        assert(p_delta_start % 4 == 0), 'Pulse delta start should be divisible by 4'
                         assert(p_delta_start >= 0), 'Pulse delta start is a negative number'
                     else:
                         assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
@@ -394,7 +394,7 @@ class PB_Micran:
                     if temp_length_increment[1] in self.timebase_dict:
                         coef = self.timebase_dict[temp_length_increment[1]]
                         p_length_increment = coef*float(temp_length_increment[0])
-                        assert(p_length_increment % 2 == 0), 'Pulse length increment should be divisible by 2'
+                        assert(p_length_increment % 4 == 0), 'Pulse length increment should be divisible by 4'
                         assert (p_length_increment >= 0 and p_length_increment < self.max_pulse_length), \
                         'Pulse length increment is longer than maximum available length or negative'
                     else:

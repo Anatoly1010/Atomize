@@ -10,6 +10,7 @@ from socket import *
 import numpy as np 
 import scipy as sp
 from scipy.fft  import rfft, rfftfreq
+import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
 def bytes_to_c_uint(a):
@@ -33,7 +34,7 @@ class Sibir_1():
         # Ranges and limits
         self.ip_UDP = str(self.specific_parameters['udp_ip'])
         self.port_UDP = int(self.specific_parameters['udp_port'])
-        self.sensor_number = = int(self.specific_parameters['sensor'])
+        self.sensor_number = int(self.specific_parameters['sensor'])
 
         #self.gaussmeter_pulse_length =  self.gaussmeter_length_90_deg_pulse
         #self.gaussmeter_sensor = self.NMR_sensor_number
@@ -249,7 +250,7 @@ class Sibir_1():
             arr=np.append(arr,np.zeros(53248 - arr.shape[0]))
             W,I = self.get_rfft_FID(arr)
             S_n = np.max(I[2:])/self.NOIZE
-            if S_n > 5:
+            if S_n > 0:
                 F_cl = self.z(W[2:], I[2:],Fref)
                 B_cl = (-F_cl+Fref+480)/self.Fr*10
                 return arr[2:] , I[2:] , round(B_cl,4) , S_n
@@ -452,8 +453,10 @@ class Sibir_1():
                 self.NMR_freq_synthesizer(F)
                 self.NMR_start_experiment()
                 arr = self.NMR_FID_array().T
-                W,I = self.get_rfft_FID(arr)
+                W, I = self.get_rfft_FID(arr)
                 S_N.append(max(I[2:]) / self.NOIZE)
+                general.message('S/N: ' + str(round(S_N[-1], 2)) + '; Field: ' + str(round(F / self.Fr * 10, 4)) + ' G')
+
             L = S_N.index(max(S_N))
             Bref = all_F[L] / self.Fr * 10
             return Bref
@@ -473,12 +476,12 @@ class Sibir_1():
         F = int(self.Fr *  B / 10)
 
         if self.test_flag != 'test':
-            T0 = self.gaussmeter_length_90_deg_pulse()
-            self.gaussmeter_length_90_deg_pulse(0)
+            T0 = self.gaussmeter_pulse_length()
+            self.gaussmeter_pulse_length(0)
             self.NMR_freq_synthesizer(F)
             self.NMR_start_experiment()
             W,I = self.get_rfft_FID(self.NMR_FID_array().T)
-            self.gaussmeter_length_90_deg_pulse(T0)
+            self.gaussmeter_pulse_length(T0)
             self.NOIZE = max(I[2:])
             return max(I[2:])
         elif self.test_flag == 'test':
@@ -807,7 +810,8 @@ class Sibir_1():
         
         return FID 
 
-    def get_rfft_FID(self,FID):
+    def get_rfft_FID(self, FID):
+        #FID = FID - np.sum(FID[len(FID) - 100:])/101
         #N , T = self.N , self.T 
         N, T = len(FID) , self.T 
         I = np.abs(rfft(FID))[:N // 2]

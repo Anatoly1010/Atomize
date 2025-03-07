@@ -80,17 +80,41 @@ def plot_1d(strname, xd, yd, label='label', xname='X',\
     if test_flag != 'test':
         
         if pr == 'None':
-            plotter.plot_xy(strname, xd, yd, label=label, xname=xname,\
-                        xscale=xscale, yname=yname, yscale=yscale, scatter=scatter, timeaxis=timeaxis, vline=vline, text=text)
+            try:
+                if np.isnan( yd[0][0] ) == False:
+                    plotter.plot_xy(strname, xd, yd, label=label, xname=xname,\
+                                xscale=xscale, yname=yname, yscale=yscale, scatter=scatter, timeaxis=timeaxis, vline=vline, text=text)
+                else:
+                    pass
+            except IndexError:
+                if np.isnan( yd[0] ) == False:
+                    plotter.plot_xy(strname, xd, yd, label=label, xname=xname,\
+                                xscale=xscale, yname=yname, yscale=yscale, scatter=scatter, timeaxis=timeaxis, vline=vline, text=text)
+                else:
+                    pass
         else:
             try:
                 pr.join()
             except ( AttributeError, NameError, TypeError ):
                 pass
-            
-            p1 = Thread(target=plotter.plot_xy, args=(strname, xd, yd, ), kwargs={'label': label, 'xname': xname, \
-                        'xscale': xscale, 'yname': yname, 'yscale': yscale, 'scatter': scatter, 'timeaxis': timeaxis, \
-                        'vline': vline, 'text': text, } )
+
+
+            try:
+                if np.isnan( yd[0][0] ) == False:
+                    p1 = Thread(target=plotter.plot_xy, args=(strname, xd, yd, ), kwargs={'label': label, 'xname': xname, \
+                                'xscale': xscale, 'yname': yname, 'yscale': yscale, 'scatter': scatter, 'timeaxis': timeaxis, \
+                                'vline': vline, 'text': text, } )
+                else:
+                    pass
+            except IndexError:
+                if np.isnan( yd[0] ) == False:
+                    p1 = Thread(target=plotter.plot_xy, args=(strname, xd, yd, ), kwargs={'label': label, 'xname': xname, \
+                                'xscale': xscale, 'yname': yname, 'yscale': yscale, 'scatter': scatter, 'timeaxis': timeaxis, \
+                                'vline': vline, 'text': text, } )
+                else:
+                    pass
+
+
             p1.start()
             #p1.join()
 
@@ -98,6 +122,7 @@ def plot_1d(strname, xd, yd, label='label', xname='X',\
 
     elif test_flag == 'test':
         pass
+
 
 def append_1d(strname, value, start_step=(0, 1), label='label', xname='X',\
  xscale='arb. u.', yname='Y', yscale='arb. u.', scatter='False', timeaxis='False', vline='False'):
@@ -115,16 +140,39 @@ def plot_2d(strname, data, start_step=None,\
     if test_flag != 'test':
 
         if pr == 'None':
-            plotter.plot_z(strname, data, start_step=start_step,\
-                        xname=xname, xscale=xscale, yname=yname, yscale=yscale, zname=zname, zscale=zscale, text=text)
+            try:
+                if np.isnan( data[0,0,0] ) == False:
+                    plotter.plot_z(strname, data, start_step=start_step,\
+                                xname=xname, xscale=xscale, yname=yname, yscale=yscale, zname=zname, zscale=zscale, text=text)
+                else:
+                    pass
+            
+            except IndexError:
+                if np.isnan( data[0,0] ) == False:
+                    plotter.plot_z(strname, data, start_step=start_step,\
+                                xname=xname, xscale=xscale, yname=yname, yscale=yscale, zname=zname, zscale=zscale, text=text)
+                else:
+                    pass
         else:
             try:
                 pr.join()
             except ( AttributeError, NameError, TypeError ):
                 pass
             
-            p1 = Thread(target=plotter.plot_z, args=(strname, data, ), kwargs={'start_step': start_step, 'xname': xname, \
-                        'xscale': xscale, 'yname': yname, 'yscale': yscale, 'zname': zname, 'zscale': zscale, 'text': text, } )
+            try:
+                if np.isnan( data[0,0,0] ) == False:
+                    p1 = Thread(target=plotter.plot_z, args=(strname, data, ), kwargs={'start_step': start_step, 'xname': xname, \
+                                'xscale': xscale, 'yname': yname, 'yscale': yscale, 'zname': zname, 'zscale': zscale, 'text': text, } )
+                else:
+                    pass
+
+            except IndexError:
+                if np.isnan( data[0,0] ) == False:
+                    p1 = Thread(target=plotter.plot_z, args=(strname, data, ), kwargs={'start_step': start_step, 'xname': xname, \
+                                'xscale': xscale, 'yname': yname, 'yscale': yscale, 'zname': zname, 'zscale': zscale, 'text': text, } )
+                else:
+                    pass
+
             p1.start()
             #p1.join()
 
