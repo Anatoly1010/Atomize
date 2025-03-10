@@ -479,10 +479,10 @@ class Insys_FPGA:
                 pulse['length'] = str(p_length) + ' ns'
 
                 if channel == 'TRIGGER':
-                    self.adc_window = int( (self.adc_window + p_length) / self.timebase_pulser )
-                    self.win_right = self.adc_window - 1
+                    self.adc_window = int( self.adc_window + ceil(p_length / self.timebase_pulser) )
+                    #self.win_right = self.adc_window - 1
                 elif channel == 'TRIGGER_AWG':
-                    self.dac_window = int( (self.dac_window + p_length) / self.timebase_pulser )
+                    self.dac_window = int( self.dac_window + ceil(p_length / self.timebase_pulser) )
                     pulse_awg = {'name': name + 'AWG', 'channel': 'AWG', 'start': start, 'length': length, 'delta_start' : delta_start,\
                             'length_increment': length_increment, 'phase_list': phase_list}
                     self.pulse_array_pulser.append( pulse_awg )
@@ -544,7 +544,7 @@ class Insys_FPGA:
             # Checks
             # two equal names
             temp_name = str(name)
-            set_from_list = set(self.pulse_name_array_pulser)          
+            set_from_list = set(self.pulse_name_array_pulser)
             if temp_name in set_from_list:
                 assert (1 == 2), 'Two pulses have the same name. Please, rename'
 
@@ -564,11 +564,11 @@ class Insys_FPGA:
                 assert( round(remainder(p_length, 3.2), 2) == 0), 'Pulse length should be divisible by 3.2'
 
                 if channel == 'TRIGGER':
-                    self.adc_window = int( self.adc_window + p_length / self.timebase_pulser )
+                    self.adc_window = int( self.adc_window + ceil(p_length / self.timebase_pulser) )
                     assert( self.adc_window <= 1022 ), 'Maximum DETECTION WINDOW is 3270.4 ns'
-                    self.win_right = self.adc_window - 1
+                    #self.win_right = self.adc_window - 1
                 elif channel == 'TRIGGER_AWG':
-                    self.dac_window = int( self.dac_window + p_length / self.timebase_pulser )
+                    self.dac_window = int( self.dac_window + ceil(p_length / self.timebase_pulser) )
                     pulse_awg = {'name': name + 'AWG', 'channel': 'AWG', 'start': start, 'length': length, 'delta_start' : delta_start,\
                             'length_increment': length_increment, 'phase_list': phase_list}
                     self.pulse_array_pulser.append( pulse_awg )
@@ -1153,14 +1153,14 @@ class Insys_FPGA:
 
                 rep_time = self.round_to_closest(rep_time, 3.2)
 
-                if rep_time > 20000000:
+                if rep_time > 20408163:
                     if self.adc_window <= 256:
                         self.change_ini_file("streamBufSizeKb = 1024", "streamBufSizeKb = 128")
                     elif (self.adc_window > 256) and (self.adc_window <= 511):
                         self.change_ini_file("streamBufSizeKb = 1024", "streamBufSizeKb = 256")
                     elif (self.adc_window > 511) and (self.adc_window <= 1022):
                         self.change_ini_file("streamBufSizeKb = 1024", "streamBufSizeKb = 512")
-                elif rep_time <= 20000000:
+                elif rep_time <= 20408163:
                     self.change_ini_file("streamBufSizeKb = 128", "streamBufSizeKb = 1024")
                     self.change_ini_file("streamBufSizeKb = 256", "streamBufSizeKb = 1024")
                     self.change_ini_file("streamBufSizeKb = 512", "streamBufSizeKb = 1024")
@@ -1183,9 +1183,9 @@ class Insys_FPGA:
 
                 rep_time = self.round_to_closest(rep_time, 3.2)
 
-                if rep_time > 20000000:
+                if rep_time > 20408163:
                     self.change_ini_file("streamBufSizeKb = 1024", "streamBufSizeKb = 128")
-                elif rep_time <= 20000000:
+                elif rep_time <= 20408163:
                     self.change_ini_file("streamBufSizeKb = 128", "streamBufSizeKb = 1024")
 
                 self.rep_rate_count_pulser = 1
@@ -1806,7 +1806,7 @@ class Insys_FPGA:
                 elif integral == True:
                     self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
                     self.buffer_ready = 0
-                    return np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ), np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
+                    return 1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ), 1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
 
             elif self.buffer_ready == 0:
                 if integral == False:
@@ -1855,7 +1855,7 @@ class Insys_FPGA:
                     self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef ) ) ), acq_cycle = acq_cycle)
                     #general.message( len(np.sum( ((self.data_i_ph))[:, self.win_left:self.win_right], axis = 1 )) )
                     self.buffer_ready = 0
-                    return np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ), np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
+                    return  1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ),  1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
 
             elif self.buffer_ready == 0:
                 if integral == False:
@@ -1949,15 +1949,16 @@ class Insys_FPGA:
         if self.test_flag != 'test':
 
             path_to_main = os.path.abspath( os.getcwd() )
-            path_file = os.path.join(path_to_main, '..', 'atomize/control_center/digitizer.param')
-            #path_file = os.path.join(path_to_main, 'digitizer.param')
+            path_file = os.path.join(path_to_main, '..', 'atomize/control_center/digitizer_insys.param')
+            #path_file = os.path.join(path_to_main, 'digitizer_insys.param')
             file_to_read = open(path_file, 'r')
 
             text_from_file = file_to_read.read().split('\n')
             # ['Points: 224', 'Sample Rate: 250', 'Posstriger: 16', 'Range: 500', 'CH0 Offset: 0', 'CH1 Offset: 0', 
             # 'Window Left: 0', 'Window Right: 0', '']
 
-            #self.points = int( text_from_file[0].split(' ')[1] )
+            self.points = str( text_from_file[0].split(': ')[1] )
+            #points = int( text_from_file[0].split(' ')[1] )
             #self.digitizer_number_of_points( points )
 
             #self.sample_rate = int( text_from_file[1].split(' ')[2] )
@@ -1977,7 +1978,9 @@ class Insys_FPGA:
             self.win_left = int( text_from_file[6].split(' ')[2] )
             self.win_right = 1 + int( text_from_file[7].split(' ')[2] )
 
+            self.dec_coef = int( text_from_file[8].split(' ')[1] )
             #self.digitizer_setup()
+            return self.points
 
         elif self.test_flag == 'test':
             
@@ -1986,14 +1989,15 @@ class Insys_FPGA:
             #self.digitizer_reference_clock(100)
             
             path_to_main = os.path.abspath( os.getcwd() )
-            path_file = os.path.join(path_to_main, '..', 'atomize/control_center/digitizer.param')
-            #path_file = os.path.join(path_to_main, 'digitizer.param')
+            path_file = os.path.join(path_to_main, '..', 'atomize/control_center/digitizer_insys.param')
+            #path_file = os.path.join(path_to_main, 'digitizer_insys.param')
             file_to_read = open(path_file, 'r')
 
             text_from_file = file_to_read.read().split('\n')
             # ['Points: 224', 'Sample Rate: 250', 'Posstriger: 16', 'Range: 500', 'CH0 Offset: 0', 'CH1 Offset: 0', 
             # 'Window Left: 0', 'Window Right: 0', '']
 
+            self.points = str( text_from_file[0].split(': ')[1] )
             #points = int( text_from_file[0].split(' ')[1] )
             #self.digitizer_number_of_points( points )
 
@@ -2012,6 +2016,9 @@ class Insys_FPGA:
 
             self.win_left = int( text_from_file[6].split(' ')[2] )
             self.win_right = 1 + int( text_from_file[7].split(' ')[2] )
+
+            self.dec_coef = int( text_from_file[8].split(' ')[1] )
+            return self.points
 
     def digitizer_sample_rate(self):
         """
@@ -3110,8 +3117,10 @@ class Insys_FPGA:
             elif len(amplitude) == 1:
                 ch1 = str(amplitude[0])
                 assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
-                return self.test_amplitude_awg
-
+                if ch1 == 'CH0':
+                    return str(self.amplitude_0_awg) + ' mV'
+                elif ch1 == 'CH1':
+                    return str(self.amplitude_1_awg) + ' mV'
             else:
                 assert( 1 == 2 ), 'Incorrect arguments'
 
@@ -3121,7 +3130,7 @@ class Insys_FPGA:
         It runs TEST mode
         """
         self.test_flag = flag
-        self.test_amplitude_awg = '600 mV'
+        self.test_amplitude_awg = '250 mV'
 
     def awg_pulse_list(self):
         """
@@ -4077,7 +4086,7 @@ class Insys_FPGA:
                 # we need to add a pulse
                 # RECT/AWG pulse: pulses[i, 0] == 2**7
                 if self.synt_number == 1 and pulses[i, 0] == 2**7:
-                    bit_array = bit_array + 2**self.channel_dict[self.ch9]*np.concatenate( (np.zeros( pulses[i, 1] - min_pulse, dtype = np.int64), \
+                    bit_array = bit_array + 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( pulses[i, 1] - min_pulse, dtype = np.int64), \
                         np.ones(pulses[i, 2] - pulses[i, 1], dtype = np.int64), \
                         np.zeros(max_pulse - pulses[i, 2], dtype = np.int64)), axis = None)
 
@@ -4110,7 +4119,7 @@ class Insys_FPGA:
                 # we need to add a pulse
                 # RECT/AWG pulse: pulses[i, 0] == 2**7
                 if self.synt_number == 1 and pulses[i, 0] == 2**7:
-                    bit_array = bit_array + 2**self.channel_dict[self.ch9]*np.concatenate( (np.zeros( pulses[i, 1] - min_pulse, dtype = np.int64), \
+                    bit_array = bit_array + 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( pulses[i, 1] - min_pulse, dtype = np.int64), \
                         np.ones(pulses[i, 2] - pulses[i, 1], dtype = np.int64), \
                         np.zeros(max_pulse - pulses[i, 2], dtype = np.int64)), axis = None)
 
@@ -5372,6 +5381,9 @@ class Insys_FPGA:
 
         elif self.test_flag == 'test':
             len_1st_ch              = self.dac_window
+            #general.message(len_1st_ch)
+            #general.message(f'BUF: {int( len(self.channel_1) / 4 )}')
+
             assert( int( len(self.channel_1) / 4 ) == len_1st_ch ), 'Length of TRIGGER_AWG pulses does not equal to Length of AWG pulses'
 
     def change_ini_file(self, search_text, new_text):
