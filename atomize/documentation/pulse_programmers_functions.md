@@ -11,7 +11,7 @@ Functions:
 - [pulser_pulse(*kagrs)](#pulser_pulsekargs)<br/>
 - [pulser_update()](#pulser_update)<br/>
 - [pulser_next_phase()](#pulser_next_phase)<br/>
-- [pulser_acquisition_cycle(data1, data2, acq_cycle = [])](#pulse_acquisition_cycledata1-data2-acq_cycle--)<br/>
+- [pulser_acquisition_cycle(data1, data2, acq_cycle)](#pulser_acquisition_cycledata1-data2-acq_cycle)<br/>
 - [pulser_repetition_rate(*r_rate)](#pulser_repetition_rater_rate)<br/>
 - [pulser_shift(*pulses)](#pulser_shiftpulses)<br/>
 - [pulser_increment(*pulses)](#pulser_incrementpulses)<br/>
@@ -49,7 +49,7 @@ Output: none.
 Example: pulser_pulse('name' = 'P0', channel = 'MW', start = '100 ns', length = '100 ns', delta_start = '0 ns',
 length_increment = '0 ns') sets the 100 ns length microwave pulse with 100 ns start time with no phase cycling.
 ```
-The function sets a pulse with specified parameters. The default argument is name = 'P0', channel = 'TRIGGER', start = '0 ns', length = '100 ns', delta_start = '0 ns', length_increment = '0 ns', phase_list = []. A channel should be one of the following ['TRIGGER','AMP_ON','LNA_PROTECT','MW','-X','+Y','TRIGGER_AWG', 'AWG', 'LASER','SYNT2','CH10', ... ,'CH20']. The scaling factor for start, length, delta_start, and length_increment key arguments should be one of the following ['ns', 'us', 'ms', 's']. The minimum available length of the pulse is 10 ns for Pulse Blaster ESR 500 Pro and 3.2 ns for Insys FM214x3GDA. The maximum available length of the pulse is 1900 ns. The maximum available length of the pulse sequence is approximately 10 s. The pulse sequence will be checked for overlap. In the auto defence mode (default option; can be changed in the config file) channels 'AMP_ON' and 'LNA_PROTECT' will be added automatically according to the delays indicated in the config file. In this mode 'AMP_ON' and 'LNA_PROTECT' pulses will be joined in one pulse if the distance between them is less than 12 ns (can be changed in the config file).<br/>In the case of Insys FM214x3GDA 'start', 'length', 'delta_start', and 'length_increment' will be rounded to a multiple of 3.2.
+The function sets a pulse with specified parameters. The default argument is name = 'P0', channel = 'TRIGGER', start = '0 ns', length = '100 ns', delta_start = '0 ns', length_increment = '0 ns', phase_list = []. A channel should be one of the following ['TRIGGER','AMP_ON','LNA_PROTECT','MW','-X','+Y','TRIGGER_AWG', 'AWG', 'LASER','SYNT2','CH10', ... ,'CH20']. The scaling factor for start, length, delta_start, and length_increment key arguments should be one of the following ['ns', 'us', 'ms', 's']. The minimum available length of the pulse is 10 ns for Pulse Blaster ESR 500 Pro and 3.2 ns for Insys FM214x3GDA. The maximum available length of the pulse is 1900 ns. The maximum available length of the pulse sequence is approximately 10 s. The pulse sequence will be checked for overlap. In the auto defence mode (default option; can be changed in the config file) channels 'AMP_ON' and 'LNA_PROTECT' will be added automatically according to the delays indicated in the config file. In this mode 'AMP_ON' and 'LNA_PROTECT' pulses will be joined in one pulse if the distance between them is less than 12 ns (can be changed in the config file). <br/> In the case of Insys FM214x3GDA start, length, delta_start, and length_increment will be rounded to a multiple of 3.2.
 ### pulser_update()
 ```python3
 pulser_update()
@@ -64,7 +64,7 @@ Arguments: none; Output: none.
 Example: pulser_next_phase() switches all pulses in the sequence to the next phase.
 ```
 This function switches all pulses to the next phase. The phase sequence is declared in the [pulser_pulse()](#pulser_pulsekagrs) in the form of phase_list = ['-y', '+x', '-x', '+x', ...]. By repeatedly calling the function one can run through the complete list of phases for the pulses. The length of all phase lists specified for different MW pulses has to be the same. This function also immediately updates the pulse sequence, as it is done by calling [pulser_update()](#pulser_update). The first call of the function corresponds to the first phase in the phase_list argument of the [pulser_pulse()](#pulser_pulsekagrs).
-### pulser_acquisition_cycle(data1, data2, acq_cycle = [])
+### pulser_acquisition_cycle(data1, data2, acq_cycle)
 ```python3
 pulser_acquisition_cycle(data1, data2, acq_cycle = [])
 Arguments: 
@@ -74,7 +74,7 @@ Output: two numpy arrays, representing phase cycled data1 and data2.
 Example: pulser_acquisition_cycle(np.array([1, 0]), np.array([0, 1]), acq_cycle = ['+', '-'])
 performes given mathematical operations on the arrays.
 ```
-This function can be used to shorten the syntax for acqusition in the case of phase cycling. The arguents are (i) two numpy arrays from a quadrature detector, (ii) array of mathematical operations to perform. Data arrays can be both 2D and 1D, representing, respectively, the case of raw oscillograms or integrated data. The length of acq_cycle array and the 1D arrays or the amount of the individual oscillograms in the 2D array should be equal. The data arrays will be treated inside the function as a complex number:
+This function can be used to shorten the syntax for acquisition in the case of phase cycling. The arguments are (i) two numpy arrays from a quadrature detector, (ii) array of mathematical operations to perform. Data arrays can be both 2D and 1D, representing, respectively, the case of raw oscillograms or integrated data. The length of acq_cycle array and the 1D arrays or the amount of the individual oscillograms in the 2D array should be equal. The data arrays will be treated inside the function as a complex number:
 ```python3
 answer = np.zeros( data1.shape ) + 1j*np.zeros( data2.shape )
 ```
@@ -198,23 +198,7 @@ pulser_close()
 Arguments: none; Output: none.
 Example: pulser_close() closes the board after use.
 ```
-This function can be called only without arguments and is only available for Insys FM214x3GDA. The function must be used at the end of an experimental script to gracefully close the board. It is STRONGLY recommended to add a graceful closing of the board to the experimental scripts for the case of an abrupt termination of the process. As a possible option, one can use signal library:<br/>
-```python3
-import signal
-import atomize.device_modules.Insys_FPGA as insys
-
-pb = insys.Insys_FPGA()
-
-def cleanup(*args):
-    pb.pulser_close()
-    sys.exit(0)
-
-signal.singal(signal.SIGTERM, cleanup)
-
-# Experimental script
-#
-#
-```
+This function can be called only without arguments and is only available for Insys FM214x3GDA. The function must be used at the end of an experimental script to gracefully close the board.
 ### pulser_default_synt(num)
 ```python3
 pulser_default_synt(num)

@@ -221,7 +221,7 @@ This function should be called with two keyword arguments, namely name and delta
 awg_redefine_length_increment(*, name, length_increment)
 Arguments: name = 'Pulse name', length_increment = a new length increment (as a string);
 Output: none.
-Example: awg_redefine_length_increment(name = 'P2', length_increment = '10 ns') length increment setting of the 'P2' pulse to 10 ns.
+Example: awg_redefine_length_increment(name = 'P2', length_increment = '10 ns') changes length increment setting of the 'P2' pulse to 10 ns.
 ```
 This function should be called with two keyword arguments, namely name and length increment. The first argument specifies the name of the pulse as a string. The second argument defines a new value of length increment as a string in the format value + dimension (i.e. '100 ns'). The main purpose of the function is non-uniform sampling. Please note, that the function does not update the AWG card. [awg_update()](#awg_update) should be called to apply changes. The function has no meaning for the 'Sequence' card mode. One should redefine all the sequence instead.
 ### awg_add_phase(*, name, add_phase)

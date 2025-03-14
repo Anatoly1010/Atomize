@@ -58,7 +58,7 @@ digitizer_get_curve()
 Arguments: none; Output: xs, data_ch0 or xs, data_ch0, data_ch1.
 Examples: digitizer_get_curve() runs acquisition and returns the data.
 ```
-This function runs acquisition and returns the data obtained. If two channels are enabled by the function [digitizer_channel()](#digitizer_channelchannel) the output of the function is three numpy arrays (xs, data_ch0, data_ch1). If one channel is enabled the output of the function is two numpy array (xs, data_ch0). The xs array is returned in s, data arrays are returned in V. The function should be called only without arguments.<br/>In the case of Insys FM214x3GDA one should use the modification of this function [digitizer_get_curve(points, phases, ...)](#digitizer_get_curvepoints-phases-acq_cycle-live_mode--0-integral--false).
+This function runs acquisition and returns the data obtained. If two channels are enabled by the function [digitizer_channel()](#digitizer_channelchannel) the output of the function is three numpy arrays (xs, data_ch0, data_ch1). If one channel is enabled the output of the function is two numpy array (xs, data_ch0). The xs array is returned in s, data arrays are returned in V. The function should be called only without arguments.<br/>In the case of Insys FM214x3GDA one should use the modification of this function [digitizer_get_curve(points, phases, ...)](#digitizer_get_curvepoints-phases-acq_cycle-integral--false).
 ### digitizer_get_curve(integral = True)
 ```python3
 digitizer_get_curve(integral = True)
