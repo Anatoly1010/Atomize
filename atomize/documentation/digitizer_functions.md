@@ -218,7 +218,7 @@ This function queries or sets the decimation coefficient for Insys FM214x3GDA. I
 ### digitizer_read_settings()
 ```python3
 digitizer_read_settings()
-Arguments: none; Output: none.
+Arguments: none; Output: string.
 Examples: digitizer_read_settings() reads all the settings to the digitizer.
 ```
-This function reads all the settings from a special text file [digitizer.param](https://github.com/Anatoly1010/Atomize_ITC/tree/master/atomize/control_center) to the digitizer.
+This function reads all the settings from a special text file [digitizer.param](https://github.com/Anatoly1010/Atomize_ITC/tree/master/atomize/control_center) to the digitizer. The function returns ADC detection window in the form of string, for example, '640 ns'.
