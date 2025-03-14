@@ -8,6 +8,8 @@ sys.path.append('/path/to/python/header/of/Spectrum/library')
 from pyspcm import *
 from spcm_tools import *
 ```
+- [Insys FM214x3GDA](https://www.insys.ru/mezzanine/fm214x3gda) as DAC; Tested 03/2025
+The Insys device is available via ctypes. The original library can be found [here](https://github.com/Anatoly1010/Atomize_ITC/tree/master/libs).
 
 Functions:
 - [awg_name()](#awg_name)<br/>
@@ -54,21 +56,21 @@ awg_setup()
 Arguments: none; Output: none.
 Examples: awg_setup() writes all the settings into the AWG card.
 ```
-This function writes all the settings modified by other functions to the AWG card. The function should be called only without arguments. One needs to initialize the settings before calling [awg_update()](#awg_update). The default settings (if no other function was called) are the following: Sample clock is 1250 MHz; Clock mode is 'Internal'; Reference clock is 100 MHz; Card mode is 'Single'; Trigger channel is 'External'; Trigger mode is 'Positive'; Loop is infinity; Trigger delay is 0; Enabled channels are CH0 and CH1; Amplitude of CH0 is '600 mV'; Amplitude of CH1 is '533 mV'; Number of segments is 1; Card memory size is 64 samples; Buffer is empty.<br/>
+This function writes all the settings modified by other functions to the AWG card. The function should be called only without arguments. One needs to initialize the settings before calling [awg_update()](#awg_update). The default settings (if no other function was called) are the following: Sample clock is 1250 MHz; Clock mode is 'Internal'; Reference clock is 100 MHz; Card mode is 'Single'; Trigger channel is 'External'; Trigger mode is 'Positive'; Loop is infinity; Trigger delay is 0; Enabled channels are CH0 and CH1; Amplitude of CH0 is '600 mV'; Amplitude of CH1 is '533 mV'; Number of segments is 1; Card memory size is 64 samples; Buffer is empty.<br/>This function is not available for Insys FM214x3GDA. This is done by [pulser_open()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/pulse_programmers_functions.md) function.
 ### awg_update()
 ```python3
 awg_update()
 Arguments: none; Output: none.
 Examples: awg_update() runs the AWG card.
 ```
-This function redefines the buffer (in case the function like [awg_shift()](#awg_shift) has been called) and runs the AWG card. The function should be called only without arguments. 
+This function redefines the buffer (in case the function like [awg_shift()](#awg_shift) has been called) and runs the AWG card. The function should be called only without arguments.<br/>This function is not available for Insys FM214x3GDA. This is done by [pulser_update()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/pulse_programmers_functions.md) function.
 ### awg_stop()
 ```python3
 awg_stop()
 Arguments: none; Output: none.
 Example: awg_stop() stops the AWG card.
 ```
-This function stops the AWG card and should be called only without arguments. If an infinite number of loops is defined by the [awg_loop()](#awg_looploop) function, the [awg_stop()](#awg_stop) should always be called before redefining the buffer by the [awg_update()](#awg_update). If a finite number of loops is defined, the card will stop automatically.<br/>
+This function stops the AWG card and should be called only without arguments. If an infinite number of loops is defined by the [awg_loop()](#awg_looploop) function, the [awg_stop()](#awg_stop) should always be called before redefining the buffer by the [awg_update()](#awg_update). If a finite number of loops is defined, the card will stop automatically.<br/>This function is not available for Insys FM214x3GDA. There is no need to stop this DAC. 
 ### awg_close()
 ```python3
 awg_close()
@@ -93,6 +95,8 @@ signal.singal(signal.SIGTERM, cleanup)
 #
 #
 ```
+This function is not available for Insys FM214x3GDA. This is done with [pulser_close()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/pulse_programmers_functions.md) 
+
 ### awg_pulse(*kargs)
 ```python3
 awg_pulse(*kagrs)
@@ -125,6 +129,7 @@ The function sets a pulse with specified parameters for 'Single', 'Multi', and '
 name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = 0, length = '16 ns', sigma = '0 ns', length_increment = '0 ns', start = '0 ns', delta_start = '0 ns', d_coef = 1, n = 1, phase_list = []. A channel should be one of the following ['CH0','CH1']. The frequency should be in MHz, the minimum value is 0 MHz, maximum is 280 MHz. For WURST and SECH/TANH pulse the frequency argument should be a tuple ('center_freq MHz', 'sweep_range MHz'), i.e. ('0 MHz', '100 MHz'). The scaling factor for length and sigma key arguments should be one of the following ['ns','us','ms']. The minimum available length and sigma of the pulse is 0 ns. The maximum available length and sigma of the pulse is 1900 ns. The available functions are ['SINE','GAUSS','SINC','BLANK','WURST','SECH/TANH']. For 'SINE', 'BLANK', 'WURST', and SECH/TANH function parameter sigma has no meaning. For 'GAUSS' function parameter sigma is a sigma of Gaussian. For 'SINC' function a combination of parameters length and sigma specifies the width of the SINC pulse, i.e. length = '40 ns' and sigma = '10 ns' means that SINC pulse will be from -4pi to +4pi. Function 'BLANK' is an empty pulse. Function 'WURST' is a wideband, uniform rate, smooth truncation pulse. Function 'SECH/TANH' is a wideband sech/tanh pulse. The length_increment keyword affects both the length and sigma of the pulse. The scaling factor for start and delta_start key arguments should be one of the following ['ns','us','ms']. The [amplitudes](#awg_amplitudeamplitude) of the AWG card channels will be divided by the value of the d_coef parameter, which ultimately determines the final amplitude of each pulse. The d_coef parameter should be more or equal to 1. The n parameter determines the steepness of the amplitude function of the WURST and SECH/TANH pulses. For other functions it has no meaning. The b parameter (in 1/ns) determines the truncation parameter of the SECH/TANH pulse. For other functions it has no meaning.<br/>
 It is recommended to first define all pulses and then define the settings of the AWG card. To write the settings [awg_setup()](#awg_setup) function should be called. To run specified pulses the [awg_update()](#awg_update) function should be called.<br/>
 Key argument delta_phase define a pulse phase shift and has no meaning for 'Single Joined' card mode, since the phase of the pulse will be calculated automatically. Key arguments start and delta_start define a pulse position for 'Single Joined' card mode and has no meaning for 'Single' or 'Multi' card mode.<br/>
+Pulse settings for Insys FM214x3GDA corresponds to 'Single' card mode. In addition for this device arguments 'start', 'length', 'delta_start', and 'length_increment' will be rounded to a multiple of 3.2 and for all AWG pulses there should be a corresponding trigger pulse, generated by [pulser_pulse()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/pulse_programmers_functions.md) function.
 ### awg_pulse_sequence(kargs)
 ```python3
 awg_pulse_sequence(kagrs)
@@ -153,7 +158,7 @@ each of 800 points.
 ```
 The function sets a pulse sequence with specified parameters for 'Sequence' card [mode](#awg_cardmode). The AWG card buffer will be filled according to key arguments of the awg_pulse_sequence() function. There is no default arguments, that is why all keywords must be specified. The minimum available length and sigma of the pulse is 0 ns. The maximum available length and sigma of the pulse is 1900 ns. For WURST and SECH/TANH pulses the frequency should be a tuple ('Center_freq MHz', 'sweep_freq MHz'), i.e. ('0 MHz', '100 MHz'). The available functions are ['SINE','GAUSS','SINC','BLANK','WURST','SECH/TANH']. For 'SINE', 'BLANK', 'WURST', and 'SECH/TANH' functions parameter sigma has no meaning. For 'GAUSS' function parameter sigma is a sigma of Gaussian. For 'SINC' function a combination of parameters length and sigma specifies the width of the SINC pulse in the same manner as the function [awg_pulse()](#awg_pulsekargs). Function 'BLANK' is an empty pulse. Function 'WURST' is a wideband, uniform rate, smooth truncation pulse. Function 'SECH/TANH' is a wideband sech/tanh pulse. The n parameter determines the steepness of the amplitude function of the WURST and SECH/TANH pulse. For other functions it has no meaning. The b parameter (in 1/ns) determines the truncation parameter of the SECH/TANH pulse. For other functions it has no meaning.<br/>
 Please note, that each new call of the [awg_pulse_sequence()](#awg_pulse_sequencekargs) function will redefine the pulse sequence. Pulse_start array must be sorted. A number of enabled channels should be defined before [awg_pulse_sequence()](#awg_pulse_sequencekargs).<br/>
-To write the settings [awg_setup()](#awg_setup) function should be called. To run a specified pulse sequence the [awg_update()](#awg_update) function should be called. After going through all the buffer the AWG card will be stopped.<br/>
+To write the settings [awg_setup()](#awg_setup) function should be called. To run a specified pulse sequence the [awg_update()](#awg_update) function should be called. After going through all the buffer the AWG card will be stopped.<br/>This function is not available for Insys FM214x3GDA.<br/>
 ### awg_shift(*pulses)
 ```python3
 awg_shift(*pulses)
@@ -233,7 +238,7 @@ awg_reset()
 Arguments: none; Output: none.
 Example: awg_reset() resets all the pulses to their initial state and updates the AWG card.
 ```
-The function switches the AWG card back to the initial state in which it was in at the start of the experiment. This function can be called only without arguments. It includes the complete functionality of [awg_pulse_reset()](#awg_pulse_reset), but also immediately updates the AWG card as it is done by calling [awg_update()](#awg_update). The function has no meaning for the 'Sequence' card mode. One should redefine all the sequence instead.
+The function switches the AWG card back to the initial state in which it was in at the start of the experiment. This function can be called only without arguments. It includes the complete functionality of [awg_pulse_reset()](#awg_pulse_reset), but also immediately updates the AWG card as it is done by calling [awg_update()](#awg_update). The function has no meaning for the 'Sequence' card mode. One should redefine all the sequence instead.<br\>This function is not available for Insys FM214x3GDA. The function [awg_pulse_reset()](#pulser_pulse_reset) can be used instead.
 ### awg_pulse_reset(*pulses)
 ```python3
 awg_pulse_reset(*pulses)
@@ -247,35 +252,35 @@ awg_number_of_segments(*segments)
 Arguments: segments = integer (1-200); Output: integer.
 Example: awg_number_of_segments(2) sets the number of segments to 2.
 ```
-This function queries or sets the number of segments for ['Multi'](#awg_card_modemode) card mode. In order to set the number of segments higher than 1, the AWG card should be in ['Multi'](#awg_card_modemode) mode. If there is no argument the function will return the current number of segments. If there is an argument the specified number of segmetns will be set. The maximum available number of segments is 200. Default value is 1.<br/>
+This function queries or sets the number of segments for ['Multi'](#awg_card_modemode) card mode. In order to set the number of segments higher than 1, the AWG card should be in ['Multi'](#awg_card_modemode) mode. If there is no argument the function will return the current number of segments. If there is an argument the specified number of segmetns will be set. The maximum available number of segments is 200. Default value is 1.<br/>This function is not available for Insys FM214x3GDA.
 ### awg_channel(*channel)
 ```python3
 awg_channel(*channel)
 Arguments: channel = string (['CH0','CH1']); Output: string.
 Example: awg_channel('CH0', 'CH1') enables output from CH0 and CH1.
 ```
-This function enables output from the specified channel or queries enabled channels. If there is no argument the function will return the currently enabled channels. If there is an argument the output from the specified channel will be enabled. The channel should be one of the following: ['CH0','CH1']. Default option is when both channels are enabled.<br/>
+This function enables output from the specified channel or queries enabled channels. If there is no argument the function will return the currently enabled channels. If there is an argument the output from the specified channel will be enabled. The channel should be one of the following: ['CH0','CH1']. Default option is when both channels are enabled.<br/>This function is not available for Insys FM214x3GDA, only two channels are available.
 ### awg_sample_rate(*s_rate)
 ```python3
 awg_sample_rate(*s_rate)
 Arguments: s_rate = integer (50-1250 MHz); Output: integer.
 Example: awg_sample_rate('1250') sets the AWG card sample rate to 1250 MHz.
 ```
-This function queries or sets the AWG card sample rate (in MHz). If there is no argument the function will return the current sample rate. If there is an argument the specified sample rate will be set. The minimum available sample rate is 50 MHz. The maximum available sample rate is 1250 MHz. Default value is 1250 MHz. Please note that sample rate affects the delay between a trigger event and the AWG card output. The delay is determined in samples and can be found in the documentation.<br/>
+This function queries or sets the AWG card sample rate (in MHz). If there is no argument the function will return the current sample rate. If there is an argument the specified sample rate will be set. The minimum available sample rate is 50 MHz. The maximum available sample rate is 1250 MHz. Default value is 1250 MHz. Please note that sample rate affects the delay between a trigger event and the AWG card output. The delay is determined in samples and can be found in the documentation.<br/>This function is not available for Insys FM214x3GDA, the default sample rate is 1250 MHz.
 ### awg_clock_mode(*mode)
 ```python3
 awg_clock_mode(*mode)
 Arguments: mode = string (['Internal','External']); Output: string.
 Example: awg_clock_mode('Internal') sets the Internal AWG card clock mode.
 ```
-This function queries or sets the AWG card clock mode. If there is no argument the function will return the current clock mode setting. If there is an argument the specified clock mode will be set. The clock mode should be one of the following: ['Internal','External']. According to the documentation, the internal sampling clock is generated in default mode by a programmable high precision quartz. The external clock input of the M3i/M4i series is fed through a PLL to the clock system. Therefore the input will act as a reference clock input thus allowing to either use a copy of the external clock or to generate any sampling clock within the allowed range from the reference clock. Due to the fact that the driver needs to know the external fed in frequency for an exact calculation of the sampling rate the reference clock should be set by the [awg_reference_clock()](#awg_reference_clockclock) function. Default setting is 'Internal'.<br/>
+This function queries or sets the AWG card clock mode. If there is no argument the function will return the current clock mode setting. If there is an argument the specified clock mode will be set. The clock mode should be one of the following: ['Internal','External']. According to the documentation, the internal sampling clock is generated in default mode by a programmable high precision quartz. The external clock input of the M3i/M4i series is fed through a PLL to the clock system. Therefore the input will act as a reference clock input thus allowing to either use a copy of the external clock or to generate any sampling clock within the allowed range from the reference clock. Due to the fact that the driver needs to know the external fed in frequency for an exact calculation of the sampling rate the reference clock should be set by the [awg_reference_clock()](#awg_reference_clockclock) function. Default setting is 'Internal'.<br/>This function is not available for Insys FM214x3GDA.
 ### awg_reference_clock(*ref_clock)
 ```python3
 awg_reference_clock(*ref_clock)
 Arguments: ref_clock = integer (10-1000 MHz); Output: integer.
 Example: awg_reference_clock(100) sets the AWG card reference clock to 100 MHz.
 ```
-This function queries or sets the AWG card reference clock (in MHz) for 'External' mode of the [awg_clock_mode()](#awg_clock_modemode) function. If there is no argument the function will return the current reference clock. If there is an argument the specified reference clock will be set. The minimum available reference clock is 10 MHz. The maximum available reference clock is 1000 MHz. Default value is 100 MHz.<br/>
+This function queries or sets the AWG card reference clock (in MHz) for 'External' mode of the [awg_clock_mode()](#awg_clock_modemode) function. If there is no argument the function will return the current reference clock. If there is an argument the specified reference clock will be set. The minimum available reference clock is 10 MHz. The maximum available reference clock is 1000 MHz. Default value is 100 MHz.<br/>This function is not available for Insys FM214x3GDA.<br/>
 ### awg_card_mode(*mode)
 ```python3
 awg_card_mode(*mode)
@@ -283,35 +288,35 @@ Arguments: mode = string (['Single','Multi','Single Joined','Sequence']);
 Output: string.
 Example: awg_card_mode('Multi') sets the 'Multi' card mode.
 ```
-This function queries or sets the AWG card mode. If there is no argument the function will return the current сard mode setting. If there is an argument the specified card mode will be set. The card mode should be one of the following: ['Single','Multi','Single Joined','Sequence']. According to the documentation, in the 'Single' mode a data from on-board memory will be replayed on every detected trigger event. The number of replays can be programmed by [loops](#awg_looploop). 'Single Joined' mode is a modification of the 'Single' mode with a possibility of defining more than one pulse. In this mode, all defined pulses are combined into a sequence of pulses according to the their start position, determined by start keyword of the [awg_pulse()](#awg_pulse) function. Please note, that if two channels are enabled the pulse sequence for the second channel will be generated automatically using a phase shifting specified in the config file. In the 'Multi' mode every detected trigger event replays one data block (segment). Segmented memory is available only in 'External' trigger [mode](#awg_trigger_modemode). In the 'Sequence' mode it is possible to define a whole pulse sequence by the [awg_pulse_sequence()](#awg_pulse_sequence) function. The pulse sequence has a specified number of points that is looped specified times. Switching between points is achieved using a trigger event. Please note, that if two channels are enabled the pulse sequence for the second channel will be generated automatically using a phase shifting specified in the config file. Default setting is 'Single'.<br/>
+This function queries or sets the AWG card mode. If there is no argument the function will return the current сard mode setting. If there is an argument the specified card mode will be set. The card mode should be one of the following: ['Single','Multi','Single Joined','Sequence']. According to the documentation, in the 'Single' mode a data from on-board memory will be replayed on every detected trigger event. The number of replays can be programmed by [loops](#awg_looploop). 'Single Joined' mode is a modification of the 'Single' mode with a possibility of defining more than one pulse. In this mode, all defined pulses are combined into a sequence of pulses according to the their start position, determined by start keyword of the [awg_pulse()](#awg_pulse) function. Please note, that if two channels are enabled the pulse sequence for the second channel will be generated automatically using a phase shifting specified in the config file. In the 'Multi' mode every detected trigger event replays one data block (segment). Segmented memory is available only in 'External' trigger [mode](#awg_trigger_modemode). In the 'Sequence' mode it is possible to define a whole pulse sequence by the [awg_pulse_sequence()](#awg_pulse_sequence) function. The pulse sequence has a specified number of points that is looped specified times. Switching between points is achieved using a trigger event. Please note, that if two channels are enabled the pulse sequence for the second channel will be generated automatically using a phase shifting specified in the config file. Default setting is 'Single'.<br/>This function is not available for Insys FM214x3GDA, it operates in the mode close to 'Single'<br/>
 ### awg_trigger_channel(*channel)
 ```python3
 awg_trigger_channel(*channel)
 Arguments: channel = string (['Software','External']); Output: string.
 Example: awg_trigger_channel('Software') sets the 'Software' trigger.
 ```
-This function queries or sets the AWG card trigger channel. If there is no argument the function will return the current trigger channel. If there is an argument the specified channel will be used as trigger. The channel should be one of the following: ['Software','External']. Trigger channel 'External' corresponds to 'Trg0' channel of the AWG card. Default setting is 'External'.<br/>
+This function queries or sets the AWG card trigger channel. If there is no argument the function will return the current trigger channel. If there is an argument the specified channel will be used as trigger. The channel should be one of the following: ['Software','External']. Trigger channel 'External' corresponds to 'Trg0' channel of the AWG card. Default setting is 'External'.<br/>This function is not available for Insys FM214x3GDA.<br/>
 ### awg_trigger_mode(*mode)
 ```python3
 awg_trigger_mode(*mode)
 Arguments: mode = string (['Positive','Negative','High','Low']); Output: string.
 Example: awg_trigger_mode('Positive') sets the trigger detection for positive edges.
 ```
-This function queries or sets the AWG card trigger mode. If there is no argument the function will return the current trigger mode. If there is an argument the specified trigger mode will be set. The trigger mode should be one of the following: ['Positive','Negative','High','Low']. Mode 'Positive' corresponds to trigger detection for positive edges (crossing level 0 from below to above). 'Negative' to trigger detection for negative edges (crossing level 0 from above to below). 'High' to trigger detection for HIGH levels (signal above level 0). 'Low' to trigger detection for LOW levels (signal below level 0). Default setting is 'Positive'.<br/>
+This function queries or sets the AWG card trigger mode. If there is no argument the function will return the current trigger mode. If there is an argument the specified trigger mode will be set. The trigger mode should be one of the following: ['Positive','Negative','High','Low']. Mode 'Positive' corresponds to trigger detection for positive edges (crossing level 0 from below to above). 'Negative' to trigger detection for negative edges (crossing level 0 from above to below). 'High' to trigger detection for HIGH levels (signal above level 0). 'Low' to trigger detection for LOW levels (signal below level 0). Default setting is 'Positive'.<br/>This function is not available for Insys FM214x3GDA.<br/>
 ### awg_loop(*loop)
 ```python3
 awg_loop(*loop)
 Arguments: loop = integer (0-100000); Output: integer.
 Example: awg_loop(0) sets an infinite number of loops.
 ```
-This function queries or sets the number of loops for ['Multi"](#awg_card_modemode) or ['Single"](#awg_card_modemode) card mode. If there is no argument the function will return the current number of loops. If there is an argument the specified number of loops will be set. The maximum available number of loops is 100000. A setting '0' means an infinite number of loops. Default value is 0.<br/>
+This function queries or sets the number of loops for ['Multi"](#awg_card_modemode) or ['Single"](#awg_card_modemode) card mode. If there is no argument the function will return the current number of loops. If there is an argument the specified number of loops will be set. The maximum available number of loops is 100000. A setting '0' means an infinite number of loops. Default value is 0.<br/>This function is not available for Insys FM214x3GDA.<br/>
 ### awg_trigger_delay(*delay)
 ```python3
 awg_trigger_delay(*delay)
 Arguments: delay = value + dimension (['ms','us','ns']); Output: string.
 Example: awg_trigger_delay('51.2 ns') sets the trigger delay to 51.2 ns.
 ```
-This function queries or sets the AWG card trigger delay. If there is no argument the function will return the current trigger delay. If there is an argument the specified trigger delay will be set. The delay step is 32 sample clock. If an input is not divisible by 32 sample clock the delay will be rounded and a warning message will be printed. Default value is '0 ns'.<br/>
+This function queries or sets the AWG card trigger delay. If there is no argument the function will return the current trigger delay. If there is an argument the specified trigger delay will be set. The delay step is 32 sample clock. If an input is not divisible by 32 sample clock the delay will be rounded and a warning message will be printed. Default value is '0 ns'.<br/>This function is not available for Insys FM214x3GDA.<br/>
 ### awg_amplitude(*amplitude)
 ```python3
 awg_amplitude(*amplitude)
@@ -319,7 +324,7 @@ Arguments: amplitude = channel ['CH0','CH1'] + value (in mV); Output: string.
 Example: awg_amplitude('CH0', '600', 'CH1', '600') sets the amplitude of CH0 to 600 mV
 and the amplitude of CH1 to 600 mV.
 ```
-This function queries or sets the amplitude of the specified channels (in mV). If there is one argument the function will return the amplitude of the specified channel. If there is an argument the specified amplitude (in mV) will be set for specified channel. The channel should be one of the following: ['CH0','CH1']. The minimum available amplitude is 80 mV. The maximum available amplitude is 2500 mV. Default amplitudes are 600 and 533 mV for 'CH0' and 'CH1', respectively.<br/>
+This function queries or sets the amplitude of the specified channels (in mV). If there is one argument the function will return the amplitude of the specified channel. If there is an argument the specified amplitude (in mV) will be set for specified channel. The channel should be one of the following: ['CH0','CH1']. The minimum available amplitude is 80 mV. The maximum available amplitude is 2500 mV for Spectrum M4I 6631 X8 and 260 mV for Insys FM214x3GDA.<br/>
 ### awg_visualize()
 ```python3
 awg_visualize()

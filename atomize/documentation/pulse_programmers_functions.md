@@ -2,8 +2,9 @@
 
 Available devices:
 - Pulse Blaster ESR 500 Pro; Tested 06/2021
-
 The device is available via ctypes. [The original C library](http://www.spincore.com/support/spinapi/using_spin_api_pb.shtml) was written by SpinCore Technologies.
+- [Insys FM214x3GDA](https://www.insys.ru/mezzanine/fm214x3gda) as multichannel TTL pulse generator; Tested 03/2025
+The Insys device is available via ctypes. The original library can be found [here](https://github.com/Anatoly1010/Atomize_ITC/tree/master/libs).
 
 Functions:
 - [pulser_name()](#pulser_name)<br/>
@@ -23,6 +24,9 @@ Functions:
 - [pulser_state()](#pulser_state)<br/>
 - [pulser_visualize()](#pulser_visualize)<br/>
 - [pulser_pulse_list()](#pulser_pulse_list)<br/>
+- [pulser_open()](#pulser_open)<br/>
+- [pulser_close()](#pulser_close)<br/>
+- [pulser_default_synt(num)](#pulser_default_syntnum)<br/>
 
 ### pulser_name()
 ```python3
@@ -45,7 +49,7 @@ Output: none.
 Example: pulser_pulse('name' = 'P0', channel = 'MW', start = '100 ns', length = '100 ns', delta_start = '0 ns',
 length_increment = '0 ns') sets the 100 ns length microwave pulse with 100 ns start time with no phase cycling.
 ```
-The function sets a pulse with specified parameters. The default argument is name = 'P0', channel = 'TRIGGER', start = '0 ns', length = '100 ns', delta_start = '0 ns', length_increment = '0 ns', phase_list = []. A channel should be one of the following ['TRIGGER','AMP_ON','LNA_PROTECT','MW','-X','+Y','TRIGGER_AWG', 'AWG', 'CH8' ... ,'CH20']. The scaling factor for start, length, delta_start, and length_increment key arguments should be one of the following ['ns', 'us', 'ms', 's']. The minimum available length of the pulse is 10 ns. The maximum available length of the pulse is 1900 ns. The maximum available length of the pulse sequence is 8.9 s. The pulse sequence will be checked for overlap. In the auto defence mode (default option; can be changed in the config file) channels 'AMP_ON' and 'LNA_PROTECT' will be added automatically according to the delays indicated in the config file. In this mode 'AMP_ON' and 'LNA_PROTECT' pulses will be joined in one pulse if the distance between them is less than 12 ns (can be changed in the config file).
+The function sets a pulse with specified parameters. The default argument is name = 'P0', channel = 'TRIGGER', start = '0 ns', length = '100 ns', delta_start = '0 ns', length_increment = '0 ns', phase_list = []. A channel should be one of the following ['TRIGGER','AMP_ON','LNA_PROTECT','MW','-X','+Y','TRIGGER_AWG', 'AWG', 'LASER','SYNT2','CH10', ... ,'CH20']. The scaling factor for start, length, delta_start, and length_increment key arguments should be one of the following ['ns', 'us', 'ms', 's']. The minimum available length of the pulse is 10 ns for Pulse Blaster ESR 500 Pro and 3.2 ns for Insys FM214x3GDA. The maximum available length of the pulse is 1900 ns. The maximum available length of the pulse sequence is approximately 10 s. The pulse sequence will be checked for overlap. In the auto defence mode (default option; can be changed in the config file) channels 'AMP_ON' and 'LNA_PROTECT' will be added automatically according to the delays indicated in the config file. In this mode 'AMP_ON' and 'LNA_PROTECT' pulses will be joined in one pulse if the distance between them is less than 12 ns (can be changed in the config file).<br/>In the case of Insys FM214x3GDA 'start', 'length', 'delta_start', and 'length_increment' will be rounded to a multiple of 3.2.
 ### pulser_update()
 ```python3
 pulser_update()
@@ -59,7 +63,7 @@ pulser_next_phase()
 Arguments: none; Output: none.
 Example: pulser_next_phase() switches all pulses in the sequence to the next phase.
 ```
-This function switches all pulses to the next phase. The phase sequence is declared in the [pulser_pulse()](#pulser_pulse) in the form of phase_list = ['-y', '+x', '-x', '+x', ...]. By repeatedly calling the function one can run through the complete list of phases for the pulses. The length of all phase lists specified for different MW pulses has to be the same. This function also immediately updates the pulse sequence, as it is done by calling [pulser_update()](#pulser_update). The first call of the function corresponds to the first phase in the phase_list argument of the [pulser_pulse()](#pulser_pulse).
+This function switches all pulses to the next phase. The phase sequence is declared in the [pulser_pulse()](#pulser_pulsekagrs) in the form of phase_list = ['-y', '+x', '-x', '+x', ...]. By repeatedly calling the function one can run through the complete list of phases for the pulses. The length of all phase lists specified for different MW pulses has to be the same. This function also immediately updates the pulse sequence, as it is done by calling [pulser_update()](#pulser_update). The first call of the function corresponds to the first phase in the phase_list argument of the [pulser_pulse()](#pulser_pulsekagrs).
 ### pulser_acquisition_cycle(data1, data2, acq_cycle = [])
 ```python3
 pulser_acquisition_cycle(data1, data2, acq_cycle = [])
@@ -92,6 +96,7 @@ The sign '-i' at the index J of the acq_cycle means that the corresponding value
 answer = answer - 1j*data1[J] + data2[J]
 ```
 The output of the function is the real ang imaginary parts of the 'answer' array after complete cycle of mathematical transformations. These can be both 1D and 2D arrays, depending on the shape of the input data arrays.
+Although this function is available for Insys FM214x3GDA, it is better to use a modified version of [digitizer_get_curve()](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/digitizer_functions.md).
 ### pulser_repetition_rate(*r_rate)
 ```python3
 pulser_repetition_rate(*r_rate)
@@ -105,14 +110,14 @@ pulser_shift(*pulses)
 Arguments: none or string of pulse names; Output: none.
 Example: pulser_shift() shifts all currently active pulses by their respective delta_start.
 ```
-This function can be called with either no argument or with a list of comma separated pulse names (i.e. 'P0', 'P1'). If no argument is given the start time of all pulses that have a nonzero delta_start and are currently active (do not have a length of 0) are shifted by their corresponding delta_start value. If there is one argument or a list of comma separated pulse names only the start time of the listed pulses are changed. Calling this function also resets the phase (if specified in the argument phase_list of the [pulser_pulse()](#pulser_pulse)) to the first phase in the phase_list.
+This function can be called with either no argument or with a list of comma separated pulse names (i.e. 'P0', 'P1'). If no argument is given the start time of all pulses that have a nonzero delta_start and are currently active (do not have a length of 0) are shifted by their corresponding delta_start value. If there is one argument or a list of comma separated pulse names only the start time of the listed pulses are changed. Calling this function also resets the phase (if specified in the argument phase_list of the [pulser_pulse()](#pulser_pulse) to the first phase in the phase_list.
 ### pulser_increment(*pulses)
 ```python3
 pulser_increment(*pulses)
 Arguments: none or string of pulse names; Output: none.
 Example: pulser_increment('P0') increments the pulse named 'P0' by the corresponding length_increment value.
 ```
-This function can be called with either no argument or with a list of comma separated pulse names (i.e. 'P0', 'P1'). If no argument is given the lengths of all pulses that have a nonzero length_increment and are currently active (do not have a length of 0) are incremented by their corresponding length_increment value. If there is one argument or a list of comma separated pulse names only the lengths of the listed pulses are changed. Calling this function also resets the phase (if specified in the argument phase_list of the [pulser_pulse()](#pulser_pulse)) to the first phase in the phase_list.
+This function can be called with either no argument or with a list of comma separated pulse names (i.e. 'P0', 'P1'). If no argument is given the lengths of all pulses that have a nonzero length_increment and are currently active (do not have a length of 0) are incremented by their corresponding length_increment value. If there is one argument or a list of comma separated pulse names only the lengths of the listed pulses are changed. Calling this function also resets the phase (if specified in the argument phase_list of the [pulser_pulse()](#pulser_pulsekagrs) to the first phase in the phase_list.
 ### pulser_redefine_start(*, name, start)
 ```python3
 pulser_redefine_start(*, name, start)
@@ -144,7 +149,7 @@ pulser_reset()
 Arguments: none; Output: none.
 Example: pulser_reset() resets all the pulses to their initial state and updates the pulse programmer.
 ```
-The function switches the pulse programmer back to the initial state (including phase) in which it was in at the start of the experiment. This function can be called only without arguments. It includes the complete functionality of [pulser_pulse_reset()](#pulser_pulse_reset), but also immediately updates the pulse programmer as it is done by calling [pulser_update()](#pulser_update).
+The function switches the pulse programmer back to the initial state (including phase) in which it was in at the start of the experiment. This function can be called only without arguments. It includes the complete functionality of [pulser_pulse_reset()](#pulser_pulse_reset), but also immediately updates the pulse programmer as it is done by calling [pulser_update()](#pulser_update).<br/>This function is not available for Insys FM214x3GDA. The function [pulser_pulse_reset()](#pulser_pulse_reset) can be used instead.
 ### pulser_pulse_reset(*pulses)
 ```python3
 pulser_pulse_reset(*pulses)
@@ -158,14 +163,14 @@ pulser_stop()
 Arguments: none; Output: none.
 Example: pulser_stop() stops the pulse programmer.
 ```
-This function stops the pulse programmer. The function should always be called at the end of an experimental script.
+This function stops the pulse programmer. The function should always be called at the end of an experimental script in the case of Pulse Blaster ESR 500 Pro.<br/>This function is not available for Insys FM214x3GDA. The function [pulser_close()](#pulser_close) must be used instead.
 ### pulser_state()
 ```python3
 pulser_state()
 Arguments: none; Output: string.
 Example: pulser_state() queries the pulse programmer state.
 ```
-This function queries the pulse programmer state and can be called only without arguments.
+This function queries the pulse programmer state and can be called only without arguments. This function is only available for Pulse Blaster ESR 500 Pro.
 ### pulser_visualize()
 ```python3
 pulser_visualize()
@@ -180,5 +185,40 @@ Arguments: none; Output: string.
 Example: pulser_pulse_list() returns the pulse sequence in a form of array.
 ```
 This function can be called only without arguments and it returns the declared pulse sequence as an array.
+### pulser_open()
+```python3
+pulser_open()
+Arguments: none; Output: none.
+Example: pulser_open() opens the board for use.
+```
+This function can be called only without arguments and is only available for Insys FM214x3GDA. The function should be used after defining pulses and repetition rate with [pulser_pulse()](#pulser_pulsekagrs) and [pulser_repetition_rate()](#pulser_repetition_rater_rate).
+### pulser_close()
+```python3
+pulser_close()
+Arguments: none; Output: none.
+Example: pulser_close() closes the board after use.
+```
+This function can be called only without arguments and is only available for Insys FM214x3GDA. The function must be used at the end of an experimental script to gracefully close the board. It is STRONGLY recommended to add a graceful closing of the board to the experimental scripts for the case of an abrupt termination of the process. As a possible option, one can use signal library:<br/>
+```python3
+import signal
+import atomize.device_modules.Insys_FPGA as insys
 
+pb = insys.Insys_FPGA()
 
+def cleanup(*args):
+    pb.pulser_close()
+    sys.exit(0)
+
+signal.singal(signal.SIGTERM, cleanup)
+
+# Experimental script
+#
+#
+```
+### pulser_default_synt(num)
+```python3
+pulser_default_synt(num)
+Arguments: num = integer; Output: none.
+Example: pulser_default_synt(2) selects synthesizer 2 as the default source.
+```
+This function can be called only with one argument and selects the default sources for microwave pulse generation.
