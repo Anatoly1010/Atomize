@@ -64,6 +64,29 @@ class Insys_FPGA:
         self.max_pulse_length_pulser = float(float(self.specific_parameters_pulser['max_pulse_length'])) # in ns
         self.min_pulse_length_pulser = float(float(self.specific_parameters_pulser['min_pulse_length'])) # in ns
 
+        self.ext_trigger = int(self.specific_parameters_pulser['ext_trigger'])
+        if self.ext_trigger == 0:
+            self.change_two_ini_files('exam_adc.ini', "StartBaseSource = 7", "StartBaseSource = 0")
+            self.change_two_ini_files('exam_edac.ini', "StartBaseSource=7", "StartBaseSource=0")
+        elif self.ext_trigger == 1:
+            self.change_two_ini_files('exam_adc.ini', "StartBaseSource = 0", "StartBaseSource = 7")
+            self.change_two_ini_files('exam_edac.ini', "StartBaseSource=0", "StartBaseSource=7")
+
+        self.ext_clock = int(self.specific_parameters_pulser['ext_clock'])
+        self.clock_value = round(float(self.specific_parameters_pulser['clock_value']), 1)
+
+        if self.ext_clock == 0:
+            self.change_two_ini_files('exam_adc.ini', "ClockSource = 0x3", "ClockSource = 0x2")
+            self.change_two_ini_files('exam_edac.ini', "ClockSource = 0x3", "ClockSource = 0x2")
+            self.change_three_ini_files('exam_adc.ini', "BaseClockValue = ", '200.0')
+            self.change_three_ini_files('exam_edac.ini', "BaseClockValue = ", '200.0')
+
+        elif self.ext_clock == 1:
+            self.change_two_ini_files('exam_adc.ini', "ClockSource = 0x2", "ClockSource = 0x3")
+            self.change_two_ini_files('exam_edac.ini', "ClockSource = 0x2", "ClockSource = 0x3")
+            self.change_three_ini_files('exam_adc.ini', "BaseClockValue = ", str(self.clock_value) )
+            self.change_three_ini_files('exam_edac.ini', "BaseClockValue = ", str(self.clock_value) )
+
         # minimal distance between two pulses of MW
         # pulse blaster restriction
         self.minimal_distance_pulser = int(float(self.specific_parameters_pulser['minimal_distance'])/self.timebase_pulser) # in clock
@@ -1599,7 +1622,7 @@ class Insys_FPGA:
     def pulser_acquisition_cycle(self, data1, data2, acq_cycle = ['+x']):
         if self.test_flag != 'test':
             phases = len(acq_cycle)
-            answer = np.zeros( ( int( data1.shape[0] / phases), data1.shape[1]  ), dtype = np.complex_ )
+            answer = np.zeros( ( int( data1.shape[0] / phases), data1.shape[1]  ), dtype = np.complex128 )
             
             #data1[0::phases]
             for index, element in enumerate(acq_cycle):
@@ -1634,7 +1657,7 @@ class Insys_FPGA:
                 elif awg_p_phase != 0:
                     assert( awg_p_phase == phases ), 'Acquisition cycle and number of phases of AWG MW pulses have incompatible size'
 
-            answer = np.zeros( ( int( data1.shape[0] / phases), data1.shape[1]  ), dtype = np.complex_ ) #+ 1j*np.zeros( ( int( data2.shape[0] / phases), data2.shape[1]  ) ) 
+            answer = np.zeros( ( int( data1.shape[0] / phases), data1.shape[1]  ), dtype = np.complex128 ) #+ 1j*np.zeros( ( int( data2.shape[0] / phases), data2.shape[1]  ) ) 
             #return (answer.real / len(acq_cycle)), (answer.imag / len(acq_cycle))
             #general.message(answer.shape)
             # SLOW
@@ -1656,7 +1679,8 @@ class Insys_FPGA:
 
             setZeroGIMRet          = self.setZero_GIM()    #;print("setZero_GIM:"    ,setZeroGIMRet         ) # Функция зануляет регистр управления ГИМ.
             rstGIMRet              = self.rst_GIM()        #;print("rst_GIM:"        ,rstGIMRet             ) # функция выполняет сброс узла ГИМ.
-            setSync_GIMRet         = self.setSync_GIM(0)   #;print("setSync_GIM:"    ,setSync_GIMRet        ) # Функция выставляет синхронный режим ГИМ (старт ГИМ от сетки стартов, старт ввода/вывода  от ГИМ).
+                                                    #1
+            setSync_GIMRet         = self.setSync_GIM( self.ext_trigger )   #;print("setSync_GIM:"    ,setSync_GIMRet        ) # Функция выставляет синхронный режим ГИМ (старт ГИМ от сетки стартов, старт ввода/вывода  от ГИМ).
             self.nDacChanNum_brd   = self.getDAC_ChanNum() #;print("getDAC_ChanNum:" ,self.nDacChanNum_brd  ) # Функция возвращает количество используемых каналов ЦАП (задается в exam_edac.ini)
             self.nStrmBufSizeb_brd = self.getStrmBufSizeb()#;print("getStrmBufSizeb:",self.nStrmBufSizeb_brd) # Функция возвращает размер буфера стрима в байтах.
             #general.message( self.nStrmBufSizeb_brd )
@@ -4170,9 +4194,9 @@ class Insys_FPGA:
                     # RECT/AWG pulse: pulses[i, 0] == 2**7
                     if self.synt_number == 1 and pulses[i, 0] == 2**7:
 
-                        translation_array = 2**self.channel_dict[self.ch9]*np.concatenate( (np.zeros( 2*(pulses[i, 1] - min_pulse), dtype = np.int64), \
-                            np.ones(2*(pulses[i, 2] - pulses[i, 1]), dtype = np.int64), \
-                            np.zeros(2*(max_pulse - pulses[i, 2]), dtype = np.int64)), axis = None)
+                        translation_array = 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( 1*(pulses[i, 1] - min_pulse), dtype = np.int64), \
+                            np.ones(1*(pulses[i, 2] - pulses[i, 1]), dtype = np.int64), \
+                            np.zeros(1*(max_pulse - pulses[i, 2]), dtype = np.int64)), axis = None)
                         bit_array_pulses.append(translation_array)
 
                 i += 1
@@ -4211,9 +4235,9 @@ class Insys_FPGA:
                     # RECT/AWG pulse: pulses[i, 0] == 2**7
                     if self.synt_number == 1 and pulses[i, 0] == 2**7:
                         
-                        translation_array = 2**self.channel_dict[self.ch9]*np.concatenate( (np.zeros( 2*(pulses[i, 1] - min_pulse), dtype = np.int64), \
-                            np.ones(2*(pulses[i, 2] - pulses[i, 1]), dtype = np.int64), \
-                            np.zeros(2*(max_pulse - pulses[i, 2]), dtype = np.int64)), axis = None)
+                        translation_array = 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( 1*(pulses[i, 1] - min_pulse), dtype = np.int64), \
+                            np.ones(1*(pulses[i, 2] - pulses[i, 1]), dtype = np.int64), \
+                            np.zeros(1*(max_pulse - pulses[i, 2]), dtype = np.int64)), axis = None)
                         bit_array_pulses.append(translation_array)
 
 
@@ -5404,6 +5428,40 @@ class Insys_FPGA:
         elif self.test_flag == 'test':
 
             pass
+
+    def change_two_ini_files(self, file_ini, search_text, new_text):
+        """
+        pb.change_two_ini_files('exam_adc.ini', "streamBufSizeKb = 512", "streamBufSizeKb = 1024")
+        """
+
+        if self.test_flag != 'test':
+
+            #file_ini = 'exam_adc.ini'
+            file_path =  "/".join(  (*(__file__.split("/")), )[:-3] + ("libs", ) + (file_ini, ) )
+
+            with fileinput.input(file_path, inplace = True) as file:
+                for line in file:
+                    new_line = line.replace(search_text, new_text)
+                    print(new_line, end = '')
+
+        elif self.test_flag == 'test':
+
+            pass
+
+    def change_three_ini_files(self, file_ini, search_text, new_text):
+        """
+        pb.change_two_ini_files('exam_adc.ini', "streamBufSizeKb = 512", "streamBufSizeKb = 1024")
+        """
+        file_path =  "/".join(  (*(__file__.split("/")), )[:-3] + ("libs", ) + (file_ini, ) )
+
+        with fileinput.input(file_path, inplace = True) as file:
+            for line in file:
+                new_line = line.replace(search_text, search_text)
+                if new_line[0:14] == 'BaseClockValue':
+                    print(search_text + new_text + '\n', end = '')
+                else:
+                    print(new_line, end = '')
+
 
 def main():
     pass
