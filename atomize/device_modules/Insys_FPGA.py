@@ -22,6 +22,9 @@ class Insys_FPGA:
         self.path_current_directory = os.path.dirname(__file__)
         self.path_config_file_pulser = os.path.join(self.path_current_directory, 'config','PB_Insys_pulser_config.ini')
 
+        path_to_main_status = os.path.abspath( os.getcwd() )
+        self.path_status_file = os.path.join(path_to_main_status, 'status')
+
         # configuration data
         #config = cutil.read_conf_util(self.path_config_file)
         self.specific_parameters_pulser = cutil.read_specific_parameters(self.path_config_file_pulser)
@@ -1687,8 +1690,19 @@ class Insys_FPGA:
             self.brdDataBuf_brd    = (ctypes.c_int * self.nStrmBufSizeb_brd)()
             self.strmBufNum_brd    = self.getStreamBufNum()
 
+            file_to_read = open(self.path_status_file, 'w')
+            file_to_read.write('Status:  On' + '\n')
+            file_to_read.close()
+
         elif self.test_flag == 'test':
-            pass
+
+            text = open( self.path_status_file ).read()
+            lines = text.split('\n')
+            assert( str( lines[0].split(':  ')[1] ) != 'On' ), "Insys FPGA card is already opened. Please, close it."
+
+            file_to_read = open(self.path_status_file, 'w')
+            file_to_read.write('Status:  On' + '\n')
+            file_to_read.close()
 
     def pulser_close(self):
         if self.test_flag != 'test':
@@ -1696,10 +1710,17 @@ class Insys_FPGA:
             #self.setEnable_GIM(0)
             closeRet = self.closeBrd()
             general.message(f'CLOSE BOARD: {closeRet}')
+            
+            file_to_read = open(self.path_status_file, 'w')
+            file_to_read.write('Status:  Off' + '\n')
+            file_to_read.close()
 
         elif self.test_flag == 'test':
-            pass
-    
+            
+            file_to_read = open(self.path_status_file, 'w')
+            file_to_read.write('Status:  Off' + '\n')
+            file_to_read.close()
+
     def pulser_default_synt(self, num):
         """
         Function to change synthetizer for AWG channel of the ITC microwave bridge
