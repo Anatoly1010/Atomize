@@ -1351,21 +1351,21 @@ class Insys_FPGA:
             if len(pulses) == 0:
                 i = 0
                 while i < len( self.pulse_array_pulser ):
-                    if int( self.pulse_array_pulser[i]['length_increment'][:-3] ) == 0:
+                    if float( self.pulse_array_pulser[i]['length_increment'][:-3] ) == 0:
                         pass
                     else:
                         # convertion to ns
                         temp = self.pulse_array_pulser[i]['length_increment'].split(' ')
                         if temp[1] in self.timebase_dict:
                             flag = self.timebase_dict[temp[1]]
-                            d_length = float(float(temp[0]))*flag
+                            d_length = (float(temp[0]))*flag
                         else:
                             pass
 
                         temp2 = self.pulse_array_pulser[i]['length'].split(' ')
                         if temp2[1] in self.timebase_dict:
                             flag2 = self.timebase_dict[temp2[1]]
-                            leng = float(float(temp2[0]))*flag2
+                            leng = (float(temp2[0]))*flag2
                         else:
                             pass
 
@@ -1382,21 +1382,21 @@ class Insys_FPGA:
                     if element in self.pulse_name_array_pulser:
                         pulse_index = self.pulse_name_array_pulser.index(element)
 
-                        if int( self.pulse_array_pulser[pulse_index]['length_increment'][:-3] ) == 0:
+                        if float( self.pulse_array_pulser[pulse_index]['length_increment'][:-3] ) == 0:
                             pass
                         else:
                             # convertion to ns
                             temp = self.pulse_array_pulser[pulse_index]['length_increment'].split(' ')
                             if temp[1] in self.timebase_dict:
                                 flag = self.timebase_dict[temp[1]]
-                                d_length = float(float(temp[0]))*flag
+                                d_length = (float(temp[0]))*flag
                             else:
                                 pass
 
                             temp2 = self.pulse_array_pulser[pulse_index]['length'].split(' ')
                             if temp2[1] in self.timebase_dict:
                                 flag2 = self.timebase_dict[temp2[1]]
-                                leng = float(float(temp2[0]))*flag2
+                                leng = (float(temp2[0]))*flag2
                             else:
                                 pass
                             
@@ -1409,21 +1409,21 @@ class Insys_FPGA:
             if len(pulses) == 0:
                 i = 0
                 while i < len( self.pulse_array_pulser ):
-                    if int( self.pulse_array_pulser[i]['length_increment'][:-3] ) == 0:
+                    if float( self.pulse_array_pulser[i]['length_increment'][:-3] ) == 0:
                         pass
                     else:
                         # convertion to ns
                         temp = self.pulse_array_pulser[i]['length_increment'].split(' ')
                         if temp[1] in self.timebase_dict:
                             flag = self.timebase_dict[temp[1]]
-                            d_length = float(float(temp[0]))*flag
+                            d_length = (float(temp[0]))*flag
                         else:
                             assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
 
                         temp2 = self.pulse_array_pulser[i]['length'].split(' ')
                         if temp2[1] in self.timebase_dict:
                             flag2 = self.timebase_dict[temp2[1]]
-                            leng = float(float(temp2[0]))*flag2
+                            leng = (float(temp2[0]))*flag2
                         else:
                             assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
                         
@@ -1443,21 +1443,21 @@ class Insys_FPGA:
                     if element in self.pulse_name_array_pulser:
 
                         pulse_index = self.pulse_name_array_pulser.index(element)
-                        if int( self.pulse_array_pulser[pulse_index]['length_increment'][:-3] ) == 0:
+                        if float( self.pulse_array_pulser[pulse_index]['length_increment'][:-3] ) == 0:
                             pass
                         else:
                             # convertion to ns
                             temp = self.pulse_array_pulser[pulse_index]['length_increment'].split(' ')
                             if temp[1] in self.timebase_dict:
                                 flag = self.timebase_dict[temp[1]]
-                                d_length = float(float(temp[0]))*flag
+                                d_length = (float(temp[0]))*flag
                             else:
                                 assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
 
                             temp2 = self.pulse_array_pulser[pulse_index]['length'].split(' ')
                             if temp2[1] in self.timebase_dict:
                                 flag2 = self.timebase_dict[temp2[1]]
-                                leng = float(float(temp2[0]))*flag2
+                                leng = (float(temp2[0]))*flag2
                             else:
                                 assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
                                     
@@ -2852,28 +2852,30 @@ class Insys_FPGA:
             if len(pulses) == 0:
                 i = 0
                 while i < len( self.pulse_array_awg ):
-                    if int( self.pulse_array_awg[i]['length_increment'][:-3] ) == 0:
+                    if float( self.pulse_array_awg[i]['length_increment'][:-3] ) == 0:
                         pass
                     else:
                         # convertion to ns
                         temp = self.pulse_array_awg[i]['length_increment'].split(' ')
                         if temp[1] in self.timebase_dict:
                             flag = self.timebase_dict[temp[1]]
-                            d_length = float(float(temp[0]))*flag
+                            d_length = (float(temp[0]))*flag
+                            self.dac_window = int( self.dac_window + ceil(d_length / self.timebase_pulser) )
+
                         else:
                             pass
 
                         temp2 = self.pulse_array_awg[i]['length'].split(' ')
                         if temp2[1] in self.timebase_dict:
                             flag2 = self.timebase_dict[temp2[1]]
-                            leng = float(float(temp2[0]))*flag2
+                            leng = (float(temp2[0]))*flag2
                         else:
                             pass
 
                         temp3 = self.pulse_array_awg[i]['sigma'].split(' ')
                         if temp3[1] in self.timebase_dict:
                             flag3 = self.timebase_dict[temp3[1]]
-                            sigm = float(float(temp3[0]))*flag3
+                            sigm = (float(temp3[0]))*flag3
                         else:
                             pass
 
@@ -2896,28 +2898,29 @@ class Insys_FPGA:
                     if element in self.pulse_name_array_awg:
                         pulse_index = self.pulse_name_array_awg.index(element)
 
-                        if int( self.pulse_array_awg[pulse_index]['length_increment'][:-3] ) == 0:
+                        if float( self.pulse_array_awg[pulse_index]['length_increment'][:-3] ) == 0:
                             pass
                         else:
                             # convertion to ns
                             temp = self.pulse_array_awg[pulse_index]['length_increment'].split(' ')
                             if temp[1] in self.timebase_dict:
                                 flag = self.timebase_dict[temp[1]]
-                                d_length = float(float(temp[0]))*flag
+                                d_length = (float(temp[0]))*flag
+                                self.dac_window = int( self.dac_window + ceil(d_length / self.timebase_pulser) )
                             else:
                                 pass
 
                             temp2 = self.pulse_array_awg[pulse_index]['length'].split(' ')
                             if temp2[1] in self.timebase_dict:
                                 flag2 = self.timebase_dict[temp2[1]]
-                                leng = float(float(temp2[0]))*flag2
+                                leng = (float(temp2[0]))*flag2
                             else:
                                 pass
 
                             temp3 = self.pulse_array_awg[pulse_index]['sigma'].split(' ')
                             if temp3[1] in self.timebase_dict:
                                 flag3 = self.timebase_dict[temp3[1]]
-                                sigm = float(float(temp3[0]))*flag3
+                                sigm = (float(temp3[0]))*flag3
                             else:
                                 pass
 
@@ -2937,31 +2940,33 @@ class Insys_FPGA:
             if len(pulses) == 0:
                 i = 0
                 while i < len( self.pulse_array_awg ):
-                    if int( self.pulse_array_awg[i]['length_increment'][:-3] ) == 0:
+                    if float( self.pulse_array_awg[i]['length_increment'][:-3] ) == 0:
                         pass
                     else:
                         # convertion to ns
                         temp = self.pulse_array_awg[i]['length_increment'].split(' ')
                         if temp[1] in self.timebase_dict:
                             flag = self.timebase_dict[temp[1]]
-                            d_length = float(float(temp[0]))*flag
+                            d_length = (float(temp[0]))*flag
+                            self.dac_window = int( self.dac_window + ceil(d_length / self.timebase_pulser) )
                         else:
                             assert(1 == 2), "Incorrect time dimension (ns, us, ms)"
 
                         temp2 = self.pulse_array_awg[i]['length'].split(' ')
                         if temp2[1] in self.timebase_dict:
                             flag2 = self.timebase_dict[temp2[1]]
-                            leng = float(float(temp2[0]))*flag2
+                            leng = (float(temp2[0]))*flag2
                         else:
                             assert(1 == 2), "Incorrect time dimension (ns, us, ms)"
 
                         temp3 = self.pulse_array_awg[i]['sigma'].split(' ')
                         if temp3[1] in self.timebase_dict:
                             flag3 = self.timebase_dict[temp3[1]]
-                            sigm = float(float(temp3[0]))*flag3
+                            sigm = (float(temp3[0]))*flag3
                         else:
                             assert(1 == 2), "Incorrect time dimension (ns, us, ms)"
                         
+
                         ratio = leng/sigm
                         if ( leng + ratio*d_length ) <= self.max_pulse_length_awg:
                             if self.pulse_array_awg[i]['function'] == 'SINE':
@@ -2985,28 +2990,30 @@ class Insys_FPGA:
                     if element in self.pulse_name_array_awg:
 
                         pulse_index = self.pulse_name_array_awg.index(element)
-                        if int( self.pulse_array_awg[pulse_index]['length_increment'][:-3] ) == 0:
+                        if float( self.pulse_array_awg[pulse_index]['length_increment'][:-3] ) == 0:
                             pass
                         else:
                             # convertion to ns
                             temp = self.pulse_array_awg[pulse_index]['length_increment'].split(' ')
                             if temp[1] in self.timebase_dict:
                                 flag = self.timebase_dict[temp[1]]
-                                d_length = float(float(temp[0]))*flag
+                                d_length = (float(temp[0]))*flag
+                                self.dac_window = int( self.dac_window + ceil(d_length / self.timebase_pulser) )
+
                             else:
                                 assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
 
                             temp2 = self.pulse_array_awg[pulse_index]['length'].split(' ')
                             if temp2[1] in self.timebase_dict:
                                 flag2 = self.timebase_dict[temp2[1]]
-                                leng = float(float(temp2[0]))*flag2
+                                leng = (float(temp2[0]))*flag2
                             else:
                                 assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
                             
                             temp3 = self.pulse_array_awg[pulse_index]['sigma'].split(' ')
                             if temp3[1] in self.timebase_dict:
                                 flag3 = self.timebase_dict[temp3[1]]
-                                sigm = float(float(temp3[0]))*flag3
+                                sigm = (float(temp3[0]))*flag3
                             else:
                                 assert(1 == 2), "Incorrect time dimension (ns, us, ms)"
 
@@ -3817,7 +3824,8 @@ class Insys_FPGA:
                             amp_on_pulses = self.convert_to_bit_pulse_amp_lna_pulser(prob_pulses_amp, \
                                 self.channel_dict_pulser['AMP_ON'])
                             try:
-                                cor_pulses_amp_final = cor_pulses_amp, self.instruction_pulse_short_lna_amp_pulser(amp_on_pulses)
+                                #cor_pulses_amp_final = cor_pulses_amp, self.instruction_pulse_short_lna_amp_pulser(amp_on_pulses)
+                                cor_pulses_amp_final = np.concatenate((cor_pulses_amp, self.instruction_pulse_short_lna_amp_pulser(amp_on_pulses)), axis = 0)
                             except ValueError:
                                 cor_pulses_amp_final = np.concatenate((cor_pulses_amp, self.instruction_pulse_short_lna_amp_pulser(amp_on_pulses)), axis = 0)
 
@@ -3826,13 +3834,12 @@ class Insys_FPGA:
                             cor_pulses_lna_final = cor_pulses_lna
                         elif cor_pulses_lna[0][0] == 0:
                             # nothing to concatenate
-                            lna_pulses = self.convert_to_bit_pulse_amp_lna_pulser(prob_pulses_lna, \
-                                self.channel_dict_pulser['LNA_PROTECT'])
+                            lna_pulses = self.convert_to_bit_pulse_amp_lna_pulser(prob_pulses_lna, self.channel_dict_pulser['LNA_PROTECT'])
                             cor_pulses_lna_final = self.instruction_pulse_short_lna_amp_pulser(lna_pulses)
                         else:
-                            lna_pulses = self.convert_to_bit_pulse_amp_lna_pulser(prob_pulses_lna, \
-                                self.channel_dict_pulser['LNA_PROTECT'])
-                            cor_pulses_lna_final = cor_pulses_lna, self.instruction_pulse_short_lna_amp_pulser(lna_pulses)
+                            lna_pulses = self.convert_to_bit_pulse_amp_lna_pulser(prob_pulses_lna, self.channel_dict_pulser['LNA_PROTECT'])
+                            cor_pulses_lna_final =  np.concatenate((cor_pulses_lna, self.instruction_pulse_short_lna_amp_pulser(lna_pulses)), axis = 0)
+
 
                     elif element[0, 0] == 2**self.channel_dict_pulser['-X'] or element[0, 0] == 2**self.channel_dict_pulser['+Y']:
                         pass
@@ -4045,7 +4052,7 @@ class Insys_FPGA:
 
             sorted_pulses_start = np.asarray(sorted(pulses, key = lambda x: int(x[1])), dtype = np.int64)
             # self.max_pulse_length_pulser is 2000 ns now
-            index_jump = np.where(np.diff(sorted_pulses_start[:,1], axis = 0) > self.max_pulse_length_pulser/self.timebase_pulser )[0]
+            index_jump = np.where(np.diff(sorted_pulses_start[:,1], axis = 0) > int(self.max_pulse_length_pulser / self.timebase_pulser) )[0]
             sorted_arrays_parts = np.split(sorted_pulses_start, index_jump + 1)
 
             for index, element in enumerate(sorted_arrays_parts):
