@@ -50,7 +50,7 @@ class Sibir_1():
             self.sock = socket( AF_INET, SOCK_DGRAM )
             self.sock.settimeout(10)
 
-            self.sock.connect( (self.ip_UDP,self.port_UDP ) )
+            self.sock.connect( (self.ip_UDP, self.port_UDP ) )
 
             #----------INSIDE---REGISTER-------
             self.set_reg = [self.set_0_reg , self.set_1_reg , self.set_2_reg , self.set_3_reg , self.set_4_reg , 
@@ -64,8 +64,8 @@ class Sibir_1():
             self.reg = (c_uint * 32)()
 
             self.gain_value = 0          # reg 0: dB           
-            self.mode_point = 3
-            self.num_point  = 8192       # reg 1: 3 - 53248   2 - 32768  1 - 16384  0 - 8192  :  i*2**14 + 8192   
+            self.mode_point = 0
+            self.num_point  = 4096       # reg 1: 3 - 53248   2 - 32768  1 - 16384  0 - 8192  :  i*2**14 + 8192   
             self.time_90_deg_pulse = 0   # reg 2: micro second  
             self.mode_nav = 1            # reg 5: number of savings Na = 1,8,16,32,64,128 
                                          #                    mode_nav = 0,1, 2, 3, 4,  5
@@ -85,7 +85,10 @@ class Sibir_1():
             self.Fr   = 42.57637
             self.num_exp = 1
             #----------FIND---NOIZE-----------
-            self.NOIZE = 0
+            self.NOIZE = 1
+            
+            # problem with connection?!
+            # 2025-04-17
             self.NOIZE = self.NMR_find_noize(3000)
             #self.find_noize()
             #----------set pi/2 impulse--------
@@ -652,9 +655,7 @@ class Sibir_1():
         command = self.get_command_read_arr_all_signal(LIST)
         self.sock.sendto( command , (self.ip_UDP, self.port_UDP) )
         data_raw_answer, addr = self.sock.recvfrom( int(4) )
-        #general.message(LIST+1)
         for i in range(LIST + 1):
-                #general.message(i)
                 data_raw_data,addr = self.sock.recvfrom( int(512 * 2 + 10) )
                 data_arr           = self.check_out_read_arr_all_signal(data_raw_data)
                 FID = np.append(FID, data_arr)

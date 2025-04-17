@@ -195,6 +195,8 @@ class Lakeshore_335:
                 temp = float(temp[0])
                 assert(temp <= self.temperature_max and temp >= self.temperature_min), 'Incorrect set point temperature is reached'
                 assert(int(self.loop_config) in self.loop_list), 'Invalid loop argument'
+                self.test_set_point = temp
+                self.test_temperature = temp + 0.05
             elif len(temp) == 0:
                 answer = self.test_set_point
                 return answer
