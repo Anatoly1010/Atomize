@@ -58,11 +58,11 @@ class Lakeshore_335:
                             self.status_flag = 0
                             sys.exit()
                     except BrokenPipeError:
-                        general.message("No connection")
+                        general.message("No connection LS335")
                         self.status_flag = 0;
                         sys.exit()
                 except BrokenPipeError:        
-                    general.message("No connection")
+                    general.message("No connection LS335")
                     self.status_flag = 0
                     sys.exit()
 
@@ -86,18 +86,18 @@ class Lakeshore_335:
                             sys.exit()
                     except pyvisa.VisaIOError:
                         self.status_flag = 0
-                        general.message("No connection")
+                        general.message("No connection LS335")
                         sys.exit()
                     except BrokenPipeError:
-                        general.message("No connection")
+                        general.message("No connection LS335")
                         self.status_flag = 0
                         sys.exit()
                 except pyvisa.VisaIOError:
-                    general.message("No connection")
+                    general.message("No connection LS335")
                     self.status_flag = 0
                     sys.exit()
                 except BrokenPipeError:
-                    general.message("No connection")
+                    general.message("No connection LS335")
                     self.status_flag = 0
                     sys.exit()
 
@@ -121,7 +121,7 @@ class Lakeshore_335:
             command = str(command)
             self.device.write(command)
         else:
-            general.message("No Connection")
+            general.message("No Connection LS335")
             self.status_flag = 0
             sys.exit()
 
@@ -135,7 +135,7 @@ class Lakeshore_335:
                 answer = self.device.query(command)
             return answer
         else:
-            general.message("No Connection")
+            general.message("No Connection LS335")
             self.status_flag = 0
             sys.exit()
 

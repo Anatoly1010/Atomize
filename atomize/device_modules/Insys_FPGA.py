@@ -591,7 +591,7 @@ class Insys_FPGA:
 
                 if channel == 'TRIGGER':
                     self.adc_window = int( self.adc_window + ceil(p_length / self.timebase_pulser) )
-                    assert( self.adc_window <= 1022 ), 'Maximum DETECTION WINDOW is 3270.4 ns'
+                    assert( self.adc_window <= 3853 ), 'Maximum DETECTION WINDOW is 3270.4 ns'
                     #self.win_right = self.adc_window - 1
                 elif channel == 'TRIGGER_AWG':
                     self.dac_window = int( self.dac_window + ceil(p_length / self.timebase_pulser) )
@@ -3248,6 +3248,8 @@ class Insys_FPGA:
         """
         self.pulse_array_awg = []
         self.phase_array_length = []
+        self.phase_array_length_0_awg = []
+        self.phase_array_length_1_awg = []
         self.pulse_name_array_awg = []
         self.pulse_array_init_awg = []
         self.pulse_ch0_array_awg = []
@@ -3268,6 +3270,8 @@ class Insys_FPGA:
         """
         self.pulse_array_awg = []
         self.phase_array_length = []
+        self.phase_array_length_0_awg = []
+        self.phase_array_length_1_awg = []
         self.pulse_name_array_awg = []
         self.pulse_array_init_awg = []
         self.pulse_ch0_array_awg = []

@@ -65,7 +65,7 @@ class Sibir_1():
 
             self.gain_value = 0          # reg 0: dB           
             self.mode_point = 0
-            self.num_point  = 4096       # reg 1: 3 - 53248   2 - 32768  1 - 16384  0 - 8192  :  i*2**14 + 8192   
+            self.num_point  = 8192       # reg 1: 3 - 53248   2 - 32768  1 - 16384  0 - 8192  :  i*2**14 + 8192   
             self.time_90_deg_pulse = 0   # reg 2: micro second  
             self.mode_nav = 1            # reg 5: number of savings Na = 1,8,16,32,64,128 
                                          #                    mode_nav = 0,1, 2, 3, 4,  5
@@ -80,7 +80,7 @@ class Sibir_1():
             for f in self.set_reg:f() # update
             #-----------SETTING----------------
             self.Fref = 32767.846
-            self.N    = 53248
+            self.N    = 8192
             self.T    = 1/2048 # хз 
             self.Fr   = 42.57637
             self.num_exp = 1

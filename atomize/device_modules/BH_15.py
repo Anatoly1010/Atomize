@@ -101,12 +101,12 @@ class BH_15:
                         # The device seems to need a bit of time after being switched to remote mode
                         general.wait('1 s')
                     except BrokenPipeError:
-                        general.message("No connection")
+                        general.message("No connection BH15")
                         self.device.close()
                         self.status_flag = 0
                         sys.exit()              
                 except BrokenPipeError:
-                        general.message("No connection")
+                        general.message("No connection BH15")
                         self.device.close()
                         self.status_flag = 0
                         sys.exit()
@@ -926,7 +926,7 @@ class BH_15:
                 general.message("No answer")
                 sys.exit()
         else:
-            general.message("No connection")
+            general.message("No connection BH15")
             sys.exit()
 
     def device_query(self, command):
@@ -942,7 +942,7 @@ class BH_15:
                 general.message("No answer")
                 sys.exit()
         else:
-            general.message("No connection")
+            general.message("No connection BH15")
             sys.exit()
 
 def main():
