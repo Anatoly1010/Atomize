@@ -39,7 +39,7 @@ for i in range(POINTS):
     general.wait('100 ms')
 
     ##p1 = Thread(target=general.plot_1d, args=('Plot XY Test', xs, ys, ), kwargs={'label': 'test data2', 'timeaxis': 'False',} )
-    a = general.plot_1d('EXP_NAME', x_axis, (data_x, data_y), label = 'test2', xname = 'Delay', xscale = 'ns', yname = 'Area', yscale = 'V*s', vline = (STEP*i, ), pr = a, text=str(STEP*i))
+    a = general.plot_1d('EXP1', x_axis, (data_x, data_y), label = 'test2', xname = 'Delay', xscale = 'ns', yname = 'Area', yscale = 'V*s', vline = (STEP*i, ), pr = a, text=str(STEP*i))
     #a = general.plot_1d('EXP_NAME', x_axis, data_x, xname = 'Delay', xscale = 'ns', yname = 'Area', yscale = 'V*s', label = 'cur2', vline = (STEP*i, ), pr = a)
     #general.plot_1d('EXP_NAME', x_axis, data_x, xname = 'Delay', xscale = 'ns', yname = 'Area', yscale = 'V*s', label = 'cur2', vline = (STEP*i, ))
 

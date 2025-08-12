@@ -321,7 +321,7 @@ class Termodat_13KX3:
                 ch = str(prop[0])
                 value = round(float(prop[1]), 1)*10
                 assert(ch in self.channel_dict), 'Invalid channel'
-                assert(value <= self.proportional_min and value >= self.proportional_max), 'Invalid proportional coefficient'
+                assert(value >= self.proportional_min and value <= self.proportional_max), 'Invalid proportional coefficient'
             elif len(prop) == 1:
                 ch = str(prop[0])
                 assert(ch in self.channel_dict), 'Invalid channel'
@@ -368,7 +368,7 @@ class Termodat_13KX3:
                 ch = str(der[0])
                 value = round(float(der[1]), 1)*10
                 assert(ch in self.channel_dict), 'Invalid channel'
-                assert(value <= self.derivative_min and value >= self.derivative_max), 'Invalid derivative coefficient'
+                assert(value >= self.derivative_min and value <= self.derivative_max), 'Invalid derivative coefficient'
             elif len(der) == 1:
                 ch = str(der[0])
                 assert(ch in self.channel_dict), 'Invalid channel'
@@ -415,7 +415,7 @@ class Termodat_13KX3:
                 ch = str(integ[0])
                 value = round(float(integ[1]), 1)
                 assert(ch in self.channel_dict), 'Invalid channel'
-                assert(value <= self.integral_min and value >= self.integral_max), 'Invalid integral coefficient'
+                assert(value >= self.integral_min and value <= self.integral_max), 'Invalid integral coefficient'
             elif len(integ) == 1:
                 ch = str(integ[0])
                 assert(ch in self.channel_dict), 'Invalid channel'
