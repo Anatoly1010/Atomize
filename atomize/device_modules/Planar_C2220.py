@@ -257,7 +257,7 @@ class Planar_C2220:
                 assert(val >= self.points_min and val <= self.points_max), f"Incorrect number of points. MAX: {self.points_max }; MIN: {self.points_min }."
                 self.test_num_points = val
                 self.test_data = np.random.rand( int(2 * self.test_num_points))
-                self.test_freq_data = np.arange( self.test_num_points )
+                self.test_freq_data = 1 + np.arange( self.test_num_points )
             elif len(pnt) == 0:
                 assert(channel >= 1 and channel <= self.channels), f"Incorrect channel. MAX: {self.channels}; MIN: {1}."
                 return self.test_num_points
@@ -385,9 +385,9 @@ class Planar_C2220:
     def vector_analyzer_get_data(self, s = 'S11', type = 'IQ', channel = 1, type = 'COR'):
         if self.test_flag != 'test':
             if type == 'COR':
-                raw_array = np.array( self.device_query(f"SENSe{int(channel)}:DATA:CORRData? {s}").split(',') ).astype(np.float32)
+                raw_array = np.array( self.device_query(f"SENSe{int(channel)}:DATA:CORRData? {s}").split(',') ).astype(np.float64)
             elif type == 'RAW':
-                raw_array = np.array( self.device_query(f"SENSe{int(channel)}:DATA:RAWData? {s}").split(',') ).astype(np.float32)
+                raw_array = np.array( self.device_query(f"SENSe{int(channel)}:DATA:RAWData? {s}").split(',') ).astype(np.float64)
             array_i = raw_array[0::2]
             array_q = raw_array[1::2]
             if type == 'IQ':
@@ -395,7 +395,7 @@ class Planar_C2220:
             elif type == 'AP':
                 c_array = np.zeros(  len(array_i) , dtype = np.complex_ )
                 c_array = array_i + 1j * array_q
-                return np.log10(np.absolute(c_array)) * 20, np.rad2deg(np.arctan2(-array_i, array_q)) #np.angle(c_array, deg = True)
+                return np.absolute(c_array), np.rad2deg(np.arctan2(-array_i, array_q)) #np.log10(np.absolute(c_array)) * 20, np.angle(c_array, deg = True)
 
         elif self.test_flag == 'test':
             assert(type in self.meas_data_type), f"Incorrect data measurement type. Available options: {self.meas_data_type}."
@@ -411,11 +411,11 @@ class Planar_C2220:
             elif type == 'AP':
                 c_array = np.zeros(  len(array_i) , dtype = np.complex_ )
                 c_array = array_i + 1j * array_q
-                return np.log10(np.absolute(c_array)) * 20, np.rad2deg(np.arctan2(-array_i, array_q))
+                return np.absolute(c_array), np.rad2deg(np.arctan2(-array_i, array_q)) #np.log10(np.absolute(c_array)) * 20, np.angle(c_array, deg = True)
 
     def vector_analyzer_get_freq_data(self, channel = 1):
         if self.test_flag != 'test':
-            raw_array = np.array( self.device_query(f"SENSe{int(channel)}:FREQuency:DATA?").split(',') ).astype(np.float32) / 10**6
+            raw_array = np.array( self.device_query(f"SENSe{int(channel)}:FREQuency:DATA?").split(',') ).astype(np.float64) / 10**6
             return raw_array
         elif self.test_flag == 'test':
             assert(channel >= 1 and channel <= self.channels), f"Incorrect channel. MAX: {self.channels}; MIN: {1}."
