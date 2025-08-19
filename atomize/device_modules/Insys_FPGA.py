@@ -512,6 +512,7 @@ class Insys_FPGA:
                     pulse_awg = {'name': name + 'AWG', 'channel': 'AWG', 'start': start, 'length': length, 'delta_start' : delta_start,\
                             'length_increment': length_increment, 'phase_list': phase_list}
                     self.pulse_array_pulser.append( pulse_awg )
+                    self.pulse_name_array_pulser.append( pulse_awg )
 
             temp_start = start.split(" ")
             if temp_start[1] in self.timebase_dict:
@@ -598,6 +599,7 @@ class Insys_FPGA:
                     pulse_awg = {'name': name + 'AWG', 'channel': 'AWG', 'start': start, 'length': length, 'delta_start' : delta_start,\
                             'length_increment': length_increment, 'phase_list': phase_list}
                     self.pulse_array_pulser.append( pulse_awg )
+                    self.pulse_name_array_pulser.append( pulse_awg )
 
                 if channel not in ('TRIGGER', 'LASER', 'SYNT2'):
                     assert(p_length >= self.min_pulse_length_pulser), 'Pulse is shorter than minimum available length (' + str(self.min_pulse_length_pulser) +' ns)'
@@ -1075,11 +1077,17 @@ class Insys_FPGA:
                 #temp, visualizer = self.convert_to_bit_pulse( self.pulse_array_pulser )
                 
                 #to_spinapi = self.instruction_pulse( temp, rep_time )
-                to_spinapi = self.split_into_parts_pulser( self.pulse_array_pulser, rep_time )
-
-                #general.message(to_spinapi)
-                self.gen_GIM_words( np.array(to_spinapi, dtype = np.int64) ) # Создает главный буфер 
-
+                to_spinapi = self.split_into_parts_pulser( self.pulse_array_pulser, rep_time )            
+                
+                to_spinapi2 = np.array(to_spinapi, dtype = np.int64)
+                if self.awg_pulses_pulser == 1:
+                    to_spinapi3 = to_spinapi2 + np.array( [512, 0, 0] )
+                    self.gen_GIM_words( to_spinapi3 ) # Создает главный буфер 
+                else:
+                    self.gen_GIM_words( to_spinapi2 ) # Создает главный буфер 
+                #general.message( to_spinapi3 )
+                #self.gen_GIM_words( np.array(to_spinapi, dtype = np.int64) ) # Создает главный буфер 
+                
                 if (self.nIP_NoKeeper_brd != self.nIP_No_brd):
                     self.write_data_GIM_brd()
 
@@ -1143,7 +1151,16 @@ class Insys_FPGA:
                 # using a special functions for convertion to instructions
                 #to_spinapi = self.instruction_pulse( self.convert_to_bit_pulse( self.pulse_array_pulser ) )
                 to_spinapi = self.split_into_parts_pulser( self.pulse_array_pulser, rep_time )
-                
+
+                to_spinapi2 = np.array(to_spinapi, dtype = np.int64)
+                if self.awg_pulses_pulser == 1:
+                    to_spinapi3 = to_spinapi2 + np.array( [512, 0, 0] )
+                    self.gen_GIM_words( to_spinapi3 ) # Создает главный буфер 
+                else:
+                    self.gen_GIM_words( to_spinapi2 ) # Создает главный буфер 
+                #general.message( to_spinapi3 )
+                #self.gen_GIM_words( np.array(to_spinapi, dtype = np.int64) ) # Создает главный буфер 
+
                 if self.awg_pulses_pulser == 1:
                     self.awg_update()
                     self.write_data_DAC(0)
@@ -1256,7 +1273,7 @@ class Insys_FPGA:
                 set_from_list = set(pulses)
                 for element in set_from_list:
                     if element in self.pulse_name_array_pulser:
-                        pulse_index = self.pulse_name_array_pulser.index(element)
+                        pulse_index =  self.pulse_name_array_pulser.index(element)
 
                         if float( self.pulse_array_pulser[pulse_index]['delta_start'][:-3] ) == 0:
                             pass
@@ -1314,8 +1331,8 @@ class Insys_FPGA:
                 set_from_list = set(pulses)
                 for element in set_from_list:
                     if element in self.pulse_name_array_pulser:
+                        pulse_index =  self.pulse_name_array_pulser.index(element)
 
-                        pulse_index = self.pulse_name_array_pulser.index(element)
                         if float( self.pulse_array_pulser[pulse_index]['delta_start'][:-3] ) == 0:
                             pass
                         else:
@@ -1326,6 +1343,7 @@ class Insys_FPGA:
                                 d_start = float((temp[0]))*flag
                             else:
                                 assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
+                            
 
                             temp2 = self.pulse_array_pulser[pulse_index]['start'].split(' ')
                             if temp2[1] in self.timebase_dict:
@@ -4141,10 +4159,10 @@ class Insys_FPGA:
                 # AWG channel uses synt2 as default
                 # we need to add a pulse
                 # RECT/AWG pulse: pulses[i, 0] == 2**7
-                if self.synt_number == 1 and pulses[i, 0] == 2**7:
-                    bit_array = bit_array + 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( pulses[i, 1] - min_pulse, dtype = np.int64), \
-                        np.ones(pulses[i, 2] - pulses[i, 1], dtype = np.int64), \
-                        np.zeros(max_pulse - pulses[i, 2], dtype = np.int64)), axis = None)
+                ###if self.synt_number == 1 and pulses[i, 0] == 2**7:
+                ###    bit_array = bit_array + 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( pulses[i, 1] - min_pulse, dtype = np.int64), \
+                ###        np.ones(pulses[i, 2] - pulses[i, 1], dtype = np.int64), \
+                ###        np.zeros(max_pulse - pulses[i, 2], dtype = np.int64)), axis = None)
 
                 i += 1
 
@@ -4174,10 +4192,10 @@ class Insys_FPGA:
                 # AWG channel uses synt2 as default
                 # we need to add a pulse
                 # RECT/AWG pulse: pulses[i, 0] == 2**7
-                if self.synt_number == 1 and pulses[i, 0] == 2**7:
-                    bit_array = bit_array + 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( pulses[i, 1] - min_pulse, dtype = np.int64), \
-                        np.ones(pulses[i, 2] - pulses[i, 1], dtype = np.int64), \
-                        np.zeros(max_pulse - pulses[i, 2], dtype = np.int64)), axis = None)
+                ####if self.synt_number == 1 and pulses[i, 0] == 2**7:
+                ###    bit_array = bit_array + 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( pulses[i, 1] - min_pulse, dtype = np.int64), \
+                ###        np.ones(pulses[i, 2] - pulses[i, 1], dtype = np.int64), \
+                ###        np.zeros(max_pulse - pulses[i, 2], dtype = np.int64)), axis = None)
 
                 i += 1
 
@@ -4224,12 +4242,12 @@ class Insys_FPGA:
                     # AWG channel uses synt2 as default
                     # we need to add a pulse
                     # RECT/AWG pulse: pulses[i, 0] == 2**7
-                    if self.synt_number == 1 and pulses[i, 0] == 2**7:
+                    ###if self.synt_number == 1 and pulses[i, 0] == 2**7:
 
-                        translation_array = 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( 1*(pulses[i, 1] - min_pulse), dtype = np.int64), \
-                            np.ones(1*(pulses[i, 2] - pulses[i, 1]), dtype = np.int64), \
-                            np.zeros(1*(max_pulse - pulses[i, 2]), dtype = np.int64)), axis = None)
-                        bit_array_pulses.append(translation_array)
+                    ###    translation_array = 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( 1*(pulses[i, 1] - min_pulse), dtype = np.int64), \
+                    ###        np.ones(1*(pulses[i, 2] - pulses[i, 1]), dtype = np.int64), \
+                    ###        np.zeros(1*(max_pulse - pulses[i, 2]), dtype = np.int64)), axis = None)
+                    ###    bit_array_pulses.append(translation_array)
 
                 i += 1
 
@@ -4265,12 +4283,12 @@ class Insys_FPGA:
                     # AWG channel uses synt2 as default
                     # we need to add a pulse
                     # RECT/AWG pulse: pulses[i, 0] == 2**7
-                    if self.synt_number == 1 and pulses[i, 0] == 2**7:
+                    ###if self.synt_number == 1 and pulses[i, 0] == 2**7:
                         
-                        translation_array = 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( 1*(pulses[i, 1] - min_pulse), dtype = np.int64), \
-                            np.ones(1*(pulses[i, 2] - pulses[i, 1]), dtype = np.int64), \
-                            np.zeros(1*(max_pulse - pulses[i, 2]), dtype = np.int64)), axis = None)
-                        bit_array_pulses.append(translation_array)
+                    ###    translation_array = 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( 1*(pulses[i, 1] - min_pulse), dtype = np.int64), \
+                    ###        np.ones(1*(pulses[i, 2] - pulses[i, 1]), dtype = np.int64), \
+                    ###        np.zeros(1*(max_pulse - pulses[i, 2]), dtype = np.int64)), axis = None)
+                    ###    bit_array_pulses.append(translation_array)
 
 
                 i += 1

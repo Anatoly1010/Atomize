@@ -104,6 +104,7 @@ class Planar_C2220:
             self.trigger_mode = 'REP'
             self.test_data = np.random.rand( int(2 * self.test_num_points))
             self.test_freq_data = 1 + np.arange( self.test_num_points )
+            self.test_meas_time = 0.2
             
     def close_connection(self):
         if self.test_flag != 'test':
@@ -420,6 +421,14 @@ class Planar_C2220:
         elif self.test_flag == 'test':
             assert(channel >= 1 and channel <= self.channels), f"Incorrect channel. MAX: {self.channels}; MIN: {1}."
             return self.test_freq_data
+
+    def vector_analyzer_get_meas_time(self, channel = 1):
+        if self.test_flag != 'test':
+            raw_array = np.array(self.device_query(f"SENSe{int(channel)}:SWEep:CW:TIME?")).astype(np.float64)
+            return raw_array
+        elif self.test_flag == 'test':
+            assert(channel >= 1 and channel <= self.channels), f"Incorrect channel. MAX: {self.channels}; MIN: {1}."
+            return self.test_meas_time
 
     def vector_analyzer_command(self, command):
         if self.test_flag != 'test':
