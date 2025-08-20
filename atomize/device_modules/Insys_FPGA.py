@@ -445,6 +445,8 @@ class Insys_FPGA:
             self.dec_coef                          = 1
             self.awg_start                         = 0
 
+            self.mes                               = 0
+
         elif self.test_flag == 'test':
 
             self.nIP_No_brd                        = 0
@@ -476,6 +478,8 @@ class Insys_FPGA:
             self.win_right                         = 2
             self.dec_coef                          = 1
             self.awg_start                         = 0
+
+            self.mes                               = 0
 
     # Module functions
     ####################GIM################################################################################
@@ -512,7 +516,7 @@ class Insys_FPGA:
                     pulse_awg = {'name': name + 'AWG', 'channel': 'AWG', 'start': start, 'length': length, 'delta_start' : delta_start,\
                             'length_increment': length_increment, 'phase_list': phase_list}
                     self.pulse_array_pulser.append( pulse_awg )
-                    self.pulse_name_array_pulser.append( pulse_awg )
+                    self.pulse_name_array_pulser.append( pulse['name'] )
 
             temp_start = start.split(" ")
             if temp_start[1] in self.timebase_dict:
@@ -599,7 +603,7 @@ class Insys_FPGA:
                     pulse_awg = {'name': name + 'AWG', 'channel': 'AWG', 'start': start, 'length': length, 'delta_start' : delta_start,\
                             'length_increment': length_increment, 'phase_list': phase_list}
                     self.pulse_array_pulser.append( pulse_awg )
-                    self.pulse_name_array_pulser.append( pulse_awg )
+                    self.pulse_name_array_pulser.append( pulse['name'] )
 
                 if channel not in ('TRIGGER', 'LASER', 'SYNT2'):
                     assert(p_length >= self.min_pulse_length_pulser), 'Pulse is shorter than minimum available length (' + str(self.min_pulse_length_pulser) +' ns)'
@@ -1082,6 +1086,7 @@ class Insys_FPGA:
                 to_spinapi2 = np.array(to_spinapi, dtype = np.int64)
                 if self.awg_pulses_pulser == 1:
                     to_spinapi3 = to_spinapi2 + np.array( [512, 0, 0] )
+                    to_spinapi3[-1, 0] = 0
                     self.gen_GIM_words( to_spinapi3 ) # Создает главный буфер 
                 else:
                     self.gen_GIM_words( to_spinapi2 ) # Создает главный буфер 
@@ -1155,10 +1160,11 @@ class Insys_FPGA:
                 to_spinapi2 = np.array(to_spinapi, dtype = np.int64)
                 if self.awg_pulses_pulser == 1:
                     to_spinapi3 = to_spinapi2 + np.array( [512, 0, 0] )
-                    self.gen_GIM_words( to_spinapi3 ) # Создает главный буфер 
+                    to_spinapi3[-1, 0] = 0
+                    self.gen_GIM_words( to_spinapi3 ) # Создает главный буфер
                 else:
                     self.gen_GIM_words( to_spinapi2 ) # Создает главный буфер 
-                #general.message( to_spinapi3 )
+
                 #self.gen_GIM_words( np.array(to_spinapi, dtype = np.int64) ) # Создает главный буфер 
 
                 if self.awg_pulses_pulser == 1:
@@ -1865,7 +1871,7 @@ class Insys_FPGA:
                     self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
                     self.buffer_ready = 0
                     self.data_i_ph_T, self.data_q_ph_T = self.data_i_ph.T, self.data_q_ph.T
-                    return self.data_i_ph_T, self.data_q_ph_T#, self.buffer_ready + 1
+                    return self.data_i_ph_T, self.data_q_ph_T#, self.count_nip #, self.buffer_ready + 1
                 elif integral == True:
                     self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
                     self.buffer_ready = 0
@@ -1874,7 +1880,7 @@ class Insys_FPGA:
             elif self.buffer_ready == 0:
                 if integral == False:
                     self.buffer_ready = 0
-                    return None, None#, 0
+                    return None, None #, None#, 0
                     #return self.data_i_ph_T, self.data_q_ph_T, self.buffer_ready
   
                 elif integral == True:
@@ -1906,14 +1912,14 @@ class Insys_FPGA:
             #self.count_nip = np.ones( (int(p * ph) * 1) )
             #data_i = self.adc_sens * self.data_raw[0::(2*self.dec_coef)]
             #data_q = self.adc_sens * self.data_raw[1::(2*self.dec_coef)]
-            
+
             if self.buffer_ready == 1:
                 if integral == False:
                     #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
                     self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), acq_cycle = acq_cycle)
                     self.buffer_ready = 0
                     self.data_i_ph_T, self.data_q_ph_T = self.data_i_ph.T, self.data_q_ph.T
-                    return self.data_i_ph_T, self.data_q_ph_T#, self.buffer_ready + 1
+                    return self.data_i_ph_T, self.data_q_ph_T #, None#, self.buffer_ready + 1
                 elif integral == True:
                     self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef ) ) ), acq_cycle = acq_cycle)
                     #general.message( len(np.sum( ((self.data_i_ph))[:, self.win_left:self.win_right], axis = 1 )) )
@@ -1924,7 +1930,7 @@ class Insys_FPGA:
                 if integral == False:
                     self.buffer_ready = 0
                     #return self.data_i_ph_T, self.data_q_ph_T, self.buffer_ready
-                    return None, None#, 0
+                    return None, None #, None#, 0
                 elif integral == True:
                     self.buffer_ready = 0
                     #return np.sum( (self.data_i_ph).T[:, self.win_left:self.win_right], axis = 1 ), np.sum( (self.data_q_ph).T[:, self.win_left:self.win_right], axis = 1 ), self.buffer_ready
@@ -3656,11 +3662,19 @@ class Insys_FPGA:
             answer = self.splitting_acc_to_channel_pulser( self.convertion_to_numpy_pulser( np_array ) )
             # return flatten np.array of pulses that has the same format as self.convertion_to_numpy_pulser( np_array )
             # but with extended RECT_AWG pulse
+            for index, element in enumerate(answer):
+                if element[0, 0] == 2**self.channel_dict_pulser['MW'] or element[0, 0] == 2**self.channel_dict_pulser['AWG']:
+                    answer[index] = self.check_problem_pulses_pulser(element)
+            
             return np.asarray(list(chain(*answer)))
 
         elif self.test_flag == 'test':
             answer = self.splitting_acc_to_channel_pulser( self.convertion_to_numpy_pulser( np_array ) )
-            
+            # iterate over all pulses at different channels
+            for index, element in enumerate(answer):
+                if element[0, 0] == 2**self.channel_dict_pulser['MW'] or element[0, 0] == 2**self.channel_dict_pulser['AWG'] or element[0, 0] == 2**self.channel_dict_pulser['TRIGGER_AWG']:
+                    answer[index] = self.check_problem_pulses_pulser(element)
+                        
             return np.asarray(list(chain(*answer)))
 
     def check_problem_pulses_pulser(self, np_array):
@@ -3678,23 +3692,34 @@ class Insys_FPGA:
             ## Uncomment everything starting with ## if needed
 
             ### compare the end time with the start time for each couple of pulses
-            ##for index, element in enumerate(sorted_np_array[:-1]):
-            ##    # minimal_distance is 40 ns now
-            ##    if sorted_np_array[index + 1][1] - element[2] < self.min_pulse_length_pulser:
-            ##        assert(1 == 2), 'Overlapping pulses or two pulses with less than ' + str(self.min_pulse_length_pulser) + ' ns distance'
-            ##    else:
-            ##        pass
+            for index, element in enumerate(sorted_np_array[:-1]):
+                # minimal_distance is 40 ns now
+                if sorted_np_array[index + 1][1] - element[2] < self.min_pulse_length_pulser:
+                    element[2] = sorted_np_array[index + 1][2]
+                    sorted_np_array = np.delete(sorted_np_array, -1, 0)
+                    if self.mes == 0:
+                        general.message('Overlapping pulses or two pulses with less than {self.min_pulse_length_pulser} ns distance')
+                        self.mes = 1
+                else:
+                    pass
 
             return sorted_np_array
 
         elif self.test_flag == 'test':
             sorted_np_array = np.asarray(sorted(np_array, key = lambda x: int(x[1])), dtype = np.int64)
-
+            
             # compare the end time with the start time for each couple of pulses
             for index, element in enumerate(sorted_np_array[:-1]):
                 # minimal_distance is 40 ns now
                 if sorted_np_array[index + 1][1] - element[2] < self.min_pulse_length_pulser:
-                    assert(1 == 2), f'Overlapping pulses or two pulses with less than {self.min_pulse_length_pulser} ns distance'
+                    if element[0] == 2**self.channel_dict_pulser['TRIGGER_AWG']:
+                        assert(1 == 2), f'Overlapping AWG pulses'
+                    else:
+                        element[2] = sorted_np_array[index + 1][2]
+                        sorted_np_array = np.delete(sorted_np_array, -1, 0)
+                        if self.mes == 0:
+                            general.message('Overlapping pulses or two pulses with less than {self.min_pulse_length_pulser} ns distance')
+                            self.mes = 1
                 else:
                     pass
 
@@ -4259,7 +4284,7 @@ class Insys_FPGA:
             #for index, element in enumerate(pulses):
             #    element[2] = element[1] + element[2]  
 
-            max_pulse = np.amax(pulses[:,1])
+            max_pulse = np.amax(pulses[:,2])
             min_pulse = np.amin(pulses[:,1])
 
             #bit_array = np.zeros( max_pulse - 0*min_pulse, dtype = np.int64 )
@@ -4860,11 +4885,13 @@ class Insys_FPGA:
         """
         A function to create GIM words from old PB_ESR_Pro instructions
         """
-        range_time           = spinapi[1:,-1]
+        sa = np.array(spinapi)
+        
+        range_time           = sa[1:,-1]
         range_time_tail      = range_time >> 16
         range_time           = range_time - (range_time_tail << 16)
 
-        qqq                  = spinapi[1:,0]
+        qqq                  = sa[1:,0]
         qqq[-1]              = qqq[-1] + (1 << 15)
 
         zer                  = np.zeros( (len(qqq), 8) , dtype = np.uint32 )
