@@ -107,7 +107,7 @@ class Insys_FPGA:
 
         # minimal distance for joining AMP_ON and LNA_PROTECT pulses
         # decided to keep it as 12 ns, while for MW pulses the limit is 40 ns
-        self.minimal_distance_amp_lna_pulser = 10 # in clock
+        self.minimal_distance_amp_lna_pulser = 0 # in clock
 
         # Delays and restrictions
         self.constant_shift_pulser = int(640 / self.timebase_pulser) # in clock; shift of all sequence for not getting negative start times
@@ -155,6 +155,8 @@ class Insys_FPGA:
             self.iterator_of_updates_pulser = 0
             # Default synt for AWG channel
             self.synt_number = 2
+            self.synt2_shift = 15
+            self.synt2_ext = 4
 
         elif self.test_flag == 'test':
             self.test_rep_rate_pulser = '200 Hz'
@@ -174,6 +176,8 @@ class Insys_FPGA:
             self.instr_from_file_pulser = 0
             # Default synt for AWG channel
             self.synt_number = 2
+            self.synt2_shift = 15
+            self.synt2_ext = 4
 
         #### Inizialization
         # setting path to *.ini file
@@ -3698,7 +3702,7 @@ class Insys_FPGA:
                     element[2] = sorted_np_array[index + 1][2]
                     sorted_np_array = np.delete(sorted_np_array, -1, 0)
                     if self.mes == 0:
-                        general.message('Overlapping pulses or two pulses with less than {self.min_pulse_length_pulser} ns distance')
+                        general.message(f'Overlapping pulses or two pulses with less than {self.min_pulse_length_pulser} ns distance')
                         self.mes = 1
                 else:
                     pass
@@ -3718,7 +3722,7 @@ class Insys_FPGA:
                         element[2] = sorted_np_array[index + 1][2]
                         sorted_np_array = np.delete(sorted_np_array, -1, 0)
                         if self.mes == 0:
-                            general.message('Overlapping pulses or two pulses with less than {self.min_pulse_length_pulser} ns distance')
+                            general.message(f'Overlapping pulses or two pulses with less than {self.min_pulse_length_pulser} ns distance')
                             self.mes = 1
                 else:
                     pass
@@ -4184,10 +4188,10 @@ class Insys_FPGA:
                 # AWG channel uses synt2 as default
                 # we need to add a pulse
                 # RECT/AWG pulse: pulses[i, 0] == 2**7
-                ###if self.synt_number == 1 and pulses[i, 0] == 2**7:
-                ###    bit_array = bit_array + 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( pulses[i, 1] - min_pulse, dtype = np.int64), \
-                ###        np.ones(pulses[i, 2] - pulses[i, 1], dtype = np.int64), \
-                ###        np.zeros(max_pulse - pulses[i, 2], dtype = np.int64)), axis = None)
+                #if self.synt_number == 1 and pulses[i, 0] == 2**7:
+                #    bit_array = bit_array + 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( pulses[i, 1] - min_pulse + self.synt2_shift, dtype = np.int64), \
+                #        np.ones(pulses[i, 2] - pulses[i, 1] + self.synt2_ext, dtype = np.int64), \
+                #        np.zeros(max_pulse - pulses[i, 2] - self.synt2_shift - self.synt2_ext, dtype = np.int64)), axis = None)
 
                 i += 1
 
@@ -4217,10 +4221,10 @@ class Insys_FPGA:
                 # AWG channel uses synt2 as default
                 # we need to add a pulse
                 # RECT/AWG pulse: pulses[i, 0] == 2**7
-                ####if self.synt_number == 1 and pulses[i, 0] == 2**7:
-                ###    bit_array = bit_array + 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( pulses[i, 1] - min_pulse, dtype = np.int64), \
-                ###        np.ones(pulses[i, 2] - pulses[i, 1], dtype = np.int64), \
-                ###        np.zeros(max_pulse - pulses[i, 2], dtype = np.int64)), axis = None)
+                #if self.synt_number == 1 and pulses[i, 0] == 2**7:
+                #    bit_array = bit_array + 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( pulses[i, 1] - min_pulse + self.synt2_shift, dtype = np.int64), \
+                #        np.ones(pulses[i, 2] - pulses[i, 1] + self.synt2_ext, dtype = np.int64), \
+                #        np.zeros(max_pulse - pulses[i, 2] - self.synt2_shift - self.synt2_ext, dtype = np.int64)), axis = None)
 
                 i += 1
 
@@ -4267,12 +4271,12 @@ class Insys_FPGA:
                     # AWG channel uses synt2 as default
                     # we need to add a pulse
                     # RECT/AWG pulse: pulses[i, 0] == 2**7
-                    ###if self.synt_number == 1 and pulses[i, 0] == 2**7:
+                    #if self.synt_number == 1 and pulses[i, 0] == 2**7:
 
-                    ###    translation_array = 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( 1*(pulses[i, 1] - min_pulse), dtype = np.int64), \
-                    ###        np.ones(1*(pulses[i, 2] - pulses[i, 1]), dtype = np.int64), \
-                    ###        np.zeros(1*(max_pulse - pulses[i, 2]), dtype = np.int64)), axis = None)
-                    ###    bit_array_pulses.append(translation_array)
+                    #    translation_array = 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( 1*(pulses[i, 1] - min_pulse + self.synt2_shift), dtype = np.int64), \
+                    #        np.ones(1*(pulses[i, 2] - pulses[i, 1] + self.synt2_ext), dtype = np.int64), \
+                    #        np.zeros(1*(max_pulse - pulses[i, 2] - self.synt2_shift - self.synt2_ext), dtype = np.int64)), axis = None)
+                    #    bit_array_pulses.append(translation_array)
 
                 i += 1
 
@@ -4308,12 +4312,12 @@ class Insys_FPGA:
                     # AWG channel uses synt2 as default
                     # we need to add a pulse
                     # RECT/AWG pulse: pulses[i, 0] == 2**7
-                    ###if self.synt_number == 1 and pulses[i, 0] == 2**7:
-                        
-                    ###    translation_array = 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( 1*(pulses[i, 1] - min_pulse), dtype = np.int64), \
-                    ###        np.ones(1*(pulses[i, 2] - pulses[i, 1]), dtype = np.int64), \
-                    ###        np.zeros(1*(max_pulse - pulses[i, 2]), dtype = np.int64)), axis = None)
-                    ###    bit_array_pulses.append(translation_array)
+                    #if self.synt_number == 1 and pulses[i, 0] == 2**7:
+                    #    
+                    #    translation_array = 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( 1*(pulses[i, 1] - min_pulse + self.synt2_shift), dtype = np.int64), \
+                    #        np.ones(1*(pulses[i, 2] - pulses[i, 1] + self.synt2_ext), dtype = np.int64), \
+                    #        np.zeros(1*(max_pulse - pulses[i, 2] - self.synt2_shift - self.synt2_ext), dtype = np.int64)), axis = None)
+                    #    bit_array_pulses.append(translation_array)
 
 
                 i += 1
@@ -4775,7 +4779,7 @@ class Insys_FPGA:
             ##        general.message('There are two pulses with shorter than ' + str(self.min_pulse_length_pulser*2) + ' ns distance between them')
             ##        sys.exit()
             ##else:
-                if any(1 < element < (self.min_pulse_length_pulser + 1) for element in difference) == False:
+                if any(1 < element < (self.min_pulse_length_pulser + self.minimal_distance_amp_lna_pulser) for element in difference) == False:
                     return np_array
                 else:
                     final_array = self.joining_pulses_pulser(np_array)
@@ -4787,12 +4791,12 @@ class Insys_FPGA:
             difference = np.diff(one_indexes)
 
             if channel != self.channel_dict_pulser['LNA_PROTECT'] and channel != self.channel_dict_pulser['AMP_ON']:
-                if any(1 < element < (self.min_pulse_length_pulser + 1) for element in difference) == False:
+                if any(1 < element < (self.min_pulse_length_pulser + self.minimal_distance_amp_lna_pulser) for element in difference) == False:
                     pass
                 else:
                     assert(1 == 2), 'There are two pulses with shorter than ' + str(self.min_pulse_length_pulser) + ' ns distance between them'
             else:
-                if any(1 < element < (self.min_pulse_length_pulser + 1) for element in difference) == False:
+                if any(1 < element < (self.min_pulse_length_pulser + self.minimal_distance_amp_lna_pulser) for element in difference) == False:
                     return np_array
                 else:
                     final_array = self.joining_pulses_pulser(np_array)
@@ -4820,7 +4824,7 @@ class Insys_FPGA:
                     counter += 1
                 elif short_array[i + 1] == 1:
                     # (minimal_distance + 1) is 13 now
-                    if counter < (self.min_pulse_length_pulser + 1):
+                    if counter < (self.min_pulse_length_pulser + self.minimal_distance_amp_lna_pulser):
                         # replace 0 with 1
                         while j <= counter:
                             short_array[i + j - counter] = 1

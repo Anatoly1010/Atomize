@@ -383,11 +383,11 @@ class Planar_C2220:
             else:
                 assert (1 == 2), "Invalid trigger mode argument"
 
-    def vector_analyzer_get_data(self, s = 'S11', type = 'IQ', channel = 1, type = 'COR'):
+    def vector_analyzer_get_data(self, s = 'S11', type = 'IQ', channel = 1, data_type = 'COR'):
         if self.test_flag != 'test':
-            if type == 'COR':
+            if data_type == 'COR':
                 raw_array = np.array( self.device_query(f"SENSe{int(channel)}:DATA:CORRData? {s}").split(',') ).astype(np.float64)
-            elif type == 'RAW':
+            elif data_type == 'RAW':
                 raw_array = np.array( self.device_query(f"SENSe{int(channel)}:DATA:RAWData? {s}").split(',') ).astype(np.float64)
             array_i = raw_array[0::2]
             array_q = raw_array[1::2]
@@ -399,7 +399,7 @@ class Planar_C2220:
                 return np.absolute(c_array), np.rad2deg(np.arctan2(-array_i, array_q)) #np.log10(np.absolute(c_array)) * 20, np.angle(c_array, deg = True)
 
         elif self.test_flag == 'test':
-            assert(type in self.meas_data_type), f"Incorrect data measurement type. Available options: {self.meas_data_type}."
+            assert(data_type in self.meas_data_type), f"Incorrect data measurement type. Available options: {self.meas_data_type}."
             assert(s in self.data_source_list), f"Incorrect data source. Available options: {self.data_source_list}."
             assert(type in self.meas_type), f"Incorrect data type. Available options: [IQ, AP]."
             assert(channel >= 1 and channel <= self.channels), f"Incorrect channel. MAX: {self.channels}; MIN: {1}."
