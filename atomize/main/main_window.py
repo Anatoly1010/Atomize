@@ -18,6 +18,7 @@ import numpy as np
 from . import widgets
 import pyqtgraph as pg
 from datetime import datetime
+from pathlib import Path
 #import OpenGL
 from PyQt6.QtCore import QSharedMemory, QSize
 from PyQt6.QtGui import QColor, QIcon, QStandardItem, QStandardItemModel, QAction
@@ -43,14 +44,20 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         super(MainWindow, self).__init__(*args, **kwargs)
         # absolute path to icon:
-        path_to_main = os.path.abspath(os.getcwd())
-        self.icon_path = os.path.join(path_to_main,'atomize/main','Icon.png')
+        #path_to_main = os.path.abspath(os.getcwd())
+        path_to_main = Path(__file__).parent
+
+        #self.icon_path = os.path.join(path_to_main,'atomize/main','Icon.png')
+        self.icon_path = os.path.join(path_to_main,'Icon.png')
         self.setWindowIcon(QIcon(self.icon_path))
 
         #self.destroyed.connect(MainWindow._on_destroyed)         # connect some actions to exit
         self.destroyed.connect(lambda: self._on_destroyed())       # connect some actions to exit
         # Load the UI Page
-        uic.loadUi('atomize/main/gui/main_window.ui', self)        # Design file
+        #uic.loadUi('atomize/main/gui/main_window.ui', self)        # Design file
+        os.chdir(os.path.join(path_to_main, '..'))
+        uic.loadUi(os.path.join(path_to_main,'gui','main_window.ui'), self) 
+        os.chdir(path_to_main)
 
         # important attribures
         if len(sys.argv) > 1 and sys.argv[1] != '':  # for bash option
@@ -60,7 +67,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.script = '' # for not opened script
         self.test_flag = 0 # flag for not running script if test is failed
         self.flag_opened_script_changed = 0 # flag for saving changes in the opened script
-        self.path = os.path.join(path_to_main,'atomize/tests')
+        #self.path = os.path.join(path_to_main,'atomize/tests')
+        self.path = os.path.join(path_to_main, '..', 'tests')
 
         self.design_setting()
 
@@ -78,7 +86,8 @@ class MainWindow(QtWidgets.QMainWindow):
         signal.signal(signal.SIGINT, self.close)
 
         # configuration data
-        path_config_file = os.path.join(path_to_main,'atomize/config.ini')
+        #path_config_file = os.path.join(path_to_main,'atomize/config.ini')
+        path_config_file = os.path.join(path_to_main, '..', 'config.ini')
         config = configparser.ConfigParser()
         config.read(path_config_file)
         # directories
@@ -490,10 +499,13 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         A function to reload an experimental script.
         """
-        self.cached_stamp = os.stat(self.script).st_mtime
-        text = open(self.script).read()
-        self.textEdit.setPlainText(text)
-
+        try:
+            self.cached_stamp = os.stat(self.script).st_mtime
+            text = open(self.script).read()
+            self.textEdit.setPlainText(text)
+        except FileNotFoundError:
+            pass    
+        
     def on_finished_checking(self):
         """
         A function to add the information about errors found during syntax checking
@@ -627,8 +639,12 @@ class MainWindow(QtWidgets.QMainWindow):
         if data == 'Script stopped':
 
             path_to_main = os.path.abspath(os.getcwd())
-            lib_path = os.path.join(path_to_main, 'atomize/general_modules', 'libspinapi.so')
-            lib_path2 = os.path.join(path_to_main, 'atomize/general_modules', 'spinapi64.dll')
+            #lib_path = os.path.join(path_to_main, 'atomize/general_modules', 'libspinapi.so')
+            #lib_path2 = os.path.join(path_to_main, 'atomize/general_modules', 'spinapi64.dll')
+
+            lib_path = os.path.join(path_to_main, '..', 'general_modules', 'libspinapi.so')
+            lib_path2 = os.path.join(path_to_main, '..', 'general_modules', 'spinapi64.dll')
+
 
             if os.path.exists(lib_path) == False and os.path.exists(lib_path2) == False:
                 self.process_python.close()
@@ -662,7 +678,8 @@ class NameList(QDockWidget):
         #directories
         path_to_main = os.path.abspath(os.getcwd())
         # configuration data
-        path_config_file = os.path.join(path_to_main,'atomize/config.ini')
+        #path_config_file = os.path.join(path_to_main,'atomize/config.ini')
+        path_config_file = os.path.join(path_to_main, '..', 'config.ini')
         config = configparser.ConfigParser()
         config.read(path_config_file)
         # directories
@@ -695,7 +712,7 @@ class NameList(QDockWidget):
 
     def open_file(self, filename):
         """
-        A function to open 1d data.
+        A function to open existing 1d data.
         :param filename: string
         """
         file_path = filename
@@ -703,6 +720,7 @@ class NameList(QDockWidget):
         header_array = []
         header = 0
 
+        # detecting the file header for further skipping
         file_to_read = open(filename, 'r')
         for i, line in enumerate(file_to_read):
             if i is header: break
@@ -710,11 +728,17 @@ class NameList(QDockWidget):
             header_array.append(temp)
         file_to_read.close()
 
+        # read data
         temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 1, comments = '#') 
         data = np.transpose(temp)
 
+        # universal name
         name_plot = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
         pw = self.window.add_new_plot(1, name_plot)
+        # opening of a simple CSV file with a maximum of 4 columns. 
+        # this is usually related to internal pyqtgraph export.
+        # in this case, there is an extra comma that creates an empty column, which should be taken into account
+        # the data may have a different number of columns.
         if len(data) == 2:
             pw.plot(data[0], data[1], parametric = True, name = file_path, xname = 'X', xscale = 'Arb. U.',\
                 yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')

@@ -6,6 +6,7 @@ import numpy as np
 #from tkinter import filedialog
 #import tkinter
 from datetime import datetime
+from pathlib import Path
 from pyqtgraph.dockarea import Dock
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtWidgets import QFileDialog
@@ -129,9 +130,10 @@ class CrosshairPlotWidget(pg.PlotWidget):
 class CrosshairDock(CloseableDock):
     def __init__(self, **kwargs):
         # open directory
-        path_to_main = os.path.abspath(os.getcwd())
+        #path_to_main = os.path.abspath(os.getcwd())
+        path_to_main = Path(__file__).parent
         # configuration data
-        path_config_file = os.path.join(path_to_main,'atomize/config.ini')
+        path_config_file = os.path.join(path_to_main, '..', 'config.ini')
         config = configparser.ConfigParser()
         config.read(path_config_file)
         # directories

@@ -90,7 +90,7 @@ start_step is a list of starting points and steps. Since the plotting procedure 
 horizontally the first list is typically (0, 1), the second is (Ystart, Ystep);<br/>
 
 Other arguments are optional and used for automatic scaling (i.e. V to mV, etc.).
-There is a possibility to draw data in parallel with the main script. To do this, a keyargumnet 'pr'
+There is a possibility to draw data in parallel with the main script. To do this, a key argumnet 'pr'
 should be used. In this mode, the function returns the thread that starts the drawing, and check on
 the next call whether the process has completed or not. A minimal working example for parallel
 drawing with dynamic label is the following:
@@ -118,8 +118,8 @@ plot_remove('name_of_plot')
 
 ## 1D plotting
 ```python
-import atomize.general_modules.general_functions as general
 import numpy as np
+import atomize.general_modules.general_functions as general
 
 xs = np.array([])
 ys = np.array([])
@@ -133,6 +133,7 @@ for i in range(40):
 ## 2D plotting
 ```python
 import numpy as np
+import atomize.general_modules.general_functions as general
 
 data = [];
 step = 10;

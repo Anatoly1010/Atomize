@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling>=1.9.0", "hatch-vcs", "toml"]
+build-backend = "hatchling.build"
+
+[project]
+name = "atomize-py"
+version = "0.0.2.4"
+authors = [
+    {name = "Atomize Developers"}
+]
+description = "A modular software for working with scientific devices and combining them into unified multifunctional setup"
+readme = "readme.md"
+requires-python = ">=3.9"
+keywords = ["automation", "measurement", "instrument control", "experimental script", "graph", "scientific instruments", "industrial instruments"]
+license = "MIT"
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Topic :: Scientific/Engineering",
+]
+
+dependencies = ["numpy>=1.25", "pyvisa>=1.11", "pyvisa-py>=0.5", "pyqtgraph>=0.12", "PyQt6>=6.2"]
+license-files = ["license.md"]
+
+[project.scripts]
+atomize = "atomize.main.main_window:main"
+
+[project.urls]
+Homepage = "https://github.com/Anatoly1010/Atomize"
+Issues = "https://github.com/Anatoly1010/Atomize/issues"
+Documentation = "https://github.com/Anatoly1010/Atomize/tree/master/atomize/documentation"
+
+[project.optional-dependencies]
+	serial = ["pyserial>=3.5"]
+    modbus = ["minimalmodbus>=1.0"]
+	gui = ["tkinter>=8.6"]
+	bots = ["pyTelegramBotAPI>=4.15"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["atomize"]

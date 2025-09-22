@@ -6,7 +6,7 @@ atomize/device_modules/config/__pycache__
 *.swo
 *~
 build
-dist
+dist/
 *.egg-info
 atomize/logos
 atomize/device_modules/Metrolab_PT2025.py

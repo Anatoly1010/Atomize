@@ -4,7 +4,7 @@ A modular open source software for working with scientific devices and combining
 The general idea is close to [FSC2 software](http://users.physik.fu-berlin.de/~jtt/fsc2.phtml) developed by Jens Thomas Törring.<br/>
 Remote control of spectrometers is usually carried out using home-written programs, which are often restricted to doing a certain experiment with a specific set of devices. In contrast, the programs like [FSC2](http://users.physik.fu-berlin.de/~jtt/fsc2.phtml) and [Atomize](https://github.com/Anatoly1010/Atomize) are much more flexible, since they are based on a modular approach for communication with device and scripting language (EDL in FSC2; Python in Atomize) for data measuring.
 
-Atomize uses [liveplot library](https://github.com/PhilReinhold/liveplot) based on pyqtgraph as a main graphics library. [Liveplot](https://github.com/PhilReinhold/liveplot) was originally developed by Phil Reinhold. Since several minor improvements have been made to use it in Atomize.
+Atomize[^1] uses [liveplot library](https://github.com/PhilReinhold/liveplot) based on pyqtgraph as a main graphics library. [Liveplot](https://github.com/PhilReinhold/liveplot) was originally developed by Phil Reinhold. Since then, several improvements have been made to use it in Atomize, and it has been directly embedded into Atomize.
 
 [Python Programming Language](https://www.python.org/) is used inside experimental scripts, which opens up almost unlimited possibilities for raw experimental data treatment. In addition, with PyQt, one can create experimental scripts with a simple graphical interface, allowing users not familiar with Python to use it. Several examples of scripts (with dummy data) are provided in /atomize/tests/ directory, including a GUI script with extended comments inside. Also a variant of the Atomize with GUI Control Window extension can be found [here.](https://github.com/Anatoly1010/Atomize_NIOCH)<br/>
 
@@ -38,7 +38,7 @@ At the moment, Atomize has been tested and is currently used for controlling sev
     - [Balances](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)<br/>
     - [Other](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)<br/>
 - [Function for devices](#available-function-for-devices)<br/>
-- [General functions](#available-general-functions)<br/>
+- [General functions and modules](#available-general-functions)<br/>
 - [Plotting functions](#available-plotting-functions)<br/>
 - [Experimental script examples](https://github.com/Anatoly1010/Atomize/tree/master/atomize/tests)<br/>
 - [Screenshots](#screenshots)<br/>
@@ -46,15 +46,17 @@ At the moment, Atomize has been tested and is currently used for controlling sev
 - [Protocol settings](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md)<br/>
 
 ## Requirements
-- [Python (3.8+)](https://www.python.org/)
-- [Numpy](https://numpy.org/)
-- [PyQt6; 6.1.0+](http://www.riverbankcomputing.com/software/pyqt/download)
-- [pyqtgraph 0.12.2](http://www.pyqtgraph.org)
-- [PyVisa](https://pyvisa.readthedocs.io/en/latest/)
-- [PyVisa-py](https://github.com/pyvisa/pyvisa-py)<br/>
+- [Python $\geq$ 3.9](https://www.python.org/)
+- [Numpy $\geq$ 1.25](https://numpy.org/)
+- [PyQt6; $\geq$ 6.2](http://www.riverbankcomputing.com/software/pyqt/download)
+- [pyqtgraph $\geq$ 0.12](http://www.pyqtgraph.org)
+- [PyVisa $\geq$ 1.11](https://pyvisa.readthedocs.io/en/latest/)
+- [PyVisa-py $\geq$ 0.5](https://github.com/pyvisa/pyvisa-py)
+- [hatchling $\geq$ 1.9 ](https://pypi.org/project/hatchling/)<br/>
 Optional:
 - [PySerial;](https://pypi.org/project/pyserial/) for serial instruments
 - [Minimalmodbus;](https://minimalmodbus.readthedocs.io/en/stable/index.html) for Modbus instruments
+- [SciPy;](https://scipy.org/) for mathematical modules
 - [GPIB driver;](https://linux-gpib.sourceforge.io/) for GPIB devices
 - [Telegram bot API;](https://github.com/eternnoir/pyTelegramBotAPI) for Telegram bot messages
 - [SpinAPI;](http://www.spincore.com/support/spinapi/) for Pulse Blaster ESR 500 Pro
@@ -64,18 +66,14 @@ Optional:
 
 1. Atomize
 
-Install from the source directory:
+Install from PyPi:
 
-	pip3 install -e .
+	pip3 install atomize-py
 
-run from the source directory:
+run GUI from terminal:
 
-	python3 atomize
-
-or using bash option to open specified script:
-
-	python3 atomize /path/to/experimental/script
-
+	atomize
+   
 To communicate with Liveplot inside a script the general function module should be imported.
 ```python
 import atomize.general_modules.general_functions as general
@@ -256,3 +254,5 @@ The Insys device is available via ctypes. The original library can be found [her
 ![](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot.png)
 ![](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot2.png)
 ![](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot3.png)
+
+[^1]: Atomize = A + TOM + ize; A stands for Anatoly, main developer; TOMo stands for the International TOMography center, our organization

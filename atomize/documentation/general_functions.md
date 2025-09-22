@@ -3,13 +3,16 @@
 ## Contents
 - [Available functions](#available-functions)<br/>
 - [Print function](#print-a-line-in-the-main-window)<br/>
+- [Telegram bot](#send-a-message-via-telegram-bot)<br/>
 - [Wait function](#wait-for-the-specified-amount-of-time)<br/>
 - [Infinite loop](#infinite-loop)<br/>
 - [File handling functions](#file-handling)<br/>
+- [Concurrency](#concurrency)<br/>
 - [Example 1](#open-file)<br/>
 - [Example 2](#save-file-in-the-end-of-the-script)<br/>
 - [Example 3](#save-file-during-the-script)<br/>
-
+- [Example 4](#run-a-function-and-plot-in-another-thread)<br/>
+- 
 ## Available functions
 - [message('string')](#print-a-line-in-the-main-window)<br/>
 - [bot_message('message')](#send-a-message-via-telegram-bot)<br/>
@@ -28,6 +31,9 @@
 - [create_file_parameters(add_name, directory = '')](#create_file_parameters)<br/>
 - [save_header(filename, header = '', mode = 'w')](#save_header)<br/>
 - [save_data(filename, data, header = '', mode = 'w')](#save_data)<br/>
+
+## Available modules
+- [returned_thread](#concurrency)<br/>
 
 ## Print a line in the main window
 To call this function a corresponding general function module should be imported. After that
@@ -208,6 +214,19 @@ np.savetxt(path_to_file, data_to_save, fmt = '%.4e', delimiter = ' ',
 newline = 'n', header = 'field: %d' % i, footer = '', comments = '#',
 encoding = None)
 ```
+## Concurrency
+It is possible to run a function in a separate thread, different from the main one, and get return values from this function. This can be done using the returned_thread module. A minimal example is as follows:
+```python3
+import atomize.general_modules.returned_thread as returnThread
+
+prWait = returnThread.rThread(target = general.wait, args=('150 ms', ), kwargs={})
+prWait.start()
+# do some other stuff
+prWait.join()
+# if a function returns something:
+# returned_value1 = prWait.join()
+```
+
 
 # Minimal examples of using these functions inside the experimental script
 ## Open file
@@ -231,14 +250,11 @@ import atomize.general_modules.csv_opener_saver as openfile
 file_handler = openfile.Saver_Opener()
 
 data = [];
-step = 10;
-i = 0;
 general.message('Test of saving data')
 path_to_file = file_handler.create_file_dialog(directory = '')
 
 ## 2D Experiment
-while i <= 10:
-	i = i + 1;
+for _ in range(10):
 	axis_x = np.arange(4000)
 	ch_time = np.random.randint(250, 500, 1)
 	zs = 1 + 100*np.exp(-axis_x/ch_time) + 7*np.random.normal(size = (4000))
@@ -251,7 +267,7 @@ while i <= 10:
 
 f = open(path_to_file, 'a')
 np.savetxt(f, data, fmt = '%.4e', delimiter = ',', newline = 'n',
-	header = 'field: %d' % i, footer = '', comments = '#', encoding = None)
+	header = 'Header text', footer = '', comments = '#', encoding = None)
 f.close()
 ```
 
@@ -264,22 +280,20 @@ import atomize.general_modules.csv_opener_saver as openfile
 file_handler = openfile.Saver_Opener()
 
 data = [];
-step = 10;
-i = 0;
 general.message('Test of saving data')
 path_to_file = file_handler.create_file_dialog(directory = '', fmt = '')
 
 f = open(path_to_file, 'a')
 ## 2D Experiment
-while i <= 10:
-	i = i + 1;
+for _ in range(10):
 	axis_x = np.arange(4000)
 	ch_time = np.random.randint(250, 500, 1)
 	zs = 1 + 100*np.exp(-axis_x/ch_time) + 7*np.random.normal(size=(4000))
 	data.append(zs)
 	general.wait('100 ms')
+	
 	np.savetxt(f, zs, fmt = '%.4e', delimiter = ' ', newline = 'n', 
-	header = 'field: %d' % i, footer = '', comments = '#', encoding = None)
+	header = 'Header text', footer = '', comments = '#', encoding = None)
 
 	general.plot_2d('Plot Z Test', data, start_step = ((0, 1), (0.3, 0.001)),
 	xname = 'Time', xscale = 's', yname = 'Magnetic Field', yscale = 'T', zname = 'Intensity',
@@ -288,4 +302,34 @@ while i <= 10:
 f.close()
 ```
 
+## Run a function and plot in another thread
+```python3
+import time
+import numpy as np
+import atomize.general_modules.general_functions as general
+import atomize.general_modules.returned_thread as returnThread
 
+prPlot = 'None'
+POINTS = 50
+STEP = 2
+
+data_x = np.zeros(POINTS)
+data_y = np.zeros(POINTS)
+x_axis = np.linspace(0, (POINTS - 1)*STEP, num = POINTS) 
+
+for i in range(POINTS):
+
+    data_x[i], data_y[i] = np.random.rand(1)[0], np.random.rand(1)[0]
+    
+    start_time = time.time()
+    
+    prWait = returnThread.rThread(target = general.wait, args=('150 ms', ), kwargs={})
+    prWait.start()
+    # Does not affect elapsed time, as it is less than “150 ms” in the wait function from the prWait
+    general.wait('200 ms')
+
+    prPlot = general.plot_1d('EXP1', x_axis, (data_x, data_y), label = 'test2', xname = 'Delay', xscale = 'ns', yname = 'Area', yscale = 'V*s', vline = (STEP*i, ), pr = prPlot, text=str(STEP*i))
+    prWait.join()
+
+    general.message(str(time.time() - start_time))
+```

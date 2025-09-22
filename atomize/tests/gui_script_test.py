@@ -2,7 +2,7 @@ import sys
 import time
 import numpy as np
 from multiprocessing import Process, Pipe
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QSpinBox, QHBoxLayout, QLabel, QPushButton
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QSpinBox, QHBoxLayout, QLabel, QPushButton
 # import of required devices and general modules
 
 # it should be included for possibility of a test run
@@ -192,6 +192,6 @@ if __name__ == "__main__":
         app = QApplication([])
         win = MainWindow()
         win.show()
-        app.exec_()
+        app.exec()
     elif test_flag == 'test': # it should be included in order to skip tests
         pass

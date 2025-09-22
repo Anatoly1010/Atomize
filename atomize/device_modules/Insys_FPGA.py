@@ -157,6 +157,8 @@ class Insys_FPGA:
             self.synt_number = 2
             self.synt2_shift = 15
             self.synt2_ext = 4
+            #####
+            self.detection_phase = []
 
         elif self.test_flag == 'test':
             self.test_rep_rate_pulser = '200 Hz'
@@ -178,7 +180,9 @@ class Insys_FPGA:
             self.synt_number = 2
             self.synt2_shift = 15
             self.synt2_ext = 4
-
+            #####
+            self.detection_phase = []
+            
         #### Inizialization
         # setting path to *.ini file
         ####################DAC################################################################################
@@ -520,6 +524,7 @@ class Insys_FPGA:
 
                 if channel == 'TRIGGER':
                     self.adc_window = int( self.adc_window + ceil(p_length / self.timebase_pulser) )
+                    #####self.detection_phase = phase_list
                     #self.win_right = self.adc_window - 1
                 elif channel == 'TRIGGER_AWG':
                     self.dac_window = int( self.dac_window + ceil(p_length / self.timebase_pulser) )
@@ -580,6 +585,8 @@ class Insys_FPGA:
             if channel == 'MW':
                 self.phase_array_length_pulser.append(len(list(phase_list)))
             elif channel == 'TRIGGER':
+                #####self.detection_phase = phase_list
+
                 assert( len(list(phase_list)) ) == 0, 'TRIGGER pulse should not have phase'
 
             # Checks
@@ -1879,13 +1886,13 @@ class Insys_FPGA:
             if self.buffer_ready == 1:
                 #general.message(self.count_nip)
                 if integral == False:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle) #####acq_cycle = self.detection_phase
                     
                     self.buffer_ready = 0
                     self.data_i_ph_T, self.data_q_ph_T = self.data_i_ph.T, self.data_q_ph.T
                     return self.data_i_ph_T, self.data_q_ph_T#, self.count_nip #, self.buffer_ready + 1
                 elif integral == True:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle) #####acq_cycle = self.detection_phase
                     self.buffer_ready = 0
                     return 1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ), 1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
 
@@ -1928,13 +1935,13 @@ class Insys_FPGA:
             if self.buffer_ready == 1:
                 if integral == False:
                     #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), acq_cycle = acq_cycle)
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), acq_cycle = acq_cycle) #####acq_cycle = self.detection_phase
 
                     self.buffer_ready = 0
                     self.data_i_ph_T, self.data_q_ph_T = self.data_i_ph.T, self.data_q_ph.T
                     return self.data_i_ph_T, self.data_q_ph_T #, None#, self.buffer_ready + 1
                 elif integral == True:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef ) ) ), acq_cycle = acq_cycle)
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef ) ) ), acq_cycle = acq_cycle) #####acq_cycle = self.detection_phase
                     #general.message( len(np.sum( ((self.data_i_ph))[:, self.win_left:self.win_right], axis = 1 )) )
                     self.buffer_ready = 0
                     return  1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ),  1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
@@ -2058,13 +2065,13 @@ class Insys_FPGA:
             if self.buffer_ready == 1:
                 #general.message(self.count_nip)
                 if integral == False:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle) #####acq_cycle = self.detection_phase
                     
                     self.buffer_ready = 0
                     self.data_i_ph_T, self.data_q_ph_T = self.data_i_ph.T, self.data_q_ph.T
                     return self.data_i_ph_T, self.data_q_ph_T#, self.count_nip #, self.buffer_ready + 1
                 elif integral == True:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle) #####acq_cycle = self.detection_phase
                     self.buffer_ready = 0
                     return 1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ), 1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
 
@@ -2107,13 +2114,13 @@ class Insys_FPGA:
             if self.buffer_ready == 1:
                 if integral == False:
                     #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), acq_cycle = acq_cycle)
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), acq_cycle = acq_cycle) #####acq_cycle = self.detection_phase
 
                     self.buffer_ready = 0
                     self.data_i_ph_T, self.data_q_ph_T = self.data_i_ph.T, self.data_q_ph.T
                     return self.data_i_ph_T, self.data_q_ph_T #, None#, self.buffer_ready + 1
                 elif integral == True:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef ) ) ), acq_cycle = acq_cycle)
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef ) ) ), acq_cycle = acq_cycle) #####acq_cycle = self.detection_phase
                     #general.message( len(np.sum( ((self.data_i_ph))[:, self.win_left:self.win_right], axis = 1 )) )
                     self.buffer_ready = 0
                     return  1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ),  1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
