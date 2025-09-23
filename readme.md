@@ -38,7 +38,7 @@ At the moment, Atomize has been tested and is currently used for controlling sev
     - [Balances](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)<br/>
     - [Other](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/other_device_functions.md)<br/>
 - [Function for devices](#available-function-for-devices)<br/>
-- [General functions and modules](#available-general-functions)<br/>
+- [General functions and modules](#available-general-functions-and-modules)<br/>
 - [Plotting functions](#available-plotting-functions)<br/>
 - [Experimental script examples](https://github.com/Anatoly1010/Atomize/tree/master/atomize/tests)<br/>
 - [Screenshots](#screenshots)<br/>
@@ -46,13 +46,13 @@ At the moment, Atomize has been tested and is currently used for controlling sev
 - [Protocol settings](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md)<br/>
 
 ## Requirements
-- [Python $\geq$ 3.9](https://www.python.org/)
-- [Numpy $\geq$ 1.25](https://numpy.org/)
-- [PyQt6; $\geq$ 6.2](http://www.riverbankcomputing.com/software/pyqt/download)
-- [pyqtgraph $\geq$ 0.12](http://www.pyqtgraph.org)
-- [PyVisa $\geq$ 1.11](https://pyvisa.readthedocs.io/en/latest/)
-- [PyVisa-py $\geq$ 0.5](https://github.com/pyvisa/pyvisa-py)
-- [hatchling $\geq$ 1.9 ](https://pypi.org/project/hatchling/)<br/>
+> > - [Python >= 3.9](https://www.python.org/)
+- [Numpy >= 1.25](https://numpy.org/)
+- [PyQt6 >= 6.2](http://www.riverbankcomputing.com/software/pyqt/download)
+- [pyqtgraph >= 0.12](http://www.pyqtgraph.org)
+- [PyVisa >= 1.11](https://pyvisa.readthedocs.io/en/latest/)
+- [PyVisa-py >= 0.5](https://github.com/pyvisa/pyvisa-py)
+- [hatchling >= 1.9 ](https://pypi.org/project/hatchling/)<br/>
 Optional:
 - [PySerial;](https://pypi.org/project/pyserial/) for serial instruments
 - [Minimalmodbus;](https://minimalmodbus.readthedocs.io/en/stable/index.html) for Modbus instruments
@@ -70,7 +70,7 @@ Install from PyPi:
 
 	pip3 install atomize-py
 
-run GUI from terminal:
+Run GUI from terminal:
 
 	atomize
    
@@ -227,7 +227,7 @@ The Insys device is available via ctypes. The original library can be found [her
  - Cryomagnetics LM-510 Liquid Cryogen Monitor (TCP/IP Socket); Tested 07/2022
  - Cryomech CPA2896, CPA1110 Digital Panels (RS-485); Tested 07/2022
 
-## [Available general functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
+## [Available general functions and modules](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/general_functions.md)
 
 ## [Available plotting functions](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/plotting_functions.md)
 
