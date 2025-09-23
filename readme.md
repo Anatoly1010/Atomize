@@ -46,7 +46,7 @@ At the moment, Atomize has been tested and is currently used for controlling sev
 - [Protocol settings](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md)<br/>
 
 ## Requirements
-> > - [Python >= 3.9](https://www.python.org/)
+- [Python >= 3.9](https://www.python.org/)
 - [Numpy >= 1.25](https://numpy.org/)
 - [PyQt6 >= 6.2](http://www.riverbankcomputing.com/software/pyqt/download)
 - [pyqtgraph >= 0.12](http://www.pyqtgraph.org)
