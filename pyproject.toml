@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "atomize-py"
-version = "0.0.2.4"
+version = "0.2.0"
 authors = [
     {name = "Atomize Developers"}
 ]
 description = "A modular software for working with scientific devices and combining them into unified multifunctional setup"
 readme = "readme.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 keywords = ["automation", "measurement", "instrument control", "experimental script", "graph", "scientific instruments", "industrial instruments"]
 license = "MIT"
 
@@ -40,6 +40,7 @@ Documentation = "https://github.com/Anatoly1010/Atomize/tree/master/atomize/docu
     modbus = ["minimalmodbus>=1.0"]
 	gui = ["tkinter>=8.6"]
 	bots = ["pyTelegramBotAPI>=4.15"]
+    math = ["scipy>=1.15"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["atomize"]
