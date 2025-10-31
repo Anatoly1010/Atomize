@@ -137,15 +137,23 @@ class Sibir_1():
                     if int(points[0])>=0 and int(points[0]) <= 8192:
                         self.num_point = int(points[0])
                         self.NMR_number_point(0)
+                        if int(points[0]) != 8192:
+                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {8192}")
                     elif int(points[0])>=8193 and int(points[0]) <= 16384:
                         self.num_point = int(points[0])
                         self.NMR_number_point(1)
+                        if int(points[0]) != 16384:
+                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {16384}")                        
                     elif int(points[0])>=16385 and int(points[0]) <= 32768:
                         self.num_point = int(points[0])
                         self.NMR_number_point(2)
+                        if int(points[0]) != 32768:
+                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {32768}")                        
                     elif int(points[0])>=32769 and int(points[0]) <= 53248:
                         self.num_point = int(points[0])
                         self.NMR_number_point(3)
+                        if int(points[0]) != 53248:
+                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {53248}")                        
 
             elif len(points) == 0:       
                 return self.num_point 
@@ -169,35 +177,55 @@ class Sibir_1():
                     if _nav >=0 and _nav <= 1:
                         self.NMR_nav(0)
                         self.num_exp = 1
+                        if _nav != 1:
+                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {1}")
                     elif _nav>=2 and _nav <= 8:
                         self.NMR_nav(1)
                         self.num_exp = 1
+                        if _nav != 8:
+                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {8}")
                     elif _nav>=9 and _nav <= 16:
                         self.NMR_nav(2)
                         self.num_exp = 1
+                        if _nav != 16:
+                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {16}")
                     elif _nav>=17 and _nav <= 32:
                         self.NMR_nav(3)
                         self.num_exp = 1
+                        if _nav != 32:
+                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {32}")
                     elif _nav>=33 and _nav <= 64:
                         self.NMR_nav(4)
                         self.num_exp = 1
+                        if _nav != 64:
+                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {64}")
                     elif _nav>=65 and _nav <= 128:
                         self.NMR_nav(5)
                         self.num_exp = 1
+                        if _nav != 128:
+                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {128}")
                     elif _nav>=129 and _nav <= 256:
                         self.NMR_nav(5)
                         self.num_exp = 2
+                        if _nav != 256:
+                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {256}")
                     elif _nav>=257 and _nav <= 512:
                         self.NMR_nav(5)
                         self.num_exp = 4
+                        if _nav != 512:
+                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {512}")                        
                     elif _nav>=513 and _nav <= 1024:
                         self.NMR_nav(5)
                         self.num_exp = 8
+                        if _nav != 1024:
+                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {1024}")                        
                     elif _nav>=1025 and _nav <= 2048:
                         self.NMR_nav(5)
                         self.num_exp = 16
+                        if _nav != 2048:
+                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {2048}")                        
                 else:
-                    assert (1 == 2), 'Invalid number of averages, correct = [0..512]'
+                    assert (1 == 2), 'Invalid number of averages, correct = [0..2048]'
                     
             elif len(nav) == 0:   
                 return self.NMR_nav() * self.num_exp
@@ -208,17 +236,16 @@ class Sibir_1():
             if len(nav) == 1:
                 _nav = int(nav[0])
                 if  _nav>=0 and _nav <= 2048:
-                    print()
                     pass 
                 else:
-                    assert (1 == 2), 'Invalid number of averages, correct = [0..512]'
+                    assert (1 == 2), 'Invalid number of averages, correct = [0..2048]'
             elif len(nav) == 0:   
                 return self.mode_nav * self.num_exp
             else:
                 general.message("Invalid argument")
                 sys.exit()
 
-    def gaussmeter_search(self, B_lower, B_upper,step):
+    def gaussmeter_search(self, B_lower, B_upper, step):
         B1   = int(B_lower)
         B2   = int(B_upper)  
         st   = int(step)
@@ -256,7 +283,7 @@ class Sibir_1():
             if S_n > 0:
                 F_cl = self.z(W[2:], I[2:],Fref)
                 B_cl = (-F_cl+Fref+480)/self.Fr*10
-                return arr[2:] , I[2:] , round(B_cl,4) , S_n
+                return arr[2:] , I[2:] , round(B_cl, 4) , S_n
             else:
                 return arr[2:] , I[2:] , 0 , S_n
         elif self.test_flag == 'test':
@@ -308,7 +335,7 @@ class Sibir_1():
                     self.time_90_deg_pulse = time_pulse[0]
                     self.set_2_reg()
                 else:
-                    assert (1 == 2), 'Invalid length of the pi/2 pulse, correct = [0..2000]'
+                    assert (1 == 2), 'Invalid length of the pi/2 pulse, correct = [0..40]'
             elif len(time_pulse) == 0:
                 return  self.reg[2]
             else:
@@ -334,11 +361,11 @@ class Sibir_1():
                 if sensor_number[0]>=1 and sensor_number[0] <= 4:
                     self.sensor_number = sensor_number[0]
                 else:
-                    assert (1 == 2), 'Invalid values nav, correct = [1..4]'
+                    assert (1 == 2), 'Invalid sensor number, correct = [1..4]'
             elif len(sensor_number) == 0:
                 return  self.sensor_number
             else:
-                assert (1 == 2), 'Invalid record length argument'
+                assert (1 == 2), 'Invalid sensor number argument'
 
 ### Auxiliary functions
     def z(self, X, Y, F):
