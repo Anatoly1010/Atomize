@@ -157,8 +157,6 @@ class Insys_FPGA:
             self.synt_number = 2
             self.synt2_shift = 15
             self.synt2_ext = 4
-            #####
-            self.detection_phase = []
 
         elif self.test_flag == 'test':
             self.test_rep_rate_pulser = '200 Hz'
@@ -180,9 +178,7 @@ class Insys_FPGA:
             self.synt_number = 2
             self.synt2_shift = 15
             self.synt2_ext = 4
-            #####
-            self.detection_phase = []
-            
+
         #### Inizialization
         # setting path to *.ini file
         ####################DAC################################################################################
@@ -518,13 +514,12 @@ class Insys_FPGA:
                 
                 p_length = self.round_to_closest(p_length_raw, 3.2)
                 if p_length != p_length_raw:
-                    general.message(f"Pulse Length is not divisible by 3.2. The closest available Pulse Length of {p_length} ns is used")
+                    general.message(f"Pulse Length of {p_length_raw} is not divisible by 3.2. The closest available Pulse Length of {p_length} ns is used")
 
                 pulse['length'] = str(p_length) + ' ns'
 
                 if channel == 'TRIGGER':
                     self.adc_window = int( self.adc_window + ceil(p_length / self.timebase_pulser) )
-                    #####self.detection_phase = phase_list
                     #self.win_right = self.adc_window - 1
                 elif channel == 'TRIGGER_AWG':
                     self.dac_window = int( self.dac_window + ceil(p_length / self.timebase_pulser) )
@@ -540,7 +535,7 @@ class Insys_FPGA:
 
                 p_start = self.round_to_closest(p_start_raw, 3.2)
                 if p_start != p_start_raw:
-                    general.message(f"Pulse Start is not divisible by 3.2. The closest available Pulse Start of {p_start} ns is used")
+                    general.message(f"Pulse Start of {p_start_raw} is not divisible by 3.2. The closest available Pulse Start of {p_start} ns is used")
 
                 pulse['start'] = str(p_start) + ' ns'
 
@@ -551,7 +546,7 @@ class Insys_FPGA:
 
                 p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
                 if p_delta_start != p_delta_start_raw:
-                    general.message(f"Pulse Delta Start is not divisible by 3.2. The closest available Pulse Delta Start of {p_delta_start} ns is used")
+                    general.message(f"Pulse Delta Start of {p_delta_start_raw} is not divisible by 3.2. The closest available Pulse Delta Start of {p_delta_start} ns is used")
 
                 pulse['delta_start'] = str(p_delta_start) + ' ns'
 
@@ -562,7 +557,7 @@ class Insys_FPGA:
 
                 p_length_increment = self.round_to_closest(p_length_increment_raw, 3.2)
                 if p_length_increment != p_length_increment_raw:
-                    general.message(f"Pulse Length Increment is not divisible by 3.2. The closest available Pulse Length Increment of {p_length_increment} ns is used")
+                    general.message(f"Pulse Length Increment of {p_length_increment_raw} is not divisible by 3.2. The closest available Pulse Length Increment of {p_length_increment} ns is used")
 
                 pulse['length_increment'] = str(p_length_increment) + ' ns'
 
@@ -585,8 +580,6 @@ class Insys_FPGA:
             if channel == 'MW':
                 self.phase_array_length_pulser.append(len(list(phase_list)))
             elif channel == 'TRIGGER':
-                #####self.detection_phase = phase_list
-
                 assert( len(list(phase_list)) ) == 0, 'TRIGGER pulse should not have phase'
 
             # Checks
@@ -605,7 +598,7 @@ class Insys_FPGA:
                 
                 p_length = self.round_to_closest(p_length_raw, 3.2)
                 if p_length != p_length_raw:
-                    general.message(f"Pulse Length is not divisible by 3.2. The closest available Pulse Length of {p_length} is used")
+                    general.message(f"Pulse Length of {p_length_raw} is not divisible by 3.2. The closest available Pulse Length of {p_length} is used")
 
                 pulse['length'] = str(p_length) + ' ns'
 
@@ -634,7 +627,7 @@ class Insys_FPGA:
                 p_start_raw = coef*float(temp_start[0])
                 p_start = self.round_to_closest(p_start_raw, 3.2)
                 if p_start != p_start_raw:
-                    general.message(f"Pulse Start is not divisible by 3.2. The closest available Pulse Start of {p_start} ns is used")
+                    general.message(f"Pulse Start of {p_start_raw} is not divisible by 3.2. The closest available Pulse Start of {p_start} ns is used")
 
                 pulse['start'] = str(p_start) + ' ns'
 
@@ -650,7 +643,7 @@ class Insys_FPGA:
 
                 p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
                 if p_delta_start != p_delta_start_raw:
-                    general.message(f"Pulse Delta Start is not divisible by 3.2. The closest available Pulse Delta Start of {p_delta_start} ns is used")
+                    general.message(f"Pulse Delta Start of {p_delta_start_raw} is not divisible by 3.2. The closest available Pulse Delta Start of {p_delta_start} ns is used")
 
                 pulse['delta_start'] = str(p_delta_start) + ' ns'
 
@@ -666,7 +659,7 @@ class Insys_FPGA:
 
                 p_length_increment = self.round_to_closest(p_length_increment_raw, 3.2)
                 if p_length_increment != p_length_increment_raw:
-                    general.message(f"Pulse Length Increment is not divisible by 3.2. The closest available Pulse Length Increment of {p_length_increment} ns is used")
+                    general.message(f"Pulse Length Increment of {p_length_increment_raw} is not divisible by 3.2. The closest available Pulse Length Increment of {p_length_increment} ns is used")
 
                 pulse['length_increment'] = str(p_length_increment) + ' ns'
 
@@ -771,7 +764,7 @@ class Insys_FPGA:
                         p_delta_start_raw = coef*float(temp_delta_start[0])
                         p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
                         if p_delta_start != p_delta_start_raw:
-                            general.message(f"Pulse Delta start is not divisible by 3.2. The closest available Pulse Delta start of {p_delta_start} ns is used")
+                            general.message(f"Pulse Delta start of {p_delta_start_raw} is not divisible by 3.2. The closest available Pulse Delta start of {p_delta_start} ns is used")
 
                     self.pulse_array_pulser[i]['delta_start'] = str(p_delta_start) + ' ns'
                     self.shift_count_pulser = 1
@@ -794,7 +787,7 @@ class Insys_FPGA:
                         p_delta_start_raw = coef*float(temp_delta_start[0])
                         p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
                         if p_delta_start != p_delta_start_raw:
-                            general.message(f"Pulse Delta start is not divisible by 3.2. The closest available Pulse Delta start of {p_delta_start} ns is used")
+                            general.message(f"Pulse Delta start of {p_delta_start_raw} is not divisible by 3.2. The closest available Pulse Delta start of {p_delta_start} ns is used")
 
                         assert(round(remainder(p_delta_start, 3.2), 2) == 0), 'Pulse delta start should be divisible by 3.2'
                         assert(p_delta_start >= 0), 'Pulse delta start is a negative number'
@@ -828,7 +821,7 @@ class Insys_FPGA:
                         p_length_increment_raw = coef*float(temp_length_increment[0])
                         p_length_increment = self.round_to_closest(p_length_increment_raw, 3.2)
                         if p_length_increment != p_length_increment_raw:
-                            general.message(f"Pulse length increment is not divisible by 3.2. The closest available Pulse length increment of {p_length_increment} ns is used")
+                            general.message(f"Pulse length increment of {p_length_increment_raw} is not divisible by 3.2. The closest available Pulse length increment of {p_length_increment} ns is used")
 
                     self.pulse_array_pulser[i]['length_increment'] = str(length_increment)
                     self.increment_count_pulser = 1
@@ -851,7 +844,7 @@ class Insys_FPGA:
                         p_length_increment_raw = coef*float(temp_length_increment[0])
                         p_length_increment = self.round_to_closest(p_length_increment_raw, 3.2)
                         if p_length_increment != p_length_increment_raw:
-                            general.message(f"Pulse length increment is not divisible by 3.2. The closest available Pulse length increment of {p_length_increment} ns is used")
+                            general.message(f"Pulse length increment of {p_length_increment_raw} is not divisible by 3.2. The closest available Pulse length increment of {p_length_increment} ns is used")
                         
                         assert(round(remainder(p_length_increment, 3.2), 2) == 0), 'Pulse length increment should be divisible by 3.2'
                         assert (p_length_increment >= 0 and p_length_increment < self.max_pulse_length_pulser), \
@@ -1880,19 +1873,19 @@ class Insys_FPGA:
 
                     self.nStrmBufTotalCnt_brd = BufCnt
 
-            data_i = self.adc_sens * self.data_raw[0::(2*self.dec_coef)]
-            data_q = self.adc_sens * self.data_raw[1::(2*self.dec_coef)]
-
             if self.buffer_ready == 1:
                 #general.message(self.count_nip)
+                data_i = self.adc_sens * self.data_raw[0::(2*self.dec_coef)]
+                data_q = self.adc_sens * self.data_raw[1::(2*self.dec_coef)]
+
                 if integral == False:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle) #####acq_cycle = self.detection_phase
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
                     
                     self.buffer_ready = 0
                     self.data_i_ph_T, self.data_q_ph_T = self.data_i_ph.T, self.data_q_ph.T
                     return self.data_i_ph_T, self.data_q_ph_T#, self.count_nip #, self.buffer_ready + 1
                 elif integral == True:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle) #####acq_cycle = self.detection_phase
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
                     self.buffer_ready = 0
                     return 1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ), 1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
 
@@ -1935,13 +1928,13 @@ class Insys_FPGA:
             if self.buffer_ready == 1:
                 if integral == False:
                     #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), acq_cycle = acq_cycle) #####acq_cycle = self.detection_phase
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), acq_cycle = acq_cycle)
 
                     self.buffer_ready = 0
                     self.data_i_ph_T, self.data_q_ph_T = self.data_i_ph.T, self.data_q_ph.T
                     return self.data_i_ph_T, self.data_q_ph_T #, None#, self.buffer_ready + 1
                 elif integral == True:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef ) ) ), acq_cycle = acq_cycle) #####acq_cycle = self.detection_phase
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef ) ) ), acq_cycle = acq_cycle)
                     #general.message( len(np.sum( ((self.data_i_ph))[:, self.win_left:self.win_right], axis = 1 )) )
                     self.buffer_ready = 0
                     return  1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ),  1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
@@ -2059,19 +2052,21 @@ class Insys_FPGA:
 
                     self.nStrmBufTotalCnt_brd = BufCnt
 
-            data_i = self.adc_sens * self.data_raw[0::(2*self.dec_coef)]
-            data_q = self.adc_sens * self.data_raw[1::(2*self.dec_coef)]
+
 
             if self.buffer_ready == 1:
                 #general.message(self.count_nip)
+                data_i = self.adc_sens * self.data_raw[0::(2*self.dec_coef)]
+                data_q = self.adc_sens * self.data_raw[1::(2*self.dec_coef)]
+                
                 if integral == False:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle) #####acq_cycle = self.detection_phase
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
                     
                     self.buffer_ready = 0
                     self.data_i_ph_T, self.data_q_ph_T = self.data_i_ph.T, self.data_q_ph.T
                     return self.data_i_ph_T, self.data_q_ph_T#, self.count_nip #, self.buffer_ready + 1
                 elif integral == True:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle) #####acq_cycle = self.detection_phase
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
                     self.buffer_ready = 0
                     return 1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ), 1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
 
@@ -2114,13 +2109,13 @@ class Insys_FPGA:
             if self.buffer_ready == 1:
                 if integral == False:
                     #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), acq_cycle = acq_cycle) #####acq_cycle = self.detection_phase
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), acq_cycle = acq_cycle)
 
                     self.buffer_ready = 0
                     self.data_i_ph_T, self.data_q_ph_T = self.data_i_ph.T, self.data_q_ph.T
                     return self.data_i_ph_T, self.data_q_ph_T #, None#, self.buffer_ready + 1
                 elif integral == True:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef ) ) ), acq_cycle = acq_cycle) #####acq_cycle = self.detection_phase
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef ) ) ), acq_cycle = acq_cycle)
                     #general.message( len(np.sum( ((self.data_i_ph))[:, self.win_left:self.win_right], axis = 1 )) )
                     self.buffer_ready = 0
                     return  1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ),  1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
@@ -3611,7 +3606,6 @@ class Insys_FPGA:
         #general.message(f'N_IP_BUFFER: {self.N_IP}')
 
         return data_raw, count_nip
-
 
     def gen_2d_array_from_buffer2(self, data, adc_window, p, ph, live_mode):
         """
