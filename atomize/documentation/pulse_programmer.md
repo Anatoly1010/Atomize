@@ -65,9 +65,9 @@ phase_list = [] specifies a phase cycling sequence (['+x', '-x', '+y', '-y'])
 Example: pulser_pulse('name' = 'P0', channel = 'MW', start = '100 ns', length = '100 ns', 
     delta_start = '0 ns', length_increment = '0 ns') sets the pulse with no phase cycling.
 ```
-The function sets a pulse with specified parameters. The default argument is name = 'P0', channel = 'TRIGGER', start = '0 ns', length = '100 ns', delta_start = '0 ns', length_increment = '0 ns', phase_list = []. A channel should be one of the following ['TRIGGER','AMP_ON','LNA_PROTECT','MW','-X','+Y','TRIGGER_AWG', 'AWG', 'LASER','SYNT2','CH10', ... ,'CH20']. The scaling factor for start, length, delta_start, and length_increment key arguments should be one of the following ['ns', 'us', 'ms', 's']. The minimum available length of the pulse is 10 ns for Pulse Blaster ESR 500 Pro and 3.2 ns for Insys FM214x3GDA. The maximum available length of the pulse is 1900 ns. The maximum available length of the pulse sequence is approximately 10 s. The pulse sequence will be checked for overlap. In the auto defence mode (default option; can be changed in the config file) channels 'AMP_ON' and 'LNA_PROTECT' will be added automatically according to the delays indicated in the config file. In this mode 'AMP_ON' and 'LNA_PROTECT' pulses will be joined in one pulse if the distance between them is less than 12 ns (can be changed in the config file).<br/>
-In the case of Insys FM214x3GDA start, length, delta_start, and length_increment will be rounded to a multiple of 3.2.
-
+The function sets a pulse with specified parameters. The default argument is name = 'P0', channel = 'DETECTION', start = '0 ns', length = '100 ns', delta_start = '0 ns', length_increment = '0 ns', phase_list = []. A channel should be one of the following ['DETECTION','AMP_ON','LNA_PROTECT','MW','-X','+Y','TRIGGER_AWG', 'AWG', 'LASER','SYNT2','CH10', ... ,'CH20']. The scaling factor for start, length, delta_start, and length_increment key arguments should be one of the following ['ns', 'us', 'ms', 's']. The minimum available length of the pulse is 10 ns for Pulse Blaster ESR 500 Pro and 3.2 ns for Insys FM214x3GDA. The maximum available length of the pulse is 1900 ns. The maximum available length of the pulse sequence is approximately 10 s. The pulse sequence will be checked for overlap. In the auto defence mode (default option; can be changed in the config file) channels 'AMP_ON' and 'LNA_PROTECT' will be added automatically according to the delays indicated in the config file. In this mode 'AMP_ON' and 'LNA_PROTECT' pulses will be joined in one pulse if the distance between them is less than 12 ns (can be changed in the config file).<br/>
+In the case of Insys FM214x3GDA start, length, delta_start, and length_increment will be rounded to a multiple of 3.2.<br/>
+In the case of Pulse Blaster ESR 500 Pro DETECTION pulse should have an empty phase_list. The acquisition phases should be indicated directly in [pulser_acquisition_cycle()](#pulser_acquisition_cycledata1-data2-acq_cycle) function. In the case of Insys FM214x3GDA a phase_list of DETECTION pulse is used to [phase cycle](/atomize_docs/pages/functions/digitizer#digitizer_get_curve) the data.
 ---
 
 ### pulser_update()
@@ -99,7 +99,7 @@ pulser_acquisition_cycle(data1, data2, acq_cycle = []) -> numpy.array, numpy.arr
 ```yml
 data1, data2 = 1D or 2D numpy arrays;
 acq_cycle = array of mathematical operations, i.e. ['+', '-', '+i', '-i'];
-```
+```                                                                                                                                                                                                            
 ```
 Example: pulser_acquisition_cycle(np.array([1, 0]), np.array([0, 1]), acq_cycle = ['+', '-'])
 performes given mathematical operations on the arrays.
@@ -126,7 +126,7 @@ The sign '-i' at the index J of the acq_cycle means that the corresponding value
 answer = answer - 1j*data1[J] + data2[J]
 ```
 The output of the function is the real ang imaginary parts of the 'answer' array after complete cycle of mathematical transformations. These can be both 1D and 2D arrays, depending on the shape of the input data arrays.
-Although this function is available for Insys FM214x3GDA, it is better to use a modified version of [digitizer_get_curve()](/atomize_docs/pages/functions/digitizer#digitizer_get_curve).
+Although this function is available for Insys FM214x3GDA, it is better to use a modified version of [digitizer_get_curve()](/atomize_docs/pages/functions/digitizer#digitizer_get_curve). In this case acquisition phases should be given directly in the phase list key argument of the [DETECTION pulse](#pulser_pulse(kagrs).
 
 ---
 

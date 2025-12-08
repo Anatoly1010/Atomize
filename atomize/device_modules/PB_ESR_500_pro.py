@@ -38,7 +38,7 @@ class PB_ESR_500_Pro:
         # only awg regime with automatic awg_trigger?
 
         # Channel assignments
-        self.ch0 = self.specific_parameters['ch0'] # TRIGGER
+        self.ch0 = self.specific_parameters['ch0'] # DETECTION
         self.ch1 = self.specific_parameters['ch1'] # AMP_ON
         self.ch2 = self.specific_parameters['ch2'] # LNA_PROTECT
         self.ch3 = self.specific_parameters['ch3'] # MW
@@ -157,7 +157,7 @@ class PB_ESR_500_Pro:
         answer = 'PB ESR 500 Pro'
         return answer
 
-    def pulser_pulse(self, name = 'P0', channel = 'TRIGGER', start = '0 ns', length = '100 ns', \
+    def pulser_pulse(self, name = 'P0', channel = 'DETECTION', start = '0 ns', length = '100 ns', \
         delta_start = '0 ns', length_increment = '0 ns', phase_list = []):
         """
         A function that added a new pulse at specified channel. The possible arguments:
@@ -185,8 +185,8 @@ class PB_ESR_500_Pro:
             # phase_list's length
             if channel == 'MW':
                 self.phase_array_length.append(len(list(phase_list)))
-            elif channel == 'TRIGGER':
-                assert( len(list(phase_list)) ) == 0, 'TRIGGER pulse should not have phase'
+            elif channel == 'DETECTION':
+                assert( len(list(phase_list)) ) == 0, 'DETECTION pulse should not have phase'
 
             # Checks
             # two equal names
