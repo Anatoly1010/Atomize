@@ -30,6 +30,27 @@ def message(*text):
             sock.close()
     elif test_flag == 'test':
         pass
+        #sock = socket.socket()
+        #sock.connect(('localhost', 9091))
+        #if len(text) == 1:
+        #    sock.send(str(text[0]).encode())
+        #    sock.close()
+        #else:
+        #    sock.send(str(text).encode())
+        #    sock.close()
+
+def message_test(*text):
+    if test_flag != 'test':
+        pass
+    elif test_flag == 'test':
+        sock = socket.socket()
+        sock.connect(('localhost', 9091))
+        if len(text) == 1:
+            sock.send(str(text[0]).encode())
+            sock.close()
+        else:
+            sock.send(str(text).encode())
+            sock.close()
 
 def wait(interval):
     time_dict = {'ks': 0.001, 's': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000, 'ps': 1000000000000, }
@@ -86,7 +107,7 @@ def plot_1d(strname, xd, yd, label='label', xname='X',\
                                 xscale=xscale, yname=yname, yscale=yscale, scatter=scatter, timeaxis=timeaxis, vline=vline, text=text)
                 else:
                     pass
-            except IndexError:
+            except ( IndexError, TypeError ):
                 if np.isnan( yd[0] ) == False:
                     plotter.plot_xy(strname, xd, yd, label=label, xname=xname,\
                                 xscale=xscale, yname=yname, yscale=yscale, scatter=scatter, timeaxis=timeaxis, vline=vline, text=text)
@@ -104,25 +125,25 @@ def plot_1d(strname, xd, yd, label='label', xname='X',\
                     p1 = Thread(target=plotter.plot_xy, args=(strname, xd, yd, ), kwargs={'label': label, 'xname': xname, \
                                 'xscale': xscale, 'yname': yname, 'yscale': yscale, 'scatter': scatter, 'timeaxis': timeaxis, \
                                 'vline': vline, 'text': text, } )
+                    p1.start()
+                    #p1.join()
+                    return p1
                 else:
                     pass
-            except IndexError:
+            except ( IndexError, TypeError ):
                 if np.isnan( yd[0] ) == False:
                     p1 = Thread(target=plotter.plot_xy, args=(strname, xd, yd, ), kwargs={'label': label, 'xname': xname, \
                                 'xscale': xscale, 'yname': yname, 'yscale': yscale, 'scatter': scatter, 'timeaxis': timeaxis, \
                                 'vline': vline, 'text': text, } )
+                    p1.start()
+                    #p1.join()
+                    return p1                    
                 else:
                     pass
-
-
-            p1.start()
-            #p1.join()
-
-            return p1
+            
 
     elif test_flag == 'test':
         pass
-
 
 def append_1d(strname, value, start_step=(0, 1), label='label', xname='X',\
  xscale='arb. u.', yname='Y', yscale='arb. u.', scatter='False', timeaxis='False', vline='False'):
@@ -163,6 +184,11 @@ def plot_2d(strname, data, start_step=None,\
                 if np.isnan( data[0,0,0] ) == False:
                     p1 = Thread(target=plotter.plot_z, args=(strname, data, ), kwargs={'start_step': start_step, 'xname': xname, \
                                 'xscale': xscale, 'yname': yname, 'yscale': yscale, 'zname': zname, 'zscale': zscale, 'text': text, } )
+                    p1.start()
+                    #p1.join()
+
+                    return p1
+
                 else:
                     pass
 
@@ -170,13 +196,14 @@ def plot_2d(strname, data, start_step=None,\
                 if np.isnan( data[0,0] ) == False:
                     p1 = Thread(target=plotter.plot_z, args=(strname, data, ), kwargs={'start_step': start_step, 'xname': xname, \
                                 'xscale': xscale, 'yname': yname, 'yscale': yscale, 'zname': zname, 'zscale': zscale, 'text': text, } )
+                    p1.start()
+                    #p1.join()
+
+                    return p1
+
                 else:
                     pass
 
-            p1.start()
-            #p1.join()
-
-            return p1
         
     elif test_flag == 'test':
         pass
@@ -241,7 +268,7 @@ def bot_message(*text):
     import telebot
     # configuration data
     path_to_main = os.path.abspath(os.getcwd())
-    path_config_file = os.path.join(path_to_main,'atomize/config.ini')
+    path_config_file = os.path.join(path_to_main, '..', 'atomize/config.ini')
     config = configparser.ConfigParser()
     config.read(path_config_file)
 
@@ -250,8 +277,10 @@ def bot_message(*text):
     if test_flag != 'test':
         if len(text) == 1:
             bot.send_message(chat_id, str(text[0]))
+            bot.send_message(760577263, str(text[0]))
         else:
             bot.send_message(chat_id, str(text))
+            bot.send_message(760577263, str(text))
     elif test_flag == 'test':
         pass
 

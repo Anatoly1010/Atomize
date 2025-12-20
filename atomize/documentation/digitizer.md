@@ -25,7 +25,7 @@ The Insys device is available via ctypes. The original library can be found [her
 - [digitizer_setup()](#digitizer_setup)<br/>
 - [digitizer_get_curve()](#digitizer_get_curve)<br/>
 - [digitizer_get_curve(integral = True)](#digitizer_get_curveintegral--true)<br/>
-- [digitizer_get_curve(points, phases, integral = False)](#digitizer_get_curvepoints-phases-acq_cycle-integral--false)<br/>
+- [digitizer_get_curve(points, phases, integral = False)](#digitizer_get_curvepoints-phases-integral--false)<br/>
 - [digitizer_close()](#digitizer_close)<br/>
 - [digitizer_stop()](#digitizer_stop)<br/>
 - [digitizer_number_of_points(*points)](#digitizer_number_of_pointspoints)<br/>
@@ -104,7 +104,7 @@ digitizer_get_curve(points: int, phases: int,
 Example: digitizer_get_curve(100, 2, integral = False)
 runs acquisition and returns the phase cylced data.
 ```
-This function starts the data acquisition and [phase cycling](/atomize_docs/pages/functions/pulse_programmer#pulser_acquisition_cycle) the data. The argument 'points' indicates the total number of points in the pulse experiment and the argument 'phases' corresponds to the total number of phases in the pulse experiment. The data will be phase cycled according to the phase list given in the [DETECTION pulse](/atomize_docs/pages/functions/pulse_programmer#pulser_pulsekargs)). The details of phase cycling are given in the function [pulser_acquisition_cycle()](/atomize_docs/pages/functions/pulse_programmer#pulser_acquisition_cycle). A keyword 'integral' allows integrating the data over a given [window](#digitizer_read_settings).
+This function starts the data acquisition and [phase cycling](/atomize_docs/pages/functions/pulse_programmer#pulser_acquisition_cycle) the data. The argument 'points' indicates the total number of points in the pulse experiment and the argument 'phases' corresponds to the total number of phases in the pulse experiment. The data will be phase cycled according to the phase list given in the [DETECTION pulse](/atomize_docs/pages/functions/pulse_programmer#pulser_pulsekargs). The details of phase cycling are given in the function [pulser_acquisition_cycle()](/atomize_docs/pages/functions/pulse_programmer#pulser_acquisition_cycle). A keyword 'integral' allows integrating the data over a given [window](#digitizer_read_settings).
 
 ---
 

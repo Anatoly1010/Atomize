@@ -417,7 +417,7 @@ class PB_ESR_500_Pro:
             self.phase_pulses = 0
             # adding phase switch pulses
             for index, element in enumerate(self.pulse_array):
-                if len(list(element['phase_list'])) != 0:
+                if (len(list(element['phase_list'])) != 0) and (element['channel'] != 'DETECTION'):
                     if element['phase_list'][self.current_phase_index] == '+x':
                         #pass
                         # 21-08-2021; Correction of non updating case for ['-x', '+x']
@@ -492,7 +492,7 @@ class PB_ESR_500_Pro:
 
             self.phase_pulses = 0
             for index, element in enumerate(self.pulse_array):
-                if len(list(element['phase_list'])) != 0:
+                if (len(list(element['phase_list'])) != 0) and (element['channel'] != 'DETECTION'):
                     if element['phase_list'][self.current_phase_index] == '+x':
                         #pass
                         # 21-08-2021; Correction of non updating case for ['-x', '+x']

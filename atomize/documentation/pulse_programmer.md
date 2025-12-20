@@ -18,7 +18,7 @@ The Insys device is available via ctypes. The original library can be found [her
 
 ### Functions
 - [pulser_name()](#pulser_name)<br/>
-- [pulser_pulse(*kagrs)](#pulser_pulsekargs)<br/>
+- [pulser_pulse(*kargs)](#pulser_pulsekargs)<br/>
 - [pulser_update()](#pulser_update)<br/>
 - [pulser_next_phase()](#pulser_next_phase)<br/>
 - [pulser_acquisition_cycle(data1, data2, acq_cycle)](#pulser_acquisition_cycledata1-data2-acq_cycle)<br/>
@@ -48,9 +48,9 @@ The function returns device name.
 
 ---
 
-### pulser_pulse(*kagrs)
+### pulser_pulse(*kargs)
 ```python
-pulser_pulse(*kagrs) -> none
+pulser_pulse(*kargs) -> none
 ```
 ```yml
 name = 'P0' specifies a name of the pulse
@@ -68,6 +68,7 @@ Example: pulser_pulse('name' = 'P0', channel = 'MW', start = '100 ns', length = 
 The function sets a pulse with specified parameters. The default argument is name = 'P0', channel = 'DETECTION', start = '0 ns', length = '100 ns', delta_start = '0 ns', length_increment = '0 ns', phase_list = []. A channel should be one of the following ['DETECTION','AMP_ON','LNA_PROTECT','MW','-X','+Y','TRIGGER_AWG', 'AWG', 'LASER','SYNT2','CH10', ... ,'CH20']. The scaling factor for start, length, delta_start, and length_increment key arguments should be one of the following ['ns', 'us', 'ms', 's']. The minimum available length of the pulse is 10 ns for Pulse Blaster ESR 500 Pro and 3.2 ns for Insys FM214x3GDA. The maximum available length of the pulse is 1900 ns. The maximum available length of the pulse sequence is approximately 10 s. The pulse sequence will be checked for overlap. In the auto defence mode (default option; can be changed in the config file) channels 'AMP_ON' and 'LNA_PROTECT' will be added automatically according to the delays indicated in the config file. In this mode 'AMP_ON' and 'LNA_PROTECT' pulses will be joined in one pulse if the distance between them is less than 12 ns (can be changed in the config file).<br/>
 In the case of Insys FM214x3GDA start, length, delta_start, and length_increment will be rounded to a multiple of 3.2.<br/>
 In the case of Pulse Blaster ESR 500 Pro DETECTION pulse should have an empty phase_list. The acquisition phases should be indicated directly in [pulser_acquisition_cycle()](#pulser_acquisition_cycledata1-data2-acq_cycle) function. In the case of Insys FM214x3GDA a phase_list of DETECTION pulse is used to [phase cycle](/atomize_docs/pages/functions/digitizer#digitizer_get_curve) the data.
+
 ---
 
 ### pulser_update()
@@ -88,7 +89,7 @@ pulser_next_phase() -> none
 ```
 Example: pulser_next_phase() switches all pulses in the sequence to the next phase.
 ```
-This function switches all pulses to the next phase. The phase sequence is declared in the [pulser_pulse()](#pulser_pulsekagrs) in the form of phase_list = ['-y', '+x', '-x', '+x', ...]. By repeatedly calling the function one can run through the complete list of phases for the pulses. The length of all phase lists specified for different MW pulses has to be the same. This function also immediately updates the pulse sequence, as it is done by calling [pulser_update()](#pulser_update). The first call of the function corresponds to the first phase in the phase_list argument of the [pulser_pulse()](#pulser_pulsekagrs).
+This function switches all pulses to the next phase. The phase sequence is declared in the [pulser_pulse()](#pulser_pulsekargs) in the form of phase_list = ['-y', '+x', '-x', '+x', ...]. By repeatedly calling the function one can run through the complete list of phases for the pulses. The length of all phase lists specified for different MW pulses has to be the same. This function also immediately updates the pulse sequence, as it is done by calling [pulser_update()](#pulser_update). The first call of the function corresponds to the first phase in the phase_list argument of the [pulser_pulse()](#pulser_pulsekargs).
 
 ---
 
@@ -126,7 +127,7 @@ The sign '-i' at the index J of the acq_cycle means that the corresponding value
 answer = answer - 1j*data1[J] + data2[J]
 ```
 The output of the function is the real ang imaginary parts of the 'answer' array after complete cycle of mathematical transformations. These can be both 1D and 2D arrays, depending on the shape of the input data arrays.
-Although this function is available for Insys FM214x3GDA, it is better to use a modified version of [digitizer_get_curve()](/atomize_docs/pages/functions/digitizer#digitizer_get_curve). In this case acquisition phases should be given directly in the phase list key argument of the [DETECTION pulse](#pulser_pulse(kagrs).
+Although this function is available for Insys FM214x3GDA, it is better to use a modified version of [digitizer_get_curve()](/atomize_docs/pages/functions/digitizer#digitizer_get_curve). In this case acquisition phases should be given directly in the phase list key argument of the [DETECTION pulse](#pulser_pulsekargs).
 
 ---
 
@@ -163,7 +164,7 @@ pulser_increment(pulses: str ('P0', 'P1', etc.)) -> none
 Example: pulser_increment('P0')
 increments the pulse named 'P0' by the corresponding length_increment value.
 ```
-This function can be called with either no argument or with a list of comma separated pulse names (i.e. 'P0', 'P1'). If no argument is given the lengths of all pulses that have a nonzero length_increment and are currently active (do not have a length of 0) are incremented by their corresponding length_increment value. If there is one argument or a list of comma separated pulse names only the lengths of the listed pulses are changed. Calling this function also resets the phase (if specified in the argument phase_list of the [pulser_pulse()](#pulser_pulsekagrs) to the first phase in the phase_list.
+This function can be called with either no argument or with a list of comma separated pulse names (i.e. 'P0', 'P1'). If no argument is given the lengths of all pulses that have a nonzero length_increment and are currently active (do not have a length of 0) are incremented by their corresponding length_increment value. If there is one argument or a list of comma separated pulse names only the lengths of the listed pulses are changed. Calling this function also resets the phase (if specified in the argument phase_list of the [pulser_pulse()](#pulser_pulsekargs) to the first phase in the phase_list.
 
 ---
 
@@ -285,7 +286,7 @@ pulser_open() -> none
 ```
 Example: pulser_open() opens the board for use.
 ```
-This function should be called only without arguments and is only available for Insys FM214x3GDA. The function should be used after defining pulses and repetition rate with [pulser_pulse()](#pulser_pulsekagrs) and [pulser_repetition_rate()](#pulser_repetition_rater_rate).
+This function should be called only without arguments and is only available for Insys FM214x3GDA. The function should be used after defining pulses and repetition rate with [pulser_pulse()](#pulser_pulsekargs) and [pulser_repetition_rate()](#pulser_repetition_rater_rate).
 
 ---
 

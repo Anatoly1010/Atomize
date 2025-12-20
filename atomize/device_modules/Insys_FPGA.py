@@ -160,6 +160,10 @@ class Insys_FPGA:
             self.synt2_shift = 15
             self.synt2_ext = 4
 
+            self.ind_test = []
+            self.correction = 0
+            self.m = 0
+
         elif self.test_flag == 'test':
             self.test_rep_rate_pulser = '200 Hz'
             
@@ -431,17 +435,25 @@ class Insys_FPGA:
             self.data_buf_IP_GIM_brd               = []
             self.flag_sum_brd                      = 1 # 1 - average mode; 0 - single mode
 
-            self.data_raw                          = np.array([])
-            self.count_nip                         = np.array([])
+            self.data_raw                          = np.zeros(10, dtype = np.int32 )
+            self.count_nip                         = np.zeros(10, dtype = np.int32 )
+            self.answer                            = np.zeros(10, dtype = np.complex64 )
+            self.data_raw                          += self.data_raw
+
             self.flag_buffer_cut                   = 0
             self.nid_split                         = -1
             
             self.nid_prev                          = -1
 
+            self.nid_pc_prev                       = 0
+            self.nid_pc_prev_no_reset              = 0
+            self.n_scans                           = 0
+
             self.adc_window                        = 0
             self.dac_window                        = 0
             self.flag_adc_buffer                   = 0
-            self.buffer_ready                      = 1
+            self.flag_phase_cycle                  = 0
+            self.buffer_ready                      = 0
             self.phases                            = 1
             self.N_IP                              = 0
             self.reset_count_nip                   = 0
@@ -468,17 +480,26 @@ class Insys_FPGA:
             self.data_buf_IP_GIM_brd               = []
             self.flag_sum_brd                      = 1
 
-            self.data_raw                          = np.array([])
-            self.count_nip                         = np.array([])
+            self.data_raw                          = np.zeros(10, dtype = np.int32 )
+            self.count_nip                         = np.zeros(10, dtype = np.int32 )
+            self.answer                            = np.zeros(10, dtype = np.complex64 )
+            self.data_raw                          += self.data_raw
+
             self.flag_buffer_cut                   = 0
             self.nid_split                         = -1
 
             self.nid_prev                          = -1
 
+            self.nid_pc_prev                       = 0
+            self.nid_pc_prev_no_reset              = 0
+            self.n_scans                           = 0
+
             self.adc_window                        = 0
             self.dac_window                        = 0
             self.flag_adc_buffer                   = 0
+            self.flag_phase_cycle                  = 0
             self.buffer_ready                      = 1
+
             self.phases                            = 1
             self.N_IP                              = 0
             self.reset_count_nip                   = 0
@@ -894,7 +915,7 @@ class Insys_FPGA:
             self.phase_pulses_pulser = 0
             # adding phase switch pulses
             for index, element in enumerate(self.pulse_array_pulser):            
-                if len(list(element['phase_list'])) != 0:
+                if (len(list(element['phase_list'])) != 0) and (element['channel'] != 'DETECTION'):
                     if element['phase_list'][self.current_phase_index_pulser] == '+x':
                         #pass
                         # 21-08-2021; Correction of non updating case for ['-x', '+x']
@@ -990,7 +1011,7 @@ class Insys_FPGA:
 
             self.phase_pulses_pulser = 0
             for index, element in enumerate(self.pulse_array_pulser):
-                if len(list(element['phase_list'])) != 0:
+                if (len(list(element['phase_list'])) != 0) and (element['channel'] != 'DETECTION'):
                     if element['phase_list'][self.current_phase_index_pulser] == '+x':
                         #pass
                         # 21-08-2021; Correction of non updating case for ['-x', '+x']
@@ -1230,8 +1251,9 @@ class Insys_FPGA:
                         self.change_ini_file("streamBufSizeKb = 1024", "streamBufSizeKb = 512")
                 elif rep_time <= 20408163:
                     self.change_ini_file("streamBufSizeKb = 128", "streamBufSizeKb = 1024")
-                    self.change_ini_file("streamBufSizeKb = 256", "streamBufSizeKb = 1024")
+                    #self.change_ini_file("streamBufSizeKb = 256", "streamBufSizeKb = 1024")
                     self.change_ini_file("streamBufSizeKb = 512", "streamBufSizeKb = 1024")
+                    
 
                 self.rep_rate_count_pulser = 1
             elif len(r_rate) == 0:
@@ -1240,7 +1262,6 @@ class Insys_FPGA:
         elif self.test_flag == 'test':
             if  len(r_rate) == 1:
                 self.rep_rate_pulser = r_rate
-                
                 rep_rate_pulser = self.rep_rate_pulser[0]
                 if rep_rate_pulser[-3:] == ' Hz':
                     rep_time = int(1000000000/float(rep_rate_pulser[:-3]))
@@ -1523,6 +1544,7 @@ class Insys_FPGA:
         """
         if self.test_flag != 'test':
 
+            #general.wait('10 ms')
             #self.pulser_stop()
             self.nIP_No_brd = 0
             #self.nBufToClcNum_brd = 0
@@ -1533,6 +1555,8 @@ class Insys_FPGA:
             self.sub_flag = 0
             self.reset_flag = 1
             #self.flag_adc_buffer = 0
+            #self.flag_phase_cycle = 0
+            self.nid_pc_prev = 0
             self.N_IP = 0
 
             if len(pulses) == 0:
@@ -1573,7 +1597,9 @@ class Insys_FPGA:
             self.sub_flag = 0
             self.reset_flag = 1
             #self.flag_adc_buffer = 0
+            #self.flag_phase_cycle = 0
             self.N_IP = 0
+            self.nid_pc_prev = 0
 
             if len(pulses) == 0:
                 self.pulse_array_pulser = deepcopy(self.pulse_array_init_pulser)
@@ -1665,27 +1691,136 @@ class Insys_FPGA:
         """
         self.test_flag = flag
 
-    def pulser_acquisition_cycle(self, data1, data2, acq_cycle = ['+x']):
+    def pulser_acquisition_cycle(self, data1, data2, points, phases, adc_window, acq_cycle = ['+x']):
         if self.test_flag != 'test':
-            phases = len(acq_cycle)
-            answer = np.zeros( ( int( data1.shape[0] / phases), data1.shape[1]  ), dtype = np.complex128 )
+            
+            #self.nid_pc_prev                             - start
+            #self.nid_prev - (self.nid_prev % phases)     - last completed
 
-            #data1[0::phases]
+            k = 0
+            l = 0
+
+            #general.message(f'i / j / nores: {self.nid_pc_prev } / {self.nid_prev - (self.nid_prev % phases) } / {self.nid_pc_prev_no_reset}')
+
+            i = self.nid_pc_prev 
+            j = self.nid_prev - (self.nid_prev % phases)
+
+            # LAST POINT:
+            sh_points = int(points * phases)
+
+            if (( int( j - i ) < 0 ) or ( self.nid_pc_prev_no_reset == int( sh_points - phases) )) and (i != 0):
+                general.message(i, j, self.nid_pc_prev_no_reset)
+                i = 0
+                j = sh_points
+                k = 1
+
+                if ( self.n_scans == 2) and (len(self.count_nip[self.nid_pc_prev_no_reset:sh_points] > phases)):
+                    self.correction = int( self.ind_test[-1] + 1)
+                    #general.message(f'E2: {self.count_nip[self.nid_pc_prev_no_reset:sh_points]}')
+                    #general.message(self.ind_test)
+                    self.m = 1
+
+            if (( self.n_scans == 3 ) or ( ( self.n_scans == 2 ) and (j == int( sh_points - phases)) and (i != 0 ) )) and ( self.m == 1 ):
+                for index, element in enumerate(self.count_nip[self.correction:sh_points]):
+                    if element > 1:
+                        self.count_nip[int(index + self.correction)] -= 1
+                #general.message(f'E3: {self.count_nip[self.nid_pc_prev_no_reset:sh_points]}')
+                self.m = 0
+
+            if (j == int( sh_points - phases)) and (i != 0 ):
+                j = sh_points
+
+            counts_adc = int( adc_window * 8 / self.dec_coef )
+            counts_adc_full = int( adc_window * 16 )
+            points_to_cycle = int( j - i)
+            points_to_cycle_ph = int( points_to_cycle//phases)
+
+            data_for_cycling = self.data_raw[int(i*counts_adc_full):int(j*counts_adc_full)]
+
+            data_i =  self.adc_sens * (data_for_cycling[0::(2*self.dec_coef)]).reshape( points_to_cycle, counts_adc, order = 'C'  ) / self.count_nip[i:j,None] / self.gimSum_brd / phases
+            data_q =  self.adc_sens * (data_for_cycling[1::(2*self.dec_coef)]).reshape( points_to_cycle, counts_adc, order = 'C'  ) / self.count_nip[i:j,None] / self.gimSum_brd / phases
+
+            #SCANS:
+            if (i == 0) and (k == 0):
+                self.n_scans += 1
+
+            if self.flag_phase_cycle == 0:
+
+                self.answer = np.zeros( ( int( sh_points / phases), counts_adc ), dtype = np.complex64 )
+                self.flag_phase_cycle = 1
+
+            #SCANS
+            if self.n_scans > 1:
+                self.answer[(i//phases):(j//phases),:] = np.zeros( ( points_to_cycle_ph, counts_adc ), dtype = np.complex64 )
+
+
             for index, element in enumerate(acq_cycle):
                 if element == '+' or element == '+x':
-                    answer += data1[index::phases] + 1j*data2[index::phases]
+                    self.answer[(i//phases):(j//phases),:] += (data_i)[index::phases] + 1j*(data_q)[index::phases]
                 elif element == '-' or element == '-x':
-                    answer += -data1[index::phases] - 1j*data2[index::phases]
+                    self.answer[(i//phases):(j//phases),:] += -(data_i)[index::phases] - 1j*(data_q)[index::phases]
                 elif element == '+i' or element == '+y':
-                    answer += 1j*data1[index::phases] - data2[index::phases]
+                    self.answer[(i//phases):(j//phases),:] += 1j*(data_i)[index::phases] - (data_q)[index::phases]
                 elif element == '-i' or element == '-y':
-                    answer += -1j*data1[index::phases] + data2[index::phases]
+                    self.answer[(i//phases):(j//phases),:] += -1j*(data_i)[index::phases] + (data_q)[index::phases]
 
-            return (answer.real / len(acq_cycle)), (answer.imag / len(acq_cycle))
+            ## NO LAST POINT IN SCANS
+            if (i == 0) and (self.n_scans > 1) and (k == 0):
+                i = self.nid_pc_prev_no_reset
+                j = sh_points
+                points_to_cycle = int( j - i)
+                points_to_cycle_ph = int( points_to_cycle//phases)
+
+                if (self.n_scans == 2):
+                    #general.message(f'B: {self.count_nip[i:j]}')
+
+                    for index, element in enumerate(self.count_nip[i:j]):
+                        if element > 1:
+                            
+                            if self.count_nip[i] != 1:
+                                l = 1
+                            
+                            self.count_nip[int(index + i)] -= 1
+                            self.ind_test.append(int(index + i))
+                            
+                            ###
+                            if l == 1:
+                                if (self.count_nip[int(index + i)] == 1) and (index) != 0:
+                                    self.count_nip[int(index + i)] += 1
+                            l = 0
+                            ###
+
+                    #general.message(self.count_nip[i:j])
+
+                data_for_cycling = self.data_raw[int(i*counts_adc_full):int(j*counts_adc_full)]
+                data_i =  self.adc_sens * (data_for_cycling[0::(2*self.dec_coef)]).reshape( points_to_cycle, counts_adc, order = 'C' ) / self.count_nip[i:j,None] / self.gimSum_brd / phases
+                data_q =  self.adc_sens * (data_for_cycling[1::(2*self.dec_coef)]).reshape( points_to_cycle, counts_adc, order = 'C' ) / self.count_nip[i:j,None] / self.gimSum_brd / phases
+            
+                if (self.n_scans - 1 ) > 1:
+                    self.answer[(i//phases):(j//phases),:] = np.zeros( ( points_to_cycle_ph, counts_adc ), dtype = np.complex64 )
+
+                for index, element in enumerate(acq_cycle):
+                    if element == '+' or element == '+x':
+                        self.answer[(i//phases):(j//phases),:] += (data_i)[index::phases] + 1j*(data_q)[index::phases]
+                    elif element == '-' or element == '-x':
+                        self.answer[(i//phases):(j//phases),:] += -(data_i)[index::phases] - 1j*(data_q)[index::phases]
+                    elif element == '+i' or element == '+y':
+                        self.answer[(i//phases):(j//phases),:] += 1j*(data_i)[index::phases] - (data_q)[index::phases]
+                    elif element == '-i' or element == '-y':
+                        self.answer[(i//phases):(j//phases),:] += -1j*(data_i)[index::phases] + (data_q)[index::phases]
+
+
+            self.nid_pc_prev_no_reset = self.nid_prev - (self.nid_prev % phases)
+            self.nid_pc_prev = self.nid_prev - (self.nid_prev % phases)
+
+            k = 0
+
+            return self.answer.real, self.answer.imag
 
         elif self.test_flag == 'test':
 
             phases = len(acq_cycle)
+
             if self.awg_pulses_pulser == 0:
                 rect_p_phase = self.phase_array_length_pulser[0]
                 if rect_p_phase == 0:
@@ -1703,9 +1838,21 @@ class Insys_FPGA:
                 elif awg_p_phase != 0:
                     assert( awg_p_phase == phases ), 'Acquisition cycle and number of phases of AWG MW pulses have incompatible size'
 
-            answer = np.zeros( ( int( data1.shape[0] / phases), data1.shape[1]  ), dtype = np.complex128 ) #+ 1j*np.zeros( ( int( data2.shape[0] / phases), data2.shape[1]  ) ) 
-            #return (answer.real / len(acq_cycle)), (answer.imag / len(acq_cycle))
-            #general.message(answer.shape)
+            counts_adc = int( adc_window * 8 / self.dec_coef )
+
+            if self.flag_phase_cycle == 0:
+            
+                #self.answer = np.empty( ( int( data1.shape[0] / phases), data1.shape[1] ), dtype = np.complex64 )
+                self.answer = np.zeros( (points, counts_adc ), dtype = np.int32 )
+                self.flag_phase_cycle = 1
+
+            #answer = np.zeros( ( int( data1.shape[0] / phases), data1.shape[1]  ), dtype = np.complex128 ) #+ 1j*np.zeros( ( int( data2.shape[0] / phases), data2.shape[1]  ) ) 
+            
+            #general.message(self.answer[0:600,:].shape)
+            # This function is executed only once in the test mode:    
+            #self.nid_pc_prev  - begin = 0
+            #self.nid_prev     - end   = -1
+
             # SLOW
             #for index, element in enumerate(acq_cycle):
             #    if element == '+' or element == '+x':
@@ -1717,7 +1864,8 @@ class Insys_FPGA:
             #    elif element == '-i' or element == '-y':
             #        answer += -1j*data1[index::phases] + data2[index::phases]
 
-            return (answer.real / len(acq_cycle)), (answer.imag / len(acq_cycle))
+            #return (self.answer.real / len(acq_cycle)), (self.answer.imag / len(acq_cycle))
+            return self.answer, self.answer
 
     def pulser_open(self):
         if self.test_flag != 'test':
@@ -1757,6 +1905,7 @@ class Insys_FPGA:
             file_to_read = open(self.path_status_file, 'w')
             file_to_read.write('Status:  Off' + '\n')
             file_to_read.close()
+            #general.message(self.count_nip[-4:])
 
         elif self.test_flag == 'test':
             
@@ -1778,29 +1927,32 @@ class Insys_FPGA:
         answer = 'Insys 2.5 GHz 14 bit ADC'
         return answer
 
-    def digitizer_get_curve(self, p, ph, live_mode = 0, integral = False):
+    def digitizer_get_curve(self, p, ph, live_mode = 0, integral = False, current_scan = 1, total_scan = 1):
         """
         p - points
         ph - phases
         """
         if self.test_flag != 'test':
 
+            total_points = int(p * ph)
             adc_window = self.adc_window
+            
             if (self.flag_adc_buffer == 0) and (live_mode == 0):
-
-                self.data_raw = np.zeros( ( int(p * ph) * int( adc_window * 16) ), dtype = np.int32 )
-                self.count_nip = np.ones( (int(p * ph) * 1), dtype = np.int32 )
+                self.data_raw = np.zeros( ( int(p * ph * adc_window * 16) ), dtype = np.int32 )
+                self.count_nip = np.zeros( ( total_points ), dtype = np.int32 ) + 1
                 self.flag_adc_buffer = 1
+
             elif (live_mode == 1):
-                self.data_raw = np.zeros( ( int(p * ph) * int( adc_window * 16) ), dtype = np.int32 )
-                self.count_nip = np.ones( (int(p * ph) * 1), dtype = np.int32 )
+                self.data_raw = np.zeros( ( int(p * ph * adc_window * 16) ), dtype = np.int32 )
+                self.count_nip = np.zeros( ( total_points ), dtype = np.int32 ) + 1
                 #self.flag_adc_buffer = 1
 
             #Функция проверки готовности буферов. Функция возвращает номер последнего записанного блока. Исходя из этого номера можно посчитать сколько блоков необходимо “забрать” 
             #strmBufNum = self.getStreamBufNum()
             #general.message(f"ADC Buffer Number: {strmBufNum}")
 
-            if self.nIP_No_brd != int(p * ph):
+
+            if (self.nIP_No_brd != total_points) or ( (self.nIP_No_brd == total_points) and (current_scan != total_scan) ):
 
                 BufCnt = self.AdcStreamGetBufState()
                 self.nBufToClcNum_brd = BufCnt - self.nStrmBufTotalCnt_brd
@@ -1815,16 +1967,41 @@ class Insys_FPGA:
                         if self.flag_sum_brd == 1:
 
                             # в режиме с усреднениями 4 байта на отсчет
+                            # 1.4 ms for 301 points, 2 phases, 20 averages, 400 Hz
                             data_raw, count_nip = self.gen_2d_array_from_buffer( np.frombuffer(self.brdDataBuf_brd, dtype = np.int32), adc_window, p, ph, live_mode)
+
+                            i = self.nid_pc_prev
+                            j = self.nid_prev - (self.nid_prev % ph)
+                            
+                            #general.message(f'GC i / j: {i} / {j}')
 
                             #self.data_raw = self.data_raw + data_raw
                             #self.count_nip = self.count_nip + count_nip
-                            self.data_raw += data_raw
-                            self.count_nip += count_nip
+                            # 0.8 ms for 301 points, 2 phases, 20 averages, 400 Hz
+                            #st_time = time.time()
+                            if ( i == 0 ) or ( i > int( (p - 5) * ph) ):
+                                #general.message(f'GC i / j: {i} / {j}')
+                                self.data_raw += data_raw
+                                self.count_nip += count_nip
+                            elif j < int( (p - 5) * ph):
+                                self.data_raw[int((i - ph) * adc_window * 16):int((j + ph) * adc_window * 16)] += data_raw[int((i - ph) * adc_window * 16):int((j + ph) * adc_window * 16)]
+                                self.count_nip[int((i - ph)):int((j + ph))] += count_nip[int((i - ph)):int((j + ph))]
+                            else:
+                                self.data_raw += data_raw
+                                self.count_nip += count_nip
+
+                            #general.message(f'TIME: {round( 1000*(time.time() - st_time), 1)} ms')
+                            
+                            #general.message( np.nonzero(data_raw)[-1] )
+                            #general.message( f'I: {int((i - ph) * adc_window * 16)}' )
+                            #general.message( f'J: {int((j + ph) * adc_window * 16)}' )
+                            
+                            ###self.data_raw += data_raw
+                            ###self.count_nip += count_nip
 
                     self.nStrmBufTotalCnt_brd = BufCnt
 
-            elif (self.nIP_No_brd == int(p * ph)) and (live_mode == 0):
+            elif (self.nIP_No_brd == total_points) and (live_mode == 0) and (current_scan == total_scan):
                 #general.message(f'LAST: {self.nStrmBufTotalCnt_brd}')
                 #general.message(f'LAST_IP: {self.N_IP}')
                 while True:
@@ -1858,7 +2035,7 @@ class Insys_FPGA:
                         #elif (self.count_nip[-1] <= 0):
                         #    self.count_nip[-1] = 1
 
-            elif (self.nIP_No_brd == int(p * ph)) and (live_mode == 1):
+            elif (self.nIP_No_brd == total_points) and (live_mode == 1):
                 #general.message(f'LAST: {self.nStrmBufTotalCnt_brd}')
                 #general.message(f'LAST_IP: {self.N_IP}')
 
@@ -1887,17 +2064,19 @@ class Insys_FPGA:
 
             if self.buffer_ready == 1:
                 #general.message(self.count_nip)
-                data_i = self.adc_sens * self.data_raw[0::(2*self.dec_coef)]
-                data_q = self.adc_sens * self.data_raw[1::(2*self.dec_coef)]
+                #data_i = self.adc_sens * self.data_raw[0::(2*self.dec_coef)]
+                #data_q = self.adc_sens * self.data_raw[1::(2*self.dec_coef)]
 
                 if integral == False:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = self.detection_phase_list)
-
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
                     self.buffer_ready = 0
-                    self.data_i_ph_T, self.data_q_ph_T = self.data_i_ph.T, self.data_q_ph.T
-                    return self.data_i_ph_T, self.data_q_ph_T#, self.count_nip #, self.buffer_ready + 1
+                    
+                    #self.data_i_ph_T, self.data_q_ph_T = self.data_i_ph.T, self.data_q_ph.T
+                    return self.data_i_ph.T, self.data_q_ph.T ###self.data_i_ph_T, self.data_q_ph_T#, self.count_nip #, self.buffer_ready + 1
+
                 elif integral == True:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = self.detection_phase_list)
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
+                    #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = self.detection_phase_list)
                     self.buffer_ready = 0
                     return 1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ), 1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
 
@@ -1913,6 +2092,22 @@ class Insys_FPGA:
                     #return np.sum( (self.data_i_ph).T[:, self.win_left:self.win_right], axis = 1 ), np.sum( (self.data_q_ph).T[:, self.win_left:self.win_right], axis = 1 ), self.buffer_ready
 
         elif self.test_flag == 'test':
+
+
+            #####
+            rep_rate_pulser = self.rep_rate_pulser[0]
+            if rep_rate_pulser[-3:] == ' Hz':
+                rep_time = int(1000000000/float(rep_rate_pulser[:-3]))
+            elif rep_rate_pulser[-3:] == 'kHz':
+                rep_time = int(1000000/float(rep_rate_pulser[:-4]))
+            elif rep_rate_pulser[-3:] == 'MHz':
+                rep_time = int(1000/float(rep_rate_pulser[:-4]))
+
+            rep_time = self.round_to_closest(rep_time, 3.2)
+            min_time = 20
+            ###assert( self.gimSum_brd * rep_time/ 1000000 > min_time ), f'Too low number of averages per phase.\nPlease increase number of avegares to { int(1000000 * min_time / rep_time ) + 1 }' 
+            #####
+
 
             if self.awg_pulses_pulser == 0:
                 rect_p_phase = self.phase_array_length_pulser[0]
@@ -1939,14 +2134,14 @@ class Insys_FPGA:
 
             if self.buffer_ready == 1:
                 if integral == False:
-                    #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), acq_cycle = self.detection_phase_list)
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
+                    #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.zeros( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.zeros( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), p, ph, adc_window, acq_cycle = self.detection_phase_list)
 
                     self.buffer_ready = 0
-                    self.data_i_ph_T, self.data_q_ph_T = self.data_i_ph.T, self.data_q_ph.T
-                    return self.data_i_ph_T, self.data_q_ph_T #, None#, self.buffer_ready + 1
+                    return self.data_i_ph.T, self.data_q_ph.T #, None#, self.buffer_ready + 1
                 elif integral == True:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef ) ) ), acq_cycle = self.detection_phase_list)
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
+                    #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.zeros( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.zeros( ( int(p * ph), int( adc_window * 8 / self.dec_coef ) ) ), p, ph, adc_window, acq_cycle = self.detection_phase_list)
                     #general.message( len(np.sum( ((self.data_i_ph))[:, self.win_left:self.win_right], axis = 1 )) )
                     self.buffer_ready = 0
                     return  1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ),  1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
@@ -1961,29 +2156,30 @@ class Insys_FPGA:
                     #return np.sum( (self.data_i_ph).T[:, self.win_left:self.win_right], axis = 1 ), np.sum( (self.data_q_ph).T[:, self.win_left:self.win_right], axis = 1 ), self.buffer_ready
                     return None, None#, 0
 
-    def digitizer_get_curve2(self, p, ph, live_mode = 0, integral = False):
+    def digitizer_get_curve2(self, p, ph, live_mode = 0, integral = False, current_scan = 1, total_scan = 1):
         """
         p - points
         ph - phases
         """
         if self.test_flag != 'test':
             adc_window = self.adc_window
+            total_points = int(p * ph)
 
             if (self.flag_adc_buffer == 0) and (live_mode == 0):
 
-                self.data_raw = np.zeros( ( int(p * ph) * int( adc_window * 16) ), dtype = np.int32 )
-                self.count_nip = np.ones( (int(p * ph) * 1), dtype = np.int32 )
+                self.data_raw = np.zeros( ( int(p * ph * adc_window * 16) ), dtype = np.int32 )
+                self.count_nip = np.ones( (int(p * ph)), dtype = np.int32 )
                 self.flag_adc_buffer = 1
             elif (live_mode == 1):
-                self.data_raw = np.zeros( ( int(p * ph) * int( adc_window * 16) ), dtype = np.int32 )
-                self.count_nip = np.ones( (int(p * ph) * 1), dtype = np.int32 )
+                self.data_raw = np.zeros( ( int(p * ph * adc_window * 16) ), dtype = np.int32 )
+                self.count_nip = np.ones( (int(p * ph)), dtype = np.int32 )
                 #self.flag_adc_buffer = 1
 
             #Функция проверки готовности буферов. Функция возвращает номер последнего записанного блока. Исходя из этого номера можно посчитать сколько блоков необходимо “забрать” 
             #strmBufNum = self.getStreamBufNum()
             #general.message(f"ADC Buffer Number: {strmBufNum}")
 
-            if self.nIP_No_brd != int(p * ph):
+            if (self.nIP_No_brd != total_points) or ( (self.nIP_No_brd == total_points) and (current_scan != total_scan) ):
 
                 BufCnt = self.AdcStreamGetBufState()
                 self.nBufToClcNum_brd = BufCnt - self.nStrmBufTotalCnt_brd
@@ -2000,14 +2196,26 @@ class Insys_FPGA:
                             # в режиме с усреднениями 4 байта на отсчет
                             data_raw, count_nip = self.gen_2d_array_from_buffer2( np.frombuffer(self.brdDataBuf_brd, dtype = np.int32), adc_window, p, ph, live_mode)
 
-                            #self.data_raw = self.data_raw + data_raw
-                            #self.count_nip = self.count_nip + count_nip
-                            self.data_raw += data_raw
-                            self.count_nip += count_nip
+                            i = self.nid_pc_prev
+                            j = self.nid_prev - (self.nid_prev % ph)
+                            
+                            #self.data_raw += data_raw
+                            #self.count_nip += count_nip
+
+                            if ( i == 0 ) or ( i > int( (p - 5) * ph) ):
+                                self.data_raw += data_raw
+                                self.count_nip += count_nip
+                            elif j < int( (p - 5) * ph):
+                                self.data_raw[int((i - ph) * adc_window * 16):int((j + ph) * adc_window * 16)] += data_raw[int((i - ph) * adc_window * 16):int((j + ph) * adc_window * 16)]
+                                self.count_nip[int((i - ph)):int((j + ph))] += count_nip[int((i - ph)):int((j + ph))]
+                            else:
+                                self.data_raw += data_raw
+                                self.count_nip += count_nip
+
 
                     self.nStrmBufTotalCnt_brd = BufCnt
 
-            elif (self.nIP_No_brd == int(p * ph)) and (live_mode == 0):
+            elif (self.nIP_No_brd == total_points) and (live_mode == 0) and (current_scan == total_scan):
                 #general.message(f'LAST: {self.nStrmBufTotalCnt_brd}')
                 #general.message(f'LAST_IP: {self.N_IP}')
                 while True:
@@ -2041,7 +2249,7 @@ class Insys_FPGA:
                         #elif (self.count_nip[-1] <= 0):
                         #    self.count_nip[-1] = 1
 
-            elif (self.nIP_No_brd == int(p * ph)) and (live_mode == 1):
+            elif (self.nIP_No_brd == total_points) and (live_mode == 1):
                 #general.message(f'LAST: {self.nStrmBufTotalCnt_brd}')
                 #general.message(f'LAST_IP: {self.N_IP}')
 
@@ -2065,19 +2273,22 @@ class Insys_FPGA:
 
                     self.nStrmBufTotalCnt_brd = BufCnt
 
-            data_i = self.adc_sens * self.data_raw[0::(2*self.dec_coef)]
-            data_q = self.adc_sens * self.data_raw[1::(2*self.dec_coef)]
+            #data_i = self.adc_sens * self.data_raw[0::(2*self.dec_coef)]
+            #data_q = self.adc_sens * self.data_raw[1::(2*self.dec_coef)]
 
             if self.buffer_ready == 1:
+                #data_i = self.adc_sens * self.data_raw[0::(2*self.dec_coef)]
+                #data_q = self.adc_sens * self.data_raw[1::(2*self.dec_coef)]
+                
                 #general.message(self.count_nip)
                 if integral == False:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = self.detection_phase_list)
-                    
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
+
                     self.buffer_ready = 0
-                    self.data_i_ph_T, self.data_q_ph_T = self.data_i_ph.T, self.data_q_ph.T
-                    return self.data_i_ph_T, self.data_q_ph_T#, self.count_nip #, self.buffer_ready + 1
+                    return self.data_i_ph.T, self.data_q_ph.T ##self.data_i_ph_T, self.data_q_ph_T#, self.count_nip #, self.buffer_ready + 1
                 elif integral == True:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = self.detection_phase_list)
+                    #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = self.detection_phase_list)
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
                     self.buffer_ready = 0
                     return 1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ), 1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
 
@@ -2094,6 +2305,20 @@ class Insys_FPGA:
 
         elif self.test_flag == 'test':
             acq_cycle = self.detection_phase_list
+
+            #####
+            rep_rate_pulser = self.rep_rate_pulser[0]
+            if rep_rate_pulser[-3:] == ' Hz':
+                rep_time = int(1000000000/float(rep_rate_pulser[:-3]))
+            elif rep_rate_pulser[-3:] == 'kHz':
+                rep_time = int(1000000/float(rep_rate_pulser[:-4]))
+            elif rep_rate_pulser[-3:] == 'MHz':
+                rep_time = int(1000/float(rep_rate_pulser[:-4]))
+
+            rep_time = self.round_to_closest(rep_time, 3.2)
+            ##assert( self.gimSum_brd * rep_time/ 1000000 > 25 ), f'Too low number of averages per phase.\nPlease increase number of avegares to { int(1000000 * 25 / rep_time ) + 1 }' 
+            #####
+
 
             if self.awg_pulses_pulser == 0:
                 rect_p_phase = self.phase_array_length_pulser[0]
@@ -2121,14 +2346,14 @@ class Insys_FPGA:
             if self.buffer_ready == 1:
                 if integral == False:
                     #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), acq_cycle = self.detection_phase_list)
-
+                    #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), acq_cycle = self.detection_phase_list)
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
                     self.buffer_ready = 0
-                    self.data_i_ph_T, self.data_q_ph_T = self.data_i_ph.T, self.data_q_ph.T
-                    return self.data_i_ph_T, self.data_q_ph_T #, None#, self.buffer_ready + 1
+                    return self.data_i_ph.T, self.data_q_ph.T #, None#, self.buffer_ready + 1
                 elif integral == True:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef ) ) ), acq_cycle = self.detection_phase_list)
+                    #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef ) ) ), acq_cycle = self.detection_phase_list)
                     #general.message( len(np.sum( ((self.data_i_ph))[:, self.win_left:self.win_right], axis = 1 )) )
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
                     self.buffer_ready = 0
                     return  1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ),  1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
 
@@ -3541,15 +3766,15 @@ class Insys_FPGA:
         elif self.reset_flag == 1:
             # to get rid of splitted buffer in live mode
             if live_mode == 0:
-                splitted_data = np.split(data, ind )[1:-1]
+                splitted_data = np.split(data, ind )[1:-2]
                 splitted_data_tail = np.split(data, ind )[0:1]
             elif live_mode == 1:
                 splitted_data = np.split(data, ind )[1:-2] # or -3?
                 splitted_data_tail = (np.array([]), np.array([]))
             
-            self.flag_buffer_cut = 0
+            ###self.flag_buffer_cut = 0
             self.reset_flag = 0
-            self.nid_prev = -1
+            #self.nid_prev = -1  # important
         
         #splitted_data_tail = np.split(data, ind )[0:1]
         
@@ -3557,8 +3782,8 @@ class Insys_FPGA:
         #b = []
 
         full_adc = adc_window * 16
-        data_raw = np.zeros( ( int(p * ph) * int( full_adc ) ), dtype = np.int32 )
-        count_nip = np.zeros( (int(p * ph) * 1), dtype = np.int16 )
+        data_raw = np.zeros( ( int(p * ph * full_adc ) ), dtype = np.int32 )
+        count_nip = np.zeros( (int(p * ph) ), dtype = np.int16 )
 
         for i in range(len(splitted_data)):
 
@@ -3575,7 +3800,7 @@ class Insys_FPGA:
 
             if (len(splitted_data_tail[0]) != 0) and (self.flag_buffer_cut == 1):
                 #if self.nid_split != nid:
-                if (nid != 0) :
+                if (nid != 0):
                     data_raw[(self.nid_split*full_adc + dif_tail):((self.nid_split + 1)*full_adc)] += (splitted_data_tail[0])
                     self.flag_buffer_cut = 0
                     #b.append(self.nid_split)
@@ -3613,7 +3838,8 @@ class Insys_FPGA:
             count_nip += -1
 
         self.N_IP = nid
-        #general.message(a)
+
+        #general.message(f'NID_SPLIT: {self.nid_split}')
         #general.message(count_nip)
         #general.message(f'N_IP_BOARD: {self.nIP_No_brd}')
         #general.message(f'N_IP_BUFFER: {self.N_IP}')
@@ -3649,15 +3875,15 @@ class Insys_FPGA:
         elif self.reset_flag == 1:
             # to get rid of splitted buffer in live mode
             if live_mode == 0:
-                splitted_data = np.split(data, ind )[1:-1]
+                splitted_data = np.split(data, ind )[1:-2]
                 splitted_data_tail = np.split(data, ind )[0:1]
             elif live_mode == 1:
                 splitted_data = np.split(data, ind )[1:-2] # or -3?
                 splitted_data_tail = (np.array([]), np.array([]))
             
-            self.flag_buffer_cut = 0
+            ###self.flag_buffer_cut = 0
             self.reset_flag = 0
-            self.nid_prev = -1
+            #self.nid_prev = -1  # important
         
         #splitted_data_tail = np.split(data, ind )[0:1]
         
@@ -3665,7 +3891,7 @@ class Insys_FPGA:
         #b = []
 
         full_adc = adc_window * 16
-        data_raw = np.zeros( ( int(p * ph) * int( full_adc ) ), dtype = np.int32 )
+        data_raw = np.zeros( ( int(p * ph * full_adc ) ), dtype = np.int32 )
         count_nip = np.zeros( (int(p * ph) * 1), dtype = np.int16 )
 
         for i in range(len(splitted_data)):
@@ -3832,6 +4058,7 @@ class Insys_FPGA:
             i = 0
             pulse_temp_array = []
             num_pulses = len( p_array )
+
             while i < num_pulses:
                 # get channel number
                 ch = p_array[i]['channel']
