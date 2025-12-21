@@ -108,7 +108,8 @@ class MainWindow(QtWidgets.QMainWindow):
         print( f'SYSTEM: {self.system}' )
         print( f'DATA DIRECTORY: {self.open_dir}' )
         print( f'SCRIPTS DIRECTORY: {self.script_dir}' )
-        print( f'CONFIG DIRECTORY: {path_config2}' )
+        print( f'MAIN CONFIG DIRECTORY: {path_config_file}' )
+        print( f'DEVICE CONFIG DIRECTORY: {path_config2}' )
 
         self.path = self.script_dir
         self.test_timeout = int(config['DEFAULT']['test_timeout']) * 1000 # in ms
@@ -131,7 +132,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 print(f'EDITOR: nano / vi')
             else:
                 self.process_text_editor.setProgram(str(config['DEFAULT']['editor']))
-                print('EDITOR: ' + str(config['DEFAULT']['editorW']))
+                print('EDITOR: ' + str(config['DEFAULT']['editor']))
             self.process.setProgram('python3')
             self.process_python.setProgram('python3')
 
@@ -700,9 +701,9 @@ class NameList(QDockWidget):
         #directories
         path_to_main = os.path.abspath(os.getcwd())
         # configuration data
-        #path_config_file = os.path.join(path_to_main,'atomize/config.ini')
-        #path_config_file = os.path.join(path_to_main, '..', 'config.ini')
-        path_config_file, path_config2 = lconf.load_config()
+        path_config_file = os.path.join(path_to_main, '..', 'config.ini')
+        path_config_file_device = os.path.join(path_to_main, '..', 'device_modules/config')
+        path_config_file, path_config2 = lconf.copy_config(path_config_file, path_config_file_device)
 
         config = configparser.ConfigParser()
         config.read(path_config_file)

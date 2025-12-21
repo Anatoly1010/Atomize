@@ -48,23 +48,33 @@ Run GUI from terminal:
 
 	atomize
 
-The text editor used for editing can be specified in the atomize/config.ini file. The Telegram bot token and message chat ID can be specified in the same file.
-
 ### 2. General Configuration
 
-The /atomize directory contains a general configuration file with the name config.ini. It should be changed at will according to the description below:
+In the terminal where you launched Atomize, the paths to the configuration files and some other details are displayed as follows:
+```yml
+SYSTEM: Linux
+DATA DIRECTORY: /path/to/experimental/data/to/open/
+SCRIPTS DIRECTORY: /path/to/atomize/scripts/
+MAIN CONFIG DIRECTORY: ~/.config/atomize-py/
+DEVICE CONFIG DIRECTORY: ~/.config/atomize-py/device_config/
+EDITOR: text editor used for editing scripts
+```
+The "MAIN CONFIG DIRECTORY" contains a general configuration file with the name main_config.ini. It should be changed at will according to the description below:
 ```yml
 [DEFAULT]
-# configure the text editor that will opened when the Edit  button is pressed
+# configure the text editor that will opened when the Edit  button is pressed.
+# "EDITOR":
 editor = subl # Linux
 editorW = /path/to/text_editor/on/Windows/  # Windows
 
 # configure the directory that will opened when Open 1D Data or Open 2D Data
-# feature is used in the Liveplot tab:
+# feature is used in the Liveplot tab. 
+# "DATA DIRECTORY":
 open_dir = /path/to/experimental/data/to/open/
 
 # configure the directory that will be opened when the Open Script button is pressed:
-script_dir = /Atomize/atomize/tests
+# "SCRIPTS DIRECTORY":
+script_dir = /path/to/atomize/scripts/
 
 # configure Telegram bot
 telegram_bot_token = 
@@ -74,8 +84,8 @@ message_id =
 ### 3. Using Instrument Modules
 
 To communicate with a device one should:
-1) modify the config file (/atomize/device_modules/config/) of the desired device accordingly. Choose the desired protocol (rs-232, gpib, ethernet, etc.) and correct the settings of the specified protocol in accordance with device settings. A little bit more detailed information about protocol settings can be found [here.](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md)
-2) import the module or modules in your script and initialize the appropriate class. A class always
+1) Modify the config file located in "DEVICE CONFIG DIRECTORY" of the desired device accordingly. Choose the desired protocol (rs-232, gpib, ethernet, etc.) and correct the settings of the specified protocol in accordance with device settings. A little bit more detailed information about protocol settings can be found [here.](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md)
+2) Import the module or modules in your script and initialize the appropriate class. A class always
 has the same name as the module file. Initialization connect the desired device, if the settings are correct.
 ```python
 # importing of the instruments
@@ -107,7 +117,7 @@ general.plot_1d('1D Plot', data[0], data[1], label = 'test_data', yname = 'Y axi
 ### 4. Experimental Scripts
 
 Python is used to write an experimental script. Examples (with dummy data) can be found in the
-/atomize/tests/ directory.
+"SCRIPTS DIRECTORY".
 
 ## Screenshots
 ![](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot.png)
