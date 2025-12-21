@@ -5,6 +5,7 @@ import os
 import sys
 import struct
 import socket
+import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
@@ -14,8 +15,8 @@ class SR_PTC_10:
 
         #### Inizialization
         # setting path to *.ini file
-        self.path_current_directory = os.path.dirname(__file__)
-        self.path_config_file = os.path.join(self.path_current_directory, 'config','SR_PTC_10_config.ini')
+        self.path_current_directory = lconf.load_config_device()
+        self.path_config_file = os.path.join(self.path_current_directory, 'SR_PTC_10_config.ini')
 
         # configuration data
         #config = cutil.read_conf_util(self.path_config_file)
@@ -67,7 +68,7 @@ class SR_PTC_10:
             self.sock.close()
 
         except socket.error:
-            general.message("No Connection")
+            general.message(f"No connection {self.__class__.__name__}")
             sys.exit()
 
     def device_query(self, command, bytes_to_recieve):
@@ -86,7 +87,7 @@ class SR_PTC_10:
 
             return data_raw
         except socket.error:
-            general.message("No Connection")
+            general.message(f"No connection {self.__class__.__name__}")
             sys.exit()
 
     #### device specific functions

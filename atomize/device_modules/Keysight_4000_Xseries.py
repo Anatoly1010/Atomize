@@ -6,6 +6,7 @@ import gc
 import sys
 import pyvisa
 import numpy as np 
+import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
@@ -15,8 +16,8 @@ class Keysight_4000_Xseries:
 
         #### Inizialization
         # setting path to *.ini file
-        self.path_current_directory = os.path.dirname(__file__)
-        self.path_config_file = os.path.join(self.path_current_directory, 'config','Keysight_4000_config.ini')
+        self.path_current_directory = lconf.load_config_device()
+        self.path_config_file = os.path.join(self.path_current_directory, 'Keysight_4000_config.ini')
 
         # configuration data
         self.config = cutil.read_conf_util(self.path_config_file)
@@ -76,12 +77,12 @@ class Keysight_4000_Xseries:
                         self.device_write('*CLS')
                         self.status_flag = 1
                     except :
-                        general.message("No connection")
+                        general.message(f"No connection {self.__class__.__name__}")
                         self.status_flag = 0
                         self.device.clear()
                         sys.exit()
                 except:
-                    general.message("No connection")
+                    general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     os._exit(0)
 
@@ -120,7 +121,7 @@ class Keysight_4000_Xseries:
             command = str(command)
             self.device.write(command)
         else:
-            general.message("No connection")
+            general.message(f"No connection {self.__class__.__name__}")
             self.status_flag = 0
             sys.exit()
 
@@ -129,7 +130,7 @@ class Keysight_4000_Xseries:
             answer = self.device.query(command)
             return answer
         else:
-            general.message("No connection")
+            general.message(f"No connection {self.__class__.__name__}")
             self.status_flag = 0
             sys.exit()
 
@@ -138,7 +139,7 @@ class Keysight_4000_Xseries:
             answer = self.device.query_ascii_values(command, converter='f', separator=',', container=np.array)
             return answer
         else:
-            general.message("No connection")
+            general.message(f"No connection {self.__class__.__name__}")
             self.status_flag = 0
             sys.exit()
 
@@ -148,7 +149,7 @@ class Keysight_4000_Xseries:
             # H for 3034T; h for 2012A
             return answer
         else:
-            general.message("No connection")
+            general.message(f"No connection {self.__class__.__name__}")
             self.status_flag = 0
             sys.exit()
 

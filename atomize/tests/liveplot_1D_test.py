@@ -29,7 +29,7 @@ for i in range(POINTS):
     start_time = time.time()
     general.wait('100 ms')
 
-    a = general.plot_1d('EXP1', x_axis, (data_x, data_y), label = 'test2', xname = 'Delay', xscale = 'ns', yname = 'Area', yscale = 'V*s', vline = (STEP*i, ), pr = a, text=str(STEP*i))
+    a = general.plot_1d('EXP1', x_axis, (data_x, data_y), label = 'test', xname = 'Delay', xscale = 'ns', yname = 'Area', yscale = 'V*s', pr = a, text=str(STEP*i))
 
     general.message(str(time.time() - start_time))
     

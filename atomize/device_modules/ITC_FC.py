@@ -7,6 +7,7 @@ import sys
 import pyvisa
 import numpy as np
 from pyvisa.constants import StopBits, Parity
+import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 from scipy.interpolate import CubicSpline, PchipInterpolator
@@ -18,8 +19,9 @@ class ITC_FC:
         #### Inizialization
         # setting path to *.ini file
         self.path_current_directory = os.path.dirname(__file__)
-        self.path_config_file = os.path.join(self.path_current_directory, 'config','ITC_FC_config.ini')
-        path_calib_file = os.path.join(self.path_current_directory, 'config','Calibration_curve_08_2024_Sibir_magnet.csv')
+        self.path_current_directory_local = lconf.load_config_device()
+        self.path_config_file = os.path.join(self.path_current_directory_local, 'ITC_FC_config.ini')
+        path_calib_file = os.path.join(self.path_current_directory, 'config', 'Calibration_curve_08_2024_Sibir_magnet.csv')
 
         temp = np.genfromtxt(path_calib_file, dtype = float, delimiter = ',', skip_header = 1, comments = '#') 
         calibration_data = np.transpose(temp)
@@ -59,17 +61,17 @@ class ITC_FC:
                         self.status_flag = 1
                     except pyvisa.VisaIOError:
                         self.status_flag = 0
-                        general.message("No connection")
+                        general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
                     except BrokenPipeError:
-                        general.message("No connection")
+                        general.message(f"No connection {self.__class__.__name__}")
                         self.status_flag = 0
                         sys.exit()
                 except pyvisa.VisaIOError:
-                        general.message("No connection")
+                        general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
                 except BrokenPipeError:
-                    general.message("No connection")
+                    general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
 
@@ -90,7 +92,7 @@ class ITC_FC:
             self.device.write(command)
         else:
             self.status_flag = 0
-            general.message("No Connection")
+            general.message(f"No connection {self.__class__.__name__}")
             sys.exit()
 
     #### device specific functions

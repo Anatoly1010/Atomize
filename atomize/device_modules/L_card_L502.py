@@ -7,6 +7,7 @@ import sys
 import time
 import ctypes
 import numpy as np
+import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 from atomize.device_modules.config.L502_regs import *

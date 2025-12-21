@@ -7,6 +7,7 @@ import configparser
 import numpy as np
 from tkinter import filedialog
 import tkinter
+import atomize.main.local_config as lconf
 
 class Saver_Opener:
     def __init__(self):
@@ -19,17 +20,23 @@ class Saver_Opener:
 
         # for open directory specified in the config file
         #path_to_main = os.path.abspath(os.getcwd())
-        self.path_to_main = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
+        path_to_main = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
         #os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..', 'templates'))
         # configuration data
         #path_config_file = os.path.join(path_to_main,'atomize/config.ini')
-        path_config_file = os.path.join(self.path_to_main,'config.ini')
+        path_config_file, path_config2 = lconf.load_config()
+        #path_config_file = os.path.join(self.path_to_main, 'config.ini')
         config = configparser.ConfigParser()
         config.read(path_config_file)
         # directories
         self.open_dir = str(config['DEFAULT']['open_dir'])
-        self.script_dir = str(config['DEFAULT']['script_dir'])
+        if self.open_dir == '':
+            self.open_dir = lconf.load_scripts(os.path.join(path_to_main, '..', 'tests'))
 
+        self.script_dir = str(config['DEFAULT']['script_dir'])
+        if self.script_dir == '':
+            self.script_dir = lconf.load_scripts(os.path.join(path_to_main, '..', 'tests'))
+        
         if self.test_flag == 'test':
             self.test_header_array = np.array(['header1', 'header2'])
             self.test_data = np.arange(1000, 2)

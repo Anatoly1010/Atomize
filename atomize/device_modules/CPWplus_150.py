@@ -6,6 +6,7 @@ import gc
 import sys
 import pyvisa
 from pyvisa.constants import StopBits, Parity
+import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
@@ -16,8 +17,8 @@ class CPWplus_150:
 
         #### Inizialization
         # setting path to *.ini file
-        self.path_current_directory = os.path.dirname(__file__)
-        self.path_config_file = os.path.join(self.path_current_directory, 'config','CPWplus_150_config.ini')
+        self.path_current_directory = lconf.load_config_device()
+        self.path_config_file = os.path.join(self.path_current_directory, 'CPWplus_150_config.ini')
 
         # configuration data
         self.config = cutil.read_conf_util(self.path_config_file)
@@ -45,17 +46,17 @@ class CPWplus_150:
                         self.status_flag = 1
                     except pyvisa.VisaIOError:
                         self.status_flag = 0
-                        general.message("No connection")
+                        general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
                     except BrokenPipeError:
-                        general.message("No connection")
+                        general.message(f"No connection {self.__class__.__name__}")
                         self.status_flag = 0
                         sys.exit()
                 except pyvisa.VisaIOError:
-                        general.message("No connection")
+                        general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
                 except BrokenPipeError:
-                    general.message("No connection")
+                    general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
 
@@ -76,7 +77,7 @@ class CPWplus_150:
             command = str(command)
             self.device.write(command)
         else:
-            general.message("No Connection")
+            general.message(f"No connection {self.__class__.__name__}")
             self.status_flag = 0
             sys.exit()
 
@@ -85,7 +86,7 @@ class CPWplus_150:
             answer = self.device.query(command)
             return answer
         else:
-            general.message("No Connection")
+            general.message(f"No connection {self.__class__.__name__}")
             self.status_flag = 0
             sys.exit()
 

@@ -11,6 +11,7 @@ import datetime
 from math import exp, sqrt
 from threading import Thread
 import numpy as np
+import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
@@ -20,8 +21,8 @@ class Micran_Q_band_MW_bridge:
 
         #### Inizialization
         # setting path to *.ini file
-        self.path_current_directory = os.path.dirname(__file__)
-        self.path_config_file = os.path.join(self.path_current_directory, 'config','Micran_q_band_mw_bridge_config.ini')
+        self.path_current_directory = lconf.load_config_device()
+        self.path_config_file = os.path.join(self.path_current_directory, 'Micran_q_band_mw_bridge_config.ini')
 
         # configuration data
         #config = cutil.read_conf_util(self.path_config_file)

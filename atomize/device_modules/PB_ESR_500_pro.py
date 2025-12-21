@@ -9,6 +9,7 @@ from operator import iconcat
 from functools import reduce
 from itertools import groupby, chain
 import numpy as np
+import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 import atomize.general_modules.spinapi as spinapi
@@ -27,8 +28,8 @@ class PB_ESR_500_Pro:
 
         #### Inizialization
         # setting path to *.ini file
-        self.path_current_directory = os.path.dirname(__file__)
-        self.path_config_file = os.path.join(self.path_current_directory, 'config','PB_ESR_500_pro_config.ini')
+        self.path_current_directory = lconf.load_config_device()
+        self.path_config_file = os.path.join(self.path_current_directory, 'PB_ESR_500_pro_config.ini')
 
         # configuration data
         #config = cutil.read_conf_util(self.path_config_file)

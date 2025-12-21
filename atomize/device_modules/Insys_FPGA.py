@@ -13,6 +13,7 @@ from functools import reduce
 from itertools import groupby, chain
 from math import remainder, ceil
 import numpy as np
+import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
@@ -20,8 +21,8 @@ class Insys_FPGA:
     def __init__(self):
         #### Inizialization
         # setting path to *.ini file
-        self.path_current_directory = os.path.dirname(__file__)
-        self.path_config_file_pulser = os.path.join(self.path_current_directory, 'config','PB_Insys_pulser_config.ini')
+        self.path_current_directory = lconf.load_config_device()
+        self.path_config_file_pulser = os.path.join(self.path_current_directory, 'PB_Insys_pulser_config.ini')
 
         path_to_main_status = os.path.abspath( os.getcwd() )
         self.path_status_file = os.path.join(path_to_main_status, 'status')
@@ -159,10 +160,6 @@ class Insys_FPGA:
             self.synt_number = 2
             self.synt2_shift = 15
             self.synt2_ext = 4
-
-            self.ind_test = []
-            self.correction = 0
-            self.m = 0
 
         elif self.test_flag == 'test':
             self.test_rep_rate_pulser = '200 Hz'
@@ -448,6 +445,9 @@ class Insys_FPGA:
             self.nid_pc_prev                       = 0
             self.nid_pc_prev_no_reset              = 0
             self.n_scans                           = 0
+            self.ind_test                          = []
+            self.correction                        = 0
+            self.m                                 = 0
 
             self.adc_window                        = 0
             self.dac_window                        = 0
@@ -493,6 +493,9 @@ class Insys_FPGA:
             self.nid_pc_prev                       = 0
             self.nid_pc_prev_no_reset              = 0
             self.n_scans                           = 0
+            self.ind_test                          = []
+            self.correction                        = 0
+            self.m                                 = 0
 
             self.adc_window                        = 0
             self.dac_window                        = 0
@@ -6086,6 +6089,8 @@ class Insys_FPGA:
                 else:
                     print(new_line, end = '')
 
+    def count_nip(self, ph):
+        return np.sum( self.count_nip.reshape( len( self.count_nip ) // ph, ph, order = 'C' ), axis = 1 )
 
 def main():
     pass

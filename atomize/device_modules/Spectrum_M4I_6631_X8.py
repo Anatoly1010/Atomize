@@ -7,13 +7,12 @@ import gc
 import random
 ###AWG
 sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
-###sys.path.append('/home/anatoly/AWG/spcm_examples/python')
-#sys.path.append('/home/anatoly/awg_files/python')
 #sys.path.append('C:/Users/User/Desktop/Examples/python')
 from math import sin, pi, exp, log2
 from itertools import groupby, chain
 from copy import deepcopy
 import numpy as np
+import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
@@ -25,8 +24,8 @@ class Spectrum_M4I_6631_X8:
 
         #### Inizialization
         # setting path to *.ini file
-        self.path_current_directory = os.path.dirname(__file__)
-        self.path_config_file = os.path.join(self.path_current_directory, 'config','Spectrum_M4I_6631_X8_config.ini')
+        self.path_current_directory = lconf.load_config_device()
+        self.path_config_file = os.path.join(self.path_current_directory, 'Spectrum_M4I_6631_X8_config.ini')
 
         # configuration data
         #config = cutil.read_conf_util(self.path_config_file)

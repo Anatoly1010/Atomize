@@ -6,6 +6,7 @@ import gc
 import sys
 import pyvisa
 from pyvisa.constants import StopBits, Parity
+import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
@@ -15,8 +16,8 @@ class SR_DG535:
 
         #### Inizialization
         # setting path to *.ini file
-        self.path_current_directory = os.path.dirname(__file__)
-        self.path_config_file = os.path.join(self.path_current_directory, 'config','SR_DG535_config.ini')
+        self.path_current_directory = lconf.load_config_device()
+        self.path_config_file = os.path.join(self.path_current_directory, 'SR_DG535_config.ini')
 
         # configuration data
         self.config = cutil.read_conf_util(self.path_config_file)
@@ -58,11 +59,11 @@ class SR_DG535:
                         #self.device_write('*CLS')
 
                     except BrokenPipeError:
-                        general.message("No connection")
+                        general.message(f"No connection {self.__class__.__name__}")
                         self.status_flag = 0
                         sys.exit()
                 except BrokenPipeError:
-                    general.message("No connection")
+                    general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
 
@@ -90,7 +91,7 @@ class SR_DG535:
             command = str(command)
             self.device.write(command)
         else:
-            general.message("No Connection")
+            general.message(f"No connection {self.__class__.__name__}")
             self.status_flag = 0
             sys.exit()
 
@@ -101,7 +102,7 @@ class SR_DG535:
                 general.wait('50 ms')
                 answer = self.device.read().decode()
         else:
-            general.message("No Connection")
+            general.message(f"No connection {self.__class__.__name__}")
             self.status_flag = 0
             sys.exit()
 

@@ -8,6 +8,7 @@ import socket
 from threading import Thread
 import configparser
 import numpy as np
+import atomize.main.local_config as lconf
 from atomize.main.client import LivePlotClient
 #from liveplot import LivePlotClient
 
@@ -30,14 +31,6 @@ def message(*text):
             sock.close()
     elif test_flag == 'test':
         pass
-        #sock = socket.socket()
-        #sock.connect(('localhost', 9091))
-        #if len(text) == 1:
-        #    sock.send(str(text[0]).encode())
-        #    sock.close()
-        #else:
-        #    sock.send(str(text).encode())
-        #    sock.close()
 
 def message_test(*text):
     if test_flag != 'test':
@@ -267,8 +260,9 @@ def numpy_round(x, base):
 def bot_message(*text):
     import telebot
     # configuration data
-    path_to_main = os.path.abspath(os.getcwd())
-    path_config_file = os.path.join(path_to_main, '..', 'atomize/config.ini')
+    #path_to_main = os.path.abspath(os.path.join(os.path.dirname(__file__ ), '..'))
+    #path_config_file = os.path.join(path_to_main, 'atomize/config.ini')
+    path_config_file, path_config2 = lconf.load_config()
     config = configparser.ConfigParser()
     config.read(path_config_file)
 

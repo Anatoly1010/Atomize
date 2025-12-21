@@ -9,6 +9,7 @@ import socket
 from math import exp, sqrt
 from threading import Thread
 import numpy as np
+import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
@@ -18,8 +19,8 @@ class Micran_X_band_MW_bridge_v2:
 
         #### Inizialization
         # setting path to *.ini file
-        self.path_current_directory = os.path.dirname(__file__)
-        self.path_config_file = os.path.join(self.path_current_directory, 'config','Micran_x_band_mw_bridge_v2_config.ini')
+        self.path_current_directory = lconf.load_config_device()
+        self.path_config_file = os.path.join(self.path_current_directory, 'Micran_x_band_mw_bridge_v2_config.ini')
 
         # configuration data
         #config = cutil.read_conf_util(self.path_config_file)
@@ -75,7 +76,7 @@ class Micran_X_band_MW_bridge_v2:
 
             return data_raw
         except socket.error:
-            general.message("No Connection")
+            general.message(f"No connection {self.__class__.__name__}")
             sys.exit()
 
     #### device specific functions

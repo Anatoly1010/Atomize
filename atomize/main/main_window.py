@@ -10,6 +10,7 @@ import logging
 import signal
 import socket
 import threading
+import webbrowser
 import configparser
 import platform
 #from tkinter import filedialog#, ttk
@@ -27,6 +28,7 @@ from PyQt6.QtNetwork import QLocalServer
 from PyQt6 import QtWidgets, uic, QtCore, QtGui
 #from PyQt6.Qt import Qt as QtConst
 from pyqtgraph.dockarea import DockArea
+import atomize.main.local_config as lconf
 import atomize.main.messenger_socket_server as socket_server
 ###AWG
 #sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
@@ -84,15 +86,30 @@ class MainWindow(QtWidgets.QMainWindow):
         self.conns = []
         self.shared_mems = []
         signal.signal(signal.SIGINT, self.close)
+        self.system = platform.system()
 
         # configuration data
         #path_config_file = os.path.join(path_to_main,'atomize/config.ini')
         path_config_file = os.path.join(path_to_main, '..', 'config.ini')
+        path_config_file_device = os.path.join(path_to_main, '..', 'device_modules/config')
+        path_config_file, path_config2 = lconf.copy_config(path_config_file, path_config_file_device)
+
         config = configparser.ConfigParser()
         config.read(path_config_file)
         # directories
         self.open_dir = str(config['DEFAULT']['open_dir'])
+        if self.open_dir == '':
+            self.open_dir = lconf.load_scripts(os.path.join(path_to_main, '..', 'tests'))
+
         self.script_dir = str(config['DEFAULT']['script_dir'])
+        if self.script_dir == '':
+            self.script_dir = lconf.load_scripts(os.path.join(path_to_main, '..', 'tests'))
+
+        print( f'SYSTEM: {self.system}' )
+        print( f'DATA DIRECTORY: {self.open_dir}' )
+        print( f'SCRIPTS DIRECTORY: {self.script_dir}' )
+        print( f'CONFIG DIRECTORY: {path_config2}' )
+
         self.path = self.script_dir
         self.test_timeout = int(config['DEFAULT']['test_timeout']) * 1000 # in ms
 
@@ -100,19 +117,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.process = QtCore.QProcess(self)
         self.process_text_editor = QtCore.QProcess(self)
         self.process_python = QtCore.QProcess(self)
+        self.pid = 0
 
-        # check where we are
-        self.system = platform.system()
         if self.system == 'Windows':
             self.process_text_editor.setProgram(str(config['DEFAULT']['editorW']))
             self.process.setProgram('python.exe')
             self.process_python.setProgram('python.exe')
+            print('EDITOR: ' + str(config['DEFAULT']['editorW']))
         elif self.system == 'Linux':
             self.editor = str(config['DEFAULT']['editor'])
             if self.editor == 'nano' or self.editor == 'vi':
                 self.process_text_editor.setProgram('xterm')
+                print(f'EDITOR: nano / vi')
             else:
                 self.process_text_editor.setProgram(str(config['DEFAULT']['editor']))
+                print('EDITOR: ' + str(config['DEFAULT']['editorW']))
             self.process.setProgram('python3')
             self.process_python.setProgram('python3')
 
@@ -150,7 +169,7 @@ class MainWindow(QtWidgets.QMainWindow):
     # noinspection PyNoneFunctionAssignment
     def read_from(self, conn, memory):
         logging.debug('reading data')
-        self.meta = json.loads(conn.read(300).decode())
+        self.meta = json.loads(conn.read(320).decode())
         if self.meta['arrsize'] != 0:
             memory.lock()
             raw_data = memory.data()
@@ -455,6 +474,8 @@ class MainWindow(QtWidgets.QMainWindow):
         elif self.test_flag == 0 and exec_code == True:
             self.process_python.setArguments([self.script])
             self.process_python.start()
+            self.pid = self.process_python.processId()
+            print(f'SCRIPT PROCESS ID: {self.pid}')
 
     def message_box_clicked(self, btn):
         """
@@ -538,9 +559,9 @@ class MainWindow(QtWidgets.QMainWindow):
         text_errors_script = self.process_python.readAllStandardError().data().decode()
         if text_errors_script == '':
         #if text == '' and text_errors_script == '':
-            self.text_errors.appendPlainText("Script done!")
+            self.text_errors.appendPlainText(f"The script PID {self.pid} was executed normally")
         elif text_errors_script != '':
-            self.text_errors.appendPlainText("Script done!")
+            self.text_errors.appendPlainText(f"The script PID {self.pid} was executed with errors")
             self.text_errors.appendPlainText(text_errors_script)
             #self.text_errors.verticalScrollBar().setValue(self.text_errors.verticalScrollBar().maximum())
 
@@ -548,7 +569,8 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         A function to open a documentation
         """
-        pass
+        webbrowser.open("https://anatoly1010.github.io/atomize_docs/functions/", new = 0, autoraise = True)
+        #pass
 
     def edit_file(self):
         """
@@ -679,12 +701,16 @@ class NameList(QDockWidget):
         path_to_main = os.path.abspath(os.getcwd())
         # configuration data
         #path_config_file = os.path.join(path_to_main,'atomize/config.ini')
-        path_config_file = os.path.join(path_to_main, '..', 'config.ini')
+        #path_config_file = os.path.join(path_to_main, '..', 'config.ini')
+        path_config_file, path_config2 = lconf.load_config()
+
         config = configparser.ConfigParser()
         config.read(path_config_file)
         # directories
         self.open_dir = str(config['DEFAULT']['open_dir'])
-
+        if self.open_dir == '':
+            self.open_dir = lconf.load_scripts(os.path.join(path_to_main, '..', 'tests'))
+        
         self.namelist_model = QStandardItemModel()
         self.namelist_view = QListView()
         self.namelist_view.setModel(self.namelist_model)

@@ -3,6 +3,7 @@ import os
 import configparser
 import pyqtgraph as pg
 import numpy as np
+import math
 #from tkinter import filedialog
 #import tkinter
 from datetime import datetime
@@ -10,6 +11,7 @@ from pathlib import Path
 from pyqtgraph.dockarea import Dock
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtWidgets import QFileDialog
+import atomize.main.local_config as lconf
 #import OpenGL
 
 pg.setConfigOption('background', (63,63,97))
@@ -31,7 +33,7 @@ class CloseableDock(Dock):
     docklist = []
     def __init__(self, *args, **kwargs):
         super(CloseableDock, self).__init__(*args, **kwargs)
-        style = QtWidgets.QStyleFactory().create("windows")
+        style = QtWidgets.QStyleFactory().create("fusion")
         close_icon = style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_TitleBarCloseButton)
         close_button = QtWidgets.QPushButton(close_icon, "", self)
         close_button.clicked.connect(self.close)
@@ -39,11 +41,11 @@ class CloseableDock(Dock):
         close_button.raise_()
         self.closeClicked = close_button.clicked
 
-        max_icon = style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_TitleBarMaxButton)
-        max_button = QtWidgets.QPushButton(max_icon, "", self)
-        max_button.clicked.connect(self.maximize)
-        max_button.setGeometry(15, 0, 15, 15)
-        max_button.raise_()
+        #max_icon = style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_TitleBarMaxButton)
+        #max_button = QtWidgets.QPushButton(max_icon, "", self)
+        #max_button.clicked.connect(self.maximize)
+        #max_button.setGeometry(15, 0, 15, 15)
+        #max_button.raise_()
 
         self.closed = False
         CloseableDock.docklist.append(self)
@@ -55,10 +57,10 @@ class CloseableDock(Dock):
             if self._container is not self.area.topContainer:
                 self._container.apoptose()
 
-    def maximize(self):
-        for d in CloseableDock.docklist:
-            if d is not self and not d.closed:
-                d.close()
+    #def maximize(self):
+    #    for d in CloseableDock.docklist:
+    #        if d is not self and not d.closed:
+    #            d.close()
 
 class CrosshairPlotWidget(pg.PlotWidget):
     def __init__(self, parametric = False, *args, **kwargs):
@@ -69,13 +71,19 @@ class CrosshairPlotWidget(pg.PlotWidget):
         self.parametric = parametric
         self.search_mode = True
         self.label = None
+        self.label2 = None
 
     def toggle_search(self, mouse_event):
         if mouse_event.double():
             if self.cross_section_enabled:
                 self.hide_cross_hair()
             else:
-                self.add_cross_hair()
+                item = self.getPlotItem()
+                vb = item.getViewBox()
+                view_coords = vb.mapSceneToView(mouse_event.scenePos())
+                x_log_mode, y_log_mode = vb.state['logMode'][0], vb.state['logMode'][1]
+                view_x, view_y = view_coords.x(), view_coords.y()
+                self.add_cross_hair(view_x, view_y)
         elif self.cross_section_enabled:
             self.search_mode = not self.search_mode
             if self.search_mode:
@@ -86,13 +94,21 @@ class CrosshairPlotWidget(pg.PlotWidget):
             item = self.getPlotItem()
             vb = item.getViewBox()
             view_coords = vb.mapSceneToView(mouse_event)
+            x_log_mode, y_log_mode = vb.state['logMode'][0], vb.state['logMode'][1]
             view_x, view_y = view_coords.x(), view_coords.y()
+            if (x_log_mode == True) and (y_log_mode == False):
+                view_x = 10**view_x
+            elif (x_log_mode == False) and (y_log_mode == True):
+                view_y = 10**view_y
+            elif (x_log_mode == True) and (y_log_mode == True):
+                view_x = 10**view_x
+                view_y = 10**view_y
 
             best_guesses = []
             for data_item in item.items:
-                if isinstance(data_item, pg.PlotDataItem):
+                if isinstance(data_item, pg.PlotDataItem) and (data_item.isVisible()):
                     xdata, ydata = data_item.xData, data_item.yData
-                    index_distance = lambda i: (xdata[i]-view_x)**2 + (ydata[i] - view_y)**2
+                    index_distance = lambda i: ((xdata[i]-view_x))**2 + ((ydata[i] - view_y)/view_y)**2
                     if self.parametric:
                         index = min(list(range(len(xdata))), key=index_distance)
                     else:
@@ -106,18 +122,34 @@ class CrosshairPlotWidget(pg.PlotWidget):
                 return
 
             (pt_x, pt_y), _ = min(best_guesses, key=lambda x: x[1])
-            self.v_line.setPos(pt_x)
-            self.h_line.setPos(pt_y)
-            self.label.setText("x=%.3e, y=%.3e" % (pt_x, pt_y))
+            
+            if (x_log_mode == True) and (y_log_mode == False):
+                self.v_line.setPos(math.log10(pt_x))
+                self.h_line.setPos(pt_y)
+            elif (x_log_mode == False) and (y_log_mode == True):
+                self.v_line.setPos(pt_x)
+                self.h_line.setPos(math.log10(pt_y))
+            elif (x_log_mode == True) and (y_log_mode == True):
+                self.v_line.setPos(math.log10(pt_x))
+                self.h_line.setPos(math.log10(pt_y))
+            else:
+                self.v_line.setPos(pt_x)
+                self.h_line.setPos(pt_y)
 
-    def add_cross_hair(self):
-        self.h_line = pg.InfiniteLine(angle=0, movable=False)
-        self.v_line = pg.InfiniteLine(angle=90, movable=False)
+            self.label.setText("x=%.3e, y=%.3e" % (pt_x, pt_y))
+            self.label2.setText("cur_x=%.4e, cur_y=%.4e" % (view_x, view_y))
+
+    def add_cross_hair(self, x, y):
+        self.h_line = pg.InfiniteLine(pos=y, angle=0, movable=False)
+        self.v_line = pg.InfiniteLine(pos=x, angle=90, movable=False)
         self.addItem(self.h_line, ignoreBounds=False)
         self.addItem(self.v_line, ignoreBounds=False)
         if self.label is None:
             self.label = pg.LabelItem(justify="right")
             self.getPlotItem().layout.addItem(self.label, 4, 1)
+        if self.label2 is None:
+            self.label2 = pg.LabelItem(justify="left")
+            self.getPlotItem().layout.addItem(self.label2, 4, 1)
         self.x_cross_index = 0
         self.y_cross_index = 0
         self.cross_section_enabled = True
@@ -134,11 +166,16 @@ class CrosshairDock(CloseableDock):
         path_to_main = Path(__file__).parent
         # configuration data
         path_config_file = os.path.join(path_to_main, '..', 'config.ini')
+        path_config_file_device = os.path.join(path_to_main, '..', 'device_modules/config')
+        path_config_file, path_config2 = lconf.load_config()
+        
         config = configparser.ConfigParser()
         config.read(path_config_file)
         # directories
         self.open_dir = str(config['DEFAULT']['open_dir'])
-
+        if self.open_dir == '':
+            self.open_dir = lconf.load_scripts(os.path.join(path_to_main, '..', 'tests'))
+        
         # for not removing vertical line if the position is the same
         self.ver_line_1 = 0
         self.ver_line_2 = 0
@@ -149,7 +186,7 @@ class CrosshairDock(CloseableDock):
         #vb = item.getViewBox()
         #vb.disableAutoRange( axis = vb.YAxis )
 
-        self.legend = self.plot_widget.addLegend(offset = (50, 10), horSpacing = 35)
+        self.legend = self.plot_widget.addLegend(offset = (-20, 20), horSpacing = 10, verSpacing = -10)
         #self.plot_widget.setBackground(None)
         kwargs['widget'] = self.plot_widget
         super(CrosshairDock, self).__init__(**kwargs)
@@ -169,8 +206,11 @@ class CrosshairDock(CloseableDock):
         open_action.triggered.connect(self.file_dialog) # self.open_file_dialog
         self.menu.addAction(open_action)
 
-        self.avail_colors = [pg.mkPen(color=(0,0,255),width=1), pg.mkPen(color=(0,0,0),width=1),pg.mkPen(color=(255,153,0),width=1),
-        pg.mkPen(color=(255,0,255),width=1), pg.mkPen(color=(0,255,0),width=1), pg.mkPen(color=(255,255,255),width=1)]
+        self.avail_colors = [pg.mkPen(color=(47,79,79),width=1), pg.mkPen(color=(255,153,0),width=1), pg.mkPen(color=(255,0,255),width=1), \
+        pg.mkPen(color=(0,0,255),width=1), \
+        pg.mkPen(color=(0,0,0),width=1), pg.mkPen(color=(255,0,0),width=1), \
+        pg.mkPen(color=(95,158,160),width=1), pg.mkPen(color=(0,128,0),width=1), pg.mkPen(color=(255,255,0),width=1), \
+        pg.mkPen(color=(255,255,255),width=1)]
         self.avail_symbols= ['x','p','star','s','o','+']
         self.avail_sym_pens = [ pg.mkPen(color=(0, 0, 0), width=0), pg.mkPen(color=(255, 255, 255), width=0),pg.mkPen(color=(0, 255, 0), width=0),
         pg.mkPen(color=(0, 0, 255), width=0),pg.mkPen(color=(255, 0, 0), width=0),pg.mkPen(color=(255, 0, 255), width=0)]
@@ -194,7 +234,6 @@ class CrosshairDock(CloseableDock):
     def plot(self, *args, **kwargs):
         self.plot_widget.parametric = kwargs.pop('parametric', False)
         vline_arg = kwargs.get('vline', '')
-
         if kwargs.get('timeaxis', '') == 'True':
             # strange scaling when zoom
             axis = pg.DateAxisItem()
@@ -248,7 +287,7 @@ class CrosshairDock(CloseableDock):
                                     self.setTitle( temp )
 
                                 # 05-01-2022; shift and delete graphs
-                                del_action = QtWidgets.QAction(str(name), self)
+                                del_action = QtGui.QAction(str(name), self)
                                 shifter = QtWidgets.QDoubleSpinBox()
                                 shiftAction = QtWidgets.QWidgetAction(self)
                                 self.add_del_shift_actions(name, del_action, shifter, shiftAction)
