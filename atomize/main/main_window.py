@@ -108,7 +108,7 @@ class MainWindow(QtWidgets.QMainWindow):
         print( f'SYSTEM: {self.system}' )
         print( f'DATA DIRECTORY: {self.open_dir}' )
         print( f'SCRIPTS DIRECTORY: {self.script_dir}' )
-        print( f'MAIN CONFIG DIRECTORY: {path_config_file}' )
+        print( f'MAIN CONFIG PATH: {path_config_file}' )
         print( f'DEVICE CONFIG DIRECTORY: {path_config2}' )
 
         self.path = self.script_dir

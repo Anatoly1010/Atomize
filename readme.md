@@ -55,11 +55,11 @@ In the terminal where you launched Atomize, the paths to the configuration files
 SYSTEM: Linux
 DATA DIRECTORY: /path/to/experimental/data/to/open/
 SCRIPTS DIRECTORY: /path/to/atomize/scripts/
-MAIN CONFIG DIRECTORY: ~/.config/atomize-py/
+MAIN CONFIG PATH: ~/.config/atomize-py/
 DEVICE CONFIG DIRECTORY: ~/.config/atomize-py/device_config/
 EDITOR: text editor used for editing scripts
 ```
-The "MAIN CONFIG DIRECTORY" contains a general configuration file with the name main_config.ini. It should be changed at will according to the description below:
+The "MAIN CONFIG PATH" shows a path to a general configuration file with the name main_config.ini. It should be changed at will according to the description below:
 ```yml
 [DEFAULT]
 # configure the text editor that will opened when the Edit  button is pressed.
