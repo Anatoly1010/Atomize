@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "atomize-py"
-version = "0.2.4"
+version = "0.2.5"
 authors = [
     {name = "Atomize Developers"}
 ]
@@ -24,7 +24,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 
-dependencies = ["numpy>=1.25", "pyvisa>=1.11", "pyvisa-py>=0.5", "pyqtgraph>=0.12", "PyQt6>=6.2"]
+dependencies = ["numpy>=1.25", "pyvisa>=1.11", "pyvisa-py>=0.5", "pyqtgraph>=0.12", "PyQt6>=6.2", "platformdirs>=4.5"]
 license-files = ["license.md"]
 
 [project.scripts]

@@ -1,8 +1,0 @@
-numpy>=1.19.4
-PyVISA>=1.11.3
-PyVISA-py>=0.5.1
-PyQt6>=6.1.0
-pyqtgraph>=0.12.1
-
-
-

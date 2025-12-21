@@ -26,6 +26,7 @@ At the moment, Atomize has been tested and is currently used for controlling sev
 - [pyqtgraph >= 0.12](http://www.pyqtgraph.org)
 - [PyVisa >= 1.11](https://pyvisa.readthedocs.io/en/latest/)
 - [PyVisa-py >= 0.5](https://github.com/pyvisa/pyvisa-py)
+- [platformdirs >= 4.5](https://pypi.org/project/platformdirs/)
 - [hatchling >= 1.9 ](https://pypi.org/project/hatchling/)<br/>
 Optional:
 - [PySerial;](https://pypi.org/project/pyserial/) for serial instruments
