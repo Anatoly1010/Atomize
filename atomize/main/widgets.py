@@ -154,6 +154,21 @@ class CrosshairPlotWidget(pg.PlotWidget):
         self.y_cross_index = 0
         self.cross_section_enabled = True
 
+    def add_cross_hair_zero(self):
+        self.h_line = pg.InfiniteLine(angle=0, movable=False)
+        self.v_line = pg.InfiniteLine(angle=90, movable=False)
+        self.addItem(self.h_line, ignoreBounds=False)
+        self.addItem(self.v_line, ignoreBounds=False)
+        if self.label is None:
+            self.label = pg.LabelItem(justify="right")
+            self.getPlotItem().layout.addItem(self.label, 4, 1)
+        if self.label2 is None:
+            self.label2 = pg.LabelItem(justify="left")
+            self.getPlotItem().layout.addItem(self.label2, 4, 1)
+        self.x_cross_index = 0
+        self.y_cross_index = 0
+        self.cross_section_enabled = True
+
     def hide_cross_hair(self):
         self.removeItem(self.h_line)
         self.removeItem(self.v_line)
@@ -612,14 +627,14 @@ class CrossSectionDock(CloseableDock):
         self.y_cross_index = 0
         self.h_cross_section_widget = CrosshairPlotWidget()
         self.h_cross_dock = CloseableDock(name='X trace', widget=self.h_cross_section_widget, area=self.area)
-        self.h_cross_section_widget.add_cross_hair()
+        self.h_cross_section_widget.add_cross_hair_zero()
         self.h_cross_section_widget.search_mode = False
         self.h_cross_section_widget_data = self.h_cross_section_widget.plot([0,0])
 
         self.x_cross_index = 0
         self.v_cross_section_widget = CrosshairPlotWidget()
         self.v_cross_dock = CloseableDock(name='Y trace', widget=self.v_cross_section_widget, area=self.area)
-        self.v_cross_section_widget.add_cross_hair()
+        self.v_cross_section_widget.add_cross_hair_zero()
         self.v_cross_section_widget.search_mode = False
         self.v_cross_section_widget_data = self.v_cross_section_widget.plot([0,0])
 
