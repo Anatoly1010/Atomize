@@ -34,18 +34,19 @@ class SR_844:
                             '1 s': 8, '3 s': 9, '10 s': 10, '30 s': 11, '100 s': 12, '300 s': 13, 
                             '1 ks': 14, '3 ks': 15, '10 ks': 16, '30 ks': 17};
         self.helper_tc_list = [1, 3, 10, 30, 100, 300, 1000]
-        self.ref_mode_dict = {'Internal': 1, 'External': 0,}
-        self.ref_slope_dict = {'Sine': 0, 'PosTTL': 1, 'NegTTL': 2}
-        self.sync_dict = {'Off': 0, 'On': 1}
-        self.lp_fil_dict = {'6 dB': 0, '12 dB': 1, "18 dB": 2, "24 dB": 3}
+        self.lp_fil_dict = {'No': 0, '6 dB': 1, '12 dB': 2, "18 dB": 3, "24 dB":4}
+        self.ref_mode_dict = {'Internal': 0, 'External': 1}
 
         # Ranges and limits
         self.ref_freq_min = 25000
+        self.ref_freq_2f_min = 50000
         self.ref_freq_max = 200000000
         self.ref_ampl_min = 0.004
         self.ref_ampl_max = 5
-        self.harm_max = 32767
+        self.harm_max = 2
         self.harm_min = 1
+        self.ref_freq = 50
+        self.mode_2f = 0
 
         # Test run parameters
         # These values are returned by the modules in the test run 
@@ -85,6 +86,8 @@ class SR_844:
                         # test should be here
                         self.status_flag = 1
                         self.device_write('*CLS')
+                        self.ref_freq = float( self.device_query( 'FREQ?' ) )
+                        self.mode_2f = int( self.device_query( 'HARM?' ) )
                     except pyvisa.VisaIOError:
                         self.status_flag = 0
                         general.message(f"No connection {self.__class__.__name__}")
@@ -101,6 +104,7 @@ class SR_844:
                     general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
+
         elif self.test_flag == 'test':
             self.test_signal = 0.001
             self.test_frequency = 10000
@@ -108,11 +112,8 @@ class SR_844:
             self.test_timeconstant = '10 ms'
             self.test_amplitude = 0.3
             self.test_sensitivity = '100 mV'
-            self.test_ref_mode = 'Internal'
-            self.test_ref_slope = 'Sine'
-            self.test_sync = 'On'
             self.test_lp_filter = '6 dB'
-            self.test_harmonic = 1
+            self.test_ref_mode = 'Internal'
 
     def close_connection(self):
         if self.test_flag != 'test':
@@ -153,19 +154,23 @@ class SR_844:
             answer = self.config['name']
             return answer
 
-    # check better
     def lock_in_ref_frequency(self, *frequency):
         if self.test_flag != 'test':
             if len(frequency) == 1:
                 freq = float(frequency[0])
-                if freq >= self.ref_freq_min and freq <= self.ref_freq_max:
+                if self.mode_2f == 0:
+                    assert( freq >= self.ref_freq_min and freq <= self.ref_freq_max ), \
+                            f"Incorrect reference frequency. The available range is: {self.ref_freq_min} - {self.ref_freq_max} Hz"
                     self.device_write('FREQ '+ str(freq))
-                else:
-                    general.message("Incorrect frequency")
-                    sys.exit()
+
+                elif self.mode_2f == 1:
+                    assert( freq >= self.ref_freq_2f_min and freq <= self.ref_freq_max ), \
+                            f"Incorrect reference frequency in 2F mode. The available range is: {self.ref_freq_2f_min} - {self.ref_freq_max} Hz"
+                    self.device_write('FREQ '+ str(freq))
+
             elif len(frequency) == 0:
-                answer = float(self.device_query('FREQ?'))
-                return answer
+                self.ref_freq = float(self.device_query('FREQ?'))
+                return self.ref_freq
             else:
                 general.message("Invalid Argument")
                 sys.exit()
@@ -173,7 +178,8 @@ class SR_844:
         elif self.test_flag == 'test':
             if len(frequency) == 1:
                 freq = float(frequency[0])
-                assert(freq >= self.ref_freq_min and freq <= self.ref_freq_max), "Incorrect frequency is reached"
+                assert(freq >= self.ref_freq_min and freq <= self.ref_freq_max), \
+                            f"Incorrect reference frequency. The available range is: {self.ref_freq_min} - {self.ref_freq_max} Hz"
             elif len(frequency) == 0:
                 answer = self.test_frequency
                 return answer
@@ -197,7 +203,8 @@ class SR_844:
         elif self.test_flag == 'test':
             if len(degree) == 1:
                 degs = float(degree[0])
-                assert(degs >= -360 and degs <= 360), "Incorrect phase is reached"
+                assert(degs >= -360 and degs <= 360), \
+                            f"Incorrect phase is used. The available range is: {-360} - {360}"
             elif len(degree) == 0:
                 answer = self.test_phase
                 return answer
@@ -220,10 +227,10 @@ class SR_844:
             if  len(timeconstant) == 1:
                 temp = timeconstant[0].split(' ')
                 if float(temp[0]) < 100 and temp[1] == 'us':
-                    send.message("Desired time constant cannot be set, the nearest available value is used")
+                    send.message("Desired time constant cannot be set, the nearest available value of 100 us is used")
                     self.device_write("OFLT "+ str(0))
                 elif float(temp[0]) > 30 and temp[1] == 'ks':
-                    general.message("Desired sensitivity cannot be set, the nearest available value is used")
+                    general.message("Desired sensitivity cannot be set, the nearest available value of 30 ks is used")
                     self.device_write("OFLT "+ str(17))
                 else:
                     number_tc = min(self.helper_tc_list, key=lambda x: abs(x - int(temp[0])))
@@ -237,11 +244,13 @@ class SR_844:
                         number_tc = 1
                         temp[1] = 'ks'
                     if int(number_tc) != int(temp[0]):
-                        general.message("Desired time constant cannot be set, the nearest available value is used")
+                        a = 1
                     tc = str(number_tc) + ' ' + temp[1]
                     if tc in self.timeconstant_dict:
                         flag = self.timeconstant_dict[tc]
                         self.device_write("OFLT "+ str(flag))
+                        if a == 1:
+                            general.message(f"Desired time constant cannot be set, the nearest available value of {tc} is used")    
                     else:
                         general.message("Invalid time constant value (too high/too low)")
                         sys.exit()
@@ -280,7 +289,6 @@ class SR_844:
                 answer = self.test_timeconstant
                 return answer
 
-    #unchecked
     def lock_in_get_data(self, *channel):
         if self.test_flag != 'test':
             if len(channel) == 0:
@@ -296,7 +304,7 @@ class SR_844:
                 answer = float(self.device_query('OUTP? 3'))
                 return answer
             elif len(channel) == 1 and int(channel[0]) == 4:
-                answer = float(self.device_query('OUTP? 4'))
+                answer = float(self.device_query('OUTP? 5'))
                 return answer
             elif len(channel) == 2 and int(channel[0]) == 1 and int(channel[1]) == 2:
                 answer_string = self.device_query('SNAP? 1,2')
@@ -334,10 +342,10 @@ class SR_844:
             if len(sensitivity) == 1:
                 temp = sensitivity[0].split(' ')
                 if float(temp[0]) < 100 and temp[1] == 'nV':
-                    send.message("Desired sensitivity cannot be set, the nearest available value is used")
+                    send.message("Desired sensitivity cannot be set, the nearest available value of 100 nV is used")
                     self.device_write("SENS "+ str(0))
                 elif float(temp[0]) > 1 and temp[1] == 'V':
-                    general.message("Desired sensitivity cannot be set, the nearest available value is used")
+                    general.message("Desired sensitivity cannot be set, the nearest available value of 1 V is used")
                     self.device_write("SENS "+ str(14))
                 else:
                     number_sens = min(self.helper_sens_list, key=lambda x: abs(x - int(temp[0])))
@@ -352,10 +360,12 @@ class SR_844:
                         temp[1] = 'V'
                     sens = str(number_sens) + ' ' + temp[1]
                     if int(number_sens) != int(temp[0]):
-                        general.message("Desired sensitivity cannot be set, the nearest available value is used")
+                        a = 1
                     if sens in self.sensitivity_dict:
                         flag = self.sensitivity_dict[sens]
                         self.device_write("SENS "+ str(flag))
+                        if a == 1:
+                            general.message(f"Desired sensitivity cannot be set, the nearest available value of {sens} is used")
                     else:
                         general.message("Invalid sensitivity value (too high/too low)")
                         sys.exit()
@@ -394,20 +404,30 @@ class SR_844:
                 answer = self.test_sensitivity
                 return answer
 
-    #unfinished
     def lock_in_auto_sensitivity(self):
         """
         The AGAN command performs the Auto Sensitivity function. This command is the
         same as pressing Shift–SensUp. AGAN automatically sets the Sensitivity of the
         instrument.
         This function may take some time if the time constant is long. This function does
-        nothing if the time constant is greater than 1 s. Check the Interface Ready bit (bit
-        1) in the Serial Poll Status to determine when the command is finished.
+        nothing if the time constant is greater than one second. Check the Interface Ready
+        bit (bit 1) in the Serial Poll Status to determine when the command is finished.
         """
         if self.test_flag != 'test':
             self.device_write('AGAN')
-            #add *STB? and read bit 1:
-            # 1 IFC No command in progress.
+
+        elif self.test_flag == 'test':
+            pass
+
+    def lock_in_auto_phase(self):
+        """
+        This command adjusts the reference phase so that the
+        current measurement has a Y value of zero and an X value equal to the signal
+        magnitude, R. The outputs will take many time constants to reach their
+        new values.
+        """
+        if self.test_flag != 'test':
+            self.device_write('APHS')
 
         elif self.test_flag == 'test':
             pass
@@ -436,42 +456,11 @@ class SR_844:
                 if md in self.ref_mode_dict:
                     pass
                 else:
-                    assert(1 == 2), "Incorrect ref mode is used"
+                    assert(1 == 2), f"Incorrect ref mode is used. The only available options are: {self.ref_mode_dict}"
             elif len(mode) == 0:
                 answer = self.test_ref_mode
                 return answer
-
-
-    # STOP HERE
-    def lock_in_sync_filter(self, *mode):
-        if self.test_flag != 'test':
-            if len(mode) == 1:
-                md = str(mode[0])
-                if md in self.sync_dict:
-                    flag = self.sync_dict[md]
-                    self.device_write("SYNC "+ str(flag))
-                else:
-                    general.message("Invalid argument")
-                    sys.exit()
-            elif len(mode) == 0:
-                raw_answer = int(self.device_query("SYNC?"))
-                answer = cutil.search_keys_dictionary(self.sync_dict, raw_answer)
-                return answer
-            else:
-                general.message("Invalid argumnet")
-                sys.exit()
-
-        elif self.test_flag == 'test':
-            if len(mode) == 1:
-                md = str(mode[0])
-                if md in self.sync_dict:
-                    pass
-                else:
-                    assert(1 == 2), "Incorrect sync filter parameter"
-            elif len(mode) == 0:
-                answer = self.test_sync
-                return answer   
-
+ 
     def lock_in_lp_filter(self, *mode):
         if self.test_flag != 'test':
             if len(mode) == 1:
@@ -496,34 +485,42 @@ class SR_844:
                 if md in self.lp_fil_dict:
                     pass
                 else:
-                    assert(1 == 2), "Incorrect low pass filter is used"
+                    assert(1 == 2), f"Incorrect low pass filter is used. The only available options are: {self.lp_fil_dict}"
             elif len(mode) == 0:
                 answer = self.test_lp_filter
-                return answer   
+                return answer
 
     def lock_in_harmonic(self, *harmonic):
         if self.test_flag != 'test':
             if len(harmonic) == 1:
-                harm = int(harmonic[0]);
-                if harm <= self.harm_max and harm >= self.harm_min:
-                    self.device_write('HARM '+ str(harm))
-                else:
-                    self.device_write('HARM '+ str(self.harm_min))
-                    general.message("Invalid Argument")
-                    sys.exit()
+                harm = int(harmonic[0]) - 1
+
+                if harm == 1:
+                    assert( self.ref_freq <= self.ref_freq_max and  self.ref_freq >= self.ref_freq_2f_min ), \
+                            f"Incorrect reference frequency. \
+                                        The available range is: {self.ref_freq_2f_min} - {self.ref_freq_max} Hz"
+                elif harm == 0:
+                    assert( self.ref_freq <= self.ref_freq_max and self.ref_freq >= self.ref_freq_min ), \
+                            f"Incorrect reference frequency. \
+                                        The available range is: {self.ref_freq_min} - {self.ref_freq_max} Hz"
+
+                self.device_write('HARM '+ str(harm))
+
             elif len(harmonic) == 0:
-                answer = int(self.device_query("HARM?"))
-                return answer
+                self.mode_2f = int(self.device_query("HARM?"))
+                return self.mode_2f
             else:
                 general.message("Invalid Argument")
                 sys.exit()
 
         elif self.test_flag == 'test':
             if len(harmonic) == 1:
-                harm = float(harmonic[0])
-                assert(harm <= self.harm_max and harm >= self.harm_min), "Incorrect harmonic is reached"
+                harm = int(harmonic[0])
+                assert(harm <= self.harm_max and harm >= self.harm_min), f"Incorrect harmonic is reached. \
+                                                    The available range is: {self.harm_min} - {self.harm_max}"
+
             elif len(harmonic) == 0:
-                answer = self.test_harmonic
+                answer = self.mode_2f
                 return answer
 
     def lock_in_command(self, command):

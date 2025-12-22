@@ -201,7 +201,7 @@ class CrosshairDock(CloseableDock):
         #vb = item.getViewBox()
         #vb.disableAutoRange( axis = vb.YAxis )
 
-        self.legend = self.plot_widget.addLegend(offset = (-20, 20), horSpacing = 10, verSpacing = 0)
+        self.legend = self.plot_widget.addLegend(offset = (-20, 20), horSpacing = 25, verSpacing = 0)
         #self.plot_widget.setBackground(None)
         kwargs['widget'] = self.plot_widget
         super(CrosshairDock, self).__init__(**kwargs)

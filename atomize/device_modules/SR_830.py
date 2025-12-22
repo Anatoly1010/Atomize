@@ -173,7 +173,8 @@ class SR_830:
         elif self.test_flag == 'test':
             if len(frequency) == 1:
                 freq = float(frequency[0])
-                assert(freq >= self.ref_freq_min and freq <= self.ref_freq_max), "Incorrect frequency is reached"
+                assert(freq >= self.ref_freq_min and freq <= self.ref_freq_max), \
+                            f"Incorrect frequency is reached. The available range is: {self.ref_freq_min} - {self.ref_freq_max} Hz"
             elif len(frequency) == 0:
                 answer = self.test_frequency
                 return answer
@@ -197,7 +198,7 @@ class SR_830:
         elif self.test_flag == 'test':
             if len(degree) == 1:
                 degs = float(degree[0])
-                assert(degs >= -360 and degs <= 719), "Incorrect phase is reached"
+                assert(degs >= -360 and degs <= 719), f"Incorrect phase is reached. The available range is: {-360} - {719}"
             elif len(degree) == 0:
                 answer = self.test_phase
                 return answer
@@ -207,10 +208,10 @@ class SR_830:
             if  len(timeconstant) == 1:
                 temp = timeconstant[0].split(' ')
                 if float(temp[0]) < 10 and temp[1] == 'us':
-                    send.message("Desired time constant cannot be set, the nearest available value is used")
+                    send.message("Desired time constant cannot be set, the nearest available value of 10 us is used")
                     self.device_write("OFLT "+ str(0))
                 elif float(temp[0]) > 30 and temp[1] == 'ks':
-                    general.message("Desired sensitivity cannot be set, the nearest available value is used")
+                    general.message("Desired sensitivity cannot be set, the nearest available value of 30 ks is used")
                     self.device_write("OFLT "+ str(19))
                 else:
                     number_tc = min(self.helper_tc_list, key=lambda x: abs(x - int(temp[0])))
@@ -224,11 +225,13 @@ class SR_830:
                         number_tc = 1
                         temp[1] = 'ks'
                     if int(number_tc) != int(temp[0]):
-                        general.message("Desired time constant cannot be set, the nearest available value is used")
+                        a = 1
                     tc = str(number_tc) + ' ' + temp[1]
                     if tc in self.timeconstant_dict:
                         flag = self.timeconstant_dict[tc]
                         self.device_write("OFLT "+ str(flag))
+                        if a == 1:
+                            general.message(f"Desired time constant cannot be set, the nearest available value of {tc} is used")    
                     else:
                         general.message("Invalid time constant value (too high/too low)")
                         sys.exit()
@@ -287,7 +290,8 @@ class SR_830:
         elif self.test_flag == 'test':
             if len(amplitude) == 1:
                 ampl = float(amplitude[0]);
-                assert(ampl <= self.ref_ampl_max and ampl >= self.ref_ampl_min), "Incorrect amplitude is reached"
+                assert(ampl <= self.ref_ampl_max and ampl >= self.ref_ampl_min), \
+                            f"Incorrect amplitude is reached. The available range is: {self.ref_ampl_min} - {self.ref_ampl_max} V"
             elif len(amplitude) == 0:
                 answer = self.test_amplitude
                 return answer
@@ -345,10 +349,10 @@ class SR_830:
             if len(sensitivity) == 1:
                 temp = sensitivity[0].split(' ')
                 if float(temp[0]) < 2 and temp[1] == 'nV':
-                    send.message("Desired sensitivity cannot be set, the nearest available value is used")
+                    send.message("Desired sensitivity cannot be set, the nearest available value of 2 nV is used")
                     self.device_write("SENS "+ str(0))
                 elif float(temp[0]) > 1 and temp[1] == 'V':
-                    general.message("Desired sensitivity cannot be set, the nearest available value is used")
+                    general.message("Desired sensitivity cannot be set, the nearest available value of 1 V is used")
                     self.device_write("SENS "+ str(26))
                 else:
                     number_sens = min(self.helper_sens_list, key=lambda x: abs(x - int(temp[0])))
@@ -363,10 +367,12 @@ class SR_830:
                         temp[1] = 'V'
                     sens = str(number_sens) + ' ' + temp[1]
                     if int(number_sens) != int(temp[0]):
-                        general.message("Desired sensitivity cannot be set, the nearest available value is used")
+                        a = 1
                     if sens in self.sensitivity_dict:
                         flag = self.sensitivity_dict[sens]
                         self.device_write("SENS "+ str(flag))
+                        if a == 1:
+                            general.message(f"Desired sensitivity cannot be set, the nearest available value of {sens} is used")
                     else:
                         general.message("Invalid sensitivity value (too high/too low)")
                         sys.exit()
@@ -429,7 +435,7 @@ class SR_830:
                 if md in self.ref_mode_dict:
                     pass
                 else:
-                    assert(1 == 2), "Incorrect ref mode is used"
+                    assert(1 == 2), f"Incorrect ref mode is used. The only available options are: {self.ref_mode_dict}"
             elif len(mode) == 0:
                 answer = self.test_ref_mode
                 return answer
@@ -458,7 +464,7 @@ class SR_830:
                 if md in self.ref_slope_dict:
                     pass
                 else:
-                    assert(1 == 2), "Incorrect ref slope is used"
+                    assert(1 == 2), f"Incorrect ref slope is used. The only available options are: {self.ref_slope_dict}"
             elif len(mode) == 0:
                 answer = self.test_ref_slope
                 return answer             
@@ -487,7 +493,7 @@ class SR_830:
                 if md in self.sync_dict:
                     pass
                 else:
-                    assert(1 == 2), "Incorrect sync filter parameter"
+                    assert(1 == 2), f"Incorrect sync filter parameter. The only available options are: {self.sync_dict}"
             elif len(mode) == 0:
                 answer = self.test_sync
                 return answer   
@@ -516,7 +522,7 @@ class SR_830:
                 if md in self.lp_fil_dict:
                     pass
                 else:
-                    assert(1 == 2), "Incorrect low pass filter is used"
+                    assert(1 == 2), f"Incorrect low pass filter is used. The only available options are: {self.lp_fil_dict}"
             elif len(mode) == 0:
                 answer = self.test_lp_filter
                 return answer   
@@ -541,7 +547,8 @@ class SR_830:
         elif self.test_flag == 'test':
             if len(harmonic) == 1:
                 harm = float(harmonic[0])
-                assert(harm <= self.harm_max and harm >= self.harm_min), "Incorrect harmonic is reached"
+                assert(harm <= self.harm_max and harm >= self.harm_min),  f"Incorrect harmonic is reached. \
+                                                    The available range is: {self.harm_min} - {self.harm_max}"
             elif len(harmonic) == 0:
                 answer = self.test_harmonic
                 return answer

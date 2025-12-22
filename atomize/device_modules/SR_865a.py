@@ -219,7 +219,8 @@ class SR_865a:
         elif self.test_flag == 'test':
             if len(frequency) == 1:
                 freq = float(frequency[0])
-                assert(freq >= self.ref_freq_min and freq <= self.ref_freq_max), "Incorrect frequency is reached"
+                assert(freq >= self.ref_freq_min and freq <= self.ref_freq_max), \
+                            f"Incorrect frequency is reached. The available range is: {self.ref_freq_min} - {self.ref_freq_max} Hz"
             elif len(frequency) == 0:
                 answer = self.test_frequency
                 return answer
@@ -243,17 +244,30 @@ class SR_865a:
         elif self.test_flag == 'test':
             if len(degree) == 1:
                 degs = float(degree[0])
-                assert(degs >= -360000 and degs <= 360000), "Incorrect phase is reached"
+                assert(degs >= -360000 and degs <= 360000), f"Incorrect phase is reached. The available range is: {-360000} - {360000}"
             elif len(degree) == 0:
                 answer = self.test_phase
                 return answer
+
+    def lock_in_auto_phase(self):
+        """
+        The APHS command performs the Auto Phase function. This command is the same
+        as pressing Shift−Phase. This command adjusts the reference phase so that the
+        current measurement has a Y value of zero and an X value equal to the signal
+        magnitude, R.
+        """
+        if self.test_flag != 'test':
+            self.device_write('APHS')
+
+        elif self.test_flag == 'test':
+            pass
 
     def lock_in_time_constant(self, *timeconstant):
         if self.test_flag != 'test':
             if  len(timeconstant) == 1:
                 temp = timeconstant[0].split(' ')
                 if float(temp[0]) > 30 and temp[1] == 'ks':
-                    general.message("Desired sensitivity cannot be set, the nearest available value is used")
+                    general.message("Desired sensitivity cannot be set, the nearest available value of 30 ks is used")
                     self.device_write("OFLT "+ str(21))
                 else:
                     number_tc = min(self.helper_tc_list, key=lambda x: abs(x - int(temp[0])))
@@ -267,11 +281,13 @@ class SR_865a:
                         number_tc = 1
                         temp[1] = 'ks'
                     if int(number_tc) != int(temp[0]):
-                        general.message("Desired time constant cannot be set, the nearest available value is used")
+                        a = 1
                     tc = str(number_tc) + ' ' + temp[1]
                     if tc in self.timeconstant_dict:
                         flag = self.timeconstant_dict[tc]
                         self.device_write("OFLT "+ str(flag))
+                        if a == 1:
+                            general.message(f"Desired time constant cannot be set, the nearest available value of {tc} is used")
                     else:
                         general.message("Invalid time constant value (too high/too low)")
                         sys.exit()
@@ -328,7 +344,8 @@ class SR_865a:
         elif self.test_flag == 'test':
             if len(amplitude) == 1:
                 ampl = float(amplitude[0]);
-                assert(ampl <= self.ref_ampl_max and ampl >= self.ref_ampl_min), "Incorrect amplitude is reached"
+                assert(ampl <= self.ref_ampl_max and ampl >= self.ref_ampl_min), \
+                            f"Incorrect amplitude is reached. The available range is: {self.ref_ampl_min} - {self.ref_ampl_max} V"
             elif len(amplitude) == 0:
                 answer = self.test_amplitude
                 return answer
@@ -386,7 +403,7 @@ class SR_865a:
             if len(sensitivity) == 1:
                 temp = sensitivity[0].split(' ')
                 if float(temp[0]) > 1 and temp[1] == 'V':
-                    general.message("Desired sensitivity cannot be set, the nearest available value is used")
+                    general.message("Desired sensitivity cannot be set, the nearest available value of 1 V is used")
                     self.device_write("SCAL "+ str(0))
                 else:
                     number_sens = min(self.helper_sens_list, key=lambda x: abs(x - int(temp[0])))
@@ -401,10 +418,12 @@ class SR_865a:
                         temp[1] = 'V'
                     sens = str(number_sens) + ' ' + temp[1]
                     if int(number_sens) != int(temp[0]):
-                        general.message("Desired sensitivity cannot be set, the nearest available value is used")
+                        a = 1
                     if sens in self.sensitivity_dict:
                         flag = self.sensitivity_dict[sens]
                         self.device_write("SCAL "+ str(flag))
+                        if a == 1:
+                            general.message(f"Desired sensitivity cannot be set, the nearest available value of {sens} is used")
                     else:
                         general.message("Invalid sensitivity value (too high/too low)")
                         sys.exit()
@@ -441,6 +460,18 @@ class SR_865a:
                 answer = self.test_sensitivity
                 return answer
 
+    def lock_in_auto_sensitivity(self):
+        """
+        The ASCL command performs the Auto Scale function
+        This function may take some time if the time constant is long. This function does
+        nothing if the time constant is greater than one second.
+        """
+        if self.test_flag != 'test':
+            self.device_write('ASCL')
+
+        elif self.test_flag == 'test':
+            pass
+
     def lock_in_ref_mode(self, *mode):
         if self.test_flag != 'test':
             if  len(mode) == 1:
@@ -465,7 +496,7 @@ class SR_865a:
                 if md in self.ref_mode_dict:
                     pass
                 else:
-                    assert(1 == 2), "Incorrect ref mode is used"
+                    assert(1 == 2), f"Incorrect ref mode is used. The only available options are: {self.ref_mode_dict}"
             elif len(mode) == 0:
                 answer = self.test_ref_mode
                 return answer
@@ -494,7 +525,7 @@ class SR_865a:
                 if md in self.ref_slope_dict:
                     pass
                 else:
-                    assert(1 == 2), "Incorrect ref slope is used"
+                    assert(1 == 2), f"Incorrect ref slope is used. The only available options are: {self.ref_slope_dict}"
             elif len(mode) == 0:
                 answer = self.test_ref_slope
                 return answer             
@@ -523,7 +554,7 @@ class SR_865a:
                 if md in self.sync_dict:
                     pass
                 else:
-                    assert(1 == 2), "Incorrect sync filter parameter"
+                    assert(1 == 2), f"Incorrect sync filter parameter. The only available options are: {self.sync_dict}"
             elif len(mode) == 0:
                 answer = self.test_sync
                 return answer   
@@ -552,7 +583,7 @@ class SR_865a:
                 if md in self.lp_fil_dict:
                     pass
                 else:
-                    assert(1 == 2), "Incorrect low pass filter is used"
+                    assert(1 == 2), f"Incorrect low pass filter is used. The only available options are: {self.lp_fil_dict}"
             elif len(mode) == 0:
                 answer = self.test_lp_filter
                 return answer   
@@ -577,7 +608,8 @@ class SR_865a:
         elif self.test_flag == 'test':
             if len(harmonic) == 1:
                 harm = float(harmonic[0])
-                assert(harm <= self.harm_max and harm >= self.harm_min), "Incorrect harmonic is reached"
+                assert(harm <= self.harm_max and harm >= self.harm_min), f"Incorrect harmonic is reached. \
+                                                    The available range is: {self.harm_min} - {self.harm_max}"
             elif len(harmonic) == 0:
                 answer = self.test_harmonic
                 return answer
