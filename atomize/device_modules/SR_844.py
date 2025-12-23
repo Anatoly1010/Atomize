@@ -224,6 +224,7 @@ class SR_844:
 
     def lock_in_time_constant(self, *timeconstant):
         if self.test_flag != 'test':
+            a = 0
             if  len(timeconstant) == 1:
                 temp = timeconstant[0].split(' ')
                 if float(temp[0]) < 100 and temp[1] == 'us':
@@ -340,6 +341,7 @@ class SR_844:
     def lock_in_sensitivity(self, *sensitivity):
         if self.test_flag != 'test':
             if len(sensitivity) == 1:
+                a = 0
                 temp = sensitivity[0].split(' ')
                 if float(temp[0]) < 100 and temp[1] == 'nV':
                     send.message("Desired sensitivity cannot be set, the nearest available value of 100 nV is used")
