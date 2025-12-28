@@ -27,7 +27,8 @@ class Saver_Opener():
         # configuration data
         #path_config_file = os.path.join(path_to_main,'atomize/config.ini')
         path_config_file, path_config2 = lconf.load_config()
-        #path_config_file = os.path.join(self.path_to_main, 'config.ini')
+        self.path_to_main = path_config2
+
         config = configparser.ConfigParser()
         config.read(path_config_file)
         # directories
@@ -43,8 +44,8 @@ class Saver_Opener():
             self.test_header_array = np.array(['header1', 'header2'])
             self.test_data = np.arange(1000, 2)
             self.test_data_2d = np.meshgrid(self.test_data, self.test_data)
-            self.test_file_path = os.path.join(os.path.abspath(os.getcwd()), 'test')
-            self.test_file_param_path = os.path.join(os.path.abspath(os.getcwd()), 'test.param')
+            self.test_file_path = os.path.join(self.path_to_main, 'test')
+            self.test_file_param_path = os.path.join(self.path_to_main, 'test.param')
 
     def open_1D(self, path, header = 0):
         if self.test_flag != 'test':
@@ -93,9 +94,13 @@ class Saver_Opener():
             file_path = self.FileDialog(directory = directory, mode = 'Save', fmt = 'csv')
             QTimer.singleShot(50, self.app.quit)
             self.app.exec()
+            
+            try:
+                np.savetxt(file_path, np.transpose(data), fmt = '%.6e', delimiter = ',', newline = '\n', \
+                    header = header, footer = '', comments = '# ', encoding = None)
+            except (ValueError, FileNotFoundError):
+                pass
 
-            np.savetxt(file_path, np.transpose(data), fmt = '%.5e', delimiter = ',', newline = '\n', header = header, footer = '', comments = '#', encoding = None)
-        
         elif self.test_flag == 'test':
             pass
 
@@ -186,8 +191,12 @@ class Saver_Opener():
             QTimer.singleShot(50, self.app.quit)
             self.app.exec()
 
-            np.savetxt(file_path, data, fmt = '%.5e', delimiter = ',', newline = '\n', header = header, footer = '', comments = '#', encoding = None)
-        
+            try:
+                np.savetxt(file_path, data, fmt = '%.6e', delimiter = ',', newline = '\n', \
+                    header = header, footer = '', comments = '# ', encoding = None)
+            except (ValueError, FileNotFoundError):
+                pass            
+
         elif self.test_flag == 'test':
             pass
 
@@ -211,15 +220,11 @@ class Saver_Opener():
             try:
                 file_name = self.create_file_dialog()
                 file_save_param = file_name.split('.csv')[0] + str(add_name)
-            # pressed cancel Tk_kinter
-            except TypeError:
-                file_name = os.path.join(self.path_to_main, 'temp.csv')
-                file_save_param = file_name.split('.csv')[0] + str(add_name)
-            # pressed cancel PyQt
-            except FileNotFoundError:
-                file_name = os.path.join(self.path_to_main, 'temp.csv')
-                file_save_param = file_name.split('.csv')[0] + str(add_name)
 
+            except (TypeError, FileNotFoundError):
+                file_name = os.path.join(self.path_to_main, 'temp.csv')
+                file_save_param = file_name.split('.csv')[0] + str(add_name)
+            
             return file_name, file_save_param
 
         elif self.test_flag == 'test':
@@ -228,7 +233,7 @@ class Saver_Opener():
     def save_header(self, filename, header = '', mode = 'w'):
         if self.test_flag != 'test':
             file_for_save = open(filename, mode)
-            np.savetxt(file_for_save, [], fmt='%.5e', delimiter=',', \
+            np.savetxt(file_for_save, [], fmt='%.6e', delimiter=',', \
                                         newline='\n', header=header, footer='', comments='# ', encoding=None)
             file_for_save.close()
         elif self.test_flag == 'test':
@@ -239,7 +244,7 @@ class Saver_Opener():
         if self.test_flag != 'test':
             if len( data.shape ) == 2:
                 file_for_save = open(filename, mode)
-                np.savetxt(file_for_save, data, fmt='%.5e', delimiter=',', \
+                np.savetxt(file_for_save, data, fmt='%.6e', delimiter=',', \
                                             newline='\n', header=header, footer='', comments='# ', encoding=None)
                 file_for_save.close()
 
@@ -248,13 +253,13 @@ class Saver_Opener():
                     if i == 0:
                         file_for_save_i = filename
                         file_for_save = open(file_for_save_i, mode)
-                        np.savetxt(file_for_save, np.transpose( data[i] ), fmt='%.5e', delimiter=',', \
+                        np.savetxt(file_for_save, np.transpose( data[i] ), fmt='%.6e', delimiter=',', \
                                                     newline='\n', header=header, footer='', comments='# ', encoding=None)
                         file_for_save.close()
                     else:
                         file_for_save_i = filename.split('.csv')[0] + '_' + str(i) + '.csv'
                         file_for_save = open(file_for_save_i, mode)
-                        np.savetxt(file_for_save, np.transpose( data[i] ), fmt='%.5e', delimiter=',', \
+                        np.savetxt(file_for_save, np.transpose( data[i] ), fmt='%.6e', delimiter=',', \
                                                     newline='\n', header=header, footer='', comments='# ', encoding=None)
                         file_for_save.close()
 

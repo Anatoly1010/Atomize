@@ -2,7 +2,7 @@ import time
 import numpy as np
 from datetime import datetime
 import atomize.general_modules.general_functions as general
-import atomize.general_modules.csv_opener_saver as openfile
+import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 
 file_handler = openfile.Saver_Opener()
 
@@ -29,7 +29,8 @@ for i in range(POINTS):
     start_time = time.time()
     general.wait('100 ms')
 
-    a = general.plot_1d('EXP1', x_axis, (data_x, data_y), label = 'test', xname = 'Delay', xscale = 'ns', yname = 'Area', yscale = 'V*s', pr = a, text=str(STEP*i))
+    a = general.plot_1d('1D', x_axis, (data_x, data_y), label = 'test', xname = 'Delay', \
+            xscale = 's', yname = 'Area', yscale = 'V*s', pr = a, text=str(STEP*i))
 
     general.message(str(time.time() - start_time))
     

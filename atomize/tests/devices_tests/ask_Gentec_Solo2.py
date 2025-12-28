@@ -16,7 +16,7 @@ solo2 = solo.Gentec_Solo2()
 #solo2.laser_power_meter_zero_offset('Off')
 #general.message(solo2.laser_power_meter_zero_offset())
 
-#solo2.laser_power_meter_scale(0)
+solo2.laser_power_meter_scale('123 MW')
 
 #solo2.laser_power_meter_energy_mode('Off')
 #general.message(solo2.laser_power_meter_energy_mode())
@@ -24,6 +24,6 @@ solo2 = solo.Gentec_Solo2()
 #solo2.laser_power_meter_analog_output('On')
 #general.message(solo2.laser_power_meter_analog_output())
 
-for i in range (100):
-	general.wait('1000 ms')
-	general.message(solo2.laser_power_meter_get_data())
+#for i in range (100):
+#	general.wait('1000 ms')
+#	general.message(solo2.laser_power_meter_get_data())

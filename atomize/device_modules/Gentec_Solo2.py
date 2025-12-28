@@ -27,7 +27,13 @@ class Gentec_Solo2:
         self.offset_dict = {'Off': 0, 'On': 1, 'Undo': 2}
         self.energy_mode_dict = {'Off': 0, 'On': 1}
         self.analog_output_dict = {'Off': 0, 'On': 1}
-        self.scale_dict = {'pW': 'p', 'nW': 'n', 'uW': 'u', 'mW': 'm', 'W': '', 'kW': 'k', 'MW': 'meg'}
+        self.scale_dict =  {'1 pW': '1p', '3 pW': '3p', '10 pW': '10p', '30 pW': '30p', '100 pW': '100p', '300 pW': '300p', \
+                            '1 nW': '1n', '3 nW': '3n', '10 nW': '10n', '30 nW': '30n', '100 nW': '100n', '300 nW': '300n',\
+                            '1 uW': '1u', '3 uW': '3u', '10 uW': '10u', '30 uW': '30u', '100 uW': '100u', '300 uW': '300u',\
+                            '1 mW': '1m', '3 mW': '3m', '10 mW': '10m', '30 mW': '30m', '100 mW': '100m', '300 mW': '300m',\
+                            '1 W': '1', '3 W': '3', '10 W': '10', '30 W': '30', '100 W': '100', '300 W': '300',\
+                            '1 kW': '1k', '3 kW': '3k', '10 kW': '10k', '30 kW': '30k', '100 kW': '100k', '300 kW': '300k',\
+                            '1 MW': '1meg', '3 MW': '3meg', '10 MW': '10meg', '30 MW': '30meg', '100 MW': '100meg', '300 MW': '300meg'}
         self.helper_scale_list = [1, 3, 10, 30, 100, 300, 1000]
 
         # Ranges and limits
@@ -46,7 +52,7 @@ class Gentec_Solo2:
             self.test_flag = sys.argv[1]
         else:
             self.test_flag = 'None'
-
+        
         if self.test_flag != 'test':
             if self.config['interface'] == 'rs232':
                 try:
@@ -143,7 +149,7 @@ class Gentec_Solo2:
                     answer = float( self.device_query('*CVU').split(": ")[1] )
                     return answer
                 else:
-                    general.wait(f'{self.config['timeout']} ms')
+                    general.wait(f'{self.config["timeout"]} ms')
 
             general.message('New data is not available')
             return 0
@@ -265,80 +271,34 @@ class Gentec_Solo2:
         applies the best scale for the current values in real time.
         """
         if self.test_flag != 'test':
-            a = 0
-            raw_answer = self.device_query('*SSA Auto')
-            if raw_answer == 'ACK':
-                general.message(f'Auto scaling is done {self.__class__.__name__}')
-            else:
-                general.message( raw_answer )
-
-            temp = scale[0].split(' ')
-            if float(temp[0]) < 1 and temp[1] == 'pW':
-                raw_answer = self.device_query(f'*SSA 1p')
+            if scale == 0:
+                raw_answer = self.device_query('*SSA Auto')
                 if raw_answer == 'ACK':
-                    send.message("Desired scale cannot be set, the nearest available value of 1 pW is used")
-                else:
-                    general.message( raw_answer )
-            elif float(temp[0]) > 300 and temp[1] == 'kW':
-                raw_answer = self.device_query(f'*SSA 300k')
-                if raw_answer == 'ACK':
-                    general.message("Desired scale cannot be set, the nearest available value of 300 kW is used")
+                    general.message(f'Auto scaling is done {self.__class__.__name__}')
                 else:
                     general.message( raw_answer )
             else:
-                number_scale = min(self.helper_scale_list, key=lambda x: abs(x - int(temp[0])))
-                if int(number_scale) == 1000 and temp[1] == 'pW':
-                    number_scale = 1
-                    temp[1] = 'nV'
-                elif int(number_scale) == 1000 and temp[1] == 'nV':
-                    number_scale = 1
-                    temp[1] = 'uW'
-                elif int(number_scale) == 1000 and temp[1] == 'uW':
-                    number_scale = 1
-                    temp[1] = 'mW'
-                elif int(number_scale) == 1000 and temp[1] == 'mW':
-                    number_scale = 1
-                    temp[1] = 'W'
-                elif int(number_scale) == 1000 and temp[1] == 'W':
-                    number_scale = 1
-                    temp[1] = 'kW'
+                parsed_value, int_value, a = cutil.parse_pg(scale, self.helper_scale_list)
+                val, val_key, b = cutil.search_and_limit_keys_dictionary( self.scale_dict, parsed_value, 1e-12, 1e6 )
+                #general.message(f'ANSWER: {val}')
 
-                if int(number_scale) != int(temp[0]):
-                    a = 1
-
-                scale_dim = temp[1]
-                flag = self.scale_dict[scale_dim]
-                raw_answer = self.device_query(f'*SSA {number_scale}{flag}')
+                raw_answer = self.device_query(f'*SSA {val}')
                 if raw_answer == 'ACK':
-                    if a == 1:
-                        general.message(f"Desired scale cannot be set, the nearest available value of {number_scale} {temp[1]} is used")  
+                    if ( a == 1 ) or ( b == 1 ):
+                        general.message(f"Desired scale cannot be set, the nearest available value of {val_key} is used")  
                 else:
                     general.message( raw_answer )
 
         elif self.test_flag == 'test':
-            if  len(scale) == 1:
-
-                temp = scale[0].split(' ')
-                number_scale = min(self.helper_scale_list, key=lambda x: abs(x - int(temp[0])))
-                if int(number_scale) == 1000 and temp[1] == 'pW':
-                    number_scale = 1
-                    temp[1] = 'nV'
-                elif int(number_scale) == 1000 and temp[1] == 'nV':
-                    number_scale = 1
-                    temp[1] = 'uW'
-                elif int(number_scale) == 1000 and temp[1] == 'uW':
-                    number_scale = 1
-                    temp[1] = 'mW'
-                elif int(number_scale) == 1000 and temp[1] == 'mW':
-                    number_scale = 1
-                    temp[1] = 'W'
-                elif int(number_scale) == 1000 and temp[1] == 'W':
-                    number_scale = 1
-                    temp[1] = 'kW'
-
-                scale_dim = temp[1]
-                assert( scale_dim in self.scale_dict ), "Incorrect dimension is used.\
-                                The only available options are [pW, nW, uW, mW, W, kW]"
+            if scale == 0:
+                pass
+            elif scale != 0:
+                assert( isinstance(scale, str) ), "Incorrect argument is used. The available options are: 0 (auto-scale); str(int + ' ' + [pW, nW, uW, mW, W, kW])"
+                val, val_key, b = cutil.search_and_limit_keys_dictionary( self.scale_dict, \
+                                    cutil.parse_pg(scale, self.helper_scale_list)[0], 1e-12, 1e6 )
+                assert( val in self.scale_dict.values() ), "Incorrect argument is used. The available options are: 0 (auto-scale); str(int + ' ' + [pW, nW, uW, mW, W, kW])"
+            else:
+                assert( 1 == 2 ), "Incorrect argument is used. The available options are: 0 (auto-scale); str(int + ' ' + [pW, nW, uW, mW, W, kW])"
 
     def laser_power_meter_command(self, command):
         if self.test_flag != 'test':

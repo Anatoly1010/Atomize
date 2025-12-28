@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import configparser
+import pyqtgraph as pg
 from pyvisa.constants import StopBits, Parity
 import atomize.general_modules.general_functions as general
 
@@ -129,6 +130,39 @@ def search_keys_dictionary(dictionary, search_value):
     for key, value in dictionary.items():
         if value == search_value:
             return key
+
+def parse_pg(st, helper_list):
+    fp = pg.siParse( pg.siFormat( pg.siEval(st), suffix = (pg.siParse(st))[2], allowUnicode = False) )
+    close_value = min(helper_list, key=lambda x: abs(x - float(fp[0])))
+    ret_string = f'{close_value} {fp[1]}{fp[2]}'
+    if close_value == 1000:
+        sp = pg.siFormat( pg.siEval(ret_string), suffix = (pg.siParse(ret_string))[2], allowUnicode = False)
+        if sp == st:
+            return sp, int( pg.siParse(sp)[0] ), 0
+        else:
+            return sp, int( pg.siParse(sp)[0] ), 1
+    else:
+        if pg.siEval(ret_string) == pg.siEval(st):
+            return ret_string, int( pg.siParse(ret_string)[0] ), 0
+        else:
+            return ret_string, int( pg.siParse(ret_string)[0] ), 1
+
+def search_and_limit_keys_dictionary(dictionary, search_value, min_value, max_value):
+    dict_vals = dictionary.values()
+    dict_keys = dictionary.keys()
+
+    if search_value in dictionary:
+        return dictionary[search_value], search_value, 0
+    else:
+        if pg.siEval(search_value) > max_value:
+            return list( dict_vals ) [-1], list( dict_keys ) [-1], 1
+        elif pg.siEval(search_value) < min_value:
+            return list( dict_vals ) [0], list( dict_keys ) [0], 1
+        else:
+            return 0, 0, 1
+
+def main():
+    pass
 
 if __name__ == "__main__":
     main()

@@ -421,6 +421,19 @@ class MainWindow(QtWidgets.QMainWindow):
         clear_action.triggered.connect(self.clear_errors)
         self.text_errors.addAction(clear_action)
 
+        self.dockarea2 = DockArea()
+        self.dockarea3 = DockArea()
+        self.dock_editor = self.dockarea2.addDock(name="Script Editor")
+
+        self.dock_editor.addWidget(widget = self.textEdit )
+        self.gridLayout_tab.addWidget(self.dockarea2, 1, 2, 10, 1)
+        
+        self.dock_errors = self.dockarea3.addDock(name="Output", position='top')
+        #self.dock_errors.setStyleSheet("QWidget { background-color: yellow; }")
+        self.dock_errors.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Expanding)
+        self.dock_errors.addWidget(widget = self.text_errors )
+        self.gridLayout_tab.addWidget(self.dockarea3, 11, 0, 1, 3)
+
         # Liveplot tab setting
         self.dockarea = DockArea()
         self.namelist = NameList(self)

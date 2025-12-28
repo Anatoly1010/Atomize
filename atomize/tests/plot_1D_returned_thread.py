@@ -22,9 +22,10 @@ for i in range(POINTS):
     prWait = returnThread.rThread(target = general.wait, args=('150 ms', ), kwargs={})
     prWait.start()
     # Does not affect elapsed time, as it is less than “150 ms” in the wait function from the prWait
-    general.wait('200 ms')
+    general.wait('100 ms')
 
-    prPlot = general.plot_1d('EXP1', x_axis, (data_x, data_y), label = 'test2', xname = 'Delay', xscale = 'ns', yname = 'Area', yscale = 'V*s', vline = (STEP*i, ), pr = prPlot, text=str(STEP*i))
+    prPlot = general.plot_1d('EXP1', x_axis, (data_x, data_y), label = 'test2', xname = 'Delay', \
+            xscale = 'ns', yname = 'Area', yscale = 'V*s', vline = (STEP*i, ), pr = prPlot, text=str(STEP*i))
     prWait.join()
 
     general.message(str(time.time() - start_time))
