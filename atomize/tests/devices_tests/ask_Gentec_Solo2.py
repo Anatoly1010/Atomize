@@ -12,11 +12,11 @@ solo2 = solo.Gentec_Solo2()
 #general.message(solo2.laser_power_meter_head_name())
 #general.message(solo2.laser_power_meter_get_data())
 #solo2.laser_power_meter_set_wavelength(1064)
-#general.message(solo2.laser_power_meter_set_wavelength())
+general.message(solo2.laser_power_meter_wavelength())
 #solo2.laser_power_meter_zero_offset('Off')
 #general.message(solo2.laser_power_meter_zero_offset())
 
-solo2.laser_power_meter_scale('123 MW')
+solo2.laser_power_meter_scale('123 W')
 
 #solo2.laser_power_meter_energy_mode('Off')
 #general.message(solo2.laser_power_meter_energy_mode())

@@ -11,38 +11,40 @@ import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
-class Keysight_2000_Xseries:
+class Rigol_MSO8000_Series:
     #### Basic interaction functions
     def __init__(self):
 
         #### Inizialization
         # setting path to *.ini file
         self.path_current_directory = lconf.load_config_device()
-        self.path_config_file = os.path.join(self.path_current_directory, 'Keysight_2012a_config.ini')
+        self.path_config_file = os.path.join(self.path_current_directory, 'Rigol_mso8104_config.ini')
 
         # configuration data
         self.config = cutil.read_conf_util(self.path_config_file)
         self.specific_parameters = cutil.read_specific_parameters(self.path_config_file)
 
         # auxilary dictionaries
-        self.points_list = [100, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000]
-        #self.points_list_average = [99, 247, 479, 959, 1919, 3839, 7679]
-        self.points_list_average = [100, 250, 500, 1000, 2500, 4000, 8000, 16000]
+        self.points_list = [1e3, 1e4, 1e5, 1e6, 1e7, 2.5e7, 5e7, 1e8, 1.25e8]
+        self.points_list_average = [1e3, 1e4, 1e5, 1e6, 1e7, 2.5e7]
         # Number of point is different for Average mode and three other modes
 
         self.channel_dict = {'CH1': 'CHAN1', 'CH2': 'CHAN2', 'CH3': 'CHAN3', 'CH4': 'CHAN4',}
         self.trigger_channel_dict = {'CH1': 'CHAN1', 'CH2': 'CHAN2', 'CH3': 'CHAN3', 'CH4': 'CHAN4', \
                                 'Ext': 'EXTernal', 'Line': 'LINE', 'WGen': 'WGEN',}
-
-        #should be checked, since it is incorrect for 2000 Series
-        self.timebase_dict = {'s': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000,};
+        self.timebase_dict = {'s': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000};
         self.scale_dict = {'V': 1, 'mV': 1000,};
         self.frequency_dict = {'MHz': 1000000, 'kHz': 1000, 'Hz': 1, 'mHz': 0.001,};
         self.wavefunction_dic = {'Sin': 'SINusoid', 'Sq': 'SQUare', 'Ramp': 'RAMP', 'Pulse': 'PULSe',
-                            'DC': 'DC', 'Noise': 'NOISe',};
-        self.ac_type_dic = {'Normal': "NORMal", 'Average': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
+                            'DC': 'DC', 'Noise': 'NOISe', 'Sinc': 'SINC', 'ERise': 'EXPRise',
+                            'EFall': 'EXPFall', 'Card': 'CARDiac', 'Gauss': 'GAUSsian',
+                            'Arb': 'ARBitrary'};
+        self.ac_type_dic = {'Normal': "NORM", 'Average': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
+        self.wave_gen_interpolation_dictionary = {'On': 1, 'Off': 0, }
+        self.number_average_list = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, \
+                                    32768, 65536]
 
-        # Limits and Ranges:
+        # Limits and Ranges (depends on the exact model):
         self.analog_channels = int(self.specific_parameters['analog_channels'])
         self.numave_min = 2
         self.numave_max = 65536
@@ -74,6 +76,8 @@ class Keysight_2000_Xseries:
                     self.device.read_termination = self.config['read_termination']  # for WORD (a kind of binary) format
                     try:
                         self.device_write('*CLS')
+                        self.device_write(':WAVeform:MODE RAW')
+
                         self.status_flag = 1
                     except (pyvisa.VisaIOError, BrokenPipeError):
                         general.message(f"No connection {self.__class__.__name__}")
@@ -104,6 +108,9 @@ class Keysight_2000_Xseries:
             self.test_wave_gen_amplitude = '500 mV'
             self.test_wave_gen_offset = 0.
             self.test_wave_gen_impedance = '1 M'
+            self.test_wave_gen_interpolation = 'Off'
+            self.test_wave_gen_points = 10
+            self.test_area = 0.001
 
     def close_connection(self):
         if self.test_flag != 'test':
@@ -142,7 +149,7 @@ class Keysight_2000_Xseries:
     def device_read_binary(self, command):
         if self.status_flag == 1:
             answer = self.device.query_binary_values(command, 'H', is_big_endian=True, container=np.array)
-            # H for 3034T; H for 2012A
+            # H for 3034T; h for 2012A
             return answer
         else:
             general.message(f"No connection {self.__class__.__name__}")
@@ -167,21 +174,26 @@ class Keysight_2000_Xseries:
                     poi = min(self.points_list_average, key = lambda x: abs(x - temp))
                     if int(poi) != temp:
                         general.message(f"Desired record length cannot be set, the nearest available value of {poi} is used")
-                    self.device_write(":WAVeform:POINts " + str(poi))
+                    self.device_write(":ACQuire:MDEPth " + str(poi))
                 else:
                     poi = min(self.points_list, key = lambda x: abs(x - temp))
                     if int(poi) != temp:
                         general.message(f"Desired record length cannot be set, the nearest available value of {poi} is used")
-                    self.device_write(":WAVeform:POINts " + str(poi))
+                    self.device_write(":ACQuire:MDEPth " + str(poi))
 
             elif len(points) == 0:
-                answer = int(self.device_query(':WAVeform:POINts?'))
+                answer = int(self.device_query(':ACQuire:MDEPth?'))
                 return answer
 
         elif self.test_flag == 'test':
             if len(points) == 1:
                 temp = int(points[0])
-                poi = min(self.points_list, key = lambda x: abs(x - temp))
+                if self.test_acquisition_type == 'Average':
+                    poi = min(self.points_list, key = lambda x: abs(x - temp))
+                    self.test_record_length = poi
+                else:
+                    poi = min(self.points_list_average, key = lambda x: abs(x - temp))
+                    self.test_record_length = poi
             elif len(points) == 0:
                 answer = self.test_record_length
                 return answer
@@ -195,16 +207,10 @@ class Keysight_2000_Xseries:
                 if at in self.ac_type_dic:
                     flag = self.ac_type_dic[at]
                     self.device_write(":ACQuire:TYPE " + str(flag))
-                else:
-                    general.message("Invalid acquisition type")
-                    sys.exit()
             elif len(ac_type) == 0:
                 raw_answer = str(self.device_query(":ACQuire:TYPE?"))
                 answer  = cutil.search_keys_dictionary(self.ac_type_dic, raw_answer)
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(ac_type) == 1:
@@ -222,30 +228,32 @@ class Keysight_2000_Xseries:
     def oscilloscope_number_of_averages(self, *number_of_averages):
         if self.test_flag != 'test':
             if len(number_of_averages) == 1:
-                numave = int(number_of_averages[0])
-                if numave >= self.numave_min and numave <= self.numave_max:
+                temp = int(number_of_averages[0])
+                numave = min(self.number_average_list, key = lambda x: abs(x - temp))
+                if int(numave) != temp:
+                    general.message(f"Desired number of averages cannot be set, the nearest available value of {numave} is used")
                     ac = self.oscilloscope_acquisition_type()
-                    if ac == "Average":
-                        self.device_write(":ACQuire:COUNt " + str(numave))
-                    elif ac == 'Normal':
-                        general.message("Your are in NORM mode")
-                    elif ac == 'Hres':
-                        general.message("Your are in HRES mode")
-                    elif ac == 'Peak':
-                        general.message("Your are in PEAK mode")
+                if ac == "Average":
+                    self.device_write(":ACQuire:AVERages " + str(numave))
+                elif ac == 'Normal':
+                    general.message("Your are in NORM mode")
+                elif ac == 'Hres':
+                    general.message("Your are in HRES mode")
+                elif ac == 'Peak':
+                    general.message("Your are in PEAK mode")
             elif len(number_of_averages) == 0:
-                answer = int(self.device_query(":ACQuire:COUNt?"))
+                answer = int(self.device_query(":ACQuire:AVERages?"))
                 return answer
 
         elif self.test_flag == 'test':
             if len(number_of_averages) == 1:
                 numave = int(number_of_averages[0])
-                assert(numave >= self.numave_min and numave <= self.numave_max), f'Incorrect number of averages. The available range is form {self.numave_min} to {self.numave_max}'
+                assert(numave >= self.numave_min and numave <= self.numave_max), f'Incorrect number of averages. The available range is from { self.numave_min} to { self.numave_max}'
             elif len(number_of_averages) == 0:
                 answer = self.test_num_aver
                 return answer
             else:
-                assert (1 == 2), 'Invalid number of averages argument' 
+                assert (1 == 2), 'Invalid number of averages' 
 
     def oscilloscope_timebase(self, *timebase):
         if self.test_flag != 'test':
@@ -256,9 +264,9 @@ class Keysight_2000_Xseries:
                 if scaling in self.timebase_dict:
                     coef = self.timebase_dict[scaling]
                     if tb/coef >= self.timebase_min and tb/coef <= self.timebase_max:
-                        self.device_write(":TIMebase:RANGe "+ str(tb/coef))
+                        self.device_write(":TIMebase:MAIN:SCALe "+ str(10*tb/coef))
             elif len(timebase) == 0:
-                raw_answer = float(self.device_query(":TIMebase:RANGe?"))
+                raw_answer = 10 * float(self.device_query(":TIMebase:MAIN:SCALe?"))
                 answer = pg.siFormat( raw_answer, suffix = 's', precision = 3, allowUnicode = False)
                 return answer
 
@@ -283,7 +291,7 @@ class Keysight_2000_Xseries:
     def oscilloscope_time_resolution(self):
         if self.test_flag != 'test':
             points = int(self.oscilloscope_record_length())
-            raw_answer = float(self.device_query(":TIMebase:RANGe?")) / points
+            raw_answer = 10 * float(self.device_query(":TIMebase:MAIN:SCALe?")) / points
             answer = pg.siFormat( raw_answer, suffix = 's', precision = 9, allowUnicode = False)
             return answer
         elif self.test_flag == 'test':
@@ -291,11 +299,13 @@ class Keysight_2000_Xseries:
             answer = pg.siFormat( raw_answer, suffix = 's', precision = 9, allowUnicode = False)
             return answer
 
+    ##########################
+    
     def oscilloscope_start_acquisition(self):
         if self.test_flag != 'test':
             #start_time = datetime.now()
             self.device_write(':WAVeform:FORMat WORD')
-            self.device_write('*ESR?;:DIGitize;*OPC?') # return 1, if everything is ok; #;*OPC?
+            self.device_query('*ESR?;:DIGitize;*OPC?') # return 1, if everything is ok;
             # the whole sequence is the following 1-binary format; 2-clearing; 3-digitizing; 4-checking of the completness
             #end_time=datetime.now()
             #general.message('Acquisition completed')
@@ -402,6 +412,31 @@ class Keysight_2000_Xseries:
                     integ = np.sum( array_y[self.win_left:self.win_right] ) * ( 10**(-6) * self.oscilloscope_time_resolution() )
                     xs = np.arange( len(array_y) ) * ( 10**(-6) * self.oscilloscope_time_resolution() )
                     return xs, array_y, integ
+    
+    def oscilloscope_area(self, channel):
+        if self.test_flag != 'test':
+            ch = str(channel)
+            if ch in self.channel_dict:
+                flag = self.channel_dict[ch]
+                if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
+                    #float(self.device_query(':MEASure:AREa? + str(flag)))
+                    area = float(self.device_query(':MEASure:AREa? DISPlay , ' + str(flag)))
+                    return area
+                else:
+                    general.message("Invalid channel is given")
+                    sys.exit()
+            else:
+                general.message("Invalid channel is given")
+                sys.exit()
+
+        elif self.test_flag == 'test':
+            ch = str(channel)
+            assert(ch in self.channel_dict), 'Invalid channel is given'
+            flag = self.channel_dict[ch]
+            if flag[0] == 'C' and int(flag[-1]) > self.analog_channels:
+                assert(1 == 2), 'Invalid channel is given'
+            else:
+                return self.test_area
 
     def oscilloscope_sensitivity(self, *channel):
         if self.test_flag != 'test':
@@ -633,8 +668,7 @@ class Keysight_2000_Xseries:
                 if cpl == '1 M':
                     cpl = 'ONEMeg'
                 elif cpl == '50':
-                    general.message("Incorrect impedance")
-                    cpl = 'ONEMeg'
+                    cpl = 'FIFTy'
                 if ch in self.channel_dict:
                     flag = self.channel_dict[ch]
                     if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
@@ -671,7 +705,7 @@ class Keysight_2000_Xseries:
                 flag = self.channel_dict[ch]
                 if flag[0] == 'C' and int(flag[-1]) > self.analog_channels:
                     assert(1 == 2), 'Invalid channel is given'
-                assert(cpl == '1 M'), 'Invalid impedance is given'
+                assert(cpl == '1 M' or cpl == '50'), 'Invalid impedance is given'
             elif len(impedance) == 1:
                 ch = str(impedance[0])
                 assert(ch in self.channel_dict), 'Invalid channel is given'
@@ -828,7 +862,6 @@ class Keysight_2000_Xseries:
 
             path_to_main = os.path.abspath( os.getcwd() )
             path_file = os.path.join(path_to_main, 'atomize/control_center/digitizer.param')
-            #path_file = os.path.join(path_to_main, '../../atomize/control_center/digitizer.param')
             file_to_read = open(path_file, 'r')
 
             text_from_file = file_to_read.read().split('\n')
@@ -880,7 +913,7 @@ class Keysight_2000_Xseries:
 
             self.win_left = int( text_from_file[6].split(' ')[2] )
             self.win_right = 1 + int( text_from_file[7].split(' ')[2] )
-
+            
     #### Functions of wave generator
     def wave_gen_name(self):
         if self.test_flag != 'test':
@@ -1108,6 +1141,71 @@ class Keysight_2000_Xseries:
             self.device_write(":WGEN:OUTPut 0")
         elif self.test_flag == 'test':
             pass
+
+    def wave_gen_arbitrary_function(self, list):
+        if self.test_flag != 'test':
+            if len(list) > 0:
+                if all(element >= -1.0 and element <= 1.0 for element in list) ==True:
+                    str_to_general = ", ".join(str(x) for x in list)
+                    self.device_write(":WGEN:ARBitrary:DATA " + str(str_to_general))
+                else:
+                    general.message('Incorrect points are used')
+                    sys.exit()
+            else:
+                general.message('Incorrect list of points')
+                sys.exit()
+
+        elif self.test_flag == 'test':
+            if len(list) > 0:
+                if all(element >= -1.0 and element <= 1.0 for element in list) ==True:
+                    str_to_general = ", ".join(str(x) for x in list)
+                else:
+                    assert(1 == 2), 'Incorrect points are used'
+            else:
+                assert(1 == 2), 'Incorrect list of points'
+
+    def wave_gen_arbitrary_interpolation(self, *mode):
+        if self.test_flag != 'test':
+            if len(mode) == 1:
+                md = str(mode[0])
+                if md == 'On':
+                    self.device_write(":WGEN:ARBitrary:INTerpolate 1")
+                elif md == 'Off':
+                    self.device_write(":WGEN:ARBitrary:INTerpolate 0")
+                else:
+                    general.message("Incorrect interpolation control setting is given")
+                    sys.exit()
+            elif len(mode) == 0:
+                raw_answer = int(self.device_query(":WGEN"+str(ch)+":ARBitrary:INTerpolate?"))
+                answer = cutil.search_keys_dictionary(self.wave_gen_interpolation_dictionary, raw_answer)
+                return answer
+            else:
+                general.message("Invalid argument")
+                sys.exit()
+
+        elif self.test_flag == 'test':
+            if len(mode) == 1:
+                md = str(mode[0])
+                assert(md == 'On' or md == 'Off'), "Incorrect interpolation control setting is given"
+            elif len(mode) == 0:
+                answer = self.test_wave_gen_interpolation
+                return answer
+            else:
+                assert(1 == 2), "Invalid argument"
+
+    def wave_gen_arbitrary_clear(self):
+        if self.test_flag != 'test':
+            self.device_write(":WGEN:ARBitrary:DATA:CLEar")
+        elif self.test_flag == 'test':
+            pass
+
+    def wave_gen_arbitrary_points(self):
+        if self.test_flag != 'test':
+            answer = int(self.device_query(":WGEN:ARBitrary:DATA:ATTRibute:POINts?"))
+            return answer
+        elif self.test_flag == 'test':
+            answer = self.test_wave_gen_points
+            return answer
 
     def wave_gen_command(self, command):
         if self.test_flag != 'test':

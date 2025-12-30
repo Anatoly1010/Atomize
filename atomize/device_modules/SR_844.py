@@ -224,71 +224,33 @@ class SR_844:
 
     def lock_in_time_constant(self, *timeconstant):
         if self.test_flag != 'test':
-            a = 0
-            if  len(timeconstant) == 1:
-                temp = timeconstant[0].split(' ')
-                if float(temp[0]) < 100 and temp[1] == 'us':
-                    send.message("Desired time constant cannot be set, the nearest available value of 100 us is used")
-                    self.device_write("OFLT "+ str(0))
-                elif float(temp[0]) > 30 and temp[1] == 'ks':
-                    general.message("Desired sensitivity cannot be set, the nearest available value of 30 ks is used")
-                    self.device_write("OFLT "+ str(17))
-                else:
-                    number_tc = min(self.helper_tc_list, key=lambda x: abs(x - int(temp[0])))
-                    if int(number_tc) == 1000 and temp[1] == 'us':
-                        number_tc = 1
-                        temp[1] = 'ms'
-                    elif int(number_tc) == 1000 and temp[1] == 'ms':
-                        number_tc = 1
-                        temp[1] = 's'
-                    elif int(number_tc) == 1000 and temp[1] == 's':
-                        number_tc = 1
-                        temp[1] = 'ks'
-                    if int(number_tc) != int(temp[0]):
-                        a = 1
-                    tc = str(number_tc) + ' ' + temp[1]
-                    if tc in self.timeconstant_dict:
-                        flag = self.timeconstant_dict[tc]
-                        self.device_write("OFLT "+ str(flag))
-                        if a == 1:
-                            general.message(f"Desired time constant cannot be set, the nearest available value of {tc} is used")    
-                    else:
-                        general.message("Invalid time constant value (too high/too low)")
-                        sys.exit()
+            if len(timeconstant) == 1:
+                tc = timeconstant[0]
+                parsed_value, int_value, a = cutil.parse_pg(tc, self.helper_tc_list)
+                val, val_key, b = cutil.search_and_limit_keys_dictionary( self.timeconstant_dict, parsed_value, 100e-6, 30e3 )
+                self.device_write("OFLT "+ str(val))
+                
+                if ( a == 1 ) or ( b == 1 ):
+                    general.message(f"Desired time constant cannot be set, the nearest available value of {val_key} is used")
+
             elif len(timeconstant) == 0:
                 raw_answer = int(self.device_query("OFLT?"))
                 answer = cutil.search_keys_dictionary(self.timeconstant_dict, raw_answer)
                 return answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
-            if  len(timeconstant) == 1:
-                temp = timeconstant[0].split(' ')
-                if float(temp[0]) < 100 and temp[1] == 'us':
-                    tc = '100 us'
-                if float(temp[0]) > 30 and temp[1] == 'ks':
-                    tc = '30 ks'
-                else:
-                    number_tc = min(self.helper_tc_list, key=lambda x: abs(x - int(temp[0])))
-                    if int(number_tc) == 1000 and temp[1] == 'us':
-                        number_tc = 1
-                        temp[1] = 'ms'
-                    elif int(number_tc) == 1000 and temp[1] == 'ms':
-                        number_tc = 1
-                        temp[1] = 's'
-                    elif int(number_tc) == 1000 and temp[1] == 's':
-                        number_tc = 1
-                        temp[1] = 'ks'
-                    tc = str(number_tc) + ' ' + temp[1]
-                    if tc in self.timeconstant_dict:
-                        pass
-                    else:
-                        assert(1 == 2), "Incorrect time constant is used"
+            if len(timeconstant) == 1:
+                tc = timeconstant[0]
+                assert( isinstance(tc, str) ), "Incorrect argument is used. The time constant should be in the form: str(int + ' ' + [us, ms, s, ks])"
+                val, val_key, b = cutil.search_and_limit_keys_dictionary( self.timeconstant_dict, \
+                                    cutil.parse_pg(tc, self.helper_tc_list)[0], 100e-6, 30e3 )
+                assert( val_key in self.timeconstant_dict ), "Incorrect argument is used. The time constant should be in the form: str(int + ' ' + [us, ms, s, ks])"
+
             elif len(timeconstant) == 0:
                 answer = self.test_timeconstant
                 return answer
+            else:
+                assert( 1 == 2), "Incorrect argument is used. The time constant should be in the form: str(int + ' ' + [us, ms, s, ks])"
 
     def lock_in_get_data(self, *channel):
         if self.test_flag != 'test':
@@ -341,70 +303,32 @@ class SR_844:
     def lock_in_sensitivity(self, *sensitivity):
         if self.test_flag != 'test':
             if len(sensitivity) == 1:
-                a = 0
-                temp = sensitivity[0].split(' ')
-                if float(temp[0]) < 100 and temp[1] == 'nV':
-                    send.message("Desired sensitivity cannot be set, the nearest available value of 100 nV is used")
-                    self.device_write("SENS "+ str(0))
-                elif float(temp[0]) > 1 and temp[1] == 'V':
-                    general.message("Desired sensitivity cannot be set, the nearest available value of 1 V is used")
-                    self.device_write("SENS "+ str(14))
-                else:
-                    number_sens = min(self.helper_sens_list, key=lambda x: abs(x - int(temp[0])))
-                    if int(number_sens) == 1000 and temp[1] == 'nV':
-                        number_sens = 1
-                        temp[1] = 'uV'
-                    elif int(number_sens) == 1000 and temp[1] == 'uV':
-                        number_sens = 1
-                        temp[1] = 'mV'
-                    elif int(number_sens) == 1000 and temp[1] == 'mV':
-                        number_sens = 1
-                        temp[1] = 'V'
-                    sens = str(number_sens) + ' ' + temp[1]
-                    if int(number_sens) != int(temp[0]):
-                        a = 1
-                    if sens in self.sensitivity_dict:
-                        flag = self.sensitivity_dict[sens]
-                        self.device_write("SENS "+ str(flag))
-                        if a == 1:
-                            general.message(f"Desired sensitivity cannot be set, the nearest available value of {sens} is used")
-                    else:
-                        general.message("Invalid sensitivity value (too high/too low)")
-                        sys.exit()
+                sens = sensitivity[0]
+                parsed_value, int_value, a = cutil.parse_pg(sens, self.helper_sens_list)
+                val, val_key, b = cutil.search_and_limit_keys_dictionary( self.sensitivity_dict, parsed_value, 100e-9, 1e0 )
+                self.device_write("SENS "+ str(flag))
+           
+                if ( a == 1 ) or ( b == 1 ):
+                    general.message(f"Desired sensitivity cannot be set, the nearest available value of {val_key} is used")
+
             elif len(sensitivity) == 0:
                 raw_answer = int(self.device_query("SENS?"))
                 answer = cutil.search_keys_dictionary(self.sensitivity_dict, raw_answer)
                 return answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
-            if  len(sensitivity) == 1:
-                temp = sensitivity[0].split(' ')
-                if float(temp[0]) < 100 and temp[1] == 'nV':
-                    sens = '100 nV'
-                elif float(temp[0]) > 1 and temp[1] == 'V':
-                    sens = '1 V'
-                else:
-                    number_sens = min(self.helper_sens_list, key=lambda x: abs(x - int(temp[0])))
-                    if int(number_sens) == 1000 and temp[1] == 'nV':
-                        number_sens = 1
-                        temp[1] = 'uV'
-                    elif int(number_sens) == 1000 and temp[1] == 'uV':
-                        number_sens = 1
-                        temp[1] = 'mV'
-                    elif int(number_sens) == 1000 and temp[1] == 'mV':
-                        number_sens = 1
-                        temp[1] = 'V'
-                    tc = str(number_sens) + ' ' + temp[1]
-                    if tc in self.sensitivity_dict:
-                        pass
-                    else:
-                        assert(1 == 2), "Incorrect sensitivity is used"
+            if len(sensitivity) == 1:
+                sens = sensitivity[0]
+                assert( isinstance(sens, str) ), "Incorrect argument is used. The sensitivity should be in the form: str(int + ' ' + [nV, uV, mV, V])"
+                val, val_key, b = cutil.search_and_limit_keys_dictionary( self.sensitivity_dict, \
+                                    cutil.parse_pg(sens, self.helper_sens_list)[0], 100e-9, 1e0 )
+                assert( val_key in self.sensitivity_dict ), "Incorrect argument is used. The sensitivity should be in the form: str(int + ' ' + [nV, uV, mV, V])"
+
             elif len(sensitivity) == 0:
                 answer = self.test_sensitivity
                 return answer
+            else:
+                assert( 1 == 2), "Incorrect argument is used. The sensitivity should be in the form: str(int + ' ' + [nV, uV, mV, V])"
 
     def lock_in_auto_sensitivity(self):
         """

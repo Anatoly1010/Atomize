@@ -6,6 +6,7 @@ import gc
 import sys
 import pyvisa
 import numpy as np
+import pyqtgraph as pg
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
@@ -65,21 +66,13 @@ class Tektronix_5_Series_MSO:
                             general.message('During internal device test errors are found')
                             self.status_flag = 0
                             sys.exit()
-                    except pyvisa.VisaIOError:
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         general.message(f"No connection {self.__class__.__name__}")
                         self.status_flag = 0
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message(f"No connection {self.__class__.__name__}")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
+                except (pyvisa.VisaIOError, BrokenPipeError):
                     general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
-                    sys.exit()
-                except BrokenPipeError:
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0;
                     sys.exit()
 
         elif self.test_flag == 'test':
@@ -89,7 +82,7 @@ class Tektronix_5_Series_MSO:
             self.test_impedance = '1 M'
             self.test_acquisition_type = 'Normal'
             self.test_num_aver = 2
-            self.test_timebase = 100
+            self.test_timebase = '100 us'
             self.test_h_offset = '10 ms'
             self.test_sensitivity = 0.1
             self.test_coupling = 'AC'
@@ -189,14 +182,11 @@ class Tektronix_5_Series_MSO:
                 temp = int(points[0])
                 poi = min(self.points_list, key = lambda x: abs(x - temp))
                 if int(poi) != temp:
-                    general.message("Desired record length cannot be set, the nearest available value is used")
+                    general.message(f"Desired record length cannot be set, the nearest available value of {poi} is used")
                 self.device_write("HORizontal:RECOrdlength " + str(poi))
             elif len(points) == 0:
                 answer = int(self.device_query('HORizontal:RECOrdlength?'))
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(points) == 1:
@@ -207,7 +197,7 @@ class Tektronix_5_Series_MSO:
                 answer = self.test_record_length
                 return answer
             else:
-                assert (1 == 2), 'Invalid record length argument'       
+                assert (1 == 2), 'Invalid record length argument; points: int'     
 
     def oscilloscope_acquisition_type(self, *ac_type):
         if self.test_flag != 'test':        
@@ -246,7 +236,7 @@ class Tektronix_5_Series_MSO:
                 temp = int(number_of_averages[0])
                 numave = min(self.number_averag_list, key = lambda x: abs(x - temp))
                 if int(numave) != temp:
-                    general.message("Desired number of averages cannot be set, the nearest available value is used")
+                    general.message(f"Desired number of averages cannot be set, the nearest available value of {numave} is used")
                 ac = self.oscilloscope_acquisition_type()
                 if ac == 'Average':
                     self.device_write("ACQuire:NUMAVg " + str(numave))
@@ -259,9 +249,6 @@ class Tektronix_5_Series_MSO:
             elif len(number_of_averages) == 0:
                 answer = int(self.device_query("ACQuire:NUMAVg?"))
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(number_of_averages) == 1:
@@ -280,7 +267,7 @@ class Tektronix_5_Series_MSO:
                 if temp[1] == 'ns' and float(temp[0]) >= 60 and float(temp[0]) <= 90:
                     if timebase != '80 ns':
                         self.device_write("HORizontal:SCAle " + str(80/1000000000))
-                        general.message("Desired timebase cannot be set, the nearest available value is used")
+                        general.message("Desired timebase cannot be set, the nearest available value of 80 ns is used")
                     else:
                         self.device_write("HORizontal:SCAle " + str(80/1000000000))              
                 else:
@@ -297,19 +284,14 @@ class Tektronix_5_Series_MSO:
                         number_tb = 1
                         temp[1] = 's'
                     if int(number_tb) != float(temp[0]):
-                        general.message("Desired timebase cannot be set, the nearest available value is used")
+                        general.message(f"Desired timebase cannot be set, the nearest available value of {number_tb} {temp[1]} is used")
                     if temp[1] in self.timebase_dict:
                         coef = self.timebase_dict[temp[1]]
                         self.device_write("HORizontal:SCAle "+ str(number_tb/coef))
-                    else:
-                        general.message("Incorrect timebase")
-                        sys.exit()
             elif len(timebase) == 0:
-                answer = float(self.device_query("HORizontal:SCAle?"))*1000000
+                raw_answer = float(self.device_query("HORizontal:SCAle?"))
+                answer = pg.siFormat( raw_answer, suffix = 's', precision = 3, allowUnicode = False)
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if  len(timebase) == 1:
@@ -329,20 +311,22 @@ class Tektronix_5_Series_MSO:
                 if temp[1] in self.timebase_dict:
                     coef = self.timebase_dict[temp[1]]
                 else:
-                    assert (1 == 2), 'Invalid timebase argument'
+                    assert (1 == 2), "Incorrect timebase argument; timebase: str (int + [' s', ' ms', ' us', ' ns'])"
             elif len(timebase) == 0:
                 answer = self.test_timebase
                 return answer
             else:
-                assert (1 == 2), 'Invalid timebase argument'
+                assert (1 == 2), "Incorrect timebase argument; timebase: str (int + [' s', ' ms', ' us', ' ns'])"
 
     def oscilloscope_time_resolution(self):
         if self.test_flag != 'test':
             points = int(self.oscilloscope_record_length())
-            answer = 1000000*float(self.device_query("HORizontal:SCAle?"))/points
+            raw_answer = float(self.device_query("HORizontal:SCAle?")) / points
+            answer = pg.siFormat( raw_answer, suffix = 's', precision = 9, allowUnicode = False)
             return answer
         elif self.test_flag == 'test':
-            answer = 1000000*float(self.test_timebase)/self.test_record_length
+            raw_answer = pg.siEval(self.test_timebase) / self.test_record_length
+            answer = pg.siFormat( raw_answer, suffix = 's', precision = 9, allowUnicode = False)
             return answer
 
     def oscilloscope_start_acquisition(self):

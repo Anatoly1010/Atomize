@@ -1,6 +1,6 @@
 ---
 title: Oscilloscopes
-nav_order: 31
+nav_order: 32
 layout: page
 permlink: /functions/oscilloscope/
 parent: Documentation
@@ -13,7 +13,8 @@ parent: Documentation
 - Keysight InfiniiVision 4000 X-Series (Ethernet); Untested
 - Tektronix 3000 Series (Ethernet); Tested 09/2022
 - Tektronix 4000 Series (Ethernet); Tested 01/2021
-- Tektronix 5 Series MSO (Ethernet); Untested
+- Tektronix 5 Series MSO (Ethernet); Tested 12/2023
+- Rigol MSO8000 Series (Ethernet); Untested
 
 ---
 
@@ -48,7 +49,7 @@ parent: Documentation
 ```python
 oscilloscope_name() -> str
 ```
-The function returns device name.
+The function returns device name.<br/>
 
 ---
 
@@ -61,18 +62,19 @@ oscilloscope_record_length() -> int
 Example: oscilloscope_record_length(4000) sets the number of waveform points to 4000.
 ```
 This function queries or sets the number of waveform points to be transferred using [oscilloscope_get_curve()](#oscilloscope_get_curvechannel) function. If there is no number of points setting fitting the argument the nearest available value is used and warning is printed.<br/>
-If one would like to use Keysight oscilloscopes without averaging (in normal, peak or high-resolution mode), the number of points in the waveform is usually [100, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000]. The maximum available number of points depends on the timescale and can be substantially lower than 100000.<br/>
+If one would like to use Keysight oscilloscopes without [averaging](#oscilloscope_acquisition_typeac_type) (in normal, peak or high-resolution mode), the number of points in the waveform is usually [100, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000]. The maximum available number of points depends on the timescale and can be substantially lower than 100000.<br/>
 In the average mode the number of points in the waveform is not the one specified in the programming manual. For Keysight 3000 X-series the correct array is [100, 250, 500, 1000, 2000, 4000, 8000]. For Keysight 2000 X-series: [99, 247, 479, 959, 1919, 3839, 7679]. For Keysight 4000 X-series the number of points for the average mode should be checked.<br/>
+For Rigol MSO8000 Series the number of points in the waveform for normal, peak or high-resolution [mode](#oscilloscope_acquisition_typeac_type) is [1000, 10000, 1e5, 1e6, 1e7, 2.5e7, 5e7, 1e8, 1.25e8]. For the average mode the number of points is [1000, 10000, 1e5, 1e6, 1e7, 2.5e7]. To use this feature effectively, one should disable the Auto ROLL option.<br/>
 To handle this situation more or less correctly, two different arrays (for average and all other modes) of available number of points are used in the modules for Keysight oscilloscopes.<br/>
-Fot Tektronix 3000 Series the available number of points is [500, 10000].<br/>
-Fot Tektronix 4000 Series the available number of points is [1000, 10000, 100000, 1000000, 10000000].<br/>
+For Tektronix 3000 Series the available number of points is [500, 10000].<br/>
+For Tektronix 4000 Series the available number of points is [1000, 10000, 100000, 1000000, 10000000].<br/>
 
 ---
 
 ### oscilloscope_acquisition_type(*ac_type)
 ```python
-oscilloscope_acquisition_type(ac_type: str) -> none
-oscilloscope_acquisition_type() -> str ['Normal', 'Average', 'Hres', 'Peak']
+oscilloscope_acquisition_type(ac_type: ['Normal','Average','Hres','Peak']) -> none
+oscilloscope_acquisition_type() -> str 
 ```
 ```
 Example: oscilloscope_acquisition_type('Average') sets the acquisition type to the average mode.
@@ -94,20 +96,21 @@ Example: oscilloscope_number_of_averages('2') sets the number of averages to 2.
 This function queries or sets the number of averages. If there is no argument the function will return the current number of averages. If there is an argument the specified number of averages type will be set. If the oscilloscopes is not in the averaging acquisition mode the error message will be printed.<br/>
 For Keysight oscilloscopes the number of averages should be in the range of 2 to 65536.<br/>
 For Tektronix 4000 Series the number of averages should be from 2 to 512 in powers of two. Please note, that for some models the maximum number of averages is limited to 128.<br/>
+For Rigol MSO8000 Series the number of averages should be from 2 to 65536 in powers of two.<br/>
 
 ---
 
 ### oscilloscope_timebase(*timebase)
 ```python
-oscilloscope_timebase(timebase: str (float + [' s', ' ms', ' us', ' ns'])) -> none
-oscilloscope_timebase() -> float
+oscilloscope_timebase(timebase: str (float + [' s',' ms',' us',' ns'])) -> none
+oscilloscope_timebase() -> str
 ```
 ```
 Example: oscilloscope_timebase('20 us') 
 sets the full-scale horizontal time to 20 us (2 us per divison).
 ```
-This function queries or sets the full-scale horizontal time for the main window. The range is 10 times the current time-per-division setting. If there is no argument the function will return the full-scale horizontal time in us. If there is an argument the specified full-scale horizontal time will be set.<br/>
-For Tektronix 3000 X-series the horizontal scale is discrete and can take on a value in the range of 10 s to 1, 2, or 4 ns (depending on model), in a 1-2-4 sequence.<br/>
+This function queries or sets the full-scale horizontal time for the main window. The range is 10 times the current time-per-division setting. If there is no argument the function will return the full-scale horizontal time in the format 'number + ['ns', 'us', 'ms', 's']. If there is an argument the specified full-scale horizontal time will be set.<br/>
+For Tektronix 3000 X-series the horizontal scale is discrete and can take on a value in the range of 10 s to 1, 2, or 4 ns (depending on model), in a 1-2-4 sequence, see the array below.<br/>
 For Tektronix 4000 X-series (at least for the device used for testing), the horizontal scale is discrete and can take on a value from the following array: [1, 2, 4, 10, 20, 40, 100, 200, 400] for ns, us, ms, and s scaling. In addtition timescale equals to 800 ns also can be set. If there is no timebase setting fitting the argument the nearest available value is used and warning is printed.<br/>
 
 ---
@@ -128,12 +131,12 @@ This function is avaliable only for Tektronix 4000 Series.
 
 ### oscilloscope_time_resolution()
 ```python
-oscilloscope_time_resolution() -> float
+oscilloscope_time_resolution() -> str
 ```
 ```
-Example: oscilloscope_time_resolution() returs the current time resolution per point in us.
+Example: oscilloscope_time_resolution() returs the current time resolution per point.
 ```
-This function takes no arguments and returns the time resolution per point in us.<br/>
+This function takes no arguments and returns the time resolution per point in the format 'number + ['ns', 'us', 'ms', 's'].<br/>
 
 ---
 
@@ -147,7 +150,7 @@ This function starts an acquisition sequence. Previously measured curves are dis
 
 ### oscilloscope_preamble(channel)
 ```python
-oscilloscope_preamble(channel: str ['CH1, CH2, CH3, CH4']) -> list(10-21)
+oscilloscope_preamble(channel: ['CH1','CH2','CH3','CH4']) -> list(10-21)
 ```
 ```
 Example: oscilloscope_preamble('CH3') returs the preamble for the channel 3.
@@ -178,7 +181,7 @@ The function starts repetitive acquisitions. This is the same as pressing the ru
 
 ### oscilloscope_get_curve(channel)
 ```python
-oscilloscope_get_curve(channel: str ['CH1, CH2, CH3, CH4'])  -> np.array, np.array
+oscilloscope_get_curve(channel: ['CH1','CH2','CH3','CH4']) -> np.array, np.array
 ```
 ```
 Example: oscilloscope_get_curve('CH2') returs the data from the channel 2.
@@ -189,7 +192,7 @@ The function returns a curve (x (in s) and y (in V) axis independently) from spe
 
 ### oscilloscope_area(channel)
 ```python
-oscilloscope_area(channel: str ['CH1, CH2, CH3, CH4']) -> float
+oscilloscope_area(channel: ['CH1','CH2','CH3','CH4']) -> float
 ```
 ```
 Example: oscilloscope_area('CH2') returs the result of an area measurement for channel 2.
@@ -200,8 +203,8 @@ The function returns a value of area (in V*s) between the waveform and the groun
 
 ### oscilloscope_sensitivity(*channel)
 ```python
-oscilloscope_sensitivity(channel: str, sensitivity: str (float + [' V', ' mV'])) -> none
-oscilloscope_sensitivity(channel: str ['CH1, CH2, CH3, CH4']) -> float
+oscilloscope_sensitivity(channel: str, sensitivity: str (float + [' V',' mV'])) -> none
+oscilloscope_sensitivity(channel: ['CH1','CH2','CH3','CH4']) -> float
 ```
 ```
 Examples: oscilloscope_sensitivity('CH2', '100 mV') sets the sensitivity 
@@ -215,8 +218,8 @@ The function queries (if called with one argument) or sets (if called with two a
 ### oscilloscope_offset(*channel)
 ```python
 oscilloscope_offset(*channel)
-oscilloscope_offset(channel: str, offset: str (float + [' V', ' mV'])) -> none
-oscilloscope_offset(channel: str ['CH1, CH2, CH3, CH4']) -> float
+oscilloscope_offset(channel: str, offset: str (float + [' V',' mV'])) -> none
+oscilloscope_offset(channel: ['CH1','CH2','CH3','CH4']) -> float
 ```
 ```
 Examples: oscilloscope_offset('CH2', '100 mV') sets the offset setting of the channel 2 to 100 mV. 
@@ -228,7 +231,7 @@ The function queries (if called with one argument) or sets (if called with two a
 
 ### oscilloscope_horizontal_offset(*h_offset)
 ```python
-oscilloscope_horizontal_offset(h_offset: str (float + [' s', ' ms', ' us', ' ns'])) -> none
+oscilloscope_horizontal_offset(h_offset: str (float + [' s',' ms',' us',' ns'])) -> none
 oscilloscope_horizontal_offset() -> float
 ```
 ```
@@ -240,8 +243,8 @@ The function queries or sets the horizontal delay time (position). This delay is
 
 ### oscilloscope_coupling(*coupling)
 ```python
-oscilloscope_coupling(channel: str, coupling: str ['AC', 'DC'])) -> none
-oscilloscope_coupling(channel: str ['CH1, CH2, CH3, CH4']) -> str
+oscilloscope_coupling(channel: str, coupling: str ['AC','DC'])) -> none
+oscilloscope_coupling(channel: ['CH1','CH2','CH3','CH4']) -> str
 ```
 ```
 Examples: oscilloscope_coupling('CH2', 'AC') sets the coupling of the channel 2 to AC.
@@ -254,8 +257,8 @@ The function queries (if called with one argument) or sets (if called with two a
 ### oscilloscope_impedance(*impedance)
 ```python
 oscilloscope_impedance(*impedance)
-oscilloscope_impedance(channel: str, impedance: str ['1M', '50'])) -> none
-oscilloscope_impedance(channel: str ['CH1, CH2, CH3, CH4']) -> str
+oscilloscope_impedance(channel: str, impedance: str ['1M','50'])) -> none
+oscilloscope_impedance(channel: ['CH1','CH2','CH3','CH4']) -> str
 ```
 ```
 Examples: oscilloscope_impedance('CH2', '1 M') sets the impedance of the channel 2 to 1 MOhm.
@@ -268,8 +271,8 @@ For Keysight 2000 X-Series the only available option is 1 MOhm.<br/>
 
 ### oscilloscope_trigger_mode(*mode)
 ```python
-oscilloscope_trigger_mode(mode: str ) -> str
-oscilloscope_trigger_mode() -> str ['Auto', 'Normal']
+oscilloscope_trigger_mode(mode: ['Auto','Normal'] ) -> str
+oscilloscope_trigger_mode() -> str
 ```
 ```
 Examples: oscilloscope_trigger_mode('Auto') sets the trigger mode to Auto.
@@ -281,8 +284,8 @@ When Auto sweep mode is selected, a baseline is displayed in the absence of a si
 
 ### oscilloscope_trigger_channel(*channel)
 ```python
-oscilloscope_trigger_channel(channel: str) -> none
-oscilloscope_trigger_channel() -> str ['CH1, CH2, CH3, CH4', 'Ext', 'Line', 'WGen']
+oscilloscope_trigger_channel(channel: ['CH1','CH2','CH3','CH4','Ext','Line','WGen']) -> none
+oscilloscope_trigger_channel() -> str
 ```
 ```
 Examples: oscilloscope_trigger_channel('CH3') sets the trigger channel to 3.

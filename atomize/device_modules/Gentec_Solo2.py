@@ -157,7 +157,7 @@ class Gentec_Solo2:
         elif self.test_flag == 'test':
             return self.test_data
 
-    def laser_power_meter_set_wavelength(self, *wavelength):
+    def laser_power_meter_wavelength(self, *wavelength):
         """
         Specifying zero as a wavelength or providing an out-of-bound value as a
         parameter restores the default settings.

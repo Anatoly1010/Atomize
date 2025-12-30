@@ -6,6 +6,7 @@ import gc
 import sys
 import pyvisa
 import numpy as np 
+import pyqtgraph as pg
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
@@ -76,12 +77,12 @@ class Keysight_4000_Xseries:
                     try:
                         self.device_write('*CLS')
                         self.status_flag = 1
-                    except :
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         general.message(f"No connection {self.__class__.__name__}")
                         self.status_flag = 0
                         self.device.clear()
                         sys.exit()
-                except:
+                except (pyvisa.VisaIOError, BrokenPipeError):
                     general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     os._exit(0)
@@ -91,7 +92,7 @@ class Keysight_4000_Xseries:
             self.test_record_length = 2000
             self.test_acquisition_type = 'Norm'
             self.test_num_aver = 2
-            self.test_timebase = 100
+            self.test_timebase = '100 us'
             self.test_h_offset = '10 ms'
             self.test_sensitivity = 0.1
             self.test_offset = 0.1
@@ -170,20 +171,17 @@ class Keysight_4000_Xseries:
                 if test_acq_type == 'Average':
                     poi = min(self.points_list_average, key = lambda x: abs(x - temp))
                     if int(poi) != temp:
-                        general.message("Desired record length cannot be set, the nearest available value is used")
+                        general.message(f"Desired record length cannot be set, the nearest available value of {poi} is used")
                     self.device_write(":WAVeform:POINts " + str(poi))
                 else:
                     poi = min(self.points_list, key = lambda x: abs(x - temp))
                     if int(poi) != temp:
-                        general.message("Desired record length cannot be set, the nearest available value is used")
+                        general.message(f"Desired record length cannot be set, the nearest available value of {poi} is used")
                     self.device_write(":WAVeform:POINts " + str(poi))
 
             elif len(points) == 0:
                 answer = int(self.device_query(':WAVeform:POINts?'))
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(points) == 1:
@@ -193,7 +191,7 @@ class Keysight_4000_Xseries:
                 answer = self.test_record_length
                 return answer
             else:
-                assert (1 == 2), 'Invalid record length argument'
+                assert (1 == 2), 'Invalid record length argument; points: int'
 
     def oscilloscope_acquisition_type(self, *ac_type):
         if self.test_flag != 'test': 
@@ -240,20 +238,14 @@ class Keysight_4000_Xseries:
                         general.message("Your are in HRES mode")
                     elif ac == 'Peak':
                         general.message("Your are in PEAK mode")
-                else:
-                    general.message("Invalid number of averages")
-                    sys.exit()
             elif len(number_of_averages) == 0:
                 answer = int(self.device_query(":ACQuire:COUNt?"))
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(number_of_averages) == 1:
                 numave = int(number_of_averages[0])
-                assert(numave >= self.numave_min and numave <= self.numave_max), 'Incorrect number of averages'
+                assert(numave >= self.numave_min and numave <= self.numave_max), f'Incorrect number of averages. The available range is form {self.numave_min} to {self.numave_max}'
             elif len(number_of_averages) == 0:
                 answer = self.test_num_aver
                 return answer
@@ -270,18 +262,10 @@ class Keysight_4000_Xseries:
                     coef = self.timebase_dict[scaling]
                     if tb/coef >= self.timebase_min and tb/coef <= self.timebase_max:
                         self.device_write(":TIMebase:RANGe "+ str(tb/coef))
-                    else:
-                        general.message("Incorrect timebase range")
-                        sys.exit()                        
-                else:
-                    general.message("Incorrect timebase")
-                    sys.exit()
             elif len(timebase) == 0:
-                answer = float(self.device_query(":TIMebase:RANGe?"))*1000000
+                raw_answer = float(self.device_query(":TIMebase:RANGe?"))
+                answer = pg.siFormat( raw_answer, suffix = 's', precision = 3, allowUnicode = False)
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if  len(timebase) == 1:
@@ -290,22 +274,26 @@ class Keysight_4000_Xseries:
                 scaling = temp[1]
                 if scaling in self.timebase_dict:
                     coef = self.timebase_dict[scaling]
-                    assert(tb/coef >= self.timebase_min and tb/coef <= self.timebase_max), "Incorrect timebase range"
+                    min_tb = pg.siFormat( self.timebase_min, suffix = 's', precision = 3, allowUnicode = False)
+                    max_tb = pg.siFormat( self.timebase_max, suffix = 's', precision = 3, allowUnicode = False)
+                    assert(tb/coef >= self.timebase_min and tb/coef <= self.timebase_max), f"Incorrect timebase range. The available range is from {min_tb} to {max_tb}"
                 else:
-                    assert(1 == 2), 'Incorrect timebase argument'
+                    assert(1 == 2), "Incorrect timebase argument; timebase: str (float + [' s', ' ms', ' us', ' ns'])"
             elif len(timebase) == 0:
                 answer = self.test_timebase
                 return answer
             else:
-                assert (1 == 2), 'Invalid timebase argument'               
+                assert (1 == 2), "Incorrect timebase argument; timebase: str (float + [' s', ' ms', ' us', ' ns'])"              
 
     def oscilloscope_time_resolution(self):
         if self.test_flag != 'test':
             points = int(self.oscilloscope_record_length())
-            answer = 1000000*float(self.device_query(":TIMebase:RANGe?"))/points
+            raw_answer = float(self.device_query(":TIMebase:RANGe?")) / points
+            answer = pg.siFormat( raw_answer, suffix = 's', precision = 9, allowUnicode = False)
             return answer
         elif self.test_flag == 'test':
-            answer = 1000000*float(self.test_timebase)/self.test_record_length
+            raw_answer = pg.siEval(self.test_timebase) / self.test_record_length
+            answer = pg.siFormat( raw_answer, suffix = 's', precision = 9, allowUnicode = False)
             return answer
 
     def oscilloscope_start_acquisition(self):

@@ -6,6 +6,7 @@ import gc
 import sys
 import pyvisa
 import numpy as np 
+import pyqtgraph as pg
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
@@ -31,10 +32,10 @@ class Tektronix_3000_Series:
         self.number_averag_list = [2, 4, 8, 16, 32, 64, 128, 256, 512]
         self.points_list = [500, 10000]
         self.timebase_dict = {'s': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000, }
-        self.timebase_helper_list = [1, 2, 4, 10, 20, 40, 100, 200, 400, 1000, 2000, 4000, 10000, \
-                                    20000, 40000, 100000, 200000, 400000, 1000000, 2000000, 4000000, \
-                                    10000000, 20000000, 40000000, 100000000, 200000000, 400000000, \
-                                    1000000000, 2000000000, 4000000000, 10000000000]
+        self.timebase_helper_list = [1, 2, 4, 10, 20, 40, 100, 200, 400, 1e3, 2e3, 4e3, 1e4, \
+                                    2e4, 4e4, 1e5, 2e5, 4e5, 1e6, 2e6, 4e6, \
+                                    1e7, 2e7, 4e7, 1e8, 2e8, 4e8, \
+                                    1e9, 2e9, 4e9, 1e10]
         self.scale_dict = {'V': 1, 'mV': 1000, }
         self.ac_type_dic = {'Normal': "SAM", 'Average': "AVE", 'Peak': "PEAK", }
 
@@ -63,28 +64,13 @@ class Tektronix_3000_Series:
                     try:
                         # test should be here
                         self.device_write('*CLS')
-                        #answer = int(self.device_query('*TST?'))
-                        #if answer == 0:
-                        #    self.status_flag = 1
-                        #else:
-                        #    general.message('During internal device test errors are found')
-                        #    self.status_flag = 0
-                        #    sys.exit()
-                    except pyvisa.VisaIOError:
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         general.message(f"No connection {self.__class__.__name__}")
                         self.status_flag = 0
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message(f"No connection {self.__class__.__name__}")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
+                except (pyvisa.VisaIOError, BrokenPipeError):
                     general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
-                    sys.exit()
-                except BrokenPipeError:
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0;
                     sys.exit()
 
         elif self.test_flag == 'test':
@@ -94,7 +80,7 @@ class Tektronix_3000_Series:
             self.test_impedance = '1 M'
             self.test_acquisition_type = 'Normal'
             self.test_num_aver = 2
-            self.test_timebase = 100
+            self.test_timebase = '100 us'
             self.test_h_offset = '10 ms'
             self.test_sensitivity = 0.1
             self.test_coupling = 'AC'
@@ -194,14 +180,11 @@ class Tektronix_3000_Series:
                 temp = int(points[0])
                 poi = min(self.points_list, key = lambda x: abs(x - temp))
                 if int(poi) != temp:
-                    general.message("Desired record length cannot be set, the nearest available value is used")
+                    general.message(f"Desired record length cannot be set, the nearest available value of {poi} is used")
                 self.device_write("HORizontal:RECOrdlength " + str(poi))
             elif len(points) == 0:
                 answer = int(self.device_query('HORizontal:RECOrdlength?'))
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(points) == 1:
@@ -212,7 +195,7 @@ class Tektronix_3000_Series:
                 answer = self.test_record_length
                 return answer
             else:
-                assert (1 == 2), 'Invalid record length argument'       
+                assert (1 == 2), 'Invalid record length argument; points: int'     
 
     def oscilloscope_acquisition_type(self, *ac_type):
         if self.test_flag != 'test':        
@@ -251,7 +234,7 @@ class Tektronix_3000_Series:
                 temp = int(number_of_averages[0])
                 numave = min(self.number_averag_list, key = lambda x: abs(x - temp))
                 if int(numave) != temp:
-                    general.message("Desired number of averages cannot be set, the nearest available value is used")
+                    general.message(f"Desired number of averages cannot be set, the nearest available value of {numave} is used")
                 ac = self.oscilloscope_acquisition_type()
                 if ac == 'Average':
                     self.device_write("ACQuire:NUMAVg " + str(numave))
@@ -262,9 +245,6 @@ class Tektronix_3000_Series:
             elif len(number_of_averages) == 0:
                 answer = int(self.device_query("ACQuire:NUMAVg?"))
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(number_of_averages) == 1:
@@ -274,7 +254,7 @@ class Tektronix_3000_Series:
                 answer = self.test_num_aver
                 return answer
             else:
-                assert (1 == 2), 'Invalid number of averages argument' 
+                assert (1 == 2), 'Invalid number of averages' 
 
     def oscilloscope_timebase(self, *timebase):
         if self.test_flag != 'test':
@@ -288,35 +268,30 @@ class Tektronix_3000_Series:
                     number_tb_raw = 1000 * int(temp[0])
                 elif temp[1] == 'ns':
                     number_tb_raw = 1 * int(temp[0])
-                else:
-                    general.message("Incorrect dimension")
-                    sys.exit()
 
                 number_tb = min(self.timebase_helper_list, key = lambda x: abs(x - int(number_tb_raw)))
                 
                 if int(number_tb) != int(number_tb_raw):
-                    general.message("Desired timebase cannot be set, the nearest available value is used")
+                    general.message(f"Desired timebase cannot be set, the nearest available value of {number_tb} {temp[1]} is used")
 
                 if number_tb > self.tb_max:
                     number_tb = self.tb_max
-                    general.message("Timebase cannot be higher than 10 s. The nearest available value is set")
+                    general.message("Timebase cannot be higher than 10 s. The nearest available value of 10 s is set")
                 if number_tb < self.tb_min:
                     number_tb = self.tb_min
-                    general.message("Timebase cannot be lower than 1 ns. The nearest available value is set")
+                    general.message("Timebase cannot be lower than 1 ns. The nearest available value of 1 ns is set")
 
                 self.device_write("HORizontal:SCAle "+ str(number_tb/1000000000))            
 
             elif len(timebase) == 0:
-                answer = float(self.device_query("HORizontal:SCAle?"))*1000000
+                raw_answer = float(self.device_query("HORizontal:SCAle?"))
+                answer = pg.siFormat( raw_answer, suffix = 's', precision = 3, allowUnicode = False)
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if  len(timebase) == 1:
                 temp = timebase[0].split(' ')
-                assert(temp[1] in self.timebase_dict), "Incorrect timebase dimension"
+                assert(temp[1] in self.timebase_dict), "Incorrect timebase argument; timebase: str (int + [' s', ' ms', ' us', ' ns'])"
                 
                 if temp[1] == 's':
                     number_tb_raw = 1000000000 * int(temp[0])
@@ -333,15 +308,17 @@ class Tektronix_3000_Series:
                 answer = self.test_timebase
                 return answer
             else:
-                assert (1 == 2), 'Invalid timebase argument'
+                assert (1 == 2), "Incorrect timebase argument; timebase: str (int + [' s', ' ms', ' us', ' ns'])"
 
     def oscilloscope_time_resolution(self):
         if self.test_flag != 'test':
             points = int(self.oscilloscope_record_length())
-            answer = 1000000*float(self.device_query("HORizontal:SCAle?"))/points
+            raw_answer = float(self.device_query("HORizontal:SCAle?")) / points
+            answer = pg.siFormat( raw_answer, suffix = 's', precision = 9, allowUnicode = False)
             return answer
         elif self.test_flag == 'test':
-            answer = 1000000*float(self.test_timebase)/self.test_record_length
+            raw_answer = pg.siEval(self.test_timebase) / self.test_record_length
+            answer = pg.siFormat( raw_answer, suffix = 's', precision = 9, allowUnicode = False)
             return answer
 
     def oscilloscope_start_acquisition(self):

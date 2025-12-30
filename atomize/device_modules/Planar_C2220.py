@@ -6,6 +6,7 @@ import gc
 import sys
 import pyvisa
 import numpy as np
+import pyqtgraph as pg
 from pyvisa.constants import StopBits, Parity
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
@@ -152,9 +153,6 @@ class Planar_C2220:
             elif len(pwr) == 0:
                 answer = float(self.device_query(f'SOURce{source}:POWer?'))
                 return answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
         elif self.test_flag == 'test':
             if len(pwr) == 1:
                 power = round(float(pwr[0]), 2)
@@ -166,7 +164,7 @@ class Planar_C2220:
             else:
                 assert (1 == 2), "Invalid power argument"
 
-    def vector_analyzer_frequency_center(self, *frq, channel = 1):
+    def vector_analyzer_center_frequency(self, *frq, channel = 1):
         if self.test_flag != 'test':
             if len(frq) == 1:
                 temp = frq[0].split(" ")
@@ -177,15 +175,13 @@ class Planar_C2220:
                     freq = val * coef
                 if freq >= self.freq_min and freq <= self.freq_max:
                     self.device_write(f'SENSe{int(channel)}:FREQuency:CENTer {freq}')
-
                 else:
                     general.message("Incorrect frequency center")
             elif len(frq) == 0:
-                answer = str(float(self.device_query(f'SENSe{int(channel)}:FREQuency:CENTer?')) / 1000000) + ' MHz'
+                #answer = str(float(self.device_query(f'SENSe{int(channel)}:FREQuency:CENTer?')) / 1000000) + ' MHz'
+                raw_answer = float(self.device_query(f'SENSe{int(channel)}:FREQuency:CENTer?'))
+                answer = pg.siFormat( raw_answer, suffix = 'Hz', precision = 11, allowUnicode = False)
                 return answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
         elif self.test_flag == 'test':
             if len(frq) == 1:
                 temp = frq[0].split(" ")
@@ -202,7 +198,7 @@ class Planar_C2220:
             else:
                 assert (1 == 2), "Invalid frequency center argument"
 
-    def vector_analyzer_frequency_span(self, *frq, channel = 1):
+    def vector_analyzer_frequency_range(self, *frq, channel = 1):
         if self.test_flag != 'test':
             if len(frq) == 1:
                 temp = frq[0].split(" ")
@@ -217,11 +213,10 @@ class Planar_C2220:
                 else:
                     general.message("Incorrect frequency span")
             elif len(frq) == 0:
-                answer = str(float(self.device_query(f'SENSe{int(channel)}:FREQuency:SPAN?')) / 1000000) + ' MHz'
+                #answer = str(float(self.device_query(f'SENSe{int(channel)}:FREQuency:SPAN?')) / 1000000) + ' MHz'
+                raw_answer = float(self.device_query(f'SENSe{int(channel)}:FREQuency:SPAN?'))
+                answer = pg.siFormat( raw_answer, suffix = 'Hz', precision = 6, allowUnicode = False)
                 return answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
         elif self.test_flag == 'test':
             if len(frq) == 1:
                 temp = frq[0].split(" ")
@@ -249,9 +244,6 @@ class Planar_C2220:
             elif len(pnt) == 0:
                 answer = int(self.device_query(f'SENSe{int(channel)}:SWEep:POINts?'))
                 return answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
         elif self.test_flag == 'test':
             if len(pnt) == 1:
                 val = int(pnt[0])
@@ -277,13 +269,10 @@ class Planar_C2220:
             elif len(src) == 0:
                 answer = str(self.device_query(f'TRIGger:SOURce?'))
                 return answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
         elif self.test_flag == 'test':
             if len(src) == 1:
                 source = str(src[0])
-                assert(source in self.trigger_source_list), f"Incorrect trigger source. Available options: [INT, EXT, MAN, BUS]."
+                assert(source in self.trigger_source_list), f"Incorrect trigger source. Available options are {self.trigger_source_list}."
             elif len(src) == 0:
                 return self.test_trig_cource
             else:
@@ -296,7 +285,7 @@ class Planar_C2220:
         elif self.test_flag == 'test':
             pass
 
-    def vector_analyzer_if_bandwith(self, *bnd, channel = 1 ):
+    def vector_analyzer_intermediate_freqiency_bandwith(self, *bnd, channel = 1 ):
         if self.test_flag != 'test': 
             if len(bnd) == 1:
                 temp = bnd[0].split(" ")
@@ -312,11 +301,10 @@ class Planar_C2220:
                 self.device_write(f'SENSe1:BANDwidth {bandwidth}')
         
             elif len(bnd) == 0:
-                answer = str(float(self.device_query('SENSe1:BANDwidth?')) / 1000) + ' kHz'
+                #answer = str(float(self.device_query('SENSe1:BANDwidth?')) / 1000) + ' kHz'
+                raw_answer = float(self.device_query('SENSe1:BANDwidth?'))
+                answer = pg.siFormat( raw_answer, suffix = 'Hz', allowUnicode = False)
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(bnd) == 1:
@@ -361,9 +349,6 @@ class Planar_C2220:
                     return 'OFF'
                 elif raw_answer == 0 and self.t_single == 1:
                     return 'SINGLE'
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(md) == 1:
@@ -384,7 +369,7 @@ class Planar_C2220:
             else:
                 assert (1 == 2), "Invalid trigger mode argument"
 
-    def vector_analyzer_get_data(self, s = 'S11', type = 'IQ', channel = 1, data_type = 'COR'):
+    def vector_analyzer_get_curve(self, s = 'S11', type = 'IQ', channel = 1, data_type = 'COR'):
         if self.test_flag != 'test':
             if data_type == 'COR':
                 raw_array = np.array( self.device_query(f"SENSe{int(channel)}:DATA:CORRData? {s}").split(',') ).astype(np.float64)
@@ -415,7 +400,7 @@ class Planar_C2220:
                 c_array = array_i + 1j * array_q
                 return np.absolute(c_array), np.rad2deg(np.arctan2(-array_i, array_q)) #np.log10(np.absolute(c_array)) * 20, np.angle(c_array, deg = True)
 
-    def vector_analyzer_get_freq_data(self, channel = 1):
+    def vector_analyzer_get_frequency_points(self, channel = 1):
         if self.test_flag != 'test':
             raw_array = np.array( self.device_query(f"SENSe{int(channel)}:FREQuency:DATA?").split(',') ).astype(np.float64) / 10**6
             return raw_array
@@ -423,10 +408,11 @@ class Planar_C2220:
             assert(channel >= 1 and channel <= self.channels), f"Incorrect channel. MAX: {self.channels}; MIN: {1}."
             return self.test_freq_data
 
-    def vector_analyzer_get_meas_time(self, channel = 1):
+    def vector_analyzer_measurement_time(self, channel = 1):
         if self.test_flag != 'test':
-            raw_array = np.array(self.device_query(f"SENSe{int(channel)}:SWEep:CW:TIME?")).astype(np.float64)
-            return raw_array
+            raw_answer = float( self.device_query(f"SENSe{int(channel)}:SWEep:CW:TIME?") )
+            answer = pg.siFormat( raw_answer, suffix = 's', precision = 5, allowUnicode = False)
+            return answer
         elif self.test_flag == 'test':
             assert(channel >= 1 and channel <= self.channels), f"Incorrect channel. MAX: {self.channels}; MIN: {1}."
             return self.test_meas_time
