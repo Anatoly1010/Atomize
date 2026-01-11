@@ -1,6 +1,6 @@
 ---
-title: Vector Network Analyzer
-nav_order: 36
+title: Vector Network Analyzers
+nav_order: 38
 layout: page
 permlink: /functions/vector_network_analyzer/
 parent: Documentation
@@ -16,14 +16,14 @@ Planar instruments only work when running [native sofware](https://planarchel.ru
 ### Functions
 - [vector_analyzer_name()](#vector_analyzer_name)<br/>
 - [vector_analyzer_source_power(*pwr, source = 1)](#vector_analyzer_source_powerpwr-source--1)<br/>
-- [vector_analyzer_center_frequency(*frq, channel = 1)](#vector_analyzer_center_frequencyfrq-channel--1)<br/>
-- [vector_analyzer_frequency_range(*frq, channel = 1)](#vector_analyzer_frequency_rangefrq-channel--1)<br/>
+- [vector_analyzer_center_frequency(*freq, channel = 1)](#vector_analyzer_center_frequencyfreq-channel--1)<br/>
+- [vector_analyzer_frequency_range(*freq, channel = 1)](#vector_analyzer_frequency_rangefreq-channel--1)<br/>
 - [vector_analyzer_points(*pnt, channel = 1)](#vector_analyzer_pointspnt-channel--1)<br/>
 - [vector_analyzer_trigger_source(*src)](#vector_analyzer_trigger_sourcesrc)<br/>
 - [vector_analyzer_send_trigger()](#vector_analyzer_send_trigger)<br/>
 - [vector_analyzer_intermediate_freqiency_bandwith(*freq, channel = 1)](#vector_analyzer_intermediate_freqiency_bandwithfreq-channel--1)<br/>
 - [vector_analyzer_trigger_mode(*md, channel = 1)](#vector_analyzer_trigger_modemd-channel--1)<br>
-- [vector_analyzer_get_curve(s = 'S11', type = 'IQ', channel = 1, data_type = 'COR')](#vector_analyzer_get_curves--S11-type--IQ-channel--1-data_type--COR)<br>
+- [vector_analyzer_get_curve(s = 'S11', type = 'IQ', channel = 1, data_type = 'COR')](#vector_analyzer_get_curves--s11-type--iq-channel--1-data_type--cor)<br>
 - [vector_analyzer_get_frequency_points(channel = 1)](#vector_analyzer_get_frequency_pointschannel--1)<br>
 - [vector_analyzer_measurement_time(channel = 1)](#vector_analyzer_measurement_timechannel--1)<br>
 - [vector_analyzer_command(command)](#vector_analyzer_commandcommand)<br>
@@ -41,7 +41,7 @@ This function returns device name.<br/>
 
 ### vector_analyzer_source_power(*pwr, source = 1)
 ```python
-vector_analyzer_source_power(pwr: str(float + ' dBm'), source: int) -> none
+vector_analyzer_source_power(pwr: float + ' dBm', source: int) -> none
 vector_analyzer_source_power(source: int) -> float
 ```
 ```
@@ -51,25 +51,25 @@ This function queries or sets the power of the specified source. If there is no 
 
 ---
 
-### vector_analyzer_center_frequency(*frq, channel = 1)
+### vector_analyzer_center_frequency(*freq, channel = 1)
 ```python
-vector_analyzer_center_frequency(frq: str(float + [' Hz',' kHz',' MHz',' GHz']), channel: int) -> none
+vector_analyzer_center_frequency(freq: float + [' Hz',' kHz',' MHz',' GHz'], channel: int) -> none
 vector_analyzer_center_frequency(channel: int) -> str
 ```
 ```
-Example: vector_analyzer_center_frequency('9 GHz') sets the center frequency to 9 GHz for measurement.
+Example: vector_analyzer_center_frequency('9 GHz') sets the center frequency to 9 GHz.
 ```
 This function queries or sets the center frequency for measurement. If there is no argument, the function returns the current center frequency for the channel specified as the keyword "channel". The output of the function is a string in the format 'number + ['Hz', 'kHz', 'MHz', 'GHz']. If there is an argument, the specified center frequency will be set for the indicated channel. The center frequency argument is a string in the format 'number [Hz, kHz, MHz, GHz]'. The available range is from 0.1 MHz to 20 GHz, and is specified directly in the device configuration file. The number of available channels is also given in the configuration file.<br/>
 
 ---
 
-### vector_analyzer_frequency_range(*frq, channel = 1)
+### vector_analyzer_frequency_range(*freq, channel = 1)
 ```python
-vector_analyzer_frequency_range(frq: str(float + [' Hz',' kHz',' MHz',' GHz']), channel: int) -> none
+vector_analyzer_frequency_range(freq: float + [' Hz',' kHz',' MHz',' GHz'], channel: int) -> none
 vector_analyzer_frequency_range(channel: int) -> str
 ```
 ```
-Example: vector_analyzer_frequency_range('10 MHz') sets the frequency range to 10 MHz for measurement.
+Example: vector_analyzer_frequency_range('10 MHz') sets the frequency range to 10 MHz.
 ```
 This function queries or sets the frequency range for measurement. If there is no argument, the function returns the current frequency range for the channel specified as the keyword "channel". The output of the function is a string in the format 'number + ['Hz', 'kHz', 'MHz', 'GHz']. If there is an argument, the specified frequency range will be set for the indicated channel. The frequency range argument is a string in the format 'number [Hz, kHz, MHz, GHz]'. The available range is from 0 MHz to 20 GHz. The number of available channels is also given in the configuration file.<br/>
 
@@ -112,7 +112,7 @@ This function can only be called without arguments and is used to send a single 
 
 ### vector_analyzer_intermediate_freqiency_bandwith(*freq, channel = 1)
 ```python
-vector_analyzer_intermediate_freqiency_bandwith(freq: str(float + [' Hz',' kHz',' MHz',' GHz']), 
+vector_analyzer_intermediate_freqiency_bandwith(freq: float + [' Hz',' kHz',' MHz',' GHz'], 
 				    channel: int) -> none
 vector_analyzer_intermediate_freqiency_bandwith(channel: int) -> str
 ```
@@ -140,8 +140,8 @@ This function queries or sets the trigger initiation mode. If there is no argume
 
 ### vector_analyzer_get_curve(s = 'S11', type = 'IQ', channel = 1, data_type = 'COR')
 ```python
-vector_analyzer_get_curve(s: ['S11','S12','S21','S22','R11','R12','R21','R22','A(1)','A(2)','B(1)','B(2)'],
-		   type: ['IQ','AP'], channel: int, data_type: ['COR','RAW'])) -> np.array(), np.array()
+vector_analyzer_get_curve(s: ['S11','S12','S21','S22','R11','R12','R21','R22','A(1)','A(2)',
+	'B(1)','B(2)'], type: ['IQ','AP'], channel: int, data_type: ['COR','RAW'])) -> np.array, np.array
 ```
 ```
 Example: vector_analyzer_get_curve(s = 'S11', type = 'AP') performs the measurement and returns 
@@ -154,10 +154,10 @@ The acquired curves can be returned in two different formats: ['IQ', 'AP']. The 
 
 ### vector_analyzer_get_frequency_points(channel = 1)
 ```python
-vector_analyzer_get_frequency_points(channel: int) -> np.array()
+vector_analyzer_get_frequency_points(channel: int) -> np.array
 ```
 ```
-Example: vector_analyzer_get_frequency_points() returns the array of frequencies of measurement points.
+Example: vector_analyzer_get_frequency_points() returns the array of measured points.
 ```
 This function returns an array of measurement point frequencies for the channel specified as the keyword "channel". The total number of points in the array is equal to the number of points specified in the function [the vector_analyzer_points()](#vector_analyzer_pointspnt-channel--1). The number of available channels is given in the configuration file. The frequencies are given in MHz.<br>
 
@@ -192,4 +192,4 @@ vector_analyzer_query(command: str) -> str
 ```
 Example: vector_analyzer_query('SERV:CHAN:ACT?') returns the number of the active channel.
 ```
-The function sends an arbitrary command from a programming guide to the device in a string format. An output in a string format is expected.<br/>
+This function sends an arbitrary command from a programming guide to the device in a string format. An output in a string format is expected.<br/>

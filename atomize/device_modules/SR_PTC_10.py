@@ -109,7 +109,7 @@ class SR_PTC_10:
                 answer = float(self.device_query(ch, 50))
                 return answer
             except ValueError:
-                general.message('Incorrect channel name. Please, check')
+                general.message('Incorrect channel name. Please, check the name on the device')
 
         elif self.test_flag == 'test':
             #assert(channel == 'A' or channel == 'B'), "Incorrect channel"
@@ -127,25 +127,23 @@ class SR_PTC_10:
                     # turn on PID on channel 2A
                     self.device_write(chan1)
                     self.device_write(chan2)
-                else:
-                    general.message("Incorrect set point temperature")
-                    sys.exit()
             elif len(temperature) == 1:
                 ch = str(temperature[0])
                 chan1 = str(ch) + '.PID.Setpoint?'
                 # terminator
                 # bytes?
-                answer = float(self.device_query(chan1, 50))
-                return answer   
-            else:
-                general.message("Invalid argument")
-                sys.exit()
-           
+                try:
+                    answer = float(self.device_query(chan1, 50))
+                except ValueError:
+                    general.message('Incorrect channel name. Please, check the name on the device')
+                return answer
+        
         elif self.test_flag == 'test':
             if len(temperature) == 2:
                 ch = str(temperature[0])
                 temp = float(temperature[1])
-                assert(temp <= self.temperature_max and temp >= self.temperature_min), 'Incorrect set point temperature is reached'
+                assert(temp <= self.temperature_max and temp >= self.temperature_min),\
+                    f'Incorrect set point temperature is reached. The available range is from {self.temperature_min} to {self.temperature_max}'
             elif len(temperature) == 1:
                 ch = str(temperature[0])
                 answer = self.test_set_point
@@ -158,8 +156,7 @@ class SR_PTC_10:
                 raw_answer = float(self.device_query(ch, 50))
                 return str(raw_answer) + ' W'
             except ValueError:
-                general.message('Incorrect output channel name. Please, check')
-
+                general.message('Incorrect channel name. Please, check the name on the device')
 
         elif self.test_flag == 'test':
             answer = self.test_heater

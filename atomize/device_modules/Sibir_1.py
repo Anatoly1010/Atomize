@@ -157,20 +157,20 @@ class Sibir_1():
                             general.message(f"The specified number of averages cannot be set. The following number was set instead: {53248}")                        
 
             elif len(points) == 0:       
-                return self.num_point 
+                return self.num_point
+
         elif self.test_flag == 'test':
             if len(points) == 1:
                 if int(points[0])>=0 and int(points[0]) <= 53248:
                     pass
                 else:
-                    assert (1 == 2), 'Invalid values points, correct = [0..53248]'
+                    assert(1 == 2), 'Invalid number of points; points: [8192, 16384, 32768, 53248]'
             elif len(points) == 0:       
                 return self.num_point 
             else:
-                general.message("Invalid argument")
-                sys.exit()   
+                assert(1 == 2), 'Invalid number of points; points: [8192, 16384, 32768, 53248]'
 
-    def gaussmeter_number_of_averges(self, *nav):
+    def gaussmeter_number_of_averages(self, *nav):
         if self.test_flag != 'test':
             if len(nav) == 1:
                 _nav = int(nav[0])
@@ -225,26 +225,21 @@ class Sibir_1():
                         self.num_exp = 16
                         if _nav != 2048:
                             general.message(f"The specified number of averages cannot be set. The following number was set instead: {2048}")                        
-                else:
-                    assert (1 == 2), 'Invalid number of averages, correct = [0..2048]'
                     
             elif len(nav) == 0:   
                 return self.NMR_nav() * self.num_exp
-            else:
-                general.message("Invalid argument")
-                sys.exit()   
+
         elif self.test_flag == 'test':
             if len(nav) == 1:
                 _nav = int(nav[0])
                 if  _nav>=0 and _nav <= 2048:
                     pass 
                 else:
-                    assert (1 == 2), 'Invalid number of averages, correct = [0..2048]'
+                    assert(1 == 2), 'Invalid number of averages, number: [1, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]'
             elif len(nav) == 0:   
                 return self.mode_nav * self.num_exp
             else:
-                general.message("Invalid argument")
-                sys.exit()
+                assert(1 == 2), 'Invalid number of averages, number: [1, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]'
 
     def gaussmeter_search(self, B_lower, B_upper, step):
         B1   = int(B_lower)
@@ -263,9 +258,8 @@ class Sibir_1():
             self.B = float(B[0])
         elif len(B) == 0:
             return self.NMR_freq_synthesizer()/self.Fr*10
-        else:
-            general.message("Invalid argument")
-            sys.exit()   
+        if self.test_flag == 'test':
+            assert( (len(B) == 1)  or (len(B) == 0) ), 'Invalid argument, B: float'
 
     def gaussmeter_field(self):
         if self.test_flag != 'test':
@@ -287,6 +281,7 @@ class Sibir_1():
                 return arr[2:] , I[2:] , round(B_cl, 4) , S_n
             else:
                 return arr[2:] , I[2:] , 0 , S_n
+
         elif self.test_flag == 'test':
             return np.zeros(500) , np.zeros(500) , self.B , 6
 
@@ -300,21 +295,17 @@ class Sibir_1():
             elif len(gain) == 0:
                 return self.read_reg_i(0)
 
-            else:
-                general.message("Invalid argument")
-                sys.exit()   
-
         elif self.test_flag == 'test':
             if len(gain) == 1:  
                 if gain[0]>=0 and gain[0] <= 31:
                     self.gain_value = gain[0]
                     self.reg[0] = c_uint(gain[0])
                 else:
-                    assert (1 == 2), 'Invalid value of the preamplifier gain, correct = [0..31]'
+                    assert(1 == 2), 'Invalid value of the preamplifier gain; gain: int [0 - 31]'
             elif len(gain) == 0:
                 return self.reg[0]
             else:
-                assert (1 == 2), 'Invalid value of the preamplifier gain'
+                assert(1 == 2), 'Invalid value of the preamplifier gain; gain: int [0 - 31]'
 
     def gaussmeter_pulse_length(self, *time_pulse):
         if self.test_flag != 'test':
@@ -326,21 +317,17 @@ class Sibir_1():
             elif len(time_pulse) == 0:
                 return self.read_reg_i(2)
 
-            else:
-                general.message("Invalid length of the pi/2 pulse")
-                sys.exit()   
-
         elif self.test_flag == 'test':
             if len(time_pulse) == 1:  
                 if time_pulse[0]>=0 and time_pulse[0] <= 40:
                     self.time_90_deg_pulse = time_pulse[0]
                     self.set_2_reg()
                 else:
-                    assert (1 == 2), 'Invalid length of the pi/2 pulse, correct = [0..40]'
+                    assert(1 == 2), 'Invalid length of the pi/2 pulse, length: int [0 - 40]'
             elif len(time_pulse) == 0:
                 return  self.reg[2]
             else:
-                assert (1 == 2), 'Invalid length of the pi/2 pulse'
+                assert(1 == 2), 'Invalid length of the pi/2 pulse, length: int [0 - 40]'
 
     def gaussmeter_sensor_number(self, *sensor_number):
         if self.test_flag != 'test':
@@ -353,20 +340,16 @@ class Sibir_1():
             elif len(sensor_number) == 0:
                 return self.sensor_number
 
-            else:
-                general.message("Invalid argument")
-                sys.exit()   
-
         elif self.test_flag == 'test':
             if len(sensor_number) == 1:  
                 if sensor_number[0]>=1 and sensor_number[0] <= 4:
                     self.sensor_number = sensor_number[0]
                 else:
-                    assert (1 == 2), 'Invalid sensor number, correct = [1..4]'
+                    assert(1 == 2), 'Invalid sensor number; number: [1, 2, 3, 4]'
             elif len(sensor_number) == 0:
                 return  self.sensor_number
             else:
-                assert (1 == 2), 'Invalid sensor number argument'
+                assert(1 == 2), 'Invalid sensor number; number: [1, 2, 3, 4]'
 
 ### Auxiliary functions
     def z(self, X, Y, F):

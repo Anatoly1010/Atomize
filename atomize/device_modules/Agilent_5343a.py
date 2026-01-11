@@ -4,6 +4,7 @@
 import os
 import gc
 import sys
+import pyqtgraph as pg
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
@@ -27,10 +28,6 @@ class Agilent_5343a:
         # Ranges and limits
         self.min_digits = 3
         self.min_digits = 9
-
-        # Test run parameters
-        self.test_digits = 9
-        self.test_frequency = 10000
 
         # These values are returned by the modules in the test run 
         if len(sys.argv) > 1:
@@ -88,13 +85,13 @@ class Agilent_5343a:
                     self.status_flag = 0
                     sys.exit()
             else:
-                general.message("Such interface: " + str(self.config['interface']) + " is not available")
+                general.message("Such interface " + str(self.config['interface']) + " is not available")
                 self.status_flag = 0
                 sys.exit()      
             
         elif self.test_flag == 'test':
-            self.test_frequency = 10000
-
+            self.test_digits = 9
+            self.test_frequency = '10 MHz'
 
     def close_connection(self):
         if self.test_flag != 'test':
@@ -131,12 +128,13 @@ class Agilent_5343a:
         if self.status_flag == 1:
             if self.config['interface'] == 'gpib':
                 # read first 22 bytes
-                raw_answer = self.device.read(22).decode()
+                raw_raw_answer = self.device.read(22).decode()
                 try:
-                    answer = float( raw_answer[4:19] ) * 10 ** 6
+                    raw_answer = float( raw_raw_answer[4:20] )
+                    answer = pg.siFormat( raw_answer, suffix = 'Hz', precision = 11, allowUnicode = False)
                     #' F  09114.636333E+06\r\n'
                 except ValueError:
-                    answer = 0.
+                    answer = '0 Hz'
                 
                 return answer
             else:
@@ -155,14 +153,11 @@ class Agilent_5343a:
     def freq_counter_frequency(self, channel):
         if self.test_flag != 'test':
             if channel == 'CH1':
-                answer = float(self.device_read())
+                answer = self.device_read()
                 return answer
-            else:
-                general.message('Invalid argument')
-                sys.exit()
 
         elif self.test_flag == 'test':
-            assert( channel == 'CH1' ), 'Invalid channel'
+            assert( channel == 'CH1' ), "Invalid channel; channel: ['CH1']"
             answer = self.test_frequency
             return answer
 
@@ -173,26 +168,21 @@ class Agilent_5343a:
                 if val >= self.min_digits and val <= self.max_digits:
                     self.device_write("SR" + str(12 - val))
                     self.digits = 12 - val
-                else:
-                    general.message("Invalid amount of digits")
-                    sys.exit()
             elif len(digits) == 0:
                 answer = self.digits
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if  len(digits) == 1:
                 val = int(digits[0])
-                assert(val >= self.min_digits and val <= self.max_digits), "Invalid amount of digits"
+                assert(val >= self.min_digits and val <= self.max_digits),\
+                    f"Invalid amount of digits. The available number of digits is from {self.min_digits} to {self.max_digits}"
                 self.test_digits = 12 - val
             elif len(digits) == 0:
                 answer = self.test_digits
                 return answer
             else:
-                assert(1 == 2), "Invalid argument"
+                assert(1 == 2), "Invalid argument; digits: int [3-9]"
 
     def freq_counter_command(self, command):
         if self.test_flag != 'test':

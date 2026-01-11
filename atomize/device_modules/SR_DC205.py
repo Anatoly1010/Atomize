@@ -5,6 +5,7 @@ import os
 import gc
 import sys
 import pyvisa
+import pyqtgraph as pg
 from pyvisa.constants import StopBits, Parity
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
@@ -64,29 +65,21 @@ class SR_DC205:
                         # the numeric version  of the token quantity
                         self.device_write('TOKN 0')
 
-                    except pyvisa.VisaIOError:
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         self.status_flag = 0
                         general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message(f"No connection {self.__class__.__name__}")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0
-                    sys.exit()
-                except BrokenPipeError:
+                except (pyvisa.VisaIOError, BrokenPipeError):
                     general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
 
             elif self.config['interface'] != 'rs232':
-                general.message('Invalid interface')
+                general.message(f'Invalid interface {self.__class__.__name__}')
                 sys.exit()
 
         elif self.test_flag == 'test':  
-            self.test_voltage = 1.
+            self.test_voltage = '1 V'
             self.test_state = 'Off'
             self.test_range = '1 V'
             self.test_lock = 'On'
@@ -146,45 +139,25 @@ class SR_DC205:
                                     self.device_write('VOLT ' + str(vtg/coef))
                                 else:
                                     general.message("Incorrect voltage for range 1 V")
-                                    sys.exit()
                             elif rng_check == 1:
                                 if vtg/coef >= self.voltage_min_range2 and vtg/coef <= self.voltage_max_range2:
                                     self.device_write('VOLT ' + str(vtg/coef))
                                 else:
                                     general.message("Incorrect voltage for range 10 V")
-                                    sys.exit()
                             elif rng_check == 2:
                                 if vtg/coef >= self.voltage_min_range3 and vtg/coef <= self.voltage_max_range3:
                                     self.device_write('VOLT ' + str(vtg/coef))
                                 else:
                                     general.message("Incorrect voltage for range 100 V")
-                                    sys.exit()                                                            
-                        else:
-                            general.message("Incorrect voltage scaling")
-                            sys.exit()
-                    else:
-                        general.message("Invalid channel")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
 
             elif len(voltage) == 1:
                 ch = str(voltage[0])
                 if ch in self.channel_dict:
                     flag = self.channel_dict[ch]
                     if flag <= self.channels:
-                        answer = float(self.device_query('VOLT?'))
+                        raw_answer = float(self.device_query('VOLT?'))
+                        answer = pg.siFormat( raw_answer, suffix = 'V', precision = 5, allowUnicode = False)
                         return answer
-                    else:
-                        general.message("Invalid channel")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(voltage) == 2:
@@ -192,16 +165,19 @@ class SR_DC205:
                 temp = voltage[1].split(" ")
                 vtg = float(temp[0])
                 scaling = temp[1]
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 flag = self.channel_dict[ch]
-                assert(flag <= self.channels), "Invalid channel"
-                assert(scaling in self.voltage_dict), 'Invalid scaling argument'
-                assert(vtg/coef >= self.voltage_min_range3 and vtg/coef <= self.voltage_max_range3), "Incorrect voltage range"
+                assert(flag <= self.channels), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
+                assert(scaling in self.voltage_dict), f"Invalid channel; channel: {list(self.channel_dict.keys())}; voltage: float + [' V', ' mV']"
+                min_v = pg.siFormat( self.voltage_min_range3, suffix = 'V', precision = 3, allowUnicode = False)
+                max_v = pg.siFormat( self.voltage_max_range3, suffix = 'V', precision = 3, allowUnicode = False)
+                assert(vtg/coef >= self.voltage_min_range3 and vtg/coef <= self.voltage_max_range3), \
+                    f"Incorrect voltage range. The available range is from {min_v} to {max_v}"
             elif len(voltage) == 1:
                 ch = str(voltage[0])
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 flag = self.channel_dict[ch]
-                assert(flag <= self.channels), "Invalid channel"
+                assert(flag <= self.channels), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 answer = self.test_voltage
                 return answer
 
@@ -212,28 +188,22 @@ class SR_DC205:
                 if rng in self.range_dict:
                     flag = self.range_dict[rng]
                     self.device_write('RNGE ' + str(flag))                       
-                else:
-                    general.message("Incorrect range")
-                    sys.exit()
 
             elif len(range) == 0:
                 raw_answer = int(self.device_query('RNGE?'))
                 answer = cutil.search_keys_dictionary(self.range_dict, raw_answer)
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(range) == 1:
                 rng = str(range[0])
-                assert(rng in self.range_dict), "Incorrect range"
+                assert(rng in self.range_dict), f"Incorrect range; range: {list(self.range_dict.keys())}"
 
             elif len(range) == 0:
                 answer = self.test_range
                 return answer
             else:
-                assert(1 == 2), "Invalid argument"
+                assert(1 == 2), f"Invalid argument; range: {list(self.range_dict.keys())}"
     
     def power_supply_interlock(self, *interlock):
         if self.test_flag != 'test':
@@ -241,16 +211,13 @@ class SR_DC205:
                 raw_answer = int(self.device_query('ILOC?'))
                 answer = cutil.search_keys_dictionary(self.lock_dict, raw_answer)
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(interlock) == 0:
                 answer = self.test_lock
                 return answer
             else:
-                assert(1 == 2), "Invalid argument"
+                assert(1 == 2), "Invalid argument; no arguments are expected"
 
     def power_supply_channel_state(self, *state):
         if self.test_flag != 'test':
@@ -266,18 +233,8 @@ class SR_DC205:
                             iloc = int(self.device_query('ILOC?'))
                             if iloc != 1 and rng == 2:
                                 general.message('Safety interlock is open')
-                                sys.exit()
                             else:
                                 self.device_write('SOUT ' + str(flag))
-                        else:
-                            general.message("Invalid state argument")
-                            sys.exit()
-                    else:
-                        general.message("Invalid channel")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
 
             elif len(state) == 1:
                 ch = str(state[0])
@@ -287,29 +244,20 @@ class SR_DC205:
                         raw_answer = int(self.device_query('SOUT?'))
                         answer = cutil.search_keys_dictionary(self.state_dict, raw_answer)
                         return answer
-                    else:
-                        general.message("Invalid channel")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(state) == 2:
                 ch = str(state[0])
                 st = str(state[1])
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 flag = self.channel_dict[ch]
-                assert(flag <= self.channels), "Invalid channel"
-                assert(st in self.state_dict), 'Invalid state argument'
+                assert(flag <= self.channels), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
+                assert(st in self.state_dict), f'Invalid state; state: {list(self.state_dict.keys())}'
             elif len(state) == 1:
                 ch = str(state[0])
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 flag = self.channel_dict[ch]
-                assert(flag <= self.channels), "Invalid channel"
+                assert(flag <= self.channels), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 answer = self.test_state
                 return answer        
 

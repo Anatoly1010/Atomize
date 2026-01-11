@@ -44,21 +44,14 @@ class CPWplus_150:
                     try:
                         # test should be here
                         self.status_flag = 1
-                    except pyvisa.VisaIOError:
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         self.status_flag = 0
                         general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message(f"No connection {self.__class__.__name__}")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
+
+                except (pyvisa.VisaIOError, BrokenPipeError):
                         general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
-                except BrokenPipeError:
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0
-                    sys.exit()
 
         elif self.test_flag == 'test': 
             self.test_sign = '+'

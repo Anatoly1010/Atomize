@@ -70,27 +70,20 @@ class Cryomagnetics_LM510:
                             # to write data the device should be in REMOTE
                             self.device_query('REMOTE;*OPC?')
                         else:
-                            general.message('During internal device test errors are found')
+                            general.message(f'During internal device test errors were found {self.__class__.__name__}')
                             self.status_flag = 0
                             sys.exit()
-                    except pyvisa.VisaIOError:
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         general.message(f"No connection {self.__class__.__name__}")
                         self.status_flag = 0
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message(f"No connection {self.__class__.__name__}")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0
-                    sys.exit()
-                except BrokenPipeError:
+
+                except (pyvisa.VisaIOError, BrokenPipeError):
                     general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
             else:
-                general.message("Incorrect interface setting")
+                general.message(f"Incorrect interface setting {self.__class__.__name__}")
                 self.status_flag = 0
                 sys.exit()
 
@@ -148,20 +141,14 @@ class Cryomagnetics_LM510:
                     self.device_write('CHAN ' + '1')
                 elif ch[0] == '2':
                     self.device_write('CHAN ' + '2')
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
 
             elif len( ch ) == 0:
                 answer = str( self.device_query('CHAN?') )
                 return answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len( ch ) == 1:
-                assert( ch[0] == '1' or ch[0] == '2'), "Invalid channel"
+                assert( ch[0] == '1' or ch[0] == '2'), "Invalid channel; channel: ['1', '2']"
                 if ch[0] == '2' and self.hrc_option == 'True':
                     self.hrc_second_channel = 1
                 if ch[0] == '1':
@@ -169,7 +156,7 @@ class Cryomagnetics_LM510:
             elif len( ch ) == 0:
                 return self.test_channel
             else:
-                assert( 1 == 2 ), "Invalid Argument"
+                assert( 1 == 2 ), "Invalid argument; channel: ['1', '2']"
 
     def level_monitor_boost_mode(self, *md):
         if self.test_flag != 'test':
@@ -178,27 +165,21 @@ class Cryomagnetics_LM510:
                 if mode in self.boost_dict:
                     flag = self.boost_dict[mode]
                     self.device_write('BOOST ' + str(flag))
-                else:
-                    general.message("Invalid boost mode is given")
-                    sys.exit()
 
             elif len( md ) == 0:
                 raw_answer = str( self.device_query('BOOST?') )
                 return raw_answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len( md ) == 1:
                 mode = str(md[0])
-                assert( mode in self.boost_dict), "Invalid boost mode is given"
+                assert( mode in self.boost_dict), f"Invalid boost mode; mode: {list(self.boost_dic.keys())}"
                 assert( self.hrc_second_channel != 1 ), "Second channel is used as HRC"
             elif len( md ) == 0:
                 assert( self.hrc_second_channel != 1 ), "Second channel is used as HRC"
                 return self.test_boost_mode
             else:
-                assert( 1 == 2 ), "Invalid Argument"
+                assert( 1 == 2 ), f"Invalid argument; mode: {list(self.boost_dic.keys())}"
 
     def level_monitor_high_level_alarm(self, *lvl):
         if self.test_flag != 'test':
@@ -209,28 +190,24 @@ class Cryomagnetics_LM510:
                         self.device_write('H-ALM ' + str(level))
                     else:
                         general.message("Specified high level alarm is lower than low level alarm")
-                        sys.exit()
                 else:
                     general.message("Specified high level alarm is higher than sensor length")
-                    sys.exit()
 
             elif len( lvl ) == 0:
                 answer = str( self.device_query('H-ALM?') )
                 return answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len( lvl ) == 1:
                 level = round( float( lvl[0] ), 1)
-                assert( level >= self.h_level_min and level <= self.h_level_max), "Invalid high alarm limit"
+                assert( level >= self.h_level_min and level <= self.h_level_max),\
+                    f"Invalid high alarm limit. The available range is from {self.h_level_min} to {self.h_level_max}"
                 assert( self.hrc_second_channel != 1 ), "Second channel is used as HRC"
             elif len( lvl ) == 0:
                 assert( self.hrc_second_channel != 1 ), "Second channel is used as HRC"
                 return self.test_h_alarm
             else:
-                assert( 1 == 2 ), "Invalid Argument"
+                assert( 1 == 2 ), "Invalid argument; lvl: float"
 
     def level_monitor_low_level_alarm(self, *lvl):
         if self.test_flag != 'test':
@@ -241,28 +218,24 @@ class Cryomagnetics_LM510:
                         self.device_write('L-ALM ' + str(level))
                     else:
                         general.message("Specified low level alarm is higher than high level alarm")
-                        sys.exit()
                 else:
                     general.message("Specified low level alarm is higher than sensor length")
-                    sys.exit()
 
             elif len( lvl ) == 0:
                 answer = str( self.device_query('L-ALM?') )
                 return answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len( lvl ) == 1:
                 level = round( float( lvl[0] ), 1)
-                assert( level >= self.l_level_min and level <= self.l_level_max), "Invalid low alarm limit"
+                assert( level >= self.l_level_min and level <= self.l_level_max),\
+                    f"Invalid low alarm limit. The available range is from {self.l_level_min} to {self.l_level_max}"
                 assert( self.hrc_second_channel != 1 ), "Second channel is used as HRC"
             elif len( lvl ) == 0:
                 assert( self.hrc_second_channel != 1 ), "Second channel is used as HRC"
                 return self.test_l_alarm
             else:
-                assert( 1 == 2 ), "Invalid Argument"
+                assert( 1 == 2 ), "Invalid argument; lvl: float"
 
     def level_monitor_sensor_length(self):
         if self.test_flag != 'test':
@@ -280,27 +253,21 @@ class Cryomagnetics_LM510:
                 if mode in self.sample_mode_dict:
                     flag = self.sample_mode_dict[mode]
                     self.device_write('MODE ' + str(flag))
-                else:
-                    general.message("Invalid sample mode is given")
-                    sys.exit()
 
             elif len( md ) == 0:
                 raw_answer = str( self.device_query('MODE?') )
                 return raw_answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len( md ) == 1:
                 mode = str(md[0])
-                assert( mode in self.sample_mode_dict), "Invalid sample mode is given"
+                assert( mode in self.sample_mode_dict), f"Invalid sample mode; mode: {list(self.sample_mode_dict.keys())}"
                 assert( self.hrc_second_channel != 1 ), "Second channel is used as HRC"
             elif len( md ) == 0:
                 assert( self.hrc_second_channel != 1 ), "Second channel is used as HRC"
                 return self.test_sample_mode
             else:
-                assert( 1 == 2 ), "Invalid Argument"
+                assert( 1 == 2 ), f"Invalid argument; mode: {list(self.sample_mode_dict.keys())}"
 
     def level_monitor_units(self, *un):
         if self.test_flag != 'test':
@@ -309,27 +276,21 @@ class Cryomagnetics_LM510:
                 if unit in self.units_dict:
                     flag = self.units_dict[unit]
                     self.device_write('UNITS ' + str(flag))
-                else:
-                    general.message("Invalid units are given")
-                    sys.exit()
 
             elif len( un ) == 0:
                 raw_answer = str( self.device_query('UNITS?') )
                 return raw_answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len( un ) == 1:
                 unit = str(un[0])
-                assert( unit in self.units_dict), "Invalid units are given"
+                assert( unit in self.units_dict), f"Invalid units; units: {list(self.units_dict.keys())}"
                 assert( self.hrc_second_channel != 1 ), "Second channel is used as HRC"
             elif len( un ) == 0:
                 assert( self.hrc_second_channel != 1 ), "Second channel is used as HRC"
                 return self.test_units
             else:
-                assert( 1 == 2 ), "Invalid Argument"
+                assert( 1 == 2 ), f"Invalid argument; units: {list(self.units_dict.keys())}"
 
     def level_monitor_measure(self, ch):
         if self.test_flag != 'test':
@@ -352,12 +313,9 @@ class Cryomagnetics_LM510:
                     self.device_write('*CLS')
 
                     return self.device_query('MEAS? ' + '2')
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
 
         elif self.test_flag == 'test':
-            assert( ch == '1' or ch == '2'), "Invalid channel"
+            assert( ch == '1' or ch == '2'), "Invalid channel; channel: ['1', '2']"
 
     def level_monitor_sample_interval(self, *interv):
         if self.test_flag != 'test':
@@ -369,24 +327,24 @@ class Cryomagnetics_LM510:
             elif len( interv ) == 0:
                 answer = str(self.device_query('INTVL?'))
                 return answer
-            else:
-                general.message("Invalid Argument. It should be ('hours', 'minutes', 'seconds')")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len( interv ) == 3:
                 h = int(interv[0])
                 m = int(interv[1])
                 s = int(interv[2])
-                assert( h >= self.hours_min and h <= self.hours_max ), "The interval hours parameter should be in the range of 0 to 99"
-                assert( m >= self.minutes_min and m <= self.minutes_max ), "The interval minutes parameter should be in the range of 0 to 59"
-                assert( s >= self.seconds_min and s <= self.seconds_max ), "The interval seconds parameter should be in the range of 0 to 59"
+                assert( h >= self.hours_min and h <= self.hours_max ), \
+                    f"The interval hours parameter should be in the range of 0 to 99"
+                assert( m >= self.minutes_min and m <= self.minutes_max ), \
+                    f"The interval minutes parameter should be in the range of 0 to 59"
+                assert( s >= self.seconds_min and s <= self.seconds_max ), \
+                    f"The interval seconds parameter should be in the range of 0 to 59"
                 assert( self.hrc_second_channel != 1 ), "Second channel is used as HRC"
             elif len( interv ) == 0:
                 assert( self.hrc_second_channel != 1 ), "Second channel is used as HRC"
                 return self.test_interval
             else:
-                assert( 1 == 2 ), "Invalid Argument. It should be ('hours', 'minutes', 'seconds')"
+                assert( 1 == 2 ), "Invalid argument; interval: ['hours', 'minutes', 'seconds']"
 
     def level_monitor_hrc_target_pressure(self, *pr):
         if self.test_flag != 'test':
@@ -397,9 +355,6 @@ class Cryomagnetics_LM510:
             elif len( pr ) == 0:
                 answer = str( self.device_query('PSET?') )
                 return answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len( pr ) == 1:
@@ -410,7 +365,7 @@ class Cryomagnetics_LM510:
                 assert( self.hrc_second_channel == 1 ), "Second channel is not used as HRC"
                 return self.test_pressure
             else:
-                assert( 1 == 2 ), "Invalid Argument"
+                assert( 1 == 2 ), "Invalid argument; pressure: float [0.15 - 14.25]"
 
     def level_monitor_hrc_heater_power_limit(self, *lim):
         if self.test_flag != 'test':
@@ -421,20 +376,17 @@ class Cryomagnetics_LM510:
             elif len( lim ) == 0:
                 answer = str( self.device_query('HLIM?') )
                 return answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len( lim ) == 1:
                 limit = round( float(lim[0]) , 2)
-                assert( limit >= self.heater_limit_min and limit <= self.heater_limit_max ), "Heater power limit should be in the range of 0.1 to 10 watts"
+                assert( limit >= self.heater_limit_min and limit <= self.heater_limit_max ), "Heater power limit should be in the range of 0.1 to 10 W"
                 assert( self.hrc_second_channel == 1 ), "Second channel is not used as HRC"
             elif len( lim ) == 0:
                 assert( self.hrc_second_channel == 1 ), "Second channel is not used as HRC"
                 return self.test_heater_limit
             else:
-                assert( 1 == 2 ), "Invalid Argument"
+                assert( 1 == 2 ), "Invalid argument; power: float [0.1 - 10]"
 
     def level_monitor_hrc_heater_enable(self, *st):
         if self.test_flag != 'test':
@@ -443,9 +395,6 @@ class Cryomagnetics_LM510:
                 if state in self.heater_dict:
                     flag = self.heater_dict[state]
                     self.device_write('HEAT ' + str(flag))
-                else:
-                    general.message("Invalid heater state is given")
-                    sys.exit()
 
             elif len( st ) == 0:
                 raw_answer = str( self.device_query('HEAT?') )
@@ -453,20 +402,17 @@ class Cryomagnetics_LM510:
                     return 'On'
                 elif raw_answer == 'OFF':
                     return 'Off'
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len( st ) == 1:
                 state = str( st[0] )
-                assert( state in self.heater_dict), "Invalid heater state is given"
+                assert( state in self.heater_dict), f"Invalid heater stat; state: {list(self.heater_dict.keys())}"
                 assert( self.hrc_second_channel == 1 ), "Second channel is not used as HRC"
             elif len( st ) == 0:
                 assert( self.hrc_second_channel == 1 ), "Second channel is not used as HRC"
                 return self.test_heater_state
             else:
-                assert( 1 == 2 ), "Invalid Argument"
+                assert( 1 == 2 ), f"Invalid argument; state: {list(self.heater_dict.keys())}"
 
     def level_monitor_command(self, command):
         if self.test_flag != 'test':

@@ -51,7 +51,7 @@ class ITC_503:
 
         if self.test_flag != 'test':
             if self.config['interface'] == 'gpib':
-                general.message('Invalid interface')
+                general.message(f'Invalid interface {self.__class__.__name__}')
                 sys.exit()
                 #try:
                 #    import Gpib
@@ -82,19 +82,11 @@ class ITC_503:
                         # test should be here
                         self.device_write('Q0') # \r terminator
                         self.device_query('C3') # Remote and Unlocked; C1 - remote and locked
-                    except pyvisa.VisaIOError:
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         self.status_flag = 0
                         general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message(f"No connection {self.__class__.__name__}")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0
-                    sys.exit()
-                except BrokenPipeError:
+                except (pyvisa.VisaIOError, BrokenPipeError):
                     general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
@@ -127,7 +119,7 @@ class ITC_503:
     def device_query(self, command):
         if self.status_flag == 1:
             if self.config['interface'] == 'gpib':
-                general.message('Invalid interface')
+                general.message(f'Invalid interface {self.__class__.__name__}')
                 sys.exit()
                 #self.device.write(command)
                 #general.wait('50 ms')
@@ -176,20 +168,14 @@ class ITC_503:
                     else:
                         answer = float(raw_answer)
                         return answer
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
-            else:
-                general.message("Invalid channel")
-                sys.exit()
         
         elif self.test_flag == 'test':
             if self.config_channels >= int(channel):
-                assert(channel == '1' or channel == '2' or channel == '3'), "Incorrect channel"
+                assert(channel == '1' or channel == '2' or channel == '3'), "Incorrect channel; channel: ['1', '2', '3']"
                 answer = self.test_temperature
                 return answer
             else:
-                assert(1 == 2), "Incorrect channel"
+                assert(1 == 2), "Incorrect channel; channel: ['1', '2', '3']"
 
     def tc_setpoint(self, *temp):
         if self.test_flag != 'test':
@@ -197,20 +183,15 @@ class ITC_503:
                 temp = float(temp[0])
                 if temp <= self.temperature_max and temp >= self.temperature_min:
                     self.device.query('T' + f'{temp:.3f}')
-                else:
-                    general.message("Incorrect set point temperature")
-                    sys.exit()
             elif len(temp) == 0:
                 answer = float(self.device_query('R0')[1:])
-                return answer   
-            else:
-                general.message("Invalid argument")
-                sys.exit()      
+                return answer
 
         elif self.test_flag == 'test':
             if len(temp) == 1:
                 temp = float(temp[0])
-                assert(temp <= self.temperature_max and temp >= self.temperature_min), 'Incorrect set point temperature is reached'
+                assert(temp <= self.temperature_max and temp >= self.temperature_min),\
+                    f'Incorrect set point temperature is reached. The available range is from {self.temperature_min} to {self.temperature_max}'
             elif len(temp) == 0:
                 answer = self.test_set_point
                 return answer
@@ -225,22 +206,17 @@ class ITC_503:
                         raw_answer = self.device_query('X')
                         answer = raw_answer[2:4]
                         if answer == 'A5' or answer == 'A6' or answer == 'A7' or answer == 'A8':
-                            general.message('Cannot set state to GAS AUTO while in AutoGFS phase.')
+                            general.message('Cannot set state to GAS AUTO while in AutoGFS phase')
                         else:
                             self.device_query("A" + str(flag))
                     else:
                         self.device_query("A" + str(flag))
-                else:
-                    general.message("Invalid temperature controller state")
-                    sys.exit()
+
             elif  len(mode) == 0:
                 raw_answer = self.device_query('X')
                 answer_flag = int(raw_answer[3:4])
                 answer = cutil.search_keys_dictionary(self.state_dict, answer_flag)
                 return answer                    
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':                           
             if len(mode) == 1:
@@ -248,12 +224,12 @@ class ITC_503:
                 if md in self.state_dict:
                     flag = self.state_dict[md]
                 else:
-                    assert(1 == 2), "Invalid heater range"
+                    assert(1 == 2), f"Invalid state; mode: {list(self.state_dict.keys())}"
             elif  len(mode) == 0:
                 answer = self.test_mode
                 return answer                
             else:
-                assert(1 == 2), "Invalid heater range"
+                assert(1 == 2), f"Invalid state; mode: {list(self.state_dict.keys())}"
 
     def tc_heater_power(self, *power_percent):
         if self.test_flag != 'test':
@@ -265,17 +241,13 @@ class ITC_503:
                 raw_answer = self.device_query('X')
                 answer = raw_answer[2:4]
                 if answer[0] != 'A':
-                    general.message('Device returns invalid state data.')
-                    sys.exit()
+                    general.message(f'Device {self.__class__.__name__} returns invalid state data')
                 else:
                     if answer == 'A0' or answer == 'A2':
                         if pw >= self.power_percent_min and pw <= self.power_percent_max:
                             self.device_query('O' + f'{pw:.1f}')
-                        else:
-                            general.message("Invalid heater power percent")
-                            sys.exit()
                     else:
-                        general.message("Cannot change heater power while heater power is controlled by the device")
+                        general.message(f"Cannot change heater power while heater power is controlled by the device {self.__class__.__name__}")
 
         elif self.test_flag == 'test':
             if len(power_percent) == 0:
@@ -283,7 +255,8 @@ class ITC_503:
                 return answer
             elif len(power_percent) == 1:
                 pw = float(power_percent[0])
-                assert(pw >= self.power_percent_min and pw <= self.power_percent_max), "Invalid heater power"
+                assert(pw >= self.power_percent_min and pw <= self.power_percent_max),\
+                    f"Invalid heater power. The available range is from {self.power_percent_min} to {self.power_percent_max}"
 
     def tc_heater_power_limit(self, power):
         if self.test_flag != 'test':
@@ -291,21 +264,18 @@ class ITC_503:
             raw_answer = self.device_query('X')
             answer = raw_answer[2:4]
             if answer[0] != 'A':
-                general.message('Device returns invalid state data.')
-                sys.exit()
+                general.message(f'Device {self.__class__.__name__} returns invalid state data')
             else:
                 if answer == 'A0' or answer == 'A2':
                     if pw >= self.power_min and pw <= self.power_max:
                         self.device_query('M' + f'{pw:.1f}')
-                    else:
-                        general.message("Invalid heater power")
-                        sys.exit()
                 else:
-                    general.message("Cannot change heater power while heater power is controlled by the device")
+                    general.message(f"Cannot change heater power while heater power is controlled by the device {self.__class__.__name__}")
 
         elif self.test_flag == 'test':
             pw = float(power)
-            assert(pw >= self.power_min and pw <= self.power_max), "Invalid heater power range"
+            assert(pw >= self.power_min and pw <= self.power_max),\
+                f"Invalid heater power. The available range is from {self.power_percent_min} to {self.power_percent_max}"
 
     def tc_sensor(self, *sensor):
         if self.test_flag != 'test':
@@ -313,14 +283,11 @@ class ITC_503:
                 sens = int(sensor[0])
                 if sens in self.sensor_list and self.config_channels >= int(channel):
                     self.device_query('H' + str(sens))
-                else:
-                    general.message('Invalid sensor')
-                    sys.exit()
             elif len(sensor) == 0:
                 raw_answer = self.device_query('X')
                 answer = raw_answer[9:11]
                 if answer[0] != 'H':
-                    general.message('Device returns invalid heater sensor data.')
+                    general.message(f'Device {self.__class__.__name__} returns invalid heater sensor data')
                     sys.exit()
                 else:
                     return int(answer[1])                
@@ -328,8 +295,8 @@ class ITC_503:
         elif self.test_flag == 'test':
             if len(sensor) == 1:
                 sens = int(sensor[0])
-                assert(sens in self.sensor_list), 'Invalid sensor argument'
-                assert(self.config_channels >= int(channel)), 'Invalid sensor argument'
+                assert(sens in self.sensor_list), f'Invalid sensor argument; sensor: {self.sensor_list}'
+                assert(self.config_channels >= int(channel)), "Incorrect channel; channel: ['1', '2', '3']"
             elif len(sensor) == 0:
                 answer = self.test_sensor
                 return answer
@@ -344,17 +311,14 @@ class ITC_503:
                 raw_answer = self.device_query('X')
                 answer = raw_answer[2:4]
                 if answer[0] != 'A':
-                    general.message('Device returns invalid state data.')
+                    general.message(f'Device {self.__class__.__name__} returns invalid state data')
                     sys.exit()
                 else:
                     if answer == 'A0' or answer == 'A1':
                         if fl >= self.flow_percent_min and fl <= self.flow_percent_max:
                             self.device_query('G' + f'{fl:.1f}')
-                        else:
-                            general.message("Invalid gas flow percent")
-                            sys.exit()
                     else:
-                        general.message("Cannot gas flow percentage while flow is controlled by the device")
+                        general.message(f"Cannot gas flow percentage while flow is controlled by the device {self.__class__.__name__}")
 
         elif self.test_flag == 'test':
             if len(flow) == 0:
@@ -362,7 +326,8 @@ class ITC_503:
                 return answer
             elif len(flow) == 1:
                 fl = float(flow[0])
-                assert(fl >= self.flow_percent_min and fl <= self.flow_percent_max), "Invalid gas flow percent"
+                assert(fl >= self.flow_percent_min and fl <= self.flow_percent_max),\
+                    f"Invalid gas flow percent. The available range is from {self.flow_percent_min} to {self.flow_percent_max}"
 
     def tc_lock_keyboard(self, *lock):
         if self.test_flag != 'test':
@@ -371,17 +336,12 @@ class ITC_503:
                 if lk in self.lock_dict:
                     flag = self.lock_dict[lk]
                     self.device_query(str(flag))
-                else:
-                    general.message("Invalid argument")
-                    sys.exit()
+
             elif len(lock) == 0:
                 raw_answer = self.device_query('X')
                 answer_flag = raw_answer[4:6]
                 answer = cutil.search_keys_dictionary(self.lock_dict, answer_flag)
-                return answer    
-            else:
-                general.message("Invalid argument")
-                sys.exit()                      
+                return answer                  
 
         elif self.test_flag == 'test':
             if len(lock) == 1:
@@ -389,12 +349,12 @@ class ITC_503:
                 if lk in self.lock_dict:
                     flag = self.lock_dict[lk]
                 else:
-                    assert(1 == 2), "Invalid lock argument"
+                    assert(1 == 2), f"Invalid lock argument; lock: {list( self.lock_dict.keys() )}"
             elif len(lock) == 0:
                 answer = self.test_lock
                 return answer
             else:
-                assert(1 == 2), "Invalid argument"
+                assert(1 == 2), f"Invalid lock argument; lock: {list( self.lock_dict.keys() )}"
 
     def tc_command(self, command):
         if self.test_flag != 'test':

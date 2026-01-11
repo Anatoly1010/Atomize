@@ -223,7 +223,7 @@ class PB_Micran:
                 assert(p_length >= self.min_pulse_length), 'Pulse is shorter than minimum available length (' + str(self.min_pulse_length) +' ns)'
                 assert(p_length < self.max_pulse_length), 'Pulse is longer than maximum available length (' + str(self.max_pulse_length) +' ns)'
             else:
-                assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+                assert( 1 == 2 ), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
             temp_start = start.split(" ")
             if temp_start[1] in self.timebase_dict:
@@ -232,7 +232,7 @@ class PB_Micran:
                 assert(p_start % 4 == 0), 'Pulse start should be divisible by 4'
                 assert(p_start >= 0), 'Pulse start is a negative number'
             else:
-                assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+                assert( 1 == 2 ), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
             temp_delta_start = delta_start.split(" ")
             if temp_delta_start[1] in self.timebase_dict:
@@ -241,7 +241,7 @@ class PB_Micran:
                 assert(p_delta_start % 4 == 0), 'Pulse delta start should be divisible by 4'
                 assert(p_delta_start >= 0), 'Pulse delta start is a negative number'
             else:
-                assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+                assert( 1 == 2 ), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
             temp_length_increment = length_increment.split(" ")
             if temp_length_increment[1] in self.timebase_dict:
@@ -249,9 +249,9 @@ class PB_Micran:
                 p_length_increment = coef*float(temp_length_increment[0])
                 assert(p_length_increment % 4 == 0), 'Pulse length increment should be divisible by 4'
                 assert (p_length_increment >= 0 and p_length_increment < self.max_pulse_length), \
-                'Pulse length increment is longer than maximum available length or negative'
+                    'Pulse length increment is longer than maximum available length or negative'
             else:
-                assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+                assert( 1 == 2 ), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
             if channel in self.channel_dict:
                 if self.auto_defense == 'False':
@@ -268,9 +268,10 @@ class PB_Micran:
                         # deepcopy helps to create a TRULY NEW array and not a link to the object
                         self.pulse_array_init = deepcopy(self.pulse_array)
                 else:
-                    assert(1 == 2), 'Incorrect auto_defense setting'
+                    assert(1 == 2), 'Incorrect auto_defense setting; auto_defense: ["True", "False"]'
+
             else:
-                assert (1 == 2), 'Incorrect channel name'
+                assert (1 == 2), f'Incorrect channel; channel: {list(self.channel_dict.keys())}'
 
     def pulser_redefine_start(self, *, name, start):
         """
@@ -295,7 +296,7 @@ class PB_Micran:
 
         elif self.test_flag == 'test':
             i = 0
-            assert( name in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+            assert( name in self.pulse_name_array ), f'Pulse with the specified name {self.pulse_name_array} is not defined'
 
             while i < len( self.pulse_array ):
                 if name == self.pulse_array[i]['name']:
@@ -308,7 +309,7 @@ class PB_Micran:
                         assert(p_start % 4 == 0), 'Pulse start should be divisible by 4'
                         assert(p_start >= 0), 'Pulse start is a negative number'
                     else:
-                        assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+                        assert( 1 == 2 ), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
                     self.pulse_array[i]['start'] = str(start)
                     self.shift_count = 1
@@ -340,7 +341,7 @@ class PB_Micran:
 
         elif self.test_flag == 'test':
             i = 0
-            assert( name in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+            assert( name in self.pulse_name_array ), f'Pulse with the specified name {self.pulse_name_array} is not defined'
 
             while i < len( self.pulse_array ):
                 if name == self.pulse_array[i]['name']:
@@ -353,7 +354,7 @@ class PB_Micran:
                         assert(p_delta_start % 4 == 0), 'Pulse delta start should be divisible by 4'
                         assert(p_delta_start >= 0), 'Pulse delta start is a negative number'
                     else:
-                        assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+                        assert( 1 == 2 ), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
                     self.pulse_array[i]['delta_start'] = str(delta_start)
                     self.shift_count = 1
@@ -386,7 +387,7 @@ class PB_Micran:
         elif self.test_flag == 'test':
             i = 0
 
-            assert( name in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+            assert( name in self.pulse_name_array ), f'Pulse with the specified name {self.pulse_name_array} is not defined'
 
             while i < len( self.pulse_array ):
                 if name == self.pulse_array[i]['name']:
@@ -397,9 +398,9 @@ class PB_Micran:
                         p_length_increment = coef*float(temp_length_increment[0])
                         assert(p_length_increment % 4 == 0), 'Pulse length increment should be divisible by 4'
                         assert (p_length_increment >= 0 and p_length_increment < self.max_pulse_length), \
-                        'Pulse length increment is longer than maximum available length or negative'
+                            'Pulse length increment is longer than maximum available length or negative'
                     else:
-                        assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+                        assert( 1 == 2 ), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
                     self.pulse_array[i]['length_increment'] = str(length_increment)
                     self.increment_count = 1
@@ -560,7 +561,7 @@ class PB_Micran:
                         self.phase_pulses += 2
 
                     else:
-                        assert( 1 == 2 ), 'Incorrect phase name (+x, -x, +y, -y)'
+                        assert( 1 == 2 ), 'Incorrect phase; phase: ["+x", "-x", "+y", "-y"]'
                 else:
                     pass
             
@@ -615,7 +616,8 @@ class PB_Micran:
                     elif element[0] == self.channel_dict['SHAPER']:
                         shaper_duration = shaper_duration + element[2] - element[1]
 
-                assert( (amp_on_duration * self.timebase) <= self.max_pulse_length ), f'The duration of AMP_ON cannot exceed {self.max_pulse_length} ns. Reduce pulse duration'
+                assert( (amp_on_duration * self.timebase) <= self.max_pulse_length ), \
+                    f'The duration of AMP_ON cannot exceed {self.max_pulse_length} ns. Reduce pulse duration'
                 assert( (shaper_duration * self.timebase) <= 1000 ), f'The duration of SHAPER cannot exceed {1000} ns. Reduce pulse duration'
                 assert( 1/10**(-9)/(shaper_duration * self.timebase * float(self.rep_rate[0].split(" ")[0]) ) > 1100 ), \
                         'The duty cycle of SHAPER cannot exceed 1100. Reduce pulse duration'
@@ -637,13 +639,11 @@ class PB_Micran:
 
                 self.pulser_open()
 
-
                 # Stop pulses
                 self.device_write( 4, byte_to_write = 4, data_to_write = 56, type_of_systems = 2, shift = 0 )
                 # rep rate in clock
                 rep_time = rep_time // 4
                 self.device_write( 3, byte_to_write = 4, data_to_write = rep_time, type_of_systems = 10 )
-
 
                 self.pulse_write_stop(48, 0, 0, self.i_x , self.i_x_prev)
                 self.pulse_write_stop(16, 0, 0, self.i_y , self.i_y_prev)
@@ -651,79 +651,75 @@ class PB_Micran:
                 for element in to_spinapi:
                     if element[0] == self.channel_dict['DETECTION']:
                         self.i_trigger = self.i_trigger + 1
-                        assert( self.i_trigger <= 1 ), 'Only 1 DETECTION pulse allowed' 
+                        assert( self.i_trigger <= 1 ), 'Only 1 DETECTION pulse is allowed' 
 
                         self.pulse_write(320, element[1], element[2], self.i_trigger , self.i_trigger_prev)
 
-
                     elif element[0] == self.channel_dict['AMP_ON']:
                         self.i_amp_on = self.i_amp_on + 1
-                        assert( self.i_amp_on <= 16 ), 'Only 16 AMP_ON pulses allowed'
+                        assert( self.i_amp_on <= 16 ), 'Only 16 AMP_ON pulses are allowed'
 
                         self.pulse_write(176, element[1], element[2], self.i_amp_on , self.i_amp_on_prev)
 
                     elif element[0] == self.channel_dict['LNA_PROTECT']:
                         self.i_lna = self.i_lna + 1
-                        assert( self.i_lna <= 16 ), 'Only 16 LNA_PROTECT pulses allowed'
+                        assert( self.i_lna <= 16 ), 'Only 16 LNA_PROTECT pulses are allowed'
 
                         self.pulse_write(80, element[1], element[2], self.i_lna , self.i_lna_prev)
 
                     elif element[0] == self.channel_dict['MW']:
 
                         self.i_mw = self.i_mw + 1
-                        assert( self.i_mw <= 16 ), 'Only 16 MW pulses allowed'
+                        assert( self.i_mw <= 16 ), 'Only 16 MW pulses are allowed'
 
                         self.pulse_write(112, element[1], element[2], self.i_mw , self.i_mw_prev)
 
                     elif element[0] == self.channel_dict['-X']:
                         self.i_x = self.i_x + 1
-                        assert( self.i_x <= 16 ), 'Only 16 -X pulses allowed'
+                        assert( self.i_x <= 16 ), 'Only 16 -X pulses are allowed'
 
                         self.pulse_write(48, element[1], element[2], self.i_x , self.i_x_prev)
 
                     elif element[0] == self.channel_dict['+Y']:
                         self.i_y = self.i_y + 1
-                        assert( self.i_y <= 16 ), 'Only 16 +Y pulses allowed'
+                        assert( self.i_y <= 16 ), 'Only 16 +Y pulses are allowed'
                         self.pulse_write(16, element[1], element[2], self.i_y , self.i_y_prev)
 
                     elif element[0] == self.channel_dict['TRIGGER_AWG']:
                         self.i_trigger_awg = self.i_trigger_awg + 1
-                        assert( self.i_trigger_awg <= 1 ), 'Only 1 TRIGGER AWG pulse allowed'
+                        assert( self.i_trigger_awg <= 1 ), 'Only 1 TRIGGER AWG pulse is allowed'
 
                         self.pulse_write(304, element[1], element[2], self.i_trigger_awg , self.i_trigger_awg_prev)
 
-
                     elif element[0] == self.channel_dict['AWG']:
                         self.i_awg = self.i_awg + 1
-                        assert( self.i_awg <= 16 ), 'Only 16 AWG pulses allowed'
+                        assert( self.i_awg <= 16 ), 'Only 16 AWG pulses are allowed'
 
                         self.pulse_write(144, element[1], element[2], self.i_awg , self.i_awg_prev)
 
-
                     elif element[0] == self.channel_dict['LASER']:
                         self.i_laser = self.i_laser + 1
-                        assert( self.i_laser <= 1 ), 'Only 1 LASER pulse allowed'
+                        assert( self.i_laser <= 1 ), 'Only 1 LASER pulse is allowed'
                         
                         self.pulse_write(272, element[1], element[2], self.i_laser , self.i_laser_prev)
 
                     elif element[0] == self.channel_dict['SHAPER']:
                         self.i_shaper = self.i_shaper + 1
-                        assert( self.i_shaper <= 16 ), 'Only 16 SHAPER pulses allowed'
+                        assert( self.i_shaper <= 16 ), 'Only 16 SHAPER pulses are allowed'
 
                         self.pulse_write(208, element[1], element[2], self.i_shaper , self.i_shaper_prev)
 
                     elif element[0] == self.channel_dict['VIDEO_PROTECT']:
                         self.i_video = self.i_video + 1
-                        assert( self.i_video <= 16 ), 'Only 16 VIDEO_PROTECT pulses allowed'
+                        assert( self.i_video <= 16 ), 'Only 16 VIDEO_PROTECT pulses are allowed'
 
                         self.pulse_write(240, element[1], element[2], self.i_video , self.i_video_prev)
 
                     elif element[0] == self.channel_dict['LASER_2']:
                         self.i_laser_2 = self.i_laser_2 + 1
-                        assert( self.i_laser_2 <= 1 ), 'Only 1 LASER_2 pulses allowed'
+                        assert( self.i_laser_2 <= 1 ), 'Only 1 LASER_2 pulses is allowed'
 
                         self.pulse_write(288, element[1], element[2], self.i_laser_2 , self.i_laser_2_prev)
-
 
                 # Set params
                 self.device_write( 2, byte_to_write = 4, data_to_write = 1, type_of_systems = 2, shift = 0 )
@@ -787,7 +783,7 @@ class PB_Micran:
             elif rep_rate[-3:] == 'MHz':
                 rep_time = int(1000/float(rep_rate[:-4]))
             else:
-                assert(1 == 2), "Incorrect repetition rate dimension (Hz, kHz, MHz)"
+                assert(1 == 2), "Incorrect repetition rate; rep_rate: int + [' Hz', ' kHz', ' MHz']"
 
             assert( float(self.rep_rate[0].split(" ")[0]) < 12000 ), f'Repetition rate cannot exceed {12} kHz'
 
@@ -811,7 +807,8 @@ class PB_Micran:
                     elif element[0] == self.channel_dict['SHAPER']:
                         shaper_duration = shaper_duration + element[2] - element[1]
 
-                assert( (amp_on_duration * self.timebase) <= self.max_pulse_length ), f'The duration of AMP_ON cannot exceed {self.max_pulse_length} ns. Reduce pulse duration'
+                assert( (amp_on_duration * self.timebase) <= self.max_pulse_length ), \
+                    f'The duration of AMP_ON cannot exceed {self.max_pulse_length} ns. Reduce pulse duration'
                 assert( (shaper_duration * self.timebase) <= 1000 ), f'The duration of SHAPER cannot exceed {1000} ns. Reduce pulse duration'
                 assert( 1/10**(-9)/(shaper_duration * self.timebase * float(self.rep_rate[0].split(" ")[0]) ) > 1100 ), \
                         'The duty cycle of SHAPER cannot exceed 1100. Reduce pulse duration'
@@ -832,76 +829,75 @@ class PB_Micran:
                 for element in to_spinapi:
                     if element[0] == self.channel_dict['DETECTION']:
                         self.i_trigger = self.i_trigger + 1
-                        assert( self.i_trigger <= 1 ), 'Only 1 DETECTION pulse allowed' 
+                        assert( self.i_trigger <= 1 ), 'Only 1 DETECTION pulse is allowed' 
 
                         #self.pulse_write(320, element[1], element[2], self.i_trigger , self.i_trigger_prev)
 
-
                     elif element[0] == self.channel_dict['AMP_ON']:
                         self.i_amp_on = self.i_amp_on + 1
-                        assert( self.i_amp_on <= 16 ), 'Only 16 AMP_ON pulses allowed'
+                        assert( self.i_amp_on <= 16 ), 'Only 16 AMP_ON pulses are allowed'
 
                         #self.pulse_write(176, element[1], element[2], self.i_amp_on , self.i_amp_on_prev)
 
                     elif element[0] == self.channel_dict['LNA_PROTECT']:
                         self.i_lna = self.i_lna + 1
-                        assert( self.i_lna <= 16 ), 'Only 16 LNA_PROTECT pulses allowed'
+                        assert( self.i_lna <= 16 ), 'Only 16 LNA_PROTECT pulses are allowed'
 
                         #self.pulse_write(80, element[1], element[2], self.i_lna , self.i_lna_prev)
 
                     elif element[0] == self.channel_dict['MW']:
 
                         self.i_mw = self.i_mw + 1
-                        assert( self.i_mw <= 16 ), 'Only 16 MW pulses allowed'
+                        assert( self.i_mw <= 16 ), 'Only 16 MW pulses are allowed'
 
                         #self.pulse_write(112, element[1], element[2], self.i_mw , self.i_mw_prev)
 
                     elif element[0] == self.channel_dict['-X']:
                         self.i_x = self.i_x + 1
-                        assert( self.i_x <= 16 ), 'Only 16 -X pulses allowed'
+                        assert( self.i_x <= 16 ), 'Only 16 -X pulses are allowed'
 
                         #self.pulse_write(48, element[1], element[2], self.i_x , self.i_x_prev)
 
                     elif element[0] == self.channel_dict['+Y']:
                         self.i_y = self.i_y + 1
-                        assert( self.i_y <= 16 ), 'Only 16 +Y pulses allowed'
+                        assert( self.i_y <= 16 ), 'Only 16 +Y pulses are allowed'
                         #self.pulse_write(16, element[1], element[2], self.i_y , self.i_y_prev)
 
                     elif element[0] == self.channel_dict['TRIGGER_AWG']:
                         self.i_trigger_awg = self.i_trigger_awg + 1
-                        assert( self.i_trigger_awg <= 1 ), 'Only 1 TRIGGER AWG pulse allowed'
+                        assert( self.i_trigger_awg <= 1 ), 'Only 1 TRIGGER AWG pulse is allowed'
 
                         #self.pulse_write(304, element[1], element[2], self.i_trigger_awg , self.i_trigger_awg_prev)
 
 
                     elif element[0] == self.channel_dict['AWG']:
                         self.i_awg = self.i_awg + 1
-                        assert( self.i_awg <= 16 ), 'Only 16 AWG pulses allowed'
+                        assert( self.i_awg <= 16 ), 'Only 16 AWG pulses are allowed'
 
                         #self.pulse_write(144, element[1], element[2], self.i_awg , self.i_awg_prev)
 
 
                     elif element[0] == self.channel_dict['LASER']:
                         self.i_laser = self.i_laser + 1
-                        assert( self.i_laser <= 1 ), 'Only 1 LASER pulse allowed'
+                        assert( self.i_laser <= 1 ), 'Only 1 LASER pulse is allowed'
                         
                         #self.pulse_write(272, element[1], element[2], self.i_laser , self.i_laser_prev)
 
                     elif element[0] == self.channel_dict['SHAPER']:
                         self.i_shaper = self.i_shaper + 1
-                        assert( self.i_shaper <= 16 ), 'Only 16 SHAPER pulses allowed'
+                        assert( self.i_shaper <= 16 ), 'Only 16 SHAPER pulses are allowed'
 
                         #self.pulse_write(208, element[1], element[2], self.i_shaper , self.i_shaper_prev)
 
                     elif element[0] == self.channel_dict['VIDEO_PROTECT']:
                         self.i_video = self.i_video + 1
-                        assert( self.i_video <= 16 ), 'Only 16 VIDEO_PROTECT pulses allowed'
+                        assert( self.i_video <= 16 ), 'Only 16 VIDEO_PROTECT pulses are allowed'
 
                         #self.pulse_write(240, element[1], element[2], self.i_video , self.i_video_prev)
 
                     elif element[0] == self.channel_dict['LASER_2']:
                         self.i_laser_2 = self.i_laser_2 + 1
-                        assert( self.i_laser_2 <= 1 ), 'Only 1 LASER_2 pulses allowed'
+                        assert( self.i_laser_2 <= 1 ), 'Only 1 LASER_2 pulses is allowed'
 
                         #self.pulse_write(288, element[1], element[2], self.i_laser_2 , self.i_laser_2_prev)
 
@@ -1022,14 +1018,14 @@ class PB_Micran:
                             flag = self.timebase_dict[temp[1]]
                             d_start = int((temp[0]))*flag
                         else:
-                            assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
+                            assert(1 == 2), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
                         temp2 = self.pulse_array[i]['start'].split(' ')
                         if temp2[1] in self.timebase_dict:
                             flag2 = self.timebase_dict[temp2[1]]
                             st = int((temp2[0]))*flag2
                         else:
-                            assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
+                            assert(1 == 2), 'Incorrect time; time: int + [" ms", " us", " ns"]'
                                 
                         self.pulse_array[i]['start'] = str( st + d_start ) + ' ns'
 
@@ -1053,14 +1049,14 @@ class PB_Micran:
                                 flag = self.timebase_dict[temp[1]]
                                 d_start = int((temp[0]))*flag
                             else:
-                                assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
+                                assert(1 == 2), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
                             temp2 = self.pulse_array[pulse_index]['start'].split(' ')
                             if temp2[1] in self.timebase_dict:
                                 flag2 = self.timebase_dict[temp2[1]]
                                 st = int((temp2[0]))*flag2
                             else:
-                                assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
+                                assert(1 == 2), 'Incorrect time; time: int + [" ms", " us", " ns"]'
                                     
                             self.pulse_array[pulse_index]['start'] = str( st + d_start ) + ' ns'
 
@@ -1146,19 +1142,19 @@ class PB_Micran:
                             flag = self.timebase_dict[temp[1]]
                             d_length = int(float(temp[0]))*flag
                         else:
-                            assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
+                            assert(1 == 2), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
                         temp2 = self.pulse_array[i]['length'].split(' ')
                         if temp2[1] in self.timebase_dict:
                             flag2 = self.timebase_dict[temp2[1]]
                             leng = int(float(temp2[0]))*flag2
                         else:
-                            assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
+                            assert(1 == 2), 'Incorrect time; time: int + [" ms", " us", " ns"]'
                         
                         if ( leng + d_length ) <= self.max_pulse_length:
                             self.pulse_array[i]['length'] = str( leng + d_length ) + ' ns'
                         else:
-                            assert(1 == 2), 'Exceeded maximum pulse length (1900 ns) when increment the pulse'
+                            assert(1 == 2), 'Exceeded the maximum pulse length (1900 ns) when incrementing the pulse'
 
                     i += 1
 
@@ -1180,19 +1176,19 @@ class PB_Micran:
                                 flag = self.timebase_dict[temp[1]]
                                 d_length = int(float(temp[0]))*flag
                             else:
-                                assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
+                                assert(1 == 2), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
                             temp2 = self.pulse_array[pulse_index]['length'].split(' ')
                             if temp2[1] in self.timebase_dict:
                                 flag2 = self.timebase_dict[temp2[1]]
                                 leng = int(float(temp2[0]))*flag2
                             else:
-                                assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
+                                assert(1 == 2), 'Incorrect time; time: int + [" ms", " us", " ns"]'
                                     
                             if ( leng + d_length ) <= self.max_pulse_length:
                                 self.pulse_array[pulse_index]['length'] = str( leng + d_length ) + ' ns'
                             else:
-                                assert(1 == 2), 'Exceeded maximum pulse length (1900 ns) when increment the pulse'
+                                assert(1 == 2), 'Exceeded the maximum pulse length (1900 ns) when incrementing the pulse'
 
                         self.increment_count = 1
                         self.current_phase_index = 0
@@ -1200,7 +1196,6 @@ class PB_Micran:
                     else:
                         assert(1 == 2), "There is no pulse with the specified name"
 
-    #UNDOCUMENTED
     def pulser_phase_reset(self):
         """
         Reset phase index to zero in order to start phase cycling once again
@@ -1249,7 +1244,8 @@ class PB_Micran:
                 elif element[0] == self.channel_dict['SHAPER']:
                     shaper_duration = shaper_duration + element[2] - element[1]
 
-            assert( (amp_on_duration * self.timebase) <= self.max_pulse_length ), f'The duration of AMP_ON cannot exceed {self.max_pulse_length} ns. Reduce pulse duration'
+            assert( (amp_on_duration * self.timebase) <= self.max_pulse_length ), \
+                f'The duration of AMP_ON cannot exceed {self.max_pulse_length} ns. Reduce pulse duration'
             assert( (shaper_duration * self.timebase) <= 1000 ), f'The duration of SHAPER cannot exceed {1000} ns. Reduce pulse duration'
             assert( 1/10**(-9)/(shaper_duration * self.timebase * float(self.rep_rate[0].split(" ")[0]) ) > 1100 ), \
                     'The duty cycle of SHAPER cannot exceed 1100. Reduce pulse duration'
@@ -1281,33 +1277,33 @@ class PB_Micran:
             for element in to_spinapi:
                 if element[0] == self.channel_dict['DETECTION']:
                     self.i_trigger = self.i_trigger + 1
-                    assert( self.i_trigger <= 1 ), 'Only 1 DETECTION pulse allowed' 
+                    assert( self.i_trigger <= 1 ), 'Only 1 DETECTION pulse is allowed' 
 
                     self.pulse_write(320, element[1], element[2], self.i_trigger , self.i_trigger_prev)
 
 
                 elif element[0] == self.channel_dict['AMP_ON']:
                     self.i_amp_on = self.i_amp_on + 1
-                    assert( self.i_amp_on <= 16 ), 'Only 16 AMP_ON pulses allowed'
+                    assert( self.i_amp_on <= 16 ), 'Only 16 AMP_ON pulses are allowed'
 
                     self.pulse_write(176, element[1], element[2], self.i_amp_on , self.i_amp_on_prev)
 
                 elif element[0] == self.channel_dict['LNA_PROTECT']:
                     self.i_lna = self.i_lna + 1
-                    assert( self.i_lna <= 16 ), 'Only 16 LNA_PROTECT pulses allowed'
+                    assert( self.i_lna <= 16 ), 'Only 16 LNA_PROTECT pulses are allowed'
 
                     self.pulse_write(80, element[1], element[2], self.i_lna , self.i_lna_prev)
 
                 elif element[0] == self.channel_dict['MW']:
 
                     self.i_mw = self.i_mw + 1
-                    assert( self.i_mw <= 16 ), 'Only 16 MW pulses allowed'
+                    assert( self.i_mw <= 16 ), 'Only 16 MW pulses are allowed'
 
                     self.pulse_write(112, element[1], element[2], self.i_mw , self.i_mw_prev)
 
                 elif element[0] == self.channel_dict['-X']:
                     self.i_x = self.i_x + 1
-                    assert( self.i_x <= 16 ), 'Only 16 -X pulses allowed'
+                    assert( self.i_x <= 16 ), 'Only 16 -X pulses are allowed'
 
                     self.pulse_write(48, element[1], element[2], self.i_x , self.i_x_prev)
 
@@ -1318,39 +1314,39 @@ class PB_Micran:
 
                 elif element[0] == self.channel_dict['TRIGGER_AWG']:
                     self.i_trigger_awg = self.i_trigger_awg + 1
-                    assert( self.i_trigger_awg <= 1 ), 'Only 1 TRIGGER AWG pulse allowed'
+                    assert( self.i_trigger_awg <= 1 ), 'Only 1 TRIGGER AWG pulse is allowed'
 
                     self.pulse_write(304, element[1], element[2], self.i_trigger_awg , self.i_trigger_awg_prev)
 
 
                 elif element[0] == self.channel_dict['AWG']:
                     self.i_awg = self.i_awg + 1
-                    assert( self.i_awg <= 16 ), 'Only 16 AWG pulses allowed'
+                    assert( self.i_awg <= 16 ), 'Only 16 AWG pulses are allowed'
 
                     self.pulse_write(144, element[1], element[2], self.i_awg , self.i_awg_prev)
 
 
                 elif element[0] == self.channel_dict['LASER']:
                     self.i_laser = self.i_laser + 1
-                    assert( self.i_laser <= 1 ), 'Only 1 LASER pulse allowed'
+                    assert( self.i_laser <= 1 ), 'Only 1 LASER pulse is allowed'
                     
                     self.pulse_write(272, element[1], element[2], self.i_laser , self.i_laser_prev)
 
                 elif element[0] == self.channel_dict['SHAPER']:
                     self.i_shaper = self.i_shaper + 1
-                    assert( self.i_shaper <= 16 ), 'Only 16 SHAPER pulses allowed'
+                    assert( self.i_shaper <= 16 ), 'Only 16 SHAPER pulses are allowed'
 
                     self.pulse_write(208, element[1], element[2], self.i_shaper , self.i_shaper_prev)
 
                 elif element[0] == self.channel_dict['VIDEO_PROTECT']:
                     self.i_video = self.i_video + 1
-                    assert( self.i_video <= 16 ), 'Only 16 VIDEO_PROTECT pulses allowed'
+                    assert( self.i_video <= 16 ), 'Only 16 VIDEO_PROTECT pulses are allowed'
 
                     self.pulse_write(240, element[1], element[2], self.i_video , self.i_video_prev)
 
                 elif element[0] == self.channel_dict['LASER_2']:
                     self.i_laser_2 = self.i_laser_2 + 1
-                    assert( self.i_laser_2 <= 1 ), 'Only 1 LASER_2 pulses allowed'
+                    assert( self.i_laser_2 <= 1 ), 'Only 1 LASER_2 pulses is allowed'
 
                     self.pulse_write(288, element[1], element[2], self.i_laser_2 , self.i_laser_2_prev)
 
@@ -1402,7 +1398,7 @@ class PB_Micran:
             elif rep_rate[-3:] == 'MHz':
                 rep_time = int(1000/float(rep_rate[:-4]))
             else:
-                assert( 1 == 2 ), 'Incorrect dimension of repetition rate (Hz, kHz, MHz)'
+                assert( 1 == 2 ), "Incorrect repetition rate; rep_rate: int + [' Hz', ' kHz', ' MHz']"
 
             # reset the pulses; deepcopy helps to create a TRULY NEW array
             self.pulse_array = deepcopy( self.pulse_array_init )
@@ -1425,7 +1421,8 @@ class PB_Micran:
                 elif element[0] == self.channel_dict['SHAPER']:
                     shaper_duration = shaper_duration + element[2] - element[1]
 
-            assert( (amp_on_duration * self.timebase) <= self.max_pulse_length ), f'The duration of AMP_ON cannot exceed {self.max_pulse_length} ns. Reduce pulse duration'
+            assert( (amp_on_duration * self.timebase) <= self.max_pulse_length ), \
+                f'The duration of AMP_ON cannot exceed {self.max_pulse_length} ns. Reduce pulse duration'
             assert( (shaper_duration * self.timebase) <= 1000 ), f'The duration of SHAPER cannot exceed {1000} ns. Reduce pulse duration'
             assert( 1/10**(-9)/(shaper_duration * self.timebase * float(self.rep_rate[0].split(" ")[0]) ) > 1100 ), \
                     'The duty cycle of SHAPER cannot exceed 1100. Reduce pulse duration'
@@ -1446,76 +1443,76 @@ class PB_Micran:
             for element in to_spinapi:
                 if element[0] == self.channel_dict['DETECTION']:
                     self.i_trigger = self.i_trigger + 1
-                    assert( self.i_trigger <= 1 ), 'Only 1 DETECTION pulse allowed' 
+                    assert( self.i_trigger <= 1 ), 'Only 1 DETECTION pulse is allowed' 
 
                     #self.pulse_write(320, element[1], element[2], self.i_trigger , self.i_trigger_prev)
 
 
                 elif element[0] == self.channel_dict['AMP_ON']:
                     self.i_amp_on = self.i_amp_on + 1
-                    assert( self.i_amp_on <= 16 ), 'Only 16 AMP_ON pulses allowed'
+                    assert( self.i_amp_on <= 16 ), 'Only 16 AMP_ON pulses are allowed'
 
                     #self.pulse_write(176, element[1], element[2], self.i_amp_on , self.i_amp_on_prev)
 
                 elif element[0] == self.channel_dict['LNA_PROTECT']:
                     self.i_lna = self.i_lna + 1
-                    assert( self.i_lna <= 16 ), 'Only 16 LNA_PROTECT pulses allowed'
+                    assert( self.i_lna <= 16 ), 'Only 16 LNA_PROTECT pulses are allowed'
 
                     #self.pulse_write(80, element[1], element[2], self.i_lna , self.i_lna_prev)
 
                 elif element[0] == self.channel_dict['MW']:
 
                     self.i_mw = self.i_mw + 1
-                    assert( self.i_mw <= 16 ), 'Only 16 MW pulses allowed'
+                    assert( self.i_mw <= 16 ), 'Only 16 MW pulses are allowed'
 
                     #self.pulse_write(112, element[1], element[2], self.i_mw , self.i_mw_prev)
 
                 elif element[0] == self.channel_dict['-X']:
                     self.i_x = self.i_x + 1
-                    assert( self.i_x <= 16 ), 'Only 16 -X pulses allowed'
+                    assert( self.i_x <= 16 ), 'Only 16 -X pulses are allowed'
 
                     #self.pulse_write(48, element[1], element[2], self.i_x , self.i_x_prev)
 
                 elif element[0] == self.channel_dict['+Y']:
                     self.i_y = self.i_y + 1
-                    assert( self.i_y <= 16 ), 'Only 16 +Y pulses allowed'
+                    assert( self.i_y <= 16 ), 'Only 16 +Y pulses are allowed'
                     self.pulse_write(16, element[1], element[2], self.i_y , self.i_y_prev)
 
                 elif element[0] == self.channel_dict['TRIGGER_AWG']:
                     self.i_trigger_awg = self.i_trigger_awg + 1
-                    assert( self.i_trigger_awg <= 1 ), 'Only 1 TRIGGER AWG pulse allowed'
+                    assert( self.i_trigger_awg <= 1 ), 'Only 1 TRIGGER AWG pulse is allowed'
 
                     #self.pulse_write(304, element[1], element[2], self.i_trigger_awg , self.i_trigger_awg_prev)
 
 
                 elif element[0] == self.channel_dict['AWG']:
                     self.i_awg = self.i_awg + 1
-                    assert( self.i_awg <= 16 ), 'Only 16 AWG pulses allowed'
+                    assert( self.i_awg <= 16 ), 'Only 16 AWG pulses are allowed'
 
                     #self.pulse_write(144, element[1], element[2], self.i_awg , self.i_awg_prev)
 
 
                 elif element[0] == self.channel_dict['LASER']:
                     self.i_laser = self.i_laser + 1
-                    assert( self.i_laser <= 1 ), 'Only 1 LASER pulse allowed'
+                    assert( self.i_laser <= 1 ), 'Only 1 LASER pulse is allowed'
                     
                     #self.pulse_write(272, element[1], element[2], self.i_laser , self.i_laser_prev)
 
                 elif element[0] == self.channel_dict['SHAPER']:
                     self.i_shaper = self.i_shaper + 1
-                    assert( self.i_shaper <= 16 ), 'Only 16 SHAPER pulses allowed'
+                    assert( self.i_shaper <= 16 ), 'Only 16 SHAPER pulses are allowed'
 
                     #self.pulse_write(208, element[1], element[2], self.i_shaper , self.i_shaper_prev)
 
                 elif element[0] == self.channel_dict['VIDEO_PROTECT']:
                     self.i_video = self.i_video + 1
-                    assert( self.i_video <= 16 ), 'Only 16 VIDEO_PROTECT pulses allowed'
+                    assert( self.i_video <= 16 ), 'Only 16 VIDEO_PROTECT pulses are allowed'
 
                     #self.pulse_write(240, element[1], element[2], self.i_video , self.i_video_prev)
 
                 elif element[0] == self.channel_dict['LASER_2']:
                     self.i_laser_2 = self.i_laser_2 + 1
-                    assert( self.i_laser_2 <= 1 ), 'Only 1 LASER_2 pulses allowed'
+                    assert( self.i_laser_2 <= 1 ), 'Only 1 LASER_2 pulses is allowed'
 
                     #self.pulse_write(288, element[1], element[2], self.i_laser_2 , self.i_laser_2_prev)
 
@@ -1682,74 +1679,74 @@ class PB_Micran:
             for element in to_spinapi:
                 if element[0] == self.channel_dict['DETECTION']:
                     self.i_trigger = self.i_trigger + 1
-                    assert( self.i_trigger <= 1 ), 'Only 1 DETECTION pulse allowed' 
+                    assert( self.i_trigger <= 1 ), 'Only 1 DETECTION pulse is allowed' 
 
                     self.pulse_write_stop(320, element[1], element[2], self.i_trigger , self.i_trigger_prev)
 
                 elif element[0] == self.channel_dict['AMP_ON']:
                     self.i_amp_on = self.i_amp_on + 1
-                    assert( self.i_amp_on <= 16 ), 'Only 16 AMP_ON pulses allowed'
+                    assert( self.i_amp_on <= 16 ), 'Only 16 AMP_ON pulses are allowed'
 
                     self.pulse_write_stop(176, element[1], element[2], self.i_amp_on , self.i_amp_on_prev)
 
                 elif element[0] == self.channel_dict['LNA_PROTECT']:
                     self.i_lna = self.i_lna + 1
-                    assert( self.i_lna <= 16 ), 'Only 16 LNA_PROTECT pulses allowed'
+                    assert( self.i_lna <= 16 ), 'Only 16 LNA_PROTECT pulses are allowed'
 
                     self.pulse_write_stop(80, element[1], element[2], self.i_lna , self.i_lna_prev)
 
                 elif element[0] == self.channel_dict['MW']:
 
                     self.i_mw = self.i_mw + 1
-                    assert( self.i_mw <= 16 ), 'Only 16 MW pulses allowed'
+                    assert( self.i_mw <= 16 ), 'Only 16 MW pulses are allowed'
 
                     self.pulse_write_stop(112, element[1], element[2], self.i_mw , self.i_mw_prev)
 
                 elif element[0] == self.channel_dict['-X']:
                     self.i_x = self.i_x + 1
-                    assert( self.i_x <= 16 ), 'Only 16 -X pulses allowed'
+                    assert( self.i_x <= 16 ), 'Only 16 -X pulses are allowed'
 
                     self.pulse_write_stop(48, element[1], element[2], self.i_x , self.i_x_prev)
 
                 elif element[0] == self.channel_dict['+Y']:
                     self.i_y = self.i_y + 1
-                    assert( self.i_y <= 16 ), 'Only 16 +Y pulses allowed'
+                    assert( self.i_y <= 16 ), 'Only 16 +Y pulses are allowed'
                     self.pulse_write_stop(16, element[1], element[2], self.i_y , self.i_y_prev)
 
                 elif element[0] == self.channel_dict['TRIGGER_AWG']:
                     self.i_trigger_awg = self.i_trigger_awg + 1
-                    assert( self.i_trigger_awg <= 1 ), 'Only 1 TRIGGER AWG pulse allowed'
+                    assert( self.i_trigger_awg <= 1 ), 'Only 1 TRIGGER AWG pulse is allowed'
 
                     self.pulse_write_stop(304, element[1], element[2], self.i_trigger_awg , self.i_trigger_awg_prev)
 
 
                 elif element[0] == self.channel_dict['AWG']:
                     self.i_awg = self.i_awg + 1
-                    assert( self.i_awg <= 16 ), 'Only 16 AWG pulses allowed'
+                    assert( self.i_awg <= 16 ), 'Only 16 AWG pulses are allowed'
 
                     self.pulse_write_stop(144, element[1], element[2], self.i_awg , self.i_awg_prev)
 
                 elif element[0] == self.channel_dict['LASER']:
                     self.i_laser = self.i_laser + 1
-                    assert( self.i_laser <= 1 ), 'Only 1 LASER pulse allowed'
+                    assert( self.i_laser <= 1 ), 'Only 1 LASER pulse is allowed'
                     
                     self.pulse_write_stop(272, element[1], element[2], self.i_laser , self.i_laser_prev)
 
                 elif element[0] == self.channel_dict['SHAPER']:
                     self.i_shaper = self.i_shaper + 1
-                    assert( self.i_shaper <= 16 ), 'Only 16 SHAPER pulses allowed'
+                    assert( self.i_shaper <= 16 ), 'Only 16 SHAPER pulses are allowed'
 
                     self.pulse_write_stop(208, element[1], element[2], self.i_shaper , self.i_shaper_prev)
 
                 elif element[0] == self.channel_dict['VIDEO_PROTECT']:
                     self.i_video = self.i_video + 1
-                    assert( self.i_video <= 16 ), 'Only 16 VIDEO_PROTECT pulses allowed'
+                    assert( self.i_video <= 16 ), 'Only 16 VIDEO_PROTECT pulses are allowed'
 
                     self.pulse_write_stop(240, element[1], element[2], self.i_video , self.i_video_prev)
 
                 elif element[0] == self.channel_dict['LASER_2']:
                     self.i_laser_2 = self.i_laser_2 + 1
-                    assert( self.i_laser_2 <= 1 ), 'Only 1 LASER_2 pulses allowed'
+                    assert( self.i_laser_2 <= 1 ), 'Only 1 LASER_2 pulses is allowed'
 
                     self.pulse_write_stop(288, element[1], element[2], self.i_laser_2 , self.i_laser_2_prev)
 
@@ -1816,74 +1813,74 @@ class PB_Micran:
             for element in to_spinapi:
                 if element[0] == self.channel_dict['DETECTION']:
                     self.i_trigger = self.i_trigger + 1
-                    assert( self.i_trigger <= 1 ), 'Only 1 DETECTION pulse allowed' 
+                    assert( self.i_trigger <= 1 ), 'Only 1 DETECTION pulse is allowed' 
 
                     #self.pulse_write_stop(320, element[1], element[2], self.i_trigger , self.i_trigger_prev)
 
                 elif element[0] == self.channel_dict['AMP_ON']:
                     self.i_amp_on = self.i_amp_on + 1
-                    assert( self.i_amp_on <= 16 ), 'Only 16 AMP_ON pulses allowed'
+                    assert( self.i_amp_on <= 16 ), 'Only 16 AMP_ON pulses are allowed'
 
                     #self.pulse_write_stop(176, element[1], element[2], self.i_amp_on , self.i_amp_on_prev)
 
                 elif element[0] == self.channel_dict['LNA_PROTECT']:
                     self.i_lna = self.i_lna + 1
-                    assert( self.i_lna <= 16 ), 'Only 16 LNA_PROTECT pulses allowed'
+                    assert( self.i_lna <= 16 ), 'Only 16 LNA_PROTECT pulses are allowed'
 
                     #self.pulse_write_stop(80, element[1], element[2], self.i_lna , self.i_lna_prev)
 
                 elif element[0] == self.channel_dict['MW']:
 
                     self.i_mw = self.i_mw + 1
-                    assert( self.i_mw <= 16 ), 'Only 16 MW pulses allowed'
+                    assert( self.i_mw <= 16 ), 'Only 16 MW pulses are allowed'
 
                     #self.pulse_write_stop(112, element[1], element[2], self.i_mw , self.i_mw_prev)
 
                 elif element[0] == self.channel_dict['-X']:
                     self.i_x = self.i_x + 1
-                    assert( self.i_x <= 16 ), 'Only 16 -X pulses allowed'
+                    assert( self.i_x <= 16 ), 'Only 16 -X pulses are allowed'
 
                     #self.pulse_write_stop(48, element[1], element[2], self.i_x , self.i_x_prev)
 
                 elif element[0] == self.channel_dict['+Y']:
                     self.i_y = self.i_y + 1
-                    assert( self.i_y <= 16 ), 'Only 16 +Y pulses allowed'
+                    assert( self.i_y <= 16 ), 'Only 16 +Y pulses are allowed'
                     #self.pulse_write_stop(16, element[1], element[2], self.i_y , self.i_y_prev)
 
                 elif element[0] == self.channel_dict['TRIGGER_AWG']:
                     self.i_trigger_awg = self.i_trigger_awg + 1
-                    assert( self.i_trigger_awg <= 1 ), 'Only 1 TRIGGER AWG pulse allowed'
+                    assert( self.i_trigger_awg <= 1 ), 'Only 1 TRIGGER AWG pulse is allowed'
 
                     #self.pulse_write_stop(304, element[1], element[2], self.i_trigger_awg , self.i_trigger_awg_prev)
 
 
                 elif element[0] == self.channel_dict['AWG']:
                     self.i_awg = self.i_awg + 1
-                    assert( self.i_awg <= 16 ), 'Only 16 AWG pulses allowed'
+                    assert( self.i_awg <= 16 ), 'Only 16 AWG pulses are allowed'
 
                     #self.pulse_write_stop(144, element[1], element[2], self.i_awg , self.i_awg_prev)
 
                 elif element[0] == self.channel_dict['LASER']:
                     self.i_laser = self.i_laser + 1
-                    assert( self.i_laser <= 1 ), 'Only 1 LASER pulse allowed'
+                    assert( self.i_laser <= 1 ), 'Only 1 LASER pulse is allowed'
                     
                     #self.pulse_write_stop(272, element[1], element[2], self.i_laser , self.i_laser_prev)
 
                 elif element[0] == self.channel_dict['SHAPER']:
                     self.i_shaper = self.i_shaper + 1
-                    assert( self.i_shaper <= 16 ), 'Only 16 SHAPER pulses allowed'
+                    assert( self.i_shaper <= 16 ), 'Only 16 SHAPER pulses are allowed'
 
                     #self.pulse_write_stop(208, element[1], element[2], self.i_shaper , self.i_shaper_prev)
 
                 elif element[0] == self.channel_dict['VIDEO_PROTECT']:
                     self.i_video = self.i_video + 1
-                    assert( self.i_video <= 16 ), 'Only 16 VIDEO_PROTECT pulses allowed'
+                    assert( self.i_video <= 16 ), 'Only 16 VIDEO_PROTECT pulses are allowed'
 
                     #self.pulse_write_stop(240, element[1], element[2], self.i_video , self.i_video_prev)
 
                 elif element[0] == self.channel_dict['LASER_2']:
                     self.i_laser_2 = self.i_laser_2 + 1
-                    assert( self.i_laser_2 <= 1 ), 'Only 1 LASER_2 pulses allowed'
+                    assert( self.i_laser_2 <= 1 ), 'Only 1 LASER_2 pulses is allowed'
 
                     #self.pulse_write_stop(288, element[1], element[2], self.i_laser_2 , self.i_laser_2_prev)
 
@@ -2002,8 +1999,8 @@ class PB_Micran:
 
         elif self.test_flag == 'test':
 
-            assert( len(acq_cycle) == len(data1) ), 'Acquisition cycle and Data 1 have incompatible size'
-            assert( len(acq_cycle) == len(data2) ), 'Acquisition cycle and Data 2 have incompatible size'
+            assert( len(acq_cycle) == len(data1) ), 'Number of phases of acquisition cycle and Data 1 have incompatible size'
+            assert( len(acq_cycle) == len(data2) ), 'Number of phases of acquisition cycle and Data 2 have incompatible size'
 
             answer = np.zeros( data1.shape ) + 1j*np.zeros( data2.shape )
 
@@ -2021,7 +2018,6 @@ class PB_Micran:
 
             return (answer.real / len(acq_cycle))[0], (answer.imag / len(acq_cycle))[0]
     
-    #UNDOCUMENTED
     def pulser_instruction_from_file(self, flag, filename = 'instructions.out'):
         """
         Special function to read instructions from the .txt file
@@ -2057,7 +2053,6 @@ class PB_Micran:
 
                 return 'DEVICE OPENED'
 
-    # NEW
     def pulser_close(self):
         if self.test_flag != 'test':
             if self.m_device_fd >= 0:
@@ -2707,7 +2702,6 @@ class PB_Micran:
                 return sorted_pulses_r_rate_start
             else:
                 general.message('Pulse sequence is longer than one period of the repetition rate')
-                sys.exit()
 
         elif self.test_flag == 'test':
             answer = []
@@ -3049,14 +3043,14 @@ class PB_Micran:
                             amp_on_list.append( [self.channel_dict['AMP_ON'], element[1] - self.switch_delay, element[2] + self.amp_delay] )
                             amp_on_list.append( [self.channel_dict['SHAPER'], element[1] - self.switch_shaper_delay, element[2] + self.shaper_delay] )
                         else:
-                            assert(1 == 2), 'Maximum available length (4980 ns) for AMP_ON pulse is reached'
+                            assert(1 == 2), 'Maximum available length of 4980 ns for AMP_ON pulse is reached'
                     # AMP_ON and RECT_AWG coincide now
                     elif element[0] == self.channel_dict['AWG']:
                         if element[2] - element[1]  <= self.max_pulse_length/2:
                             amp_on_list.append( [self.channel_dict['AMP_ON'], element[1] - self.switch_delay, element[2] + self.amp_delay] )
                             amp_on_list.append( [self.channel_dict['SHAPER'], element[1] - self.switch_shaper_delay, element[2] + self.shaper_delay] )
                         else:
-                            assert(1 == 2), 'Maximum available length (4980 ns) for AMP_ON pulse is reached'
+                            assert(1 == 2), 'Maximum available length of 4980 ns for AMP_ON pulse is reached'
 
                     else:
                         pass
@@ -3431,7 +3425,7 @@ class PB_Micran:
                 par_st = int(int((temp[0]))*flag + delay)
                 new_parameter = str( par_st ) + ' ns'
             else:
-                assert(1 == 2), 'Incorrect time dimension (ns, us, ms, s)'
+                assert(1 == 2), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
             return new_parameter
 

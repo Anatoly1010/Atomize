@@ -151,7 +151,7 @@ class Gentec_Solo2:
                 else:
                     general.wait(f'{self.config["timeout"]} ms')
 
-            general.message('New data is not available')
+            general.message(f'New data is not available {self.__class__.__name__}')
             return 0
 
         elif self.test_flag == 'test':
@@ -177,12 +177,12 @@ class Gentec_Solo2:
             if len(wavelength) == 1:
                 wl = int(wavelength[0])
                 assert(wl <= self.max_wavelength and wl >= self.min_wavelength), \
-                            f"Incorrect wavelength for correction is used. The available range is: {self.min_wavelength} - {self.max_wavelength} nm"
+                            f"Incorrect wavelength. The available range is from {self.min_wavelength} nm to {self.max_wavelength} nm"
                 self.test_wavelength = wl
             elif len(wavelength) == 0:
                 return f'Wavelength for correction: {self.test_wavelength} nm'
             else:
-                assert( 1 == 2 ), "Invalid Argument."
+                assert( 1 == 2 ), "Invalid argument; wavelength: int"
 
     def laser_power_meter_zero_offset(self, *zero_mode):
         """
@@ -207,9 +207,11 @@ class Gentec_Solo2:
                 if md in self.offset_dict:
                     self.test_zero = md
                 else:
-                    assert(1 == 2), f"Incorrect zero mode is used. The only available options are: {self.offset_dict}"
+                    assert(1 == 2), f"Incorrect zero mode; zero_mode: {list(self.offset_dict.keys())}"
             elif len(zero_mode) == 0:
                 return f'Zero offset mode: {self.zero}'
+            else:
+                assert( 1 == 2 ), f"Incorrect argument; zero_mode: {list(self.offset_dict.keys())}"
 
     def laser_power_meter_analog_output(self, *analog_output):
         """
@@ -234,9 +236,11 @@ class Gentec_Solo2:
                 if md in self.analog_output_dict:
                     self.test_analog_output = md
                 else:
-                    assert(1 == 2), f"Incorrect analog output is used. The only available options are: {self.analog_output_dict}"
+                    assert(1 == 2), f"Incorrect analog output; analog_output: {list(self.energy_mode_dict.keys())}"
             elif len(analog_output) == 0:
                 return f'Analog output: {self.test_analog_output}'
+            else:
+                assert( 1 == 2 ), f"Incorrect argument; analog_output: {list(self.energy_mode_dict.keys())}"
 
     def laser_power_meter_energy_mode(self, *energy_mode):
         """
@@ -260,9 +264,11 @@ class Gentec_Solo2:
                 if md in self.energy_mode_dict:
                     self.test_energy_mode = md
                 else:
-                    assert(1 == 2), f"Incorrect energy mode is used. The only available options are: {self.energy_mode_dict}"
+                    assert(1 == 2), f"Incorrect energy mode; mode: {list(self.energy_mode_dict.keys())}"
             elif len(energy_mode) == 0:
                 return self.test_energy_mode
+            else:
+                assert( 1 == 2 ), f"Incorrect argument; mode: {list(self.energy_mode_dict.keys())}"
 
     def laser_power_meter_scale(self, scale):
         """
@@ -293,12 +299,12 @@ class Gentec_Solo2:
             if scale == 0:
                 pass
             elif scale != 0:
-                assert( isinstance(scale, str) ), "Incorrect argument is used. The available options are: 0 (auto-scale); str(int + ' ' + [pW, nW, uW, mW, W, kW])"
+                assert( isinstance(scale, str) ), "Incorrect argument; scale: 0 (auto-scale); int + [' pW', ' nW', ' uW', ' mW', ' W', ' kW'])"
                 val, val_key, b = cutil.search_and_limit_keys_dictionary( self.scale_dict, \
                                     cutil.parse_pg(scale, self.helper_scale_list)[0], 1e-12, 1e6 )
-                assert( val in self.scale_dict.values() ), "Incorrect argument is used. The available options are: 0 (auto-scale); str(int + ' ' + [pW, nW, uW, mW, W, kW])"
+                assert( val in self.scale_dict.values() ), "Incorrect argument; scale: 0 (auto-scale); int + [' pW', ' nW', ' uW', ' mW', ' W', ' kW'])"
             else:
-                assert( 1 == 2 ), "Incorrect argument is used. The available options are: 0 (auto-scale); str(int + ' ' + [pW, nW, uW, mW, W, kW])"
+                assert( 1 == 2 ), "Incorrect argument; scale: 0 (auto-scale); int + [' pW', ' nW', ' uW', ' mW', ' W', ' kW'])"
 
     def laser_power_meter_command(self, command):
         if self.test_flag != 'test':

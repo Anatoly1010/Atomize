@@ -214,7 +214,7 @@ class Spectrum_M4I_6631_X8:
                 self.hCard = spcm_hOpen ( create_string_buffer (b'/dev/spcm0') )
                 self.state = 1
                 if self.hCard == None:
-                    general.message("No card found...")
+                    general.message(f"No card found {self.__class__.__name__}")
                     sys.exit()
             else:
                 pass
@@ -285,7 +285,7 @@ class Spectrum_M4I_6631_X8:
             if lMaxDACValue.value == self.maxCAD:
                 pass
             else:
-                general.message('self.maxCAD value does not equal to lMaxDACValue.value')
+                general.message(f'self.maxCAD: {self.maxCAD} value does not equal to lMaxDACValue.value: {lMaxDACValue.value}')
                 sys.exit()
 
             if self.sequence_mode == 0:
@@ -588,7 +588,7 @@ class Spectrum_M4I_6631_X8:
 
             # channels
             temp_ch = str(channel)
-            assert (temp_ch in self.channel_dict), 'Incorrect channel. Only CH0 or CH1 are available'
+            assert (temp_ch in self.channel_dict), 'Incorrect channel; channel: ["CH0", "CH1"]'
 
             # for Single/Multi mode checking
             if channel == 'CH0':
@@ -598,7 +598,7 @@ class Spectrum_M4I_6631_X8:
 
             # Function type
             temp_func = str(func)
-            assert (temp_func in self.function_dict), 'Incorrect pulse type. Only SINE, GAUSS, SINC, BLANK, WURST, and SECH/TANH pulses are available'
+            assert (temp_func in self.function_dict), f'Incorrect pulse type; type : {list(self.function_dict.keys())}'
             if temp_func == 'WURST' or temp_func == 'TEST2' or temp_func == 'SECH/TANH':
                 assert ( len(frequency) == 2 ), 'For WURST and SECH/TANH pulses frequency should be a tuple: frequency = ("Center MHz", "Sweep MHz")'
 
@@ -607,9 +607,9 @@ class Spectrum_M4I_6631_X8:
                 temp_freq = frequency.split(" ")
                 coef = temp_freq[1]
                 p_freq = float(temp_freq[0])
-                assert (coef == 'MHz'), 'Incorrect frequency dimension. Only MHz is possible'
+                assert (coef == 'MHz'), "Incorrect frequency; frequency: int + [' MHz']"
                 assert(p_freq >= self.min_freq), 'Frequency is lower than minimum available (' + str(self.min_freq) +' MHz)'
-                assert(p_freq < self.max_freq), 'Frequency is longer than minimum available (' + str(self.max_freq) +' MHz)'
+                assert(p_freq < self.max_freq), 'Frequency is larger than maximum available (' + str(self.max_freq) +' MHz)'
             else:
                 temp_freq_st = frequency[0].split(" ")
                 temp_freq_end = frequency[1].split(" ")
@@ -617,9 +617,9 @@ class Spectrum_M4I_6631_X8:
                 coef_end = temp_freq_end[1]
                 p_freq_st = float(temp_freq_st[0])
                 p_freq_end = float(temp_freq_end[0])
-                assert (coef_st == 'MHz' and coef_end == 'MHz'), 'Incorrect frequency dimension. Only MHz is possible'
+                assert (coef_st == 'MHz' and coef_end == 'MHz'), "Incorrect frequency; frequency: int + [' MHz']"
                 assert(p_freq_st >= self.min_freq and p_freq_end >= self.min_freq), 'Frequency is lower than minimum available (' + str(self.min_freq) +' MHz)'
-                assert(p_freq_st < self.max_freq and p_freq_end < self.max_freq), 'Frequency is longer than minimum available (' + str(self.max_freq) +' MHz)'
+                assert(p_freq_st < self.max_freq and p_freq_end < self.max_freq), 'Frequency is larger than maximum available (' + str(self.max_freq) +' MHz)'
                 #assert(p_freq_end > p_freq_st), 'End frequency in WURST pulse should be higher than start frequency)'
 
             # length
@@ -630,7 +630,7 @@ class Spectrum_M4I_6631_X8:
                 assert(p_length >= self.min_pulse_length), 'Pulse is shorter than minimum available length (' + str(self.min_pulse_length) +' ns)'
                 assert(p_length < self.max_pulse_length), 'Pulse is longer than maximum available length (' + str(self.max_pulse_length) +' ns)'
             else:
-                assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
+                assert( 1 == 2 ), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
             # sigma
             temp_sigma = sigma.split(" ")
@@ -640,7 +640,7 @@ class Spectrum_M4I_6631_X8:
                 assert(p_sigma >= self.min_pulse_length), 'Sigma is shorter than minimum available length (' + str(self.min_pulse_length) +' ns)'
                 assert(p_sigma < self.max_pulse_length), 'Sigma is longer than maximum available length (' + str(self.max_pulse_length) +' ns)'
             else:
-                assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
+                assert( 1 == 2 ), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
             # length should be longer than sigma
             assert( p_length >= p_sigma ), 'Pulse length should be longer or equal to sigma'
@@ -651,9 +651,9 @@ class Spectrum_M4I_6631_X8:
                 coef = self.timebase_dict[temp_increment[1]]
                 p_increment = coef*float(temp_increment[0])
                 assert (p_increment >= 0 and p_increment < self.max_pulse_length), \
-                'Length and sigma increment is longer than maximum available length or negative'
+                    'Length and sigma increment is longer than maximum available length or negative'
             else:
-                assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
+                assert( 1 == 2 ), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
             # start
             temp_start = start.split(" ")
@@ -663,7 +663,7 @@ class Spectrum_M4I_6631_X8:
                 assert(p_start >= 0), 'Pulse start should be a positive number'
                 assert(p_start % 2 == 0), 'Pulse start should be divisible by 2'                
             else:
-                assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
+                assert( 1 == 2 ), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
             # delta_start
             temp_delta_start = delta_start.split(" ")
@@ -673,7 +673,7 @@ class Spectrum_M4I_6631_X8:
                 assert(p_delta_start >= 0), 'Pulse delta start should be a positive number'
                 assert(p_delta_start % 2 == 0), 'Pulse delta start should be divisible by 2'
             else:
-                assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
+                assert( 1 == 2 ), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
             # d_coef
             temp_amp = float( d_coef )
@@ -750,7 +750,7 @@ class Spectrum_M4I_6631_X8:
                         element['phase'] = self.pulse_array_init[index]['phase'] + 3 * np.pi / 2
                         self.reset_count = 0
                     else:
-                        assert( 1 == 2 ), 'Incorrect phase name (+x, -x, +y, -y)'
+                        assert( 1 == 2 ), 'Incorrect phase; phase: ["+x", "-x", "+y", "-y"]'
 
             self.current_phase_index += 1
 
@@ -779,7 +779,7 @@ class Spectrum_M4I_6631_X8:
 
         elif self.test_flag == 'test':
             i = 0
-            assert( name in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+            assert( name in self.pulse_name_array ), f'Pulse with the specified name {name} is not defined'
 
             while i < len( self.pulse_array ):
                 if name == self.pulse_array[i]['name']:
@@ -792,7 +792,7 @@ class Spectrum_M4I_6631_X8:
                         assert(p_delta_start % 2 == 0), 'Pulse delta start should be divisible by 2'
                         assert(p_delta_start >= 0), 'Pulse delta start is a negative number'
                     else:
-                        assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+                        assert( 1 == 2 ), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
                     self.pulse_array[i]['delta_start'] = str(delta_start)
                     self.shift_count = 1
@@ -823,7 +823,7 @@ class Spectrum_M4I_6631_X8:
 
         elif self.test_flag == 'test':
             i = 0
-            assert( name in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+            assert( name in self.pulse_name_array ), f'Pulse with the specified name {name} is not defined'
 
             while i < len( self.pulse_array ):
                 if name == self.pulse_array[i]['name']:
@@ -833,9 +833,9 @@ class Spectrum_M4I_6631_X8:
                         temp_freq = freq.split(" ")
                         coef = temp_freq[1]
                         p_freq = float(temp_freq[0])
-                        assert (coef == 'MHz'), 'Incorrect frequency dimension. Only MHz is possible'
+                        assert (coef == 'MHz'), "Incorrect frequency; frequency: int + [' MHz']"
                         assert(p_freq >= self.min_freq), 'Frequency is lower than minimum available (' + str(self.min_freq) +' MHz)'
-                        assert(p_freq < self.max_freq), 'Frequency is longer than minimum available (' + str(self.max_freq) +' MHz)'
+                        assert(p_freq < self.max_freq), 'Frequency is larger than maximum available (' + str(self.max_freq) +' MHz)'
                     else:
                         temp_freq_st = frequency[0].split(" ")
                         temp_freq_end = frequency[1].split(" ")
@@ -843,9 +843,9 @@ class Spectrum_M4I_6631_X8:
                         coef_end = temp_freq_end[1]
                         p_freq_st = float(temp_freq_st[0])
                         p_freq_end = float(temp_freq_end[0])
-                        assert (coef_st == 'MHz' and coef_end == 'MHz'), 'Incorrect frequency dimension. Only MHz is possible'
+                        assert (coef_st == 'MHz' and coef_end == 'MHz'), "Incorrect frequency; frequency: int + [' MHz']"
                         assert(p_freq_st >= self.min_freq and p_freq_end >= self.min_freq), 'Frequency is lower than minimum available (' + str(self.min_freq) +' MHz)'
-                        assert(p_freq_st < self.max_freq and p_freq_end < self.max_freq), 'Frequency is longer than minimum available (' + str(self.max_freq) +' MHz)'
+                        assert(p_freq_st < self.max_freq and p_freq_end < self.max_freq), 'Frequency is larger than maximum available (' + str(self.max_freq) +' MHz)'
 
                     self.pulse_array[i]['frequency'] = freq
                     self.shift_count = 1
@@ -877,7 +877,7 @@ class Spectrum_M4I_6631_X8:
 
         elif self.test_flag == 'test':
             i = 0
-            assert( name in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+            assert( name in self.pulse_name_array ), f'Pulse with the specified name {name} is not defined'
 
             while i < len( self.pulse_array ):
                 if name == self.pulse_array[i]['name']:
@@ -911,7 +911,7 @@ class Spectrum_M4I_6631_X8:
 
         elif self.test_flag == 'test':
             i = 0
-            assert( name in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+            assert( name in self.pulse_name_array ), f'Pulse with the specified name {name} is not defined'
 
             while i < len( self.pulse_array ):
                 if name == self.pulse_array[i]['name']:
@@ -950,7 +950,7 @@ class Spectrum_M4I_6631_X8:
 
         elif self.test_flag == 'test':
             i = 0
-            assert( name in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+            assert( name in self.pulse_name_array ), f'Pulse with the specified name {name} is not defined'
 
             while i < len( self.pulse_array ):
                 if name == self.pulse_array[i]['name']:
@@ -986,7 +986,7 @@ class Spectrum_M4I_6631_X8:
 
         elif self.test_flag == 'test':
             i = 0
-            assert( name in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+            assert( name in self.pulse_name_array ), f'Pulse with the specified name {name} is not defined'
 
             while i < len( self.pulse_array ):
                 if name == self.pulse_array[i]['name']:
@@ -996,9 +996,9 @@ class Spectrum_M4I_6631_X8:
                         coef = self.timebase_dict[temp_increment[1]]
                         p_increment = coef*float(temp_increment[0])
                         assert (p_increment >= 0 and p_increment < self.max_pulse_length), \
-                        'Length and sigma increment is longer than maximum available length or negative'
+                            'Length and sigma increment is longer than maximum available length or negative'
                     else:
-                        assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
+                        assert( 1 == 2 ), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
                     self.pulse_array[i]['length_increment'] = str(length_increment)
                     self.increment_count = 1
@@ -1158,7 +1158,7 @@ class Spectrum_M4I_6631_X8:
                                 self.pulse_array[pulse_index]['phase'] = temp + temp2
 
                         else:
-                            assert(1 == 2), "There is no pulse with the specified name"
+                            assert(1 == 2),  f'Pulse with the specified name is not defined'
 
                 elif self.single_joined == 1:
 
@@ -1188,7 +1188,7 @@ class Spectrum_M4I_6631_X8:
                                 self.pulse_array[pulse_index]['start'] = str( st + d_start ) + ' ns'
 
                         else:
-                            assert(1 == 2), "There is no pulse with the specified name"
+                            assert(1 == 2), f'Pulse with the specified name is not defined'
 
     def awg_increment(self, *pulses):
         """
@@ -1293,21 +1293,21 @@ class Spectrum_M4I_6631_X8:
                             flag = self.timebase_dict[temp[1]]
                             d_length = int(float(temp[0]))*flag
                         else:
-                            assert(1 == 2), "Incorrect time dimension (ns, us, ms)"
+                            assert(1 == 2), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
                         temp2 = self.pulse_array[i]['length'].split(' ')
                         if temp2[1] in self.timebase_dict:
                             flag2 = self.timebase_dict[temp2[1]]
                             leng = int(float(temp2[0]))*flag2
                         else:
-                            assert(1 == 2), "Incorrect time dimension (ns, us, ms)"
+                            assert(1 == 2), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
                         temp3 = self.pulse_array[i]['sigma'].split(' ')
                         if temp3[1] in self.timebase_dict:
                             flag3 = self.timebase_dict[temp3[1]]
                             sigm = int(float(temp3[0]))*flag3
                         else:
-                            assert(1 == 2), "Incorrect time dimension (ns, us, ms)"
+                            assert(1 == 2), 'Incorrect time; time: int + [" ms", " us", " ns"]'
                         
                         ratio = leng/sigm
                         if ( leng + ratio*d_length ) <= self.max_pulse_length:
@@ -1319,7 +1319,7 @@ class Spectrum_M4I_6631_X8:
                                 self.pulse_array[i]['length'] = str( leng + ratio*d_length ) + ' ns'
                                 self.pulse_array[i]['sigma'] = str( sigm + d_length ) + ' ns'
                         else:
-                            assert(1 == 2), 'Exceeded maximum pulse length' + str(self.max_pulse_length) + 'when increment the pulse'
+                            assert(1 == 2), 'Exceeded the maximum pulse length ' + str(self.max_pulse_length) + ' when incrementing the pulse'
 
                     i += 1
 
@@ -1341,21 +1341,21 @@ class Spectrum_M4I_6631_X8:
                                 flag = self.timebase_dict[temp[1]]
                                 d_length = int(float(temp[0]))*flag
                             else:
-                                assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
+                                assert(1 == 2), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
                             temp2 = self.pulse_array[pulse_index]['length'].split(' ')
                             if temp2[1] in self.timebase_dict:
                                 flag2 = self.timebase_dict[temp2[1]]
                                 leng = int(float(temp2[0]))*flag2
                             else:
-                                assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
+                                assert(1 == 2), 'Incorrect time; time: int + [" ms", " us", " ns"]'
                             
                             temp3 = self.pulse_array[pulse_index]['sigma'].split(' ')
                             if temp3[1] in self.timebase_dict:
                                 flag3 = self.timebase_dict[temp3[1]]
                                 sigm = int(float(temp3[0]))*flag3
                             else:
-                                assert(1 == 2), "Incorrect time dimension (ns, us, ms)"
+                                assert(1 == 2), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
                             ratio = leng/sigm
                             if ( leng + ratio*d_length ) <= self.max_pulse_length:
@@ -1367,13 +1367,13 @@ class Spectrum_M4I_6631_X8:
                                     self.pulse_array[pulse_index]['length'] = str( leng + ratio*d_length ) + ' ns'
                                     self.pulse_array[pulse_index]['sigma'] = str( sigm + d_length ) + ' ns'
                             else:
-                                assert(1 == 2), 'Exceeded maximum pulse length' + str(self.max_pulse_length) + 'when increment the pulse'
+                                assert(1 == 2), 'Exceeded the maximum pulse length ' + str(self.max_pulse_length) + ' when incrementing the pulse'
 
                         self.increment_count = 1
                         self.current_phase_index = 0
 
                     else:
-                        assert(1 == 2), "There is no pulse with the specified name"
+                        assert(1 == 2),  f'Pulse with the specified name is not defined'
 
     def awg_reset(self):
         """
@@ -1489,8 +1489,7 @@ class Spectrum_M4I_6631_X8:
                 elif self.card_mode == 32768 and seg == 1:
                     self.num_segments = seg
                 else:
-                    general.message('AWG is not in Multi mode')
-                    sys.exit()
+                    general.message(f'AWG {self.__class__.__name__} is not in Multi mode')
             elif len(segmnets) == 0:
                 return self.num_segments
 
@@ -1501,13 +1500,13 @@ class Spectrum_M4I_6631_X8:
                 seg = int(segmnets[0])
                 if seg != 1:
                     assert( self.card_mode == 512), 'Number of segments higher than one is available only in Multi mode. Please, change it using awg_card_mode()'
-                assert (seg > 0 and seg <= 200), 'Incorrect number of segments; Should be 0 < segmenets <= 200'
+                assert (seg > 0 and seg <= 200), 'Incorrect number of segments; The available range is from 0 to 200'
                 self.num_segments = seg
 
             elif len(segmnets) == 0:
                 return self.test_num_segments
             else:
-                assert( 1 == 2 ), 'Incorrect argumnet'
+                assert( 1 == 2 ), 'Incorrect argument; segments: int [0 - 200]'
 
     def awg_channel(self, *channel):
         """
@@ -1529,9 +1528,7 @@ class Spectrum_M4I_6631_X8:
                     self.channel = 2
                     self.enable_out_0 = 0
                     self.enable_out_1 = 1
-                else:
-                    general.message('Incorrect channel')
-                    sys.exit()
+
             elif len(channel) == 2:
                 ch1 = str(channel[0])
                 ch2 = str(channel[1])
@@ -1539,9 +1536,7 @@ class Spectrum_M4I_6631_X8:
                     self.channel = 3
                     self.enable_out_0 = 1
                     self.enable_out_1 = 1
-                else:
-                    general.message('Incorrect channel; Channel should be CH0 or CH1')
-                    sys.exit()
+
             elif len(channel) == 0:
                 if self.channel == 1:
                     return 'CH0'
@@ -1550,16 +1545,12 @@ class Spectrum_M4I_6631_X8:
                 elif self.channel == 3:
                     return 'CH0, CH1'
 
-            else:
-                general.message('Incorrect argument; Channel should be CH0 or CH1')
-                sys.exit()
-
         elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(channel) == 1:
                 ch = str(channel[0])
-                assert( ch == 'CH0' or ch == 'CH1' ), 'Incorrect channel; Channel should be CH0 or CH1'
+                assert( ch == 'CH0' or ch == 'CH1' ), 'Incorrect channel; channel: ["CH0", "CH1"]'
                 if ch == 'CH0':
                     self.channel = 1
                     self.enable_out_0 = 1
@@ -1571,7 +1562,7 @@ class Spectrum_M4I_6631_X8:
             elif len(channel) == 2:
                 ch1 = str(channel[0])
                 ch2 = str(channel[1])
-                assert( (ch1 == 'CH0' and ch2 == 'CH1') or (ch1 == 'CH1' and ch2 == 'CH0')), 'Incorrect channel; Channel should be CH0 or CH1'
+                assert( (ch1 == 'CH0' and ch2 == 'CH1') or (ch1 == 'CH1' and ch2 == 'CH0')), 'Incorrect channel; channel: ["CH0", "CH1"]'
                 if (ch1 == 'CH0' and ch2 == 'CH1') or (ch1 == 'CH1' and ch2 == 'CH0'):
                     self.channel = 3
                     self.enable_out_0 = 1
@@ -1579,7 +1570,7 @@ class Spectrum_M4I_6631_X8:
             elif len(channel) == 0:
                 return self.test_channel
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), 'Incorrect argument; channel: ["CH0", "CH1"]'
 
     def awg_sample_rate(self, *s_rate):
         """
@@ -1595,9 +1586,6 @@ class Spectrum_M4I_6631_X8:
                 rate = int(s_rate[0])
                 if rate <= self.sample_rate_max and rate >= self.sample_rate_min:
                     self.sample_rate = rate
-                else:
-                    general.message('Incorrect sample rate; Should be 1250 MHz <= Rate <= 50 MHz')
-                    sys.exit()
 
             elif len(s_rate) == 0:
                 return str(self.sample_rate) + ' MHz'
@@ -1607,13 +1595,14 @@ class Spectrum_M4I_6631_X8:
 
             if len(s_rate) == 1:
                 rate = int(s_rate[0])
-                assert(rate <= self.sample_rate_max and rate >= self.sample_rate_min), "Incorrect sample rate; Should be 1250 MHz <= Rate <= 50 MHz"
+                assert(rate <= self.sample_rate_max and rate >= self.sample_rate_min), \
+                    "Incorrect sample rate. The available range is from 50 MHz to 1250 MHz"
                 self.sample_rate = rate
 
             elif len(s_rate) == 0:
                 return self.test_sample_rate
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), 'Incorrect argument; sample_rate: int + [50 - 1250]'
 
     def awg_clock_mode(self, *mode):
         """
@@ -1631,9 +1620,6 @@ class Spectrum_M4I_6631_X8:
                     self.clock_mode = 1
                 elif md == 'External':
                     self.clock_mode = 32
-                else:
-                    general.message('Incorrect clock mode; Only Internal and External modes are available')
-                    sys.exit()
 
             elif len(mode) == 0:
                 if self.clock_mode == 1:
@@ -1646,7 +1632,7 @@ class Spectrum_M4I_6631_X8:
 
             if len(mode) == 1:
                 md = str(mode[0])
-                assert(md == 'Internal' or md == 'External'), "Incorrect clock mode; Only Internal and External modes are available"
+                assert(md == 'Internal' or md == 'External'), "Incorrect clock mode; mode: ['Internal', 'External']"
                 if md == 'Internal':
                     self.clock_mode = 1
                 elif md == 'External':
@@ -1655,7 +1641,7 @@ class Spectrum_M4I_6631_X8:
             elif len(mode) == 0:
                 return self.test_clock_mode
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), "Incorrect argument; clock_mode: ['Internal', 'External']"
 
     def awg_reference_clock(self, *ref_clock):
         """
@@ -1671,9 +1657,7 @@ class Spectrum_M4I_6631_X8:
                 rate = int(ref_clock[0])
                 if rate <= self.sample_ref_clock_max and rate >= self.sample_ref_clock_min:
                     self.reference_clock = rate
-                else:
-                    general.message('Incorrect reference clock; Should be 1000 MHz <= Clock <= 10 MHz')
-                    sys.exit()
+
 
             elif len(ref_clock) == 0:
                 return str(self.reference_clock) + ' MHz'
@@ -1683,13 +1667,14 @@ class Spectrum_M4I_6631_X8:
 
             if len(ref_clock) == 1:
                 rate = int(ref_clock[0])
-                assert(rate <= self.sample_ref_clock_max and rate >= self.sample_ref_clock_min), "Incorrect reference clock; Should be 1000 MHz <= Clock <= 10 MHz"
+                assert(rate <= self.sample_ref_clock_max and rate >= self.sample_ref_clock_min), \
+                    "Incorrect reference clock. The available range is from 10 MHz to 1000 MHz"
                 self.reference_clock = rate
 
             elif len(ref_clock) == 0:
                 return self.test_ref_clock
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), 'Incorrect argument; reference_clock: int [10 - 1000]'
 
     def awg_card_mode(self, *mode):
         """
@@ -1722,9 +1707,6 @@ class Spectrum_M4I_6631_X8:
                     self.card_mode = 512
                 elif md == 'Sequence':
                     self.sequence_mode = 1
-                else:
-                    general.message('Incorrect card mode; Only Single, Single Joined, Multi, and Sequence modes are available')
-                    sys.exit()
 
             elif len(mode) == 0:
                 if self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 0:
@@ -1741,8 +1723,8 @@ class Spectrum_M4I_6631_X8:
 
             if len(mode) == 1:
                 md = str(mode[0])
-                assert(md == 'Single' or md == 'Single Joined' or md == 'Multi' or md == 'Sequence'), "Incorrect card mode; Only Single,\
-                                                                               Single Joined, Multi, and Sequence modes are available"
+                assert(md == 'Single' or md == 'Single Joined' or md == 'Multi' or md == 'Sequence'), \
+                    "Incorrect card mode; card_mode: ['Single', 'Single Joined', 'Multi', 'Sequence']"
                 if md == 'Single':
                     self.single_joined = 0
                     self.card_mode = 32768
@@ -1757,7 +1739,7 @@ class Spectrum_M4I_6631_X8:
             elif len(mode) == 0:
                 return self.test_card_mode        
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), "Incorrect argument; card_mode: ['Single', 'Single Joined', 'Multi', 'Sequence']"
 
     def awg_trigger_channel(self, *ch):
         """
@@ -1775,9 +1757,6 @@ class Spectrum_M4I_6631_X8:
                     self.trigger_ch = 1
                 elif md == 'External':
                     self.trigger_ch = 2
-                else:
-                    general.message('Incorrect trigger channel; Only Software and External modes are available')
-                    sys.exit()
 
             elif len(ch) == 0:
                 if self.trigger_ch == 1:
@@ -1790,7 +1769,7 @@ class Spectrum_M4I_6631_X8:
 
             if len(ch) == 1:
                 md = str(ch[0])
-                assert(md == 'Software' or md == 'External'), "Incorrect trigger channel; Only Software and External modes are available"
+                assert(md == 'Software' or md == 'External'), "Incorrect trigger channel; channel: ['Software', 'External']"
                 if md == 'Software':
                     self.trigger_ch = 1
                 elif md == 'External':
@@ -1799,7 +1778,7 @@ class Spectrum_M4I_6631_X8:
             elif len(ch) == 0:
                 return self.test_trigger_ch
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), "Incorrect argument; channel: ['Software', 'External']"
 
     def awg_trigger_mode(self, *mode):
         """
@@ -1821,9 +1800,6 @@ class Spectrum_M4I_6631_X8:
                     self.trigger_mode = 8
                 elif md == 'Low':
                     self.trigger_mode = 10
-                else:
-                    general.message("Incorrect trigger mode; Only Positive, Negative, High, and Low are available")
-                    sys.exit()
 
             elif len(mode) == 0:
                 if self.trigger_mode == 1:
@@ -1840,8 +1816,8 @@ class Spectrum_M4I_6631_X8:
 
             if len(mode) == 1:
                 md = str(mode[0])
-                assert(md == 'Positive' or md == 'Negative' or md == 'High' or md == 'Low'), "Incorrect trigger mode; \
-                    Only Positive, Negative, High, and Low are available"
+                assert(md == 'Positive' or md == 'Negative' or md == 'High' or md == 'Low'), \
+                    "Incorrect trigger mode; mode: ['Positive', 'Negative', 'High', 'Low']"
                 if md == 'Positive':
                     self.trigger_mode = 1
                 elif md == 'Negative':
@@ -1854,7 +1830,7 @@ class Spectrum_M4I_6631_X8:
             elif len(mode) == 0:
                 return self.test_trigger_mode        
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), "Incorrect argument; trigger_mode: ['Positive', 'Negative', 'High', 'Low']"
 
     def awg_loop(self, *loop):
         """
@@ -1878,13 +1854,14 @@ class Spectrum_M4I_6631_X8:
 
             if len(loop) == 1:
                 lp = int(loop[0])
-                assert( lp >= 0 and lp <= self.loop_max ), "Incorrect number of loops; Should be 0 <= Loop <= 100000"
+                assert( lp >= 0 and lp <= self.loop_max ), \    
+                    "Incorrect number of loops. The available range is from 0 to 100000"
                 self.loop = lp
 
             elif len(loop) == 0:
                 return self.test_loop      
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), 'Incorrect argument; loop: int [0 - 100000]'
 
     def awg_trigger_delay(self, *delay):
         """
@@ -1914,10 +1891,6 @@ class Spectrum_M4I_6631_X8:
                     else:
                         self.delay = del_in_sample
 
-                else:
-                    general.message('Incorrect delay dimension; Should be ns, us or ms')
-                    sys.exit()
-
             elif len(delay) == 0:
                 return str(self.delay / self.sample_rate * 1000) + ' ns'
 
@@ -1929,7 +1902,7 @@ class Spectrum_M4I_6631_X8:
                 delay_num = float(temp[0])
                 dimen = str(temp[1])
 
-                assert( dimen in self.timebase_dict), 'Incorrect delay dimension; Should be ns, us or ms'
+                assert( dimen in self.timebase_dict), "Incorrect argument; delay: int + [' ns', ' us', ' ms']"
                 flag = self.timebase_dict[dimen]
                 # trigger delay in samples; maximum is 8589934560, step is 32
                 del_in_sample = int( delay_num*flag*self.sample_rate / 1000 )
@@ -1939,13 +1912,13 @@ class Spectrum_M4I_6631_X8:
                 else:
                     self.delay = del_in_sample
 
-                assert(self.delay >= self.delay_min and self.delay <= self.delay_max), 'Incorrect delay; Should be 0 <= Delay <= 8589934560 samples'
-
+                assert(self.delay >= self.delay_min and self.delay <= self.delay_max), \
+                    f'Incorrect delay. The available range is from {self.delay_min} to {self.delay_max} samples'
 
             elif len(delay) == 0:
                 return self.test_delay
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), "Incorrect argument; delay: int + [' ns', ' us', ' ms']"
 
     def awg_amplitude(self, *amplitude):
         """
@@ -1993,8 +1966,9 @@ class Spectrum_M4I_6631_X8:
             if len(amplitude) == 2:
                 ch = str(amplitude[0])
                 ampl = int(amplitude[1])
-                assert(ch == 'CH0' or ch == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
-                assert( ampl >= self.amplitude_min and ampl <= self.amplitude_max ), "Incorrect amplitude; Should be 80 <= amplitude <= 2500"
+                assert(ch == 'CH0' or ch == 'CH1'), "Incorrect channel; channel: ['CH0', 'CH1']"
+                assert( ampl >= self.amplitude_min and ampl <= self.amplitude_max ), \
+                    "Incorrect amplitude; The available range is from 80 mV to 2500 mV"
                 if ch == 'CH0':
                     self.amplitude_0 = ampl
                 elif ch == 'CH1':
@@ -2005,10 +1979,12 @@ class Spectrum_M4I_6631_X8:
                 ampl1 = int(amplitude[1])
                 ch2 = str(amplitude[2])
                 ampl2 = int(amplitude[3])
-                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel 1; Should be CH0 or CH1"
-                assert( ampl1 >= self.amplitude_min and ampl1 <= self.amplitude_max ), "Incorrect amplitude 1; Should be 80 <= amplitude <= 2500"
-                assert(ch2 == 'CH0' or ch2 == 'CH1'), "Incorrect channel 2; Should be CH0 or CH1"
-                assert( ampl2 >= self.amplitude_min and ampl2 <= self.amplitude_max ), "Incorrect amplitude 2; Should be 80 <= amplitude <= 2500"
+                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel 1; channel: ['CH0', 'CH1']"
+                assert( ampl1 >= self.amplitude_min and ampl1 <= self.amplitude_max ), \
+                    "Incorrect amplitude 1; The available range is from 80 mV to 2500 mV"
+                assert(ch2 == 'CH0' or ch2 == 'CH1'), "Incorrect channel 2; channel: ['CH0', 'CH1']"
+                assert( ampl2 >= self.amplitude_min and ampl2 <= self.amplitude_max ), \
+                    "Incorrect amplitude 2; The available range is from 80 mV to 2500 mV"
                 if ch1 == 'CH0':
                     self.amplitude_0 = ampl1
                 elif ch1 == 'CH1':
@@ -2020,13 +1996,12 @@ class Spectrum_M4I_6631_X8:
 
             elif len(amplitude) == 1:
                 ch1 = str(amplitude[0])
-                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
+                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel; channel: ['CH0', 'CH1']"
                 return self.test_amplitude
 
             else:
-                assert( 1 == 2 ), 'Incorrect arguments'
+                assert( 1 == 2 ), "Incorrect arguments; channel 1: ['CH0', 'CH1']; amplitude 1: int; channel 2: ['CH0', 'CH1']; amplitude 2: int"
 
-    # UNDOCUMENTED
     def awg_clear(self):
         """
         A special function for AWG Control module
@@ -2046,7 +2021,6 @@ class Spectrum_M4I_6631_X8:
         self.state = 0
         self.current_phase_index = 0
 
-    # UNDOCUMENTED
     def awg_clear_pulses(self):
         """
         A special function for clearing pulses and flags
@@ -3002,7 +2976,7 @@ class Spectrum_M4I_6631_X8:
 
             for el in arguments_array[4]:
                 #assert( type(el) == int or type(el) == float ), 'Phase should be a number'
-                assert( el == '+x' or el == '-x' or el == '-y' or el == '+y' ), 'Pulse phase should be one of the following: [+x, -x, +y, -y]'
+                assert( el == '+x' or el == '-x' or el == '-y' or el == '+y' ), 'Incorrect pulse phase; phase: ["+x", "-x", "+y", "-y"]'
 
             for el in arguments_array[5]:
                 assert( el > 0 ), 'Pulse sigmas should be positive numbers'
@@ -3335,8 +3309,8 @@ class Spectrum_M4I_6631_X8:
         elif self.test_flag == 'test':            
             
             #checks
-            assert( self.card_mode == 512 ), 'You are not in Multi mode'
-            assert( self.trigger_ch == 2 ), 'Segmented memory is available only in External trigger mode'
+            assert( self.card_mode == 512 ), f'AWG {self.__class__.__name__} is not in Multi mode'
+            assert( self.trigger_ch == 2 ), 'Segmented memory is available only in the External trigger mode'
 
             num_segments_array = []
             max_length_array = []
@@ -3608,7 +3582,7 @@ class Spectrum_M4I_6631_X8:
         elif self.test_flag == 'test':
 
             # checks
-            assert( self.card_mode == 32768 ), 'You are not in Single mode'
+            assert( self.card_mode == 32768 ), f'AWG card {self.__class__.__name__} is not in Single mode'
 
             max_length_array = []
             pulses = self.splitting_acc_to_channel( self.convertion_to_numpy(self.pulse_array) )

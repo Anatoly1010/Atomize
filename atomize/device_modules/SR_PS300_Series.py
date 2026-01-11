@@ -5,6 +5,7 @@ import os
 import gc
 import sys
 import pyvisa
+import pyqtgraph as pg
 from pyvisa.constants import StopBits, Parity
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
@@ -56,25 +57,18 @@ class SR_PS300_Series:
                         # test should be here
                         self.device_write('*CLS')
 
-                    except pyvisa.VisaIOError:
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         self.status_flag = 0
                         general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message(f"No connection {self.__class__.__name__}")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0
-                    sys.exit()
-                except BrokenPipeError:
+
+                except (pyvisa.VisaIOError, BrokenPipeError):
                     general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
 
             elif self.config['interface'] == 'rs232' and self.rs232_available == 'no':
-                general.message('RS-232 is not available on this device')
+                general.message(f'RS-232 is not available on this device {self.__class__.__name__}')
                 sys.exit()
 
             elif self.config['interface'] == 'gpib':
@@ -98,9 +92,9 @@ class SR_PS300_Series:
 
         elif self.test_flag == 'test':
             self.test_measure = [100, 0.05]
-            self.test_voltage = 100.
-            self.test_voltage_limit = 110.
-            self.test_current_limit = 0.01
+            self.test_voltage = '100 V'
+            self.test_voltage_limit = '110 V'
+            self.test_current_limit = '10 mA'
             self.test_state = 'Off'
             self.test_rear_mode = 'Front'
 
@@ -165,9 +159,6 @@ class SR_PS300_Series:
                                         self.device_write('VSET ' + str(vtg/coef))
                                     else:
                                         general.message("Voltage setting is higher than voltage limit setting")
-                                else:
-                                    general.message("Incorrect voltage range")
-                                    sys.exit()
                             elif self.voltage_min < 0 and self.voltage_max < 0:
                                 if vtg/coef <= self.voltage_min and vtg/coef >= self.voltage_max:
                                     limit_check = float(self.device_query('VLIM?'))
@@ -176,24 +167,8 @@ class SR_PS300_Series:
                                         self.device_write('VSET ' + str(vtg/coef))
                                     else:
                                         general.message("Voltage setting is lower than voltage limit setting")
-                                else:
-                                    general.message("Incorrect voltage range")
-                                    sys.exit()
-                            else:
-                                general.message("Incorrect max/min voltage in the module")
-                                sys.exit()
                         elif smod_check == 1:
                             general.message("Voltage setting is controlled by the rear-panel HVSET input")
-                            sys.exit()
-                        else:
-                            general.message("Incorrect rear_mode setting")
-                            sys.exit()
-                    else:
-                        general.message("Incorrect voltage scaling")
-                        sys.exit()
-                else:
-                    general.message("Incorrect channel")
-                    sys.exit()
 
             elif len(voltage) == 1:
                 ch = str(voltage[0])
@@ -201,21 +176,16 @@ class SR_PS300_Series:
                     smod_check = int(self.device_query('SMOD?'))
                     general.wait('20 ms')
                     if smod_check == 0:
-                        answer = float(self.device_query('VSET?'))
+                        raw_answer = float(self.device_query('VSET?'))
+                        answer = pg.siFormat( raw_answer, suffix = 'V', precision = 5, allowUnicode = False)
                         return answer
                     elif smod_check == 1:
                         general.message("Voltage setting is controlled by the rear-panel HVSET input")
-                        answer = float(self.device_query('VSET?'))
+                        raw_answer = float(self.device_query('VSET?'))
+                        answer = pg.siFormat( raw_answer, suffix = 'V', precision = 5, allowUnicode = False)
                         return answer
                     else:
                         general.message("Incorrect SMOD setting")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(voltage) == 2:
@@ -223,17 +193,21 @@ class SR_PS300_Series:
                 temp = voltage[1].split(" ")
                 vtg = float(temp[0])
                 scaling = temp[1]
-                assert(ch in self.channel_dict), 'Invalid channel argument'
-                assert(scaling in self.voltage_dict), 'Invalid scaling argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
+                assert(scaling in self.voltage_dict), f"Invalid argument; channel: {list(self.channel_dict.keys())}; voltage: float + [' kV', ' V']"
+                min_v = pg.siFormat( self.voltage_min, suffix = 'V', precision = 3, allowUnicode = False)
+                max_v = pg.siFormat( self.voltage_max, suffix = 'V', precision = 3, allowUnicode = False)
                 if self.voltage_min > 0 and self.voltage_max > 0:
-                    assert(vtg/coef >= self.voltage_min and vtg/coef <= self.voltage_max), "Incorrect voltage range"
+                    assert(vtg/coef >= self.voltage_min and vtg/coef <= self.voltage_max),\
+                        f"Incorrect voltage range. The available range is from {min_v} to {max_v}"
                 elif self.voltage_min < 0 and self.voltage_max < 0:
-                    assert(vtg/coef <= self.voltage_min and vtg/coef >= self.voltage_max), "Incorrect voltage range"
+                    assert(vtg/coef <= self.voltage_min and vtg/coef >= self.voltage_max), \
+                        f"Incorrect voltage range. The available range is from {min_v} to {max_v}"
                 else:
                     assert(1 == 2), "Incorrect max/min voltage in the module"
             elif len(voltage) == 1:
                 ch = str(voltage[0])
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 answer = self.test_voltage
                 return answer
 
@@ -251,36 +225,19 @@ class SR_PS300_Series:
                         if self.voltage_min > 0 and self.voltage_max > 0:
                             if vtg/coef >= self.voltage_min and vtg/coef <= self.voltage_max:
                                 self.device_write('VLIM ' + str(vtg/coef))
-                            else:
-                                general.message("Incorrect voltage limit range")
-                                sys.exit()
+
                         elif self.voltage_min < 0 and self.voltage_max < 0:
                             if vtg/coef <= self.voltage_min and vtg/coef >= self.voltage_max:
                                 self.device_write('VLIM ' + str(vtg/coef))
-                            else:
-                                general.message("Incorrect voltage limit range")
-                                sys.exit()
                         else:
                             general.message("Incorrect max/min voltage in the module")
-                            sys.exit()
-                    else:
-                        general.message("Incorrect overvoltage scaling")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()    
             
             elif len(voltage) == 1:
                 ch = str(voltage[0])
                 if ch in self.channel_dict:
-                    answer = float(self.device_query('VLIM?'))
+                    raw_answer = float(self.device_query('VLIM?'))
+                    answer = pg.siFormat( raw_answer, suffix = 'V', precision = 5, allowUnicode = False)
                     return answer
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(voltage) == 2:
@@ -288,17 +245,21 @@ class SR_PS300_Series:
                 temp = voltage[1].split(" ")
                 vtg = float(temp[0])
                 scaling = temp[1]
-                assert(ch in self.channel_dict), 'Invalid channel argument'
-                assert(scaling in self.voltage_dict), 'Invalid scaling argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
+                assert(scaling in self.voltage_dict), f"Invalid argument; channel: {list(self.channel_dict.keys())}; overvoltage: float + [' kV', ' V']"
+                min_v = pg.siFormat( self.voltage_min, suffix = 'V', precision = 3, allowUnicode = False)
+                max_v = pg.siFormat( self.voltage_max, suffix = 'V', precision = 3, allowUnicode = False)
                 if self.voltage_min > 0 and self.voltage_max > 0:
-                    assert(vtg/coef >= self.voltage_min and vtg/coef <= self.voltage_max), "Incorrect voltage range"
+                    assert(vtg/coef >= self.voltage_min and vtg/coef <= self.voltage_max), \
+                        f"Incorrect voltage range. The available range is from {min_v} to {max_v}"
                 elif self.voltage_min < 0 and self.voltage_max < 0:
-                    assert(vtg/coef <= self.voltage_min and vtg/coef >= self.voltage_max), "Incorrect voltage range"
+                    assert(vtg/coef <= self.voltage_min and vtg/coef >= self.voltage_max), \
+                        f"Incorrect voltage range. The available range is from {min_v} to {max_v}"
                 else:
                     assert(1 == 2), "Incorrect max/min voltage in the module"
             elif len(voltage) == 1:
                 ch = str(voltage[0])
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 answer = self.test_voltage_limit
                 return answer
 
@@ -315,27 +276,13 @@ class SR_PS300_Series:
                         coef = self.current_dict[scaling]
                         if curr/coef <= self.current_max*1.05:
                             self.device_write('ILIM ' + str(curr/coef))
-                        else:
-                            general.message("Incorrect overcurrent range")
-                            sys.exit()                           
-                    else:
-                        general.message("Incorrect overcurrent scaling")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
 
             elif len(current) == 1:
                 ch = str(current[0])
                 if ch in self.channel_dict:
-                    answer = float(self.device_query('ILIM?'))*1000000
+                    raw_answer = float(self.device_query('ILIM?'))
+                    answer = pg.siFormat( raw_answer, suffix = 'A', precision = 5, allowUnicode = False)
                     return answer
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(current) == 2:
@@ -343,12 +290,14 @@ class SR_PS300_Series:
                 temp = current[1].split(" ")
                 curr = float(temp[0])
                 scaling = temp[1]
-                assert(ch in self.channel_dict), 'Invalid channel argument'
-                assert(scaling in self.current_dict), 'Invalid overcurrent scaling'
-                assert(curr/coef <= self.current_max*1.05), "Incorrect overcurrent range"
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
+                assert(scaling in self.current_dict), f"Invalid argument; channel: {list(self.channel_dict.keys())}; overcurrent: float + [' mA', ' uA']"
+                max_oc = pg.siFormat( self.current_max, suffix = 'V', precision = 3, allowUnicode = False)
+                assert(curr/coef <= self.current_max*1.05), \
+                    f"Incorrect overcurrent range. The available range is from 0 to {max_oc}"
             elif len(current) == 1:
                 ch = str(current[0])
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 answer = self.test_current_limit
                 return answer
 
@@ -360,30 +309,17 @@ class SR_PS300_Series:
                 if ch in self.channel_dict:
                     if st in self.state_dict:
                         self.device_write(str(self.state_dict[st]))
-                    else:
-                        general.message("Invalid state argument. Function cannot be queried")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
-
-            elif len(state) == 1:
-                general.message("Invalid argument")
-                sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(state) == 2:
                 ch = str(state[0])
                 st = str(state[1])
-                assert(ch in self.channel_dict), 'Invalid channel argument'
-                assert(st in self.state_dict), 'Invalid state argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
+                assert(st in self.state_dict), f'Invalid argument; channel: {list(self.channel_dict.keys())}; state: {list(self.state_dict.keys())}'
             elif len(state) == 1:
                 ch = str(state[0])
-                assert(ch in self.channel_dict), 'Invalid channel argument'
                 assert(1 == 2), 'This function cannot be queried'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
 
     def power_supply_measure(self, channel):
         if self.test_flag != 'test':
@@ -394,13 +330,10 @@ class SR_PS300_Series:
                 raw_answer_2 = self.device_query('IOUT?')
                 answer = [float(raw_answer_1), float(raw_answer_2)]
                 return answer
-            else:
-                general.message('Invalid channel')
-                sys.exit()
 
         elif self.test_flag == 'test':
             ch = str(channel)
-            assert(ch in self.channel_dict), 'Invalid channel'
+            assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
             answer = self.test_measure
             return answer
 
@@ -411,26 +344,21 @@ class SR_PS300_Series:
                 if md in self.rear_mode_dict:
                     flag = self.rear_mode_dict[md]
                     self.device_write('SMOD ' + str(flag))
-                else:
-                    general.message('Incorrect rear mode')
-                    sys.exit()
+
             elif len(mode) == 0:
                 raw_answer = int(self.device_query('SMOD?'))
                 answer = cutil.search_keys_dictionary(self.rear_mode_dict, raw_answer)
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(mode) == 1:
                 md = str(mode[0])
-                assert(md in self.rear_mode_dict), "Incorrect rear mode"
+                assert(md in self.rear_mode_dict), f'Invalid mode; mode: {list(self.rear_mode_dict.keys())}'
             elif len(mode) == 0:
                 answer = self.test_rear_mode
                 return answer
             else:
-                assert(1 == 2), "Invalid argument"
+                assert(1 == 2), f"Invalid argument; mode: {list(self.rear_mode_dict.keys())}"
 
     def power_supply_command(self, command):
         if self.test_flag != 'test':

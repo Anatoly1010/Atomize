@@ -82,10 +82,10 @@ class Micran_X_band_MW_bridge_v2:
     #### device specific functions
     def mw_bridge_name(self):
         if self.test_flag != 'test':
-            answer = 'Mikran X-band MW bridge'
+            answer = 'Micran X-band MW bridge'
             return answer
         elif self.test_flag == 'test':
-            answer = 'Mikran X-band MW bridge'
+            answer = 'Micran X-band MW bridge'
             return answer
 
     def mw_bridge_synthesizer(self, *freq):
@@ -129,11 +129,12 @@ class Micran_X_band_MW_bridge_v2:
             if len(freq) == 1:
 
                 temp = int(freq[0])
-                assert(temp >= self.synthesizer_min and temp < self.synthesizer_max), 'Incorrect frequency; Too low / high'
-
+                assert(temp >= self.synthesizer_min and temp < self.synthesizer_max), \
+                    f'Incorrect frequency. The available range is from {self.synthesizer_min} MHz to {self.synthesizer_max} MHz'
             elif len(freq) == 0:
-
                 return self.test_freq_str
+            else:
+                assert(1 == 2), "Incorrect argument; freq: int (in MHz)"
 
     def mw_bridge_att1_prd(self, *atten):
         if self.test_flag != 'test':
@@ -162,11 +163,11 @@ class Micran_X_band_MW_bridge_v2:
             if len(atten) == 1:
 
                 temp = float(atten[0])
-                assert(temp >= 0 and temp <= 31.5), 'Incorrect attenuation'
-
+                assert(temp >= 0 and temp <= 31.5), 'Incorrect attenuation. The available range is from 0 dB to 31.5 dB'
             elif len(atten) == 0:
-
                 return self.test_attenuation
+            else:
+                assert(1 == 2), "Incorrect argument; attenuation: float [0 - 31.5]"
 
     def mw_bridge_att2_prd(self, *atten):
         if self.test_flag != 'test':
@@ -194,11 +195,11 @@ class Micran_X_band_MW_bridge_v2:
             if len(atten) == 1:
 
                 temp = float(atten[0])
-                assert(temp >= 0 and temp <= 31.5), 'Incorrect attenuation'
-
+                assert(temp >= 0 and temp <= 31.5), 'Incorrect attenuation. The available range is from 0 dB to 31.5 dB'
             elif len(atten) == 0:
-
                 return self.test_attenuation
+            else:
+                assert(1 == 2), "Incorrect argument; attenuation: float [0 - 31.5]"
 
     def mw_bridge_fv_ctrl(self, *phase):
         if self.test_flag != 'test':
@@ -226,11 +227,11 @@ class Micran_X_band_MW_bridge_v2:
             if len(phase) == 1:
 
                 temp = float(phase[0])
-                assert(temp >= 0 and temp <= 354.375), 'Incorrect phase'
-
+                assert(temp >= 0 and temp <= 354.375), 'Incorrect phase. The available range is from 0 deg to 354.375 deg'
             elif len(phase) == 0:
-
                 return self.test_phase
+            else:
+                assert(1 == 2), "Incorrect argument; phase: float [0 - 354.375]"
 
     def mw_bridge_fv_prm(self, *phase):
         if self.test_flag != 'test':
@@ -258,11 +259,11 @@ class Micran_X_band_MW_bridge_v2:
             if len(phase) == 1:
 
                 temp = float(phase[0])
-                assert(temp >= 0 and temp <= 354.375), 'Incorrect phase'
-
+                assert(temp >= 0 and temp <= 354.375), 'Incorrect phase. The available range is from 0 deg to 354.375 deg'
             elif len(phase) == 0:
-
                 return self.test_phase
+            else:
+                assert(1 == 2), "Incorrect argument; phase: float [0 - 354.375]"
 
     def mw_bridge_att_prm(self, *atten):
         if self.test_flag != 'test':
@@ -290,11 +291,11 @@ class Micran_X_band_MW_bridge_v2:
             if len(atten) == 1:
 
                 temp = float(atten[0])
-                assert(temp >= 0 and temp <= 30), 'Incorrect attenuation'
-
+                assert(temp >= 0 and temp <= 30), 'Incorrect attenuation. The available range is from 0 dB to 30 dB'
             elif len(atten) == 0:
-
                 return self.test_attenuation
+            else:
+                assert(1 == 2), "Incorrect argument; attenuation: int [0 - 30]"
 
     def mw_bridge_att2_prm(self, *atten):
         if self.test_flag != 'test':
@@ -322,11 +323,11 @@ class Micran_X_band_MW_bridge_v2:
             if len(atten) == 1:
 
                 temp = float(atten[0])
-                assert(temp >= 0 and temp <= 31.5), 'Incorrect attenuation'
-
+                assert(temp >= 0 and temp <= 31.5), 'Incorrect attenuation. The available range is from 0 dB to 31.5 dB'
             elif len(atten) == 0:
-
                 return self.test_attenuation
+            else:
+                assert(1 == 2), "Incorrect argument; attenuation: float [0 - 31.5]"
 
     def mw_bridge_cut_off(self, *cutoff):
         if self.test_flag != 'test':
@@ -339,9 +340,6 @@ class Micran_X_band_MW_bridge_v2:
                     MESSAGE = b'\x1b' + b'\x01' + b'\x01'
                 elif temp == '300':
                     MESSAGE = b'\x1b' + b'\x01' + b'\x02'
-                else:
-                    general.message('Incorrect cut-off frequency')
-                    sys.exit()
 
                 # 3 bytes to recieve
                 garb = self.device_query( MESSAGE, 3)
@@ -365,11 +363,11 @@ class Micran_X_band_MW_bridge_v2:
         elif self.test_flag == 'test':
             if len(cutoff) == 1:
                 temp = str(cutoff[0])
-                assert(temp == '30' or temp == '105' or temp == '300'), 'Incorrect cut-off frequency should be 30, 105 or 300'
-
+                assert(temp == '30' or temp == '105' or temp == '300'), 'Incorrect cut-off frequency; freq: int [30, 105, 300]'
             elif len(cutoff) == 0:
-
                 return self.test_cut_off
+            else:
+                assert(1 == 2), "Incorrect argument; freq: int [30, 105, 300]"
 
     def mw_bridge_rotary_vane(self, *atten, mode = 'Arbitrary'):
         if self.test_flag != 'test':
@@ -449,10 +447,6 @@ class Micran_X_band_MW_bridge_v2:
                         self.prev_dB = self.curr_dB
                         self.flag = 1
 
-                else:
-                    general.message('Incorrect rotary vane attenuator mode')
-                    sys.exit()
-
             elif len(atten) == 0:
 
                 #MESSAGE = b'\x24' + b'\x01' + b'\x00'
@@ -466,20 +460,18 @@ class Micran_X_band_MW_bridge_v2:
 
         elif self.test_flag == 'test':
             if len( atten ) == 1:
-
-                assert( mode in self.mode_list ), 'Incorrect rotary vane attenuator mode'
+                assert( mode in self.mode_list ), f'Incorrect rotary vane attenuator mode; mode: {self.mode_list}'
                 if mode == 'Arbitrary':
                     temp = round( float( atten[0] ), 1 )
-                    assert( temp >= 0 and temp <= 60 ), 'Incorrect attenuation'
+                    assert( temp >= 0 and temp <= 60 ), 'Incorrect attenuation. The available range if from 0 dB to 60 dB'
                 elif mode == 'Limit':
                     temp = round( float( atten[0] ), 1 )
                     temp = int( general.numpy_round( temp, 60 ) )
-
-                    assert( temp >= 0 and temp <= 60 ), 'Incorrect attenuation'
-
+                    assert( temp >= 0 and temp <= 60 ), 'Incorrect attenuation. The available range if from 0 dB to 60 dB'
             elif len(atten) == 0:
-
                 return self.test_attenuation
+            else:
+                assert( 1 == 2 ), f"Incorrect argument; attenuation; float [0 - 60]; mode: {self.mode_list}"
 
     def mw_bridge_telemetry(self):
         if self.test_flag != 'test':
@@ -501,7 +493,6 @@ class Micran_X_band_MW_bridge_v2:
             return answer
 
         elif self.test_flag == 'test':
-
             return self.test_telemetry
 
     def mw_bridge_initialize(self):
@@ -511,7 +502,7 @@ class Micran_X_band_MW_bridge_v2:
             # 3 bytes to recieve
             data_raw = self.device_query( MESSAGE, 3 )
 
-            general.message('Initialization done')
+            general.message(f'Initialization done {self.__class__.__name__}')
 
         elif self.test_flag == 'test':
             pass

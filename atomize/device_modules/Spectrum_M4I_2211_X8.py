@@ -173,7 +173,7 @@ class Spectrum_M4I_2211_X8:
                 self.hCard = spcm_hOpen ( create_string_buffer (b'/dev/spcm1') )
                 self.state = 1
                 if self.hCard == None:
-                    general.message("No card found...")
+                    general.message(f"No card found {self.__class__.__name__}")
                     sys.exit()
             else:
                 pass
@@ -607,15 +607,15 @@ class Spectrum_M4I_2211_X8:
                     pnts = 64
                     general.message('Number of points must be more than 64')
                 if pnts % 32 != 0:
-                    general.message('Number of points should be divisible by 32; The closest avalaibale number is used')
                     #self.points = int( 16*(pnts // 16) )
                     self.points = self.round_to_closest(pnts, 32)
+                    general.message(f'Number of points should be divisible by 32; The closest avalaibale number of {self.points} is used')
                 else:
                     self.points = pnts
 
                 if ( self.points - self.posttrig_points ) > 8000:
-                    general.message('Difference between number of points and posttrigger points should be less than 8000; The closest avalaibale number of points is used')
-                    self.points = self.posttrig_points + 8000 
+                    self.points = self.posttrig_points + 8000
+                    general.message(f'Difference between number of points and posttrigger points should be less than 8000; The closest avalaibale number of {self.points} is used')
 
             elif len(points) == 0:
                 return self.points
@@ -668,9 +668,9 @@ class Spectrum_M4I_2211_X8:
                     self.points = self.posttrig_points + 8000                     
 
             elif len(points) == 0:
-                return self.points #############
+                return self.points
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), assert( 1 == 2 ), 'Incorrect argument; points: int'
 
     def digitizer_posttrigger(self, *post_points):
         """
@@ -688,19 +688,19 @@ class Spectrum_M4I_2211_X8:
                     pnts = 32
                     general.message('Number of posttrigger points must be more than 32')
                 if pnts % 32 != 0:
-                    general.message('Number of posttrigger points should be divisible by 32; The closest avalaibale number is used')
                     #self.posttrig_points = int( 16*(pnts // 16) )
                     self.posttrig_points = self.round_to_closest(pnts, 32)
+                    general.message(f'Number of posttrigger points should be divisible by 32; The closest avalaibale number of {self.posttrig_points} is used')
                 else:
                     self.posttrig_points = pnts
                 
                 if self.posttrig_points > self.points:
-                    general.message('Number of posttrigger points should be less than number of points; The closest avalaibale number is used')
                     self.posttrig_points = self.points - 32
-            
+                    general.message(f'Number of posttrigger points should be less than number of points; The closest avalaibale number of {self.posttrig_points} is used')
+
                 if ( self.points - self.posttrig_points ) > 8000:
-                    general.message('Difference between number of points and posttrigger points should be less than 8000; The closest avalaibale number of posttrigger points is used')
                     self.posttrig_points = self.points - 8000 
+                    general.message(f'Difference between number of points and posttrigger points should be less than 8000; The closest avalaibale number of {self.posttrig_points} is used')
 
             elif len(post_points) == 0:
                 return self.posttrig_points
@@ -735,7 +735,7 @@ class Spectrum_M4I_2211_X8:
             elif len(post_points) == 0:
                 return self.posttrig_points    
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), 'Incorrect argument; points: int'
     
     def digitizer_channel(self, *channel):
         """
@@ -753,17 +753,13 @@ class Spectrum_M4I_2211_X8:
                     self.channel = 1
                 elif ch == 'CH1':
                     self.channel = 2
-                else:
-                    general.message('Incorrect channel')
-                    sys.exit()
+
             elif len(channel) == 2:
                 ch1 = str(channel[0])
                 ch2 = str(channel[1])
                 if (ch1 == 'CH0' and ch2 == 'CH1') or (ch1 == 'CH1' and ch2 == 'CH0'):
                     self.channel = 3
-                else:
-                    general.message('Incorrect channel; Channel should be CH0 or CH1')
-                    sys.exit()
+
             elif len(channel) == 0:
                 if self.channel == 1:
                     return 'CH0'
@@ -772,16 +768,12 @@ class Spectrum_M4I_2211_X8:
                 elif self.channel == 3:
                     return 'CH0, CH1'
 
-            else:
-                general.message('Incorrect argument; Channel should be CH0 or CH1')
-                sys.exit()
-
         elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(channel) == 1:
                 ch = str(channel[0])
-                assert( ch == 'CH0' or ch == 'CH1' ), 'Incorrect channel; Channel should be CH0 or CH1'
+                assert( ch == 'CH0' or ch == 'CH1' ), 'Incorrect channel; channel: ["CH0", "CH1"]'
                 if ch == 'CH0':
                     self.channel = 1
                 elif ch == 'CH1':
@@ -789,13 +781,13 @@ class Spectrum_M4I_2211_X8:
             elif len(channel) == 2:
                 ch1 = str(channel[0])
                 ch2 = str(channel[1])
-                assert( (ch1 == 'CH0' and ch2 == 'CH1') or (ch1 == 'CH1' and ch2 == 'CH0')), 'Incorrect channel; Channel should be CH0 or CH1'
+                assert( (ch1 == 'CH0' and ch2 == 'CH1') or (ch1 == 'CH1' and ch2 == 'CH0')), 'Incorrect channel; channel: ["CH0", "CH1"]'
                 if (ch1 == 'CH0' and ch2 == 'CH1') or (ch1 == 'CH1' and ch2 == 'CH0'):
                     self.channel = 3
             elif len(channel) == 0:
                 return self.test_channel
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), 'Incorrect channel; channel: ["CH0", "CH1"]'
 
     def digitizer_sample_rate(self, *s_rate):
         """
@@ -812,12 +804,8 @@ class Spectrum_M4I_2211_X8:
                 if rate <= 1000000 * self.sample_rate_max and rate >= 1000000 * self.sample_rate_min:
                     closest_available = min(self.sample_rate_list, key = lambda x: abs(x - rate))
                     if int(closest_available) != rate:
-                        general.message("Desired sample rate cannot be set, the nearest available value " + str(closest_available) + " is used")
+                        general.message("Desired sample rate cannot be set, the nearest available value of " + str(closest_available) + " is used")
                     self.sample_rate = closest_available / 1000000
-                
-                else:
-                    general.message('Incorrect sample rate; Should be 1250 MHz <= Rate <= 0.009536 MHz')
-                    sys.exit()
 
             elif len(s_rate) == 0:
                 return str( self.sample_rate ) + ' MHz'
@@ -829,20 +817,20 @@ class Spectrum_M4I_2211_X8:
                 spcm_dwSetParam_i64 (self.hCard, SPC_SAMPLERATE, int( 1000000 * self.sample_rate ))
                 spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
 
-
         elif self.test_flag == 'test':
             self.setting_change_count = 1
 
             if len(s_rate) == 1:
                 rate = 1000000 * int(s_rate[0])
                 closest_available = min(self.sample_rate_list, key = lambda x: abs(x - rate))
-                assert(rate <= 1000000 * self.sample_rate_max and rate >= 1000000 * self.sample_rate_min), "Incorrect sample rate; Should be 1250 MHz <= Rate <= 0.009536 MHz"
+                assert(rate <= 1000000 * self.sample_rate_max and rate >= 1000000 * self.sample_rate_min), \
+                    "Incorrect sample rate. The available range is from 0.009536 MHz to 1250 MHz"
                 self.sample_rate = closest_available / 1000000
 
             elif len(s_rate) == 0:
                 return self.test_sample_rate
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), 'Incorrect argument; sample_rate: int [0.009536 - 1250]'
 
     def digitizer_clock_mode(self, *mode):
         """
@@ -860,9 +848,6 @@ class Spectrum_M4I_2211_X8:
                     self.clock_mode = 1
                 elif md == 'External':
                     self.clock_mode = 32
-                else:
-                    general.message('Incorrect clock mode; Only Internal and External modes are available')
-                    sys.exit()
 
             elif len(mode) == 0:
                 if self.clock_mode == 1:
@@ -875,7 +860,7 @@ class Spectrum_M4I_2211_X8:
 
             if len(mode) == 1:
                 md = str(mode[0])
-                assert(md == 'Internal' or md == 'External'), "Incorrect clock mode; Only Internal and External modes are available"
+                assert(md == 'Internal' or md == 'External'), "Incorrect clock mode; mode: ['Internal', 'External']"
                 if md == 'Internal':
                     self.clock_mode = 1
                 elif md == 'External':
@@ -884,7 +869,7 @@ class Spectrum_M4I_2211_X8:
             elif len(mode) == 0:
                 return self.test_clock_mode
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), "Incorrect argument; mode: ['Internal', 'External']"
 
     def digitizer_reference_clock(self, *ref_clock):
         """
@@ -900,9 +885,6 @@ class Spectrum_M4I_2211_X8:
                 rate = int(ref_clock[0])
                 if rate <= self.sample_ref_clock_max and rate >= self.sample_ref_clock_min:
                     self.reference_clock = rate
-                else:
-                    general.message('Incorrect reference clock; Should be 100 MHz <= Clock <= 10 MHz')
-                    sys.exit()
 
             elif len(ref_clock) == 0:
                 return str(self.reference_clock) + ' MHz'
@@ -912,13 +894,14 @@ class Spectrum_M4I_2211_X8:
 
             if len(ref_clock) == 1:
                 rate = int(ref_clock[0])
-                assert(rate <= self.sample_ref_clock_max and rate >= self.sample_ref_clock_min), "Incorrect reference clock; Should be 100 MHz <= Clock <= 10 MHz"
+                assert(rate <= self.sample_ref_clock_max and rate >= self.sample_ref_clock_min), \
+                    "Incorrect reference clock. The available range is from 10 MHz to 100 MHz"
                 self.reference_clock = rate
 
             elif len(ref_clock) == 0:
                 return self.test_ref_clock
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), 'Incorrect argument; clock: int [10 - 100]'
 
     def digitizer_card_mode(self, *mode):
         """
@@ -941,9 +924,6 @@ class Spectrum_M4I_2211_X8:
                     self.card_mode = 1
                 elif md == 'Average':
                     self.card_mode = 2
-                else:
-                    general.message('Incorrect card mode; Only Single and Average modes are available')
-                    sys.exit()
 
             elif len(mode) == 0:
                 if self.card_mode == 1:
@@ -956,7 +936,7 @@ class Spectrum_M4I_2211_X8:
 
             if len(mode) == 1:
                 md = str(mode[0])
-                assert(md == 'Single' or md == 'Average'), "Incorrect card mode; Only Single and Average modes are available"
+                assert(md == 'Single' or md == 'Average'), "Incorrect card mode; mode: ['Single', 'Average']"
                 if md == 'Single':
                     self.card_mode = 1
                 elif md == 'Average':
@@ -965,7 +945,7 @@ class Spectrum_M4I_2211_X8:
             elif len(mode) == 0:
                 return self.test_card_mode        
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), "Incorrect argument; mode: ['Single', 'Average']"
 
     def digitizer_trigger_channel(self, *ch):
         """
@@ -983,9 +963,6 @@ class Spectrum_M4I_2211_X8:
                     self.trigger_ch = 1
                 elif md == 'External':
                     self.trigger_ch = 2
-                else:
-                    general.message('Incorrect trigger channel; Only Software and External modes are available')
-                    sys.exit()
 
             elif len(ch) == 0:
                 if self.trigger_ch == 1:
@@ -998,7 +975,8 @@ class Spectrum_M4I_2211_X8:
 
             if len(ch) == 1:
                 md = str(ch[0])
-                assert(md == 'Software' or md == 'External'), "Incorrect trigger channel; Only Software and External modes are available"
+                assert(md == 'Software' or md == 'External'), \
+                    "Incorrect trigger channel; channel: ['Software', 'External']"
                 if md == 'Software':
                     self.trigger_ch = 1
                 elif md == 'External':
@@ -1007,7 +985,7 @@ class Spectrum_M4I_2211_X8:
             elif len(ch) == 0:
                 return self.test_trigger_ch
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), "Incorrect argument; channel: ['Software', 'External']"
 
     def digitizer_trigger_mode(self, *mode):
         """
@@ -1048,8 +1026,8 @@ class Spectrum_M4I_2211_X8:
 
             if len(mode) == 1:
                 md = str(mode[0])
-                assert(md == 'Positive' or md == 'Negative' or md == 'High' or md == 'Low'), "Incorrect trigger mode; \
-                    Only Positive, Negative, High, and Low are available"
+                assert(md == 'Positive' or md == 'Negative' or md == 'High' or md == 'Low'),\
+                    "Incorrect trigger mode; mode: ['Positive', 'Negative', 'High', 'Low']"
                 if md == 'Positive':
                     self.trigger_mode = 1
                 elif md == 'Negative':
@@ -1062,7 +1040,7 @@ class Spectrum_M4I_2211_X8:
             elif len(mode) == 0:
                 return self.test_trigger_mode        
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), "Incorrect argument; mode: ['Positive', 'Negative', 'High', 'Low']"
 
     def digitizer_number_of_averages(self, *averages):
         """
@@ -1108,13 +1086,14 @@ class Spectrum_M4I_2211_X8:
 
             if len(averages) == 1:
                 ave = int(averages[0])
-                assert( ave >= 1 and ave <= self.averages_max ), "Incorrect number of averages; Should be 1 <= Averages <= 10000"
+                assert( ave >= 1 and ave <= self.averages_max ), \
+                    f"Incorrect number of averages. The available range is from 1 to {self.averages_max}"
                 self.aver = ave
 
             elif len(aver) == 0:
                 return self.test_averages     
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), 'Incorrect argument; number: int [1 - 10000]'
 
     def digitizer_trigger_delay(self, *delay):
         """
@@ -1139,13 +1118,9 @@ class Spectrum_M4I_2211_X8:
                     if del_in_sample % 32 != 0:
                         #self.delay = int( 16*(del_in_sample // 16) )
                         self.delay = self.round_to_closest(del_in_sample, 32)
-                        general.message('Delay should be divisible by 32 samples (25.6 ns at 1250 MHz); The closest avalaibale number ' + str( self.delay * 1000 / self.sample_rate) + ' ns is used')
+                        general.message('Delay should be divisible by 32 samples (25.6 ns at 1250 MHz); The closest avalaibale number of ' + str( self.delay * 1000 / self.sample_rate) + ' ns is used')
                     else:
                         self.delay = del_in_sample
-
-                else:
-                    general.message('Incorrect delay dimension; Should be ns, us or ms')
-                    sys.exit()
 
             elif len(delay) == 0:
                 return str(self.delay / self.sample_rate * 1000) + ' ns'
@@ -1158,7 +1133,7 @@ class Spectrum_M4I_2211_X8:
                 delay_num = int(temp[0])
                 dimen = str(temp[1])
 
-                assert( dimen in self.timebase_dict), 'Incorrect delay dimension; Should be ns, us or ms'
+                assert( dimen in self.timebase_dict), "Incorrect argument; delay: int + [' ns', ' us', ' ms']"
                 flag = self.timebase_dict[dimen]
                 # trigger delay in samples; maximum is 8589934560, step is 32
                 del_in_sample = int( delay_num*flag*self.sample_rate / 1000 )
@@ -1168,13 +1143,13 @@ class Spectrum_M4I_2211_X8:
                 else:
                     self.delay = del_in_sample
 
-                assert(self.delay >= self.delay_min and self.delay <= self.delay_max), 'Incorrect delay; Should be 0 <= Delay <= 8589934560 samples'
-
+                assert(self.delay >= self.delay_min and self.delay <= self.delay_max), \
+                    f'Incorrect delay. The available range is from {self.delay_min} to {self.delay_max} samples'
 
             elif len(delay) == 0:
                 return self.test_delay
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), "Incorrect argument; delay: int + [' ns', ' us', ' ms']"
 
     def digitizer_amplitude(self, *ampl):
         """
@@ -1192,7 +1167,7 @@ class Spectrum_M4I_2211_X8:
                 amp = int(ampl[0])
                 closest_available = min(self.range_list, key = lambda x: abs(x - amp))
                 if closest_available != amp:
-                    general.message("Desired amplitude cannot be set, the nearest available value " + str(closest_available) + " mV is used")
+                    general.message("Desired amplitude cannot be set, the nearest available value of " + str(closest_available) + " mV is used")
                 
                 self.amplitude_0 = closest_available
                 self.amplitude_1 = closest_available
@@ -1210,7 +1185,6 @@ class Spectrum_M4I_2211_X8:
                 spcm_dwSetParam_i32 (self.hCard, SPC_AMP1, self.amplitude_1)
                 spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
 
-
         elif self.test_flag == 'test':
             self.setting_change_count = 1
 
@@ -1218,7 +1192,8 @@ class Spectrum_M4I_2211_X8:
                 amp = int(ampl[0])
                 closest_available = min(self.range_list, key = lambda x: abs(x - amp))
                 if closest_available != amp:
-                    general.message("Desired amplitude cannot be set, the nearest available value " + str(closest_available) + " mV is used")
+                    pass
+                    #general.message("Desired amplitude cannot be set, the nearest available value " + str(closest_available) + " mV is used")
                 self.amplitude_0 = closest_available
                 self.amplitude_1 = closest_available    
 
@@ -1227,7 +1202,7 @@ class Spectrum_M4I_2211_X8:
                 return self.test_amplitude
 
             else:
-                assert( 1 == 2), 'Incorrect amplitude'
+                assert( 1 == 2), 'Incorrect argument; amplitude: int'
 
     def digitizer_offset(self, *offset):
         """
@@ -1279,8 +1254,6 @@ class Spectrum_M4I_2211_X8:
                 spcm_dwSetParam_i32 (self.hCard, SPC_OFFS1, self.offset_1 )
                 spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
 
-
-
         elif self.test_flag == 'test':
             self.setting_change_count = 1
 
@@ -1288,8 +1261,8 @@ class Spectrum_M4I_2211_X8:
                 ch = str(offset[0])
                 ofst = int(offset[1])
 
-                assert(ch == 'CH0' or ch == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
-                assert( ofst >= -200 and ofst <= 200 ), "Incorrect offset percentage; Should be -200 <= offset <= 200"
+                assert(ch == 'CH0' or ch == 'CH1'), "Incorrect channel; channel: ['CH0', 'CH1']"
+                assert( ofst >= -200 and ofst <= 200 ), "Incorrect offset. The available range is from -200 to 200"
                 if ch == 'CH0':
                     self.offset_0 = ofst
                 elif ch == 'CH1':
@@ -1301,10 +1274,10 @@ class Spectrum_M4I_2211_X8:
                 ch2 = str(offset[2])
                 ofst2 = int(offset[3])
 
-                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel 1; Should be CH0 or CH1"
-                assert( ofst1 >= -200 and ofst1 <= 200 ), "Incorrect offset percentage 1; Should be -200 <= offset <= 200"
-                assert(ch2 == 'CH0' or ch2 == 'CH1'), "Incorrect channel 2; Should be CH0 or CH1"
-                assert( ofst2 >= -200 and ofst2 <= 200 ), "Incorrect offset percentage 2; Should be -200 <= offset <= 200"
+                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel 1; channel: ['CH0', 'CH1']"
+                assert( ofst1 >= -200 and ofst1 <= 200 ), "Incorrect offset 1. The available range is from -200 to 200"
+                assert(ch2 == 'CH0' or ch2 == 'CH1'), "Incorrect channel 2; channel: ['CH0', 'CH1']"
+                assert( ofst2 >= -200 and ofst2 <= 200 ), "Incorrect offset 2. The available range is from -200 to 200"
                 if ch1 == 'CH0':
                     self.offset_0 = ofst1
                 elif ch1 == 'CH1':
@@ -1316,11 +1289,11 @@ class Spectrum_M4I_2211_X8:
 
             elif len(offset) == 1:
                 ch1 = str(offset[0])
-                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
+                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel 1; channel: ['CH0', 'CH1']"
                 return self.test_offset
 
             else:
-                assert( 1 == 2 ), 'Incorrect arguments'
+                assert( 1 == 2 ), "Incorrect arguments; channel 1: ['CH0', 'CH1']; offset 1: int; channel 2: ['CH0', 'CH1']; offset 2: int"
 
     def digitizer_coupling(self, *coupling):
         """
@@ -1370,8 +1343,8 @@ class Spectrum_M4I_2211_X8:
             if len(coupling) == 2:
                 ch = str(coupling[0])
                 cplng = str(coupling[1])
-                assert(ch == 'CH0' or ch == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
-                assert( cplng in self.coupling_dict ), "Incorrect coupling; Only DC and AC are available"
+                assert(ch == 'CH0' or ch == 'CH1'), "Incorrect channel; channel: ['CH0', 'CH1']"
+                assert( cplng in self.coupling_dict ), "Incorrect coupling; coupling: ['AC', 'DC']"
                 flag = self.coupling_dict[cplng]
                 if ch == 'CH0':
                     self.coupling_0 = flag
@@ -1383,11 +1356,11 @@ class Spectrum_M4I_2211_X8:
                 cplng1 = str(coupling[1])
                 ch2 = str(coupling[2])
                 cplng2 = str(coupling[3])
-                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel 1; Should be CH0 or CH1"
-                assert( cplng1 in self.coupling_dict ), "Incorrect coupling 1; Only DC and AC are available"
+                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel 1; channel: ['CH0', 'CH1']"
+                assert( cplng1 in self.coupling_dict ), "Incorrect coupling 1; coupling: ['AC', 'DC']"
                 flag1 = self.coupling_dict[cplng1]
-                assert(ch2 == 'CH0' or ch2 == 'CH1'), "Incorrect channel 2; Should be CH0 or CH1"
-                assert( cplng2 in self.coupling_dict ), "Incorrect coupling 2; Only DC and AC are available"
+                assert(ch2 == 'CH0' or ch2 == 'CH1'), "Incorrect channel 2; channel: ['CH0', 'CH1']"
+                assert( cplng2 in self.coupling_dict ), "Incorrect coupling 2; coupling: ['AC', 'DC']"
                 flag2 = self.coupling_dict[cplng2]
                 if ch1 == 'CH0':
                     self.coupling_0 = flag1
@@ -1400,13 +1373,13 @@ class Spectrum_M4I_2211_X8:
 
             elif len(coupling) == 1:
                 ch1 = str(coupling[0])
-                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
+                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel; channel: ['CH0', 'CH1']"
                 return self.test_coupling
 
             else:
-                assert( 1 == 2 ), 'Incorrect arguments'
+                assert( 1 == 2 ), \
+                    "Incorrect arguments; channel 1: ['CH0', 'CH1']; coupling 1: ['AC', 'DC']; channel 2: ['CH0', 'CH1']; coupling: ['AC', 'DC']"
 
-    # UNDOCUMENTED
     def digitizer_window(self):
         """
         Special function for reading integration window

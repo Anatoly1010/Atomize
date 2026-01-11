@@ -69,43 +69,43 @@ This function queries or sets the wavelength being used on the detector. If ther
 
 ### laser_power_meter_zero_offset(*zero_mode)
 ```python
-laser_power_meter_zero_offset(zero_mode: str ['On','Off','Undo']) -> none
+laser_power_meter_zero_offset(zero_mode: ['On','Off','Undo']) -> none
 laser_power_meter_zero_offset() -> str
 ```
 ```
 Example: laser_power_meter_zero_offset('On') resets the current measured value to zero.
 ```
-This function queries or sets the zero mode being used on the detector. If there is no argument the function will return the current zero mode as a string: "Zero offset mode: ['On','Off']". The argument 'On' resets the current measured value to zero. The argument 'Off' disables the previousy performed reset.<br/>
+This function queries or sets the zero mode being used on the detector. If there is no argument the function will return the current zero mode as a string: "Zero offset mode: ['On', 'Off']". The argument 'On' resets the current measured value to zero. The argument 'Off' disables the previousy performed reset.<br/>
 
 ---
 
 ### laser_power_meter_analog_output(*analog_output)
 ```python
-laser_power_meter_analog_output(zero_mode: str ['On','Off']) -> none
+laser_power_meter_analog_output(zero_mode: ['On','Off']) -> none
 laser_power_meter_analog_output() -> str
 ```
 ```
 Example: laser_power_meter_analog_output() queries the current state of the analog output.
 ```
-This function queries or sets the status of the analog output. If there is no argument, the function returns the current status of the analog output as a string: "Analog output: ['On','Off']". The argument 'On' turns on the analog output of the detector. The argument 'Off' turns off the analog output.<br/>
+This function queries or sets the status of the analog output. If there is no argument, the function returns the current status of the analog output as a string: "Analog output: ['On', 'Off']". The argument 'On' turns on the analog output of the detector. The argument 'Off' turns off the analog output.<br/>
 
 ---
 
 ### laser_power_meter_energy_mode(*energy_mode)
 ```python
-laser_power_meter_energy_mode(energy_mode: str ['On','Off']) -> none
+laser_power_meter_energy_mode(energy_mode: ['On','Off']) -> none
 laser_power_meter_energy_mode() -> str
 ```
 ```
 Example: laser_power_meter_energy_mode('Off') turns off the energy mode.
 ```
-This function queries or sets the current state of the energy mode. If there is no argument, the function returns the state of the energy mode as a string: "Energy mode: ['On','Off']". The argument 'On' can be used to toggle energy mode when using a wattmeter. The argument 'Off' turns off the energy mode.<br/>
+This function queries or sets the current state of the energy mode. If there is no argument, the function returns the state of the energy mode as a string: "Energy mode: ['On', 'Off']". The argument 'On' can be used to toggle energy mode when using a wattmeter. The argument 'Off' turns off the energy mode.<br/>
 
 ---
 
 ### laser_power_meter_scale(scale)
 ```python
-laser_power_meter_scale(scale: str (int + [' pW', ' nW', ' uW', ' mW', ' W', ' kW'])) -> none
+laser_power_meter_scale(scale: int + [' pW',' nW',' uW',' mW',' W',' kW']) -> none
 laser_power_meter_scale(scale: 0) -> none
 ```
 ```

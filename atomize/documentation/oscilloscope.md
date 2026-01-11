@@ -31,6 +31,7 @@ parent: Documentation
 - [oscilloscope_stop()](#oscilloscope_stop)<br/>
 - [oscilloscope_run()](#oscilloscope_run)<br/>
 - [oscilloscope_get_curve(channel)](#oscilloscope_get_curvechannel)<br/>
+- [oscilloscope_get_curve(channel, integral = True)](#oscilloscope_get_curvechannel-integral--true)<br/>
 - [oscilloscope_area(channel)](#oscilloscope_areachannel)<br/>
 - [oscilloscope_sensitivity(*channel)](#oscilloscope_sensitivitychannel)<br/>
 - [oscilloscope_offset(*channel)](#oscilloscope_offsetchannel)<br/>
@@ -40,6 +41,8 @@ parent: Documentation
 - [oscilloscope_trigger_mode(*mode)](#oscilloscope_trigger_modemode)<br/>
 - [oscilloscope_trigger_channel(*channel)](#oscilloscope_trigger_channelchannel)<br/>
 - [oscilloscope_trigger_low_level(*level)](#oscilloscope_trigger_low_levellevel)<br/>
+- [oscilloscope_window()](#oscilloscope_window)<br/>
+- [oscilloscope_read_settings()](#oscilloscope_read_settings)<br/>
 - [oscilloscope_command(command)](#oscilloscope_commandcommand)<br/>
 - [oscilloscope_query(command)](#oscilloscope_querycommand)<br/>
 
@@ -49,7 +52,7 @@ parent: Documentation
 ```python
 oscilloscope_name() -> str
 ```
-The function returns device name.<br/>
+This function returns device name.<br/>
 
 ---
 
@@ -102,14 +105,14 @@ For Rigol MSO8000 Series the number of averages should be from 2 to 65536 in pow
 
 ### oscilloscope_timebase(*timebase)
 ```python
-oscilloscope_timebase(timebase: str (float + [' s',' ms',' us',' ns'])) -> none
+oscilloscope_timebase(timebase: float + [' s',' ms',' us',' ns']) -> none
 oscilloscope_timebase() -> str
 ```
 ```
 Example: oscilloscope_timebase('20 us') 
 sets the full-scale horizontal time to 20 us (2 us per divison).
 ```
-This function queries or sets the full-scale horizontal time for the main window. The range is 10 times the current time-per-division setting. If there is no argument the function will return the full-scale horizontal time in the format 'number + ['ns', 'us', 'ms', 's']. If there is an argument the specified full-scale horizontal time will be set.<br/>
+This function queries or sets the full-scale horizontal time for the main window. The range is 10 times the current time-per-division setting. If there is no argument the function will return the full-scale horizontal time in the format 'number + ['ns', 'us', 'ms', 's']'. If there is an argument the specified full-scale horizontal time will be set.<br/>
 For Tektronix 3000 X-series the horizontal scale is discrete and can take on a value in the range of 10 s to 1, 2, or 4 ns (depending on model), in a 1-2-4 sequence, see the array below.<br/>
 For Tektronix 4000 X-series (at least for the device used for testing), the horizontal scale is discrete and can take on a value from the following array: [1, 2, 4, 10, 20, 40, 100, 200, 400] for ns, us, ms, and s scaling. In addtition timescale equals to 800 ns also can be set. If there is no timebase setting fitting the argument the nearest available value is used and warning is printed.<br/>
 
@@ -125,7 +128,7 @@ Example: oscilloscope_define_window(start=1, stop=1000)
 the function oscilloscope_get_curve() will return the first 1000 points of the waveform.
 ```
 This function queries or sets the starting data and ending points for waveform transfer. The function should be called with two key arguments, namely start and stop. Start is the first data point that will be transferred, which ranges from 1 to the record length. Stop is the last data point that will be transferred, which ranges from 1 to the record length.<br/>
-This function is avaliable only for Tektronix 4000 Series.
+This function is avaliable only for Tektronix 3000 Series, 4000 Series, 5 Series MSO.<br/>
 
 ---
 
@@ -136,7 +139,7 @@ oscilloscope_time_resolution() -> str
 ```
 Example: oscilloscope_time_resolution() returs the current time resolution per point.
 ```
-This function takes no arguments and returns the time resolution per point in the format 'number + ['ns', 'us', 'ms', 's'].<br/>
+This function takes no arguments and returns the time resolution per point in the format 'number + ['ns', 'us', 'ms', 's']'.<br/>
 
 ---
 
@@ -144,7 +147,7 @@ This function takes no arguments and returns the time resolution per point in th
 ```python
 oscilloscope_start_acquisition() -> none
 ```
-This function starts an acquisition sequence. Previously measured curves are discarded and new data are sampled until the desired number of averages has been reached. This function acquires all the channels currently displayed on the screen of oscilloscopes and should be called before [oscilloscope_get_curve()](#oscilloscope_get_curvechannel) function.
+This function starts an acquisition sequence. Previously measured curves are discarded and new data are sampled until the desired number of averages has been reached. This function acquires all the channels currently displayed on the screen of oscilloscopes and should be called before [oscilloscope_get_curve()](#oscilloscope_get_curvechannel) function.<br/>
 
 ---
 
@@ -160,6 +163,7 @@ Preamble format (Keysight): [format, type, points, count, xincrement, xorigin, x
 Preamble format (Tektronix): [data width, bits per point, encoding, format of the binary data, byte order, channel, coupling,
 vert scale, horiz scale, record length, acq mode, number of points in waveform, point format, horiz units,
 xincrement, xorigin, displayed?, vert units, vert scale mult factor, yoff, yorigin]<br/>
+Preamble format (Rigol): [format, type, points, count, xincrement, xorigin, xreference, yincrement, yorigin, yreference]<br/>
 
 ---
 
@@ -167,7 +171,7 @@ xincrement, xorigin, displayed?, vert units, vert scale mult factor, yoff, yorig
 ```python
 oscilloscope_stop() -> none
 ```
-The function stops the acquisition. This is the same as pressing the stop key on the front panel.
+This function stops the acquisition. This is the same as pressing the stop key on the front panel.<br/>
 
 ---
 
@@ -175,7 +179,7 @@ The function stops the acquisition. This is the same as pressing the stop key on
 ```python
 oscilloscope_run() -> none
 ```
-The function starts repetitive acquisitions. This is the same as pressing the run key on the front panel.
+This function starts repetitive acquisitions. This is the same as pressing the run key on the front panel.<br/>
 
 ---
 
@@ -186,7 +190,20 @@ oscilloscope_get_curve(channel: ['CH1','CH2','CH3','CH4']) -> np.array, np.array
 ```
 Example: oscilloscope_get_curve('CH2') returs the data from the channel 2.
 ```
-The function returns a curve (x (in s) and y (in V) axis independently) from specified channel of the oscilloscope. At the moment, it expects one argument, namely the channel from which the data should be transferred. The data from two channels can be transferred sequentially.<br/>
+This function returns a curve (x (in s) and y (in V) axis independently) from specified channel of the oscilloscope. At the moment, it expects one argument, namely the channel from which the data should be transferred. The data from two channels can be transferred sequentially.<br/>
+
+---
+
+### oscilloscope_get_curve(channel, integral = True)
+```python
+oscilloscope_get_curve(channel: ['CH1','CH2','CH3','CH4'], integral = [True, False]) -> float
+```
+```
+Example: oscilloscope_get_curve('CH1', integral = True) 
+runs acquisition and returns the integrated data from the channel 1.
+```
+This function runs acquisition and returns the data, integrated over a window in the oscillogram for the indicated channel. The window can be indicated by the [oscilloscope_window](#oscilloscope_window) function. The integral is returned in volt-seconds. The default option is False.<br>
+This function is only available for Keysight 2000, 3000, 4000 X-Series and Rigol MSO8000 Series oscilloscopes.<br>
 
 ---
 
@@ -197,88 +214,88 @@ oscilloscope_area(channel: ['CH1','CH2','CH3','CH4']) -> float
 ```
 Example: oscilloscope_area('CH2') returs the result of an area measurement for channel 2.
 ```
-The function returns a value of area (in V*s) between the waveform and the ground level for specified channel of the oscilloscope. It expects one argument, namely the channel for which the area should be measured. This function is available only for Keysight oscilloscopes.
+This function returns a value of area in volt-seconds between the waveform and the ground level for specified channel of the oscilloscope. It expects one argument, namely the channel for which the area should be measured. This function is available for Keysight 2000, 3000, 4000 X-Series and Rigol MSO8000 Series oscilloscopes.<br/>
 
 ---
 
 ### oscilloscope_sensitivity(*channel)
 ```python
-oscilloscope_sensitivity(channel: str, sensitivity: str (float + [' V',' mV'])) -> none
-oscilloscope_sensitivity(channel: ['CH1','CH2','CH3','CH4']) -> float
+oscilloscope_sensitivity(channel: str, sensitivity: int + [' V',' mV']) -> none
+oscilloscope_sensitivity(channel: ['CH1','CH2','CH3','CH4']) -> str
 ```
 ```
 Examples: oscilloscope_sensitivity('CH2', '100 mV') sets the sensitivity 
 per division of the channel 2 to 100 mV. 
-oscilloscope_sensitivity('CH2') returns the current sensitivity of the channel 2 in mV.
+oscilloscope_sensitivity('CH2') returns the current sensitivity of the channel 2.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the sensitivity per division of one of the channels of the oscilloscope. If there is a second argument it will be set as a new sensitivity. If there is no second argument the current sensitivity for specified the channel is returned.<br/>
+This function queries (if called with one argument) or sets (if called with two arguments) the sensitivity per division of one of the channels of the oscilloscope. If there is a second argument it will be set as a new sensitivity. If there is no second argument the current sensitivity for specified the channel is returned in the format 'number + ['mV', 'V']'.<br/>
 
 ---
 
 ### oscilloscope_offset(*channel)
 ```python
 oscilloscope_offset(*channel)
-oscilloscope_offset(channel: str, offset: str (float + [' V',' mV'])) -> none
-oscilloscope_offset(channel: ['CH1','CH2','CH3','CH4']) -> float
+oscilloscope_offset(channel: str, offset: float + [' V',' mV']) -> none
+oscilloscope_offset(channel: ['CH1','CH2','CH3','CH4']) -> str
 ```
 ```
 Examples: oscilloscope_offset('CH2', '100 mV') sets the offset setting of the channel 2 to 100 mV. 
-oscilloscope_offset('CH2') returns the current offset of the channel 2 in mV.
+oscilloscope_offset('CH2') returns the current offset of the channel 2.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the offset setting of one of the channels of the oscilloscope. If there is a second argument it will be set as a new offset setting. If there is no second argument the current offset setting for the specified channel is returned. The offset range depends on the type of oscilliscope and the vertical scale factor for used channel. Please, refer to device manual.<br/>
+This function queries (if called with one argument) or sets (if called with two arguments) the offset setting of one of the channels of the oscilloscope. If there is a second argument it will be set as a new offset setting. If there is no second argument the current offset setting for the specified channel is returned in the format 'number + ['mV', 'V']'. The offset range depends on the type of oscilliscope, the vertical scale factor for used channel, and the impedance. Please, refer to device manuals.<br/>
 
 ---
 
 ### oscilloscope_horizontal_offset(*h_offset)
 ```python
-oscilloscope_horizontal_offset(h_offset: str (float + [' s',' ms',' us',' ns'])) -> none
-oscilloscope_horizontal_offset() -> float
+oscilloscope_horizontal_offset(h_offset: float + [' s',' ms',' us',' ns']) -> none
+oscilloscope_horizontal_offset() -> str
 ```
 ```
 Example: oscilloscope_horizontal_offset('100 ms') sets the time base delay to 100 ms.
 ```
-The function queries or sets the horizontal delay time (position). This delay is the time between the trigger event and the delay reference point on the screen. If there is no argument the function will return the current delay mode in us. If there is an argument the specified delay mode will be set. The valid range for delay settings depends on the time/division setting for the main time base.<br/>
+This function queries or sets the horizontal delay time (position). This delay is the time between the trigger event and the delay reference point on the screen. If there is no argument the function will return the current delay mode in the format 'number + ['s', 'ms', 'us', 'ns']'. If there is an argument the specified delay mode will be set. The valid range for delay settings depends on the time/division setting for the main time base.<br/>
 
 ---
 
 ### oscilloscope_coupling(*coupling)
 ```python
-oscilloscope_coupling(channel: str, coupling: str ['AC','DC'])) -> none
+oscilloscope_coupling(channel: str, coupling: str ['AC','DC']) -> none
 oscilloscope_coupling(channel: ['CH1','CH2','CH3','CH4']) -> str
 ```
 ```
 Examples: oscilloscope_coupling('CH2', 'AC') sets the coupling of the channel 2 to AC.
 oscilloscope_coupling('CH2') returns the current coupling of the channel 2.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the coupling of one of the channels of the oscilloscope. If there is a second argument it will be set as a new coupling. If there is no second argument the current coupling for the specified channel is returned.<br/>Possible impedance settings are the following: ['AC', 'DC'].
+This function queries (if called with one argument) or sets (if called with two arguments) the coupling of one of the channels of the oscilloscope. If there is a second argument it will be set as a new coupling. If there is no second argument the current coupling for the specified channel is returned.<br/>Possible coupling settings are the following: ['AC', 'DC'].<br/>
 
 ---
 
 ### oscilloscope_impedance(*impedance)
 ```python
 oscilloscope_impedance(*impedance)
-oscilloscope_impedance(channel: str, impedance: str ['1M','50'])) -> none
+oscilloscope_impedance(channel: str, impedance: str ['1 M','50']) -> none
 oscilloscope_impedance(channel: ['CH1','CH2','CH3','CH4']) -> str
 ```
 ```
 Examples: oscilloscope_impedance('CH2', '1 M') sets the impedance of the channel 2 to 1 MOhm.
 oscilloscope_impedance('CH2') returns the current impedance of the channel 2.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the impedance of one of the channels of the oscilloscope. If there is a second argument it will be set as a new impedance. If there is no second argument the current impedance for the specified channel is returned. Possible impedance settings are the following: ['1M', '50'].<br/>
+This function queries (if called with one argument) or sets (if called with two arguments) the impedance of one of the channels of the oscilloscope. If there is a second argument it will be set as a new impedance. If there is no second argument the current impedance for the specified channel is returned. Possible impedance settings are the following: ['1 M', '50'].<br/>
 For Keysight 2000 X-Series the only available option is 1 MOhm.<br/>
 
 ---
 
 ### oscilloscope_trigger_mode(*mode)
 ```python
-oscilloscope_trigger_mode(mode: ['Auto','Normal'] ) -> str
+oscilloscope_trigger_mode(mode: ['Auto','Normal']) -> str
 oscilloscope_trigger_mode() -> str
 ```
 ```
 Examples: oscilloscope_trigger_mode('Auto') sets the trigger mode to Auto.
 ```
-The function queries or sets the trigger mode of the oscilloscope. If there is no argument the function will return the current trigger mode (Auto or Normal). If there is an argument the specified trigger mode will be set.<br/>Possible impedance settings are the following: ['Auto', 'Normal']. <br/>
-When Auto sweep mode is selected, a baseline is displayed in the absence of a signal. If a signal is present but the oscilloscope is not triggered, the unsynchronized signal is displayed instead of a baseline. When Normal sweep mode is selected and no trigger is present, the instrument does not sweep, and the data acquired on the previous trigger remains on the screen.<br/>
+This function queries or sets the trigger mode of the oscilloscope. If there is no argument the function will return the current trigger mode. If there is an argument the specified trigger mode will be set.<br/>Possible trigger mode settings are the following: ['Auto', 'Normal']. <br/>
+When 'Auto' sweep mode is selected, a baseline is displayed in the absence of a signal. If a signal is present but the oscilloscope is not triggered, the unsynchronized signal is displayed instead of a baseline. When 'Normal' sweep mode is selected and no trigger is present, the instrument does not sweep, and the data acquired on the previous trigger remains on the screen.<br/>
 
 ---
 
@@ -290,27 +307,52 @@ oscilloscope_trigger_channel() -> str
 ```
 Examples: oscilloscope_trigger_channel('CH3') sets the trigger channel to 3.
 ```
-The function queries or sets the trigger channel of the oscilloscope. If there is no argument the function will return the current trigger channel (CHAN<n>, EXT, LINE, WGEN, NONE). If all channels are off, the query returns NONE. If there is an argument the specified trigger channel will be set.<br/>
-Argument Ext triggers on the rear panel EXT TRIG IN signal. Argument Line triggers at the 50% level of the rising or falling edge of the AC power source signal. Argument Wgen triggers at the 50% level of the rising edge of the waveform generator output signal. This option is not available when the DC, NOISe, or CARDiac waveforms of the waveform generator are selected.<br/>
+This function queries or sets the trigger channel of the oscilloscope. If there is no argument the function will return the current trigger channel (CHANn, EXT, LINE, WGEN, NONE). If all channels are off, the query returns NONE. If there is an argument the specified trigger channel will be set.<br/>
+The 'Ext' option triggers the oscilloscope using the EXT TRIG IN signal on the rear panel. The 'Line' option triggers the oscilloscope at 50% of the rising or falling edge of the AC power source signal. The 'WGen' argument triggers the oscilloscope at the 50% level of the rising edge of the waveform generator output signal. This option is not available when the DC, NOISe, or CARDiac waveforms of the waveform generator are selected.<br/>
 For Keysight 4000 X-series arguments 'WGen1' and 'WGen2' can be used.<br/>
 For Tektronix 3000 Series argument 'WGen' is not available, whereas there is an additional option of the external trigger mode: 'Ext10'. The 'Ext' option sets the trigger source to the regular external trigger input connector with a signal input range of -0.8 V to +0.8 V. Please, note that 'Ext' is not available in 4 channel TDS3000 Series instruments. The 'Ext10' option sets the trigger source to the reduced external trigger with a signal input range of -8 V to +8 V. It is also not available in 4 channel TDS3000 Series instruments.<br/>
 For Tektronix 4000 Series arguments 'Ext' and 'WGen' are not available.<br/>
+For Rigol MSO8000 Series arguments 'WGen' is not available.<br/>
 
 ---
 
 ### oscilloscope_trigger_low_level(*level)
 ```python
-oscilloscope_trigger_low_level(channel: str, level: float) -> none
-oscilloscope_trigger_low_level(channel: str) -> float
+oscilloscope_trigger_low_level(channel: ['CH1','CH2','CH3','CH4'], level: float) -> none
+oscilloscope_trigger_low_level(channel: str) -> str
 ```
 ```
 Examples: oscilloscope_trigger_low_level('CH2', 0.5) sets the low trigger voltage level 
 of the channel 2 to 500 mV. 
 oscilloscope_trigger_low_level('CH2') returns the current low trigger level of the channel 2 in V.
 ```
-The function queries (if called with one argument) or sets (if called with two arguments) the low trigger voltage level voltage of one of the channels of the oscilloscope. If there is a second argument it will be set as a new low trigger voltage level. If there is no second argument the current low trigger voltage level for the specified channel is returned in Volts.<br/>
-For Tektronix 3000 Series the 'channel string' has no meaning and is kept only for consistency.<br/>
+This function queries (if called with one argument) or sets (if called with two arguments) the low trigger voltage level voltage of one of the channels of the oscilloscope. If there is a second argument it will be set as a new low trigger voltage level. If there is no second argument the current low trigger voltage level for the specified channel is returned in the format 'number + ['mV', 'V']'.<br/>
+For Tektronix 3000 Series and Rigol MSO8000 Series the 'channel string' has no meaning and is kept only for consistency.<br/>
 For Tektronix 3000 and 4000 Series also presets 'ECL' and 'TTL' can be used as the first argument. ECL sets the threshold level to a preset ECL high level of -1.3 V. TTL sets the threshold level to a preset TTL high level of 1.4 V.<br/>
+
+---
+
+### oscilloscope_read_settings()
+```python
+oscilloscope_read_settings() -> none
+```
+```
+Examples: oscilloscope_read_settings() reads all the settings of the oscilloscope.
+```
+This function reads all the settings from a special text file [digitizer.param](https://github.com/Anatoly1010/Atomize_ITC/tree/master/atomize/control_center).<br>
+This function is only available for Keysight 2000, 3000, 4000 X-Series and Rigol MSO8000 Series oscilloscopes.<br>
+
+---
+
+### oscilloscope_window()
+```python
+oscilloscope_window() -> float
+```
+```
+Examples: oscilloscope_window() returns the integration window of the oscilloscope.
+```
+This function returns the integration window of the oscilloscope. The integration window is used in the [oscilloscope_get_curve()](#oscilloscope_get_curvechannel-integral--true) function and is set via a special text file [digitizer.param](https://github.com/Anatoly1010/Atomize_ITC/tree/master/atomize/control_center).<br>
+This function is only available for Keysight 2000, 3000, 4000 X-Series and Rigol MSO8000 Series oscilloscopes.<br>
 
 ---
 
@@ -322,7 +364,7 @@ oscilloscope_command(command: str) -> none
 Example: oscilloscope_command(':TRIGger:FORCe'). This command causes an acquisition
 to be captured even though the trigger condition has not been met.
 ```
-The function for sending an arbitrary command from a programming guide to the device in a string format. No output is expected.<br/>
+This function sends an arbitrary command from a programming guide to the device in a string format. No output is expected.<br/>
 
 ---
 
@@ -334,4 +376,4 @@ oscilloscope_query(command: str) -> str
 Example: oscilloscope_query(':MEASure:FREQuency?'). This command queries an measurement
 and outputs the frequency of the cycle on the screen closest to the trigger reference.
 ```
-The function for sending an arbitrary command from a programming guide to the device in a string format. An output in a string format is expected.
+This function sends an arbitrary command from a programming guide to the device in a string format. An output in a string format is expected.<br/>

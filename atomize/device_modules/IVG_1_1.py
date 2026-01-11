@@ -63,7 +63,7 @@ class IVG_1_1:
                     sys.exit()
 
             else:
-                general.message("Incorrect interface setting")
+                general.message(f"Incorrect interface setting {self.__class__.__name__}")
                 self.status_flag = 0
                 sys.exit()
 

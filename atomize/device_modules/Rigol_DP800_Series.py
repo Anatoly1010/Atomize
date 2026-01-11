@@ -5,6 +5,7 @@ import os
 import gc
 import sys
 import pyvisa
+import pyqtgraph as pg
 from pyvisa.constants import StopBits, Parity
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
@@ -60,19 +61,12 @@ class Rigol_DP800_Series:
                         # test should be here
                         self.device_write('*CLS')
                         general.wait('50 ms')
-                    except pyvisa.VisaIOError:
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         self.status_flag = 0
                         general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message(f"No connection {self.__class__.__name__}")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0
-                    sys.exit()
-                except BrokenPipeError:
+
+                except (pyvisa.VisaIOError, BrokenPipeError):
                     general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
@@ -86,25 +80,19 @@ class Rigol_DP800_Series:
                     try:
                         # test should be here
                         self.device_write('*CLS')
-                    except pyvisa.VisaIOError:
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         general.message(f"No connection {self.__class__.__name__}")
                         self.status_flag = 0
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message(f"No connection {self.__class__.__name__}")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
+
+                except (pyvisa.VisaIOError, BrokenPipeError):
                     general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
-                except BrokenPipeError:
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0
-                    sys.exit()
+
         elif self.test_flag == 'test':
-            self.test_voltage = 1.
-            self.test_current = 0.2
+            self.test_voltage = '1 V'
+            self.test_current = '20 mA'
             self.test_state = 'Off'
             self.test_measure = [2.0, 0.05, 0.10]
 
@@ -165,35 +153,15 @@ class Rigol_DP800_Series:
                             coef = self.voltage_dict[scaling]
                             if vtg/coef >= self.voltage_min and vtg/coef <= vtg_max:
                                 self.device_write(':SOURce' + str(flag) + ':VOLTage ' + str(vtg/coef))
-                            else:
-                                general.message("Incorrect voltage range")
-                                sys.exit()
-                        else:
-                            general.message("Incorrect voltage scaling")
-                            sys.exit()
-                    else:
-                        general.message("Invalid channel")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
 
             elif len(voltage) == 1:
                 ch = str(voltage[0])
                 if ch in self.channel_dict:
                     flag = self.channel_dict[ch]
                     if flag <= self.channels:
-                        answer = float(self.device_query(':SOURce' + str(flag) + ':VOLTage?'))
+                        raw_answer = float(self.device_query(':SOURce' + str(flag) + ':VOLTage?'))
+                        answer = pg.siFormat( raw_answer, suffix = 'V', precision = 5, allowUnicode = False)
                         return answer
-                    else:
-                        general.message("Invalid channel")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(voltage) == 2:
@@ -201,18 +169,20 @@ class Rigol_DP800_Series:
                 temp = voltage[1].split(" ")
                 vtg = float(temp[0])
                 scaling = temp[1]
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 flag = self.channel_dict[ch]
-                assert(flag <= self.channels), "Invalid channel"
-                assert(scaling in self.voltage_dict), 'Invalid scaling argument'
+                assert(flag <= self.channels), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
+                assert(scaling in self.voltage_dict), f"Invalid argument; channel: {list(self.channel_dict.keys())}; voltage: float + [' V', ' mV']"
                 vtg_max = self.voltage_max_dict[ch]
                 coef = self.voltage_dict[scaling]
-                assert(vtg/coef >= self.voltage_min and vtg/coef <= vtg_max), "Incorrect voltage range"
+                min_v = pg.siFormat( self.voltage_min, suffix = 'V', precision = 3, allowUnicode = False)
+                max_v = pg.siFormat( vtg_max, suffix = 'V', precision = 3, allowUnicode = False)
+                assert(vtg/coef >= self.voltage_min and vtg/coef <= vtg_max), f"Incorrect voltage range. The available range is from {min_v} to {max_v}"
             elif len(voltage) == 1:
                 ch = str(voltage[0])
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 flag = self.channel_dict[ch]
-                assert(flag <= self.channels), "Invalid channel"
+                assert(flag <= self.channels), f"Invalid channel; channel: {list(self.channel_dict.keys())}; voltage: float + [' V', ' mV']"
                 answer = self.test_voltage
                 return answer
 
@@ -232,35 +202,15 @@ class Rigol_DP800_Series:
                             coef = self.current_dict[scaling]
                             if curr/coef >= self.current_min and curr/coef <= curr_max:
                                 self.device_write(':SOURce' + str(flag) + ':CURRent ' + str(curr/coef))
-                            else:
-                                general.message("Incorrect current range")
-                                sys.exit()
-                        else:
-                            general.message("Incorrect current scaling")
-                            sys.exit()
-                    else:
-                        general.message("Invalid channel")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
 
             elif len(current) == 1:
                 ch = str(current[0])
                 if ch in self.channel_dict:
                     flag = self.channel_dict[ch]
                     if flag <= self.channels:
-                        answer = float(self.device_query(':SOURce' + str(flag) + ':CURRent?'))
+                        raw_answer = float(self.device_query(':SOURce' + str(flag) + ':CURRent?'))
+                        answer = pg.siFormat( raw_answer, suffix = 'A', precision = 5, allowUnicode = False)
                         return answer
-                    else:
-                        general.message("Invalid channel")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(current) == 2:
@@ -268,18 +218,21 @@ class Rigol_DP800_Series:
                 temp = current[1].split(" ")
                 curr = float(temp[0])
                 scaling = temp[1]
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 flag = self.channel_dict[ch]
-                assert(flag <= self.channels), "Invalid channel"
-                assert(scaling in self.current_dict), 'Invalid scaling argument'
+                assert(flag <= self.channels), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
+                assert(scaling in self.current_dict), f"Invalid argument; channel: {list(self.channel_dict.keys())}; current: float + [' A', ' mA']"
                 curr_max = self.current_max_dict[ch]
                 coef = self.current_dict[scaling]
-                assert(curr/coef >= self.current_min and curr/coef <= curr_max), "Incorrect current range"
+                min_c = pg.siFormat( self.current_min, suffix = 'A', precision = 3, allowUnicode = False)
+                max_c = pg.siFormat( curr_max, suffix = 'A', precision = 3, allowUnicode = False)
+                assert(curr/coef >= self.current_min and curr/coef <= curr_max), \
+                    f"Incorrect current range. The available range is from {min_c} to {max_c}"
             elif len(current) == 1:
                 ch = str(current[0])
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 flag = self.channel_dict[ch]
-                assert(flag <= self.channels), "Invalid channel"
+                assert(flag <= self.channels), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 answer = self.test_current
                 return answer
 
@@ -298,36 +251,16 @@ class Rigol_DP800_Series:
                         if scaling in self.voltage_dict:
                             coef = self.voltage_dict[scaling]
                             if vtg/coef >= self.voltage_min and vtg/coef <= vtg_max + 3:
-                                self.device_write(':SOURce' + str(flag) + ':VOLTage:PROTection ' + str(vtg/coef))
-                            else:
-                                general.message("Incorrect overvoltage protection range")
-                                sys.exit()
-                        else:
-                            general.message("Incorrect overvoltage protection scaling")
-                            sys.exit()
-                    else:
-                        general.message("Invalid channel")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()    
+                                self.device_write(':SOURce' + str(flag) + ':VOLTage:PROTection ' + str(vtg/coef))  
             
             elif len(voltage) == 1:
                 ch = str(voltage[0])
                 if ch in self.channel_dict:
                     flag = self.channel_dict[ch]
                     if flag <= self.channels:
-                        answer = float(self.device_query(':SOURce' + str(flag) + ':VOLTage:PROTection?'))
+                        raw_answer = float(self.device_query(':SOURce' + str(flag) + ':VOLTage:PROTection?'))
+                        answer = pg.siFormat( raw_answer, suffix = 'V', precision = 5, allowUnicode = False)
                         return answer
-                    else:
-                        general.message("Invalid channel")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(voltage) == 2:
@@ -335,18 +268,21 @@ class Rigol_DP800_Series:
                 temp = voltage[1].split(" ")
                 vtg = float(temp[0])
                 scaling = temp[1]
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 flag = self.channel_dict[ch]
-                assert(flag <= self.channels), "Invalid channel"
-                assert(scaling in self.voltage_dict), 'Invalid scaling argument'
+                assert(flag <= self.channels), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
+                assert(scaling in self.voltage_dict), f"Invalid argument; channel: {list(self.channel_dict.keys())}; overvoltage: float + [' V', ' mV']"
                 vtg_max = self.voltage_max_dict[ch]
                 coef = self.voltage_dict[scaling]
-                assert(vtg/coef >= self.voltage_min and vtg/coef <= vtg_max), "Incorrect overvoltage protection range"
+                min_ov = pg.siFormat( self.voltage_min, suffix = 'V', precision = 3, allowUnicode = False)
+                max_ov = pg.siFormat( vtg_max, suffix = 'V', precision = 3, allowUnicode = False)
+                assert(vtg/coef >= self.voltage_min and vtg/coef <= vtg_max), \
+                    f"Incorrect overvoltage range. The available range is from {min_ov} to {max_ov}"
             elif len(voltage) == 1:
                 ch = str(voltage[0])
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 flag = self.channel_dict[ch]
-                assert(flag <= self.channels), "Invalid channel"
+                assert(flag <= self.channels), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 answer = self.test_voltage
                 return answer
 
@@ -366,35 +302,15 @@ class Rigol_DP800_Series:
                             coef = self.current_dict[scaling]
                             if curr/coef >= self.current_min and curr/coef <= curr_max + 0.3:
                                 self.device_write(':SOURce' + str(flag) + ':CURRent:PROTection ' + str(curr/coef))
-                            else:
-                                general.message("Incorrect overcurrent protection range")
-                                sys.exit()                           
-                        else:
-                            general.message("Incorrect overcurrent protection scaling")
-                            sys.exit()
-                    else:
-                        general.message("Invalid channel")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
 
             elif len(current) == 1:
                 ch = str(current[0])
                 if ch in self.channel_dict:
                     flag = self.channel_dict[ch]
                     if flag <= self.channels:
-                        answer = float(self.device_query(':SOURce' + str(flag) + ':CURRent:PROTection?'))
+                        raw_answer = float(self.device_query(':SOURce' + str(flag) + ':CURRent:PROTection?'))
+                        answer = pg.siFormat( raw_answer, suffix = 'A', precision = 5, allowUnicode = False)
                         return answer
-                    else:
-                        general.message("Invalid channel")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(current) == 2:
@@ -402,18 +318,21 @@ class Rigol_DP800_Series:
                 temp = current[1].split(" ")
                 curr = float(temp[0])
                 scaling = temp[1]
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 flag = self.channel_dict[ch]
-                assert(flag <= self.channels), "Invalid channel"
-                assert(scaling in self.current_dict), 'Invalid overcurrent protection scaling'
+                assert(flag <= self.channels), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
+                assert(scaling in self.current_dict), f"Invalid argument; channel: {list(self.channel_dict.keys())}; overcurrent: float + [' A', ' mA']"
                 curr_max = self.current_max_dict[ch]
                 coef = self.current_dict[scaling]
-                assert(curr/coef >= self.current_min and curr/coef <= curr_max), "Incorrect overcurrent protection range"
+                min_oc = pg.siFormat( self.current_min, suffix = 'V', precision = 3, allowUnicode = False)
+                max_oc = pg.siFormat( curr_max, suffix = 'V', precision = 3, allowUnicode = False)
+                assert(curr/coef >= self.current_min and curr/coef <= curr_max), \
+                    f"Incorrect overcurrent range. The available range is from {min_oc} to {max_oc}"
             elif len(current) == 1:
                 ch = str(current[0])
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 flag = self.channel_dict[ch]
-                assert(flag <= self.channels), "Invalid channel"
+                assert(flag <= self.channels), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 answer = self.test_current
                 return answer
 
@@ -427,15 +346,6 @@ class Rigol_DP800_Series:
                     if flag <= self.channels:
                         if st in self.state_dict:
                             self.device_write(':OUTPut CH' + str(flag) + ',' + str(self.state_dict[st]))
-                        else:
-                            general.message("Invalid state argument")
-                            sys.exit()
-                    else:
-                        general.message("Invalid channel")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
 
             elif len(state) == 1:
                 ch = str(state[0])
@@ -445,29 +355,20 @@ class Rigol_DP800_Series:
                         raw_answer = self.device_query(':OUTPut? CH' + str(flag))
                         answer = cutil.search_keys_dictionary(self.state_dict, raw_answer)
                         return answer
-                    else:
-                        general.message("Invalid channel")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(state) == 2:
                 ch = str(state[0])
                 st = str(state[1])
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 flag = self.channel_dict[ch]
-                assert(flag <= self.channels), "Invalid channel"
-                assert(st in self.state_dict), 'Invalid state argument'
+                assert(flag <= self.channels), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
+                assert(st in self.state_dict), f'Invalid argument; channel: {list(self.channel_dict.keys())}; state: {list(self.state_dict.keys())}'
             elif len(state) == 1:
                 ch = str(state[0])
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 flag = self.channel_dict[ch]
-                assert(flag <= self.channels), "Invalid channel"
+                assert(flag <= self.channels), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
                 answer = self.test_state
                 return answer        
 
@@ -480,18 +381,12 @@ class Rigol_DP800_Series:
                     raw_answer = self.device_query(':MEASure:ALL? CH' + str(flag)).split(',')
                     answer = [float(raw_answer[0]), float(raw_answer[1]), float(raw_answer[2])]
                     return answer
-                else:
-                    general.message('Invalid channel')
-                    sys.exit()
-            else:
-                general.message('Invalid channel')
-                sys.exit()
 
         elif self.test_flag == 'test':
             ch = str(channel)
-            assert(ch in self.channel_dict), 'Invalid channel'
+            assert(ch in self.channel_dict), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
             flag = self.channel_dict[ch]
-            assert(flag <= self.channels), 'Invalid channel'
+            assert(flag <= self.channels), f'Invalid channel; channel: {list(self.channel_dict.keys())}'
             answer = self.test_measure
             return answer
 
@@ -502,13 +397,10 @@ class Rigol_DP800_Series:
                 flag = self.preset_dict[prst]
                 self.device_write(':PRESet:KEY ' + str(flag))
                 self.device_write(':PRESet:APPLy')
-            else:
-                general.message('Invalid preset argument')
-                sys.exit()
 
         elif self.test_flag == 'test':
             prst = str(preset)
-            assert(prst in self.preset_dict), 'Invalid preset argument'
+            assert(prst in self.preset_dict), f'Invalid preset; preset: {list(self.preset_dict.keys())}'
 
     def power_supply_command(self, command):
         if self.test_flag != 'test':

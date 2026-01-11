@@ -80,7 +80,7 @@ class Cryomech_CPA1110:
                     sys.exit()
 
             else:
-                general.message("Incorrect interface setting")
+                general.message(f"Incorrect interface setting {self.__class__.__name__}")
                 self.status_flag = 0
                 sys.exit()
 
@@ -149,19 +149,15 @@ class Cryomech_CPA1110:
                     self.device_write_unsigned(1, 1, 0)
                 elif st[0] == 'Off':
                     self.device_write_unsigned(1, 255, 0)
-                else:
-                    general.message("Incorrect state")
-                    sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
         
         elif self.test_flag == 'test':
             if len( st ) == 0:
                 answer = self.test_state
                 return answer
             elif len( st ) == 1:
-                assert(st[0] == 'On' or st[0] == 'Off'), "Incorrect state"
+                assert(st[0] == 'On' or st[0] == 'Off'), "Incorrect state; state: ['On', 'Off']"
+            else:
+                assert(1 == 2), "Invalid argument; state: ['On', 'Off']"
 
     def cryogenic_refrigerator_status_data(self):
         if self.test_flag != 'test':

@@ -1,6 +1,6 @@
 ---
 title: Magnetic Field Controllers
-nav_order: 27
+nav_order: 28
 layout: page
 permlink: /functions/magnet/
 parent: Documentation
@@ -32,7 +32,7 @@ Bruker BH15 module was rewritten from the [FSC2 module](http://users.physik.fu-b
 ```python
 magnet_name() -> str
 ```
-This function returns device name.
+This function returns device name.<br/>
 
 ---
 
@@ -46,7 +46,7 @@ the field step to 10 G for using in sweeps.
 ```
 This function is used to set the start field and the field step used in sweeps. The function expects two floating point arguments both in Gauss.
 As it is indicated [here:](http://users.physik.fu-berlin.de/~jtt/fsc2/Magnet-Functions.html#magnet_005fsweep_005fup_0028_0029) for Bruker BH15 field controller for some combinations of the start field and field step size deviations between the requested field and the real field may result of up to 25 mG. If the maximum field deviation was larger than 5 mG at the end of the test run as well as the experiment the maximum field deviation is printed out. To minimize these deviations use a start field that is a multiple of 50 mG and avoid sweeps with more than about 2000 steps away from the start field.<br/>
-The function is available for ITC1 field controller but has no meaning.
+The function is available for ITC1 field controller but has no meaning.<br/>
 
 ---
 
@@ -73,7 +73,7 @@ Example: magnet_sweep_up()
 sweeps up the magnet by the field step value set in the magnet_setup() function.
 ```
 This function does not take an argument and starts sweeping of magentic field up using the field step value specified in [magnet_setup()](#magnet_setupstart_field-step_field) function. It can be used only if the function [magnet_setup()](#magnet_setupstart_field-step_field) has been called before. The function returns the new field value.<br/>
-The function is not available for Bruker ER031M and ITC1 field controllers.
+The function is not available for Bruker ER031M and ITC1 field controllers.<br/>
 
 ---
 
@@ -86,7 +86,7 @@ Example: magnet_sweep_down()
 sweeps down the magnet by the field step value set in the magnet_setup() function.
 ```
 This function does not take an argument and starts sweeping of magentic field down using the field step value specified in [magnet_setup()](#magnet_setupstart_field-step_field) function. It can be used only if the function [magnet_setup()](#magnet_setupstart_field-step_field) has been called before. The function returns the new field value.<br/>
-The function is not available for Bruker ER031M and ITC1 field controllers.
+The function is not available for Bruker ER031M and ITC1 field controllers.<br/>
 
 ---
 
@@ -99,7 +99,7 @@ Example: magnet_reset_field()
 resets the magnetic field to the start field value.
 ```
 This function resets the magnetic field to the start field value specified in a previous call of [magnet_setup()](#magnet_setupstart_field-step_field). The function returns the new field value.<br/>
-The function is not available for Bruker ER031M and ITC1 field controllers.
+The function is not available for Bruker ER031M and ITC1 field controllers.<br/>
 
 ---
 
@@ -112,7 +112,7 @@ magnet_field_step_size() -> float
 Example: magnet_field_step_size(10) returns the possible field step size nearest to 10 Gauss
 ```
 This function returns the minimum field step size (in Gauss) if called without an argument and the possible field step size (in Gauss) nearest to the argument.<br/>
-The function is not available for Bruker ER031M and ITC1 field controllers.
+The function is not available for Bruker ER031M and ITC1 field controllers.<br/>
 
 ---
 
@@ -121,4 +121,4 @@ The function is not available for Bruker ER031M and ITC1 field controllers.
 magnet_command(command: str) -> none
 ```
 This function for sending an arbitrary command to the device in a string format. No output is expected.<br/>
-The function is not available for Bruker ER031M and ITC1 field controllers.
+The function is not available for Bruker ER031M and ITC1 field controllers.<br/>

@@ -416,8 +416,10 @@ class CrosshairDock(CloseableDock):
         self.del_menu.addAction(del_act)
 
         shiftspinbox.setDecimals(3)
-        shiftspinbox.setRange(-1, 1)
+        shiftspinbox.setRange(-10, 10)
         shiftspinbox.setSingleStep(0.001)
+        shiftspinbox.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        shiftspinbox.setPrefix( f"{gr_name}: " )
         shiftspinbox.setKeyboardTracking(0)
         self.shifter_dict[shiftspinbox] = self.plot_widget.listDataItems()[-1]
         #shifter.valueChanged.connect( self.shift_curve )

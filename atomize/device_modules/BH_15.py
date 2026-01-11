@@ -155,8 +155,7 @@ class BH_15:
         # given setting for the sweep width resolution of 0.1 G)
 
         if field_step < self.min_field_step:
-            general.message(f"Field sweep step size {field_step} G too small \
-                , minimum is {self.min_field_step} G.")
+            general.message(f"Field sweep step size {field_step} G too small, minimum is {self.min_field_step} G.")
             sys.exit()
 
         field_step = round(self.max_swa*field_step/self.fc_sw_resolution)*self.fc_sw_resolution/self.max_swa;
@@ -319,9 +318,6 @@ class BH_15:
                 return self.get_field()
             elif len(field) == 0:
                 return self.get_field()
-            else:
-                general.message("Incorrect argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(field) == 1:
@@ -330,7 +326,7 @@ class BH_15:
             elif len(field) == 0:
                 return self.get_field()
             else:
-                assert(1 == 2), "Incorrect argument"
+                assert(1 == 2), "Incorrect argument; field: float"
 
     def magnet_field_step_size(self, *step):
         """
@@ -351,9 +347,6 @@ class BH_15:
                     steps += 1
 
                 return steps*self.fc_resolution
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(step) == 0:
@@ -365,6 +358,8 @@ class BH_15:
                 if steps == 0:
                     steps += 1
                 return steps*self.fc_resolution
+            else:
+                assert( 1 == 2 ) , "Invalid argument; step: float"
 
     # Auxiliary functions
     def get_field(self):

@@ -17,7 +17,7 @@ parent: Documentation
 - [gaussmeter_field()](#gaussmeter_field)<br/>
 - [gaussmeter_units(*units)](#gaussmeter_unitsunits)<br/>
 - [gaussmeter_points(*points)](#gaussmeter_pointspoints)<br/>
-- [gaussmeter_number_of_averges(*number)](#gaussmeter_number_of_avergesnumber)<br/>
+- [gaussmeter_number_of_averages(*number)](#gaussmeter_number_of_averagesnumber)<br/>
 - [gaussmeter_search(start, end, step)](#gaussmeter_searchstart-end-step)<br/>
 - [gaussmeter_set_field(*B)](#gaussmeter_set_fieldb)<br/>
 - [gaussmeter_gain(*gain)](#gaussmeter_gaingain)<br/>
@@ -32,7 +32,7 @@ parent: Documentation
 ```python
 gaussmeter_name() -> none
 ```
-This function returns device name.
+This function returns device name.<br>
 
 ---
 
@@ -51,8 +51,8 @@ In the case of Sibir 1 Gaussmeter, this function returns (i) numpy.array of the 
 
 ### gaussmeter_units(*units)
 ```python
-gaussmeter_units(units: str) -> none
-gaussmeter_units() -> str ['Gauss','Tesla','Oersted','Amp/m']
+gaussmeter_units(units: ['Gauss','Tesla','Oersted','Amp/m']) -> none
+gaussmeter_units() -> str
 ```
 ```
 Example: gaussmeter_units('Tesla') changes the unit of gaussmeter_field() function to Tesla.
@@ -77,13 +77,13 @@ This function is only available for Sibir 1 Gaussmeter.<br/>
 
 ---
 
-### gaussmeter_number_of_averges(*number)
+### gaussmeter_number_of_averages(*number)
 ```python
-gaussmeter_number_of_averges(number: int) -> none
-gaussmeter_number_of_averges() -> int
+gaussmeter_number_of_averages(number: int) -> none
+gaussmeter_number_of_averages() -> int
 ```
 ```
-Example: gaussmeter_number_of_averges(64) sets the number of averages to 64.
+Example: gaussmeter_number_of_averages(64) sets the number of averages to 64.
 ```
 This function queries or sets the number of averages for FID of NMR signal from the probe. If called with no argument the current number of averages is returned. If called with an argument the specified  number of averages is set.<br/>
 Possible number of averages are the following: [1, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]. If there is no number of averages setting fitting the argument the nearest available value is used and warning is printed.<br/>
@@ -165,9 +165,9 @@ gaussmeter_command(command: str) -> none
 ```
 Example: gaussmeter_command('RDGMODE 1,3,1,1,1') configures Lakeshore 455 for DC field
 measurement, DC resolution of 5 digits, wide band rms filter mode, peak measurement mode
-is periodic, and positive peak readings will be displayed if the measurement mode is changed to peak.
+is periodic, and positive peak readings will be shown if the measurement mode is changed to peak.
 ```
-The function for sending an arbitrary command from a programming guide to the device in a string format. No output is expected.<br/>
+This function sends an arbitrary command from a programming guide to the device in a string format. No output is expected.<br/>
 This function is not available for Sibir 1 Gaussmeter.<br/>
 
 ---
@@ -179,5 +179,5 @@ gaussmeter_query(command: str) -> str
 ```
 Example: gaussmeter_query('TYPE? ') returns the type of the probe used.
 ```
-The function for sending an arbitrary command from a programming guide to the device in a string format. An output in a string format is expected.<br/>
+This function sends an arbitrary command from a programming guide to the device in a string format. An output in a string format is expected.<br/>
 This function is not available for Sibir 1 Gaussmeter.<br/>

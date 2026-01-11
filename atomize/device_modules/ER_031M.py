@@ -50,21 +50,13 @@ class ER_031M:
                     try:
                         # test should be here
                         self.status_flag = 1
-                    except pyvisa.VisaIOError:
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         self.status_flag = 0
                         general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message(f"No connection {self.__class__.__name__}")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
+                except (pyvisa.VisaIOError, BrokenPipeError):
                         general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
-                except BrokenPipeError:
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0
-                    sys.exit()
 
         elif self.test_flag == 'test':
             self.test_field = 3500
@@ -100,11 +92,10 @@ class ER_031M:
             if start_field <= self.max_field and start_field >= self.min_field:
                 self.field = start_field
                 self.field_step = field_step
-            else:
-                general.message('Incorrect field range')
-                sys.exit()
+
         elif self.test_flag == 'test':
-            assert(start_field <= self.max_field and start_field >= self.min_field), 'Incorrect field range'
+            assert(start_field <= self.max_field and start_field >= self.min_field), \
+                f'Incorrect field range. The available range is from {self.min_field} to {self.max_field}'
             self.field = start_field
             self.field_step = field_step
 
@@ -116,26 +107,22 @@ class ER_031M:
                     #field_controller_write('cf'+str(field)+'\r')
                     self.device_write('cf' + str(field))
                     self.field = field
-                else:
-                    general.message('Incorrect field range')
-                    sys.exit()
+
             elif len(field) == 0:
                 answer = self.field
                 return answer
-            else:
-                send.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(field) == 1:
                 field = field[0]
-                assert(field <= self.max_field and field >= self.min_field), 'Incorrect field range'
+                assert(field <= self.max_field and field >= self.min_field),\
+                    f'Incorrect field range. The available range is from {self.min_field} G to {self.max_field} G'
                 self.field = field
             elif len(field) == 0:
                 answer = self.test_field
                 return answer
             else:
-                assert(1 == 2), 'Invalid argument'
+                assert(1 == 2), 'Invalid argument; field: float'
 
     def magnet_command(self, command):
         if self.test_flag != 'test':

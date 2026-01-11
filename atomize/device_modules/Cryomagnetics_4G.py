@@ -98,27 +98,19 @@ class Cryomagnetics_4G:
                             # to write data the device should be in REMOTE
                             self.device_query('*OPC?')
                         else:
-                            general.message('During internal device test errors are found')
+                            general.message(f'During internal device test errors were found {self.__class__.__name__}')
                             self.status_flag = 0
                             sys.exit()
-                    except pyvisa.VisaIOError:
-                        general.message("No connection Cryomagnetics 4G")
+                    except (pyvisa.VisaIOError, BrokenPipeError):
+                        general.message(f"No connection {self.__class__.__name__}")
                         self.status_flag = 0
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message("No connection Cryomagnetics 4G")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
-                    general.message("No connection Cryomagnetics 4G")
-                    self.status_flag = 0
-                    sys.exit()
-                except BrokenPipeError:
-                    general.message("No connection Cryomagnetics 4G")
+                except (pyvisa.VisaIOError, BrokenPipeError):
+                    general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
             else:
-                general.message("Incorrect interface setting Cryomagnetics 4G")
+                general.message(f"Incorrect interface setting {self.__class__.__name__}")
                 self.status_flag = 0
                 sys.exit()
 
@@ -186,10 +178,7 @@ class Cryomagnetics_4G:
                     elif ch[0] == 'CH2':
                         self.device_write('CHAN ' + '2')
                 elif self.max_channels == 1:
-                    general.message("Only one channel is available")
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
+                    general.message(f"Only one channel is available  {self.__class__.__name__}")
 
             elif len( ch ) == 0:
                 if self.max_channels == 2:
@@ -200,20 +189,17 @@ class Cryomagnetics_4G:
                         return 'CH2'
                 elif self.max_channels == 1:
                     return 'CH1'
-            else:
-                general.message("Invalid Channel Argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len( ch ) == 1:
                 if self.max_channels == 2:
-                    assert( ch[0] == 'CH1' or ch[0] == 'CH2'), "Invalid channel"
+                    assert( ch[0] == 'CH1' or ch[0] == 'CH2'), "Invalid channel; channel: ['CH1', 'CH2']"
                 if self.max_channels == 1:
-                    assert( ch[0] == 'CH1' ), "Invalid channel. Only one channel is available"
+                    assert( ch[0] == 'CH1' ), "Invalid channel. Only one channel is available; channel: ['CH1']"
             elif len( ch ) == 0:
                 return self.test_channel
             else:
-                assert( 1 == 2 ), "Invalid Argument"
+                assert( 1 == 2 ), "Invalid argument; channel: ['CH1', 'CH2']"
 
     def magnet_power_supply_low_sweep_limit(self, *lmt):
         # in the range of -Max_Current to +Max_Current
@@ -227,10 +213,6 @@ class Cryomagnetics_4G:
                 raw_answer = str( self.device_query('LLIM?') )
                 return raw_answer
 
-            else:
-                general.message("Invalid low limit is given")
-                sys.exit()
-
         elif self.test_flag == 'test':
             if len( lmt ) == 1:
                 self.low_sweep_limit = float( lmt[0] )
@@ -240,7 +222,7 @@ class Cryomagnetics_4G:
             elif len( lmt ) == 0:
                 return self.low_sweep_limit
             else:
-                assert( 1 == 2 ), "Invalid low limit is given"
+                assert( 1 == 2 ), "Invalid low limit argument; limit: float"
 
     def magnet_power_supply_upper_sweep_limit(self, *lmt):
         # in the range of -Max_Current to +Max_Current
@@ -254,10 +236,6 @@ class Cryomagnetics_4G:
                 raw_answer = str( self.device_query('ULIM?') )
                 return raw_answer
 
-            else:
-                general.message("Invalid upper limit is given")
-                sys.exit()
-
         elif self.test_flag == 'test':
             if len( lmt ) == 1:
                 self.upper_sweep_limit = float( lmt[0] )
@@ -267,7 +245,7 @@ class Cryomagnetics_4G:
             elif len( lmt ) == 0:
                 return self.upper_sweep_limit
             else:
-                assert( 1 == 2 ), "Invalid upper limit is given"
+                assert( 1 == 2 ), "Invalid upper limit argument; limit: float"
 
     def magnet_power_supply_voltage_limit(self, *lmt):
         # in the range of 0.0 to 10.0 V
@@ -280,10 +258,6 @@ class Cryomagnetics_4G:
                 raw_answer = str( self.device_query('VLIM?') )
                 return raw_answer
 
-            else:
-                general.message("Invalid voltage limit is given")
-                sys.exit()
-
         elif self.test_flag == 'test':
             if len( lmt ) == 1:
                 self.voltage_limit = float( lmt[0] )
@@ -292,7 +266,7 @@ class Cryomagnetics_4G:
             elif len( lmt ) == 0:
                 return self.voltage_limit
             else:
-                assert( 1 == 2 ), "Invalid voltage limit is given"
+                assert( 1 == 2 ), "Invalid voltage limit argument; limit: float"
 
     def magnet_power_supply_sweep_rate(self, *rt):
         # A/s
@@ -317,9 +291,6 @@ class Cryomagnetics_4G:
                     raw_answer = float( self.device_query( 'RATE? ' + str(i) ) )
                     answer[i] = raw_answer
                 return answer
-            else:
-                general.message("Invalid rate arguments are given")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len( rt ) == 6:
@@ -339,7 +310,7 @@ class Cryomagnetics_4G:
             elif len( rt ) == 0:
                 return np.array([self.rate_0, self.rate_1, self.rate_2, self.rate_3, self.rate_4, self.rate_fast])
             else:
-                assert( 1 == 2 ), "Invalid range arguments are given. Six numbers are expected"
+                assert( 1 == 2 ), "Invalid range arguments are given. Six float numbers are expected"
 
     def magnet_power_supply_range(self, *rng):
         if self.test_flag != 'test':
@@ -359,9 +330,6 @@ class Cryomagnetics_4G:
                     raw_answer = float( self.device_query( 'RANGE? ' + str(i) ) )
                     answer[i] = raw_answer
                 return answer
-            else:
-                general.message("Invalid range arguments are given")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len( rng ) == 4:
@@ -377,7 +345,7 @@ class Cryomagnetics_4G:
             elif len( rng ) == 0:
                 return np.array([self.range_0, self.range_1, self.range_2, self.range_3, self.range_4])
             else:
-                assert( 1 == 2 ), "Invalid range arguments are given. Four numbers are expected"
+                assert( 1 == 2 ), "Invalid range arguments. Four float numbers are expected"
 
     def magnet_power_supply_sweep(self, *sw):
         """
@@ -391,9 +359,6 @@ class Cryomagnetics_4G:
                 if sweep in self.sweep_dict:
                     flag = self.sweep_dict[sweep]
                     self.device_write('SWEEP ' + str(flag))
-                else:
-                    general.message("Invalid sweep type is given")
-                    sys.exit()
 
             elif len( sw ) == 2:
                 sweep = str( sw[0] )
@@ -402,22 +367,16 @@ class Cryomagnetics_4G:
                     flag_1 = self.sweep_dict[sweep]
                     flag_2 = self.sweep_mode_dict[sw_mode]
                     self.device_write('SWEEP ' + str(flag_1) + str(flag_2) )
-                else:
-                    general.message("Invalid sweep type or sweep mode is given")
-                    sys.exit()
 
             elif len( sw ) == 0:
                 raw_answer = str( self.device_query('SWEEP?') )
                 return raw_answer
-            else:
-                general.message("Invalid Sweep Argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len( sw ) == 1:
                 sweep = str(sw[0])
                 if self.shim_mode == 0:
-                    assert( sweep in self.sweep_dict), "Invalid sweep type is given"
+                    assert( sweep in self.sweep_dict), f"Invalid sweep type; type: {list(self.sweep_dict.keys())}"
                     assert( sweep != 'Limit' ), "Limit sweep type available only in Shim mode"
                 elif self.shim_mode == 1:
                     assert( sweep == 'Limit' ), "Only Limit sweep type available in Shim mode"
@@ -426,16 +385,16 @@ class Cryomagnetics_4G:
                 sweep = str( sw[0] )
                 sw_mode = str( sw[1] )
                 if self.shim_mode == 0:
-                    assert( sweep in self.sweep_dict ), "Invalid sweep type is given"
-                    assert( sw_mode in self.sweep_mode_dict ), "Invalid sweep mode is given"
+                    assert( sweep in self.sweep_dict ), f"Invalid sweep type; type: {list(self.sweep_dict.keys())}"
+                    assert( sw_mode in self.sweep_mode_dict ), f"Invalid sweep mode; mode: {list(self.sweep_mode_dict.keys())}"
                     assert( sweep != 'Limit' ), "Limit sweep type available only in Shim mode"
                 elif self.shim_mode == 1:
                     assert( sweep == 'Limit' ), "Only Limit sweep type available in Shim mode"
-                    assert( sw_mode in self.sweep_mode_dict ), "Invalid sweep mode is given"
+                    assert( sw_mode in self.sweep_mode_dict ),  f"Invalid sweep mode; mode: {list(self.sweep_mode_dict.keys())}"
             elif len( sw ) == 0:
                 return self.test_sweep
             else:
-                assert( 1 == 2 ), "Invalid Sweep Argument"
+                assert( 1 == 2 ), f"Invalid argument; sweep: {list(self.sweep_dict.keys())}; speed: {list(self.sweep_mode_dict.keys())}"
 
     def magnet_power_supply_units(self, *un):
         if self.test_flag != 'test':
@@ -445,27 +404,21 @@ class Cryomagnetics_4G:
                     flag = self.units_dict[unit]
                     self.units = unit
                     self.device_write('UNITS ' + str(flag))
-                else:
-                    general.message("Invalid units is given")
-                    sys.exit()
 
             elif len( un ) == 0:
                 raw_answer = str( self.device_query('UNITS?') )
                 return raw_answer
-            else:
-                general.message("Invalid Units Argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len( un ) == 1:
                 unit = str(un[0])
-                assert( unit in self.units_dict), "Invalid units is given"
+                assert( unit in self.units_dict), f"Invalid units; units: {list(self.units_dict.keys())}"
                 flag = self.units_dict[unit]
                 self.units = unit
             elif len( un ) == 0:
                 return self.units
             else:
-                assert( 1 == 2 ), "Invalid Argument"
+                assert( 1 == 2 ), f"Invalid argument; units: {list(self.units_dict.keys())}"
 
     def magnet_power_supply_persistent_current(self, *vl):
         # returns the magnet current (or magnetic field strength) in the
@@ -482,10 +435,6 @@ class Cryomagnetics_4G:
                 raw_answer = str( self.device_query('IMAG?') )
                 return raw_answer
 
-            else:
-                general.message("Invalid persistent current is given")
-                sys.exit()
-
         elif self.test_flag == 'test':
             if len( vl ) == 1:
                 value = float( vl[0] )
@@ -499,7 +448,7 @@ class Cryomagnetics_4G:
             elif len( vl ) == 0:
                 return self.test_persistent_current
             else:
-                assert( 1 == 2 ), "Invalid persistent current is given"
+                assert( 1 == 2 ), "Invalid argument; current: float"
 
     def magnet_power_supply_mode(self):
         # only query; power supply mode
@@ -515,12 +464,9 @@ class Cryomagnetics_4G:
             if mode in self.control_mode_dict:
                 flag = self.control_mode_dict[mode]
                 self.device_write(str(flag))
-            else:
-                general.message("Invalid control mode is given. Only 'Remote' and 'Local' are available.")
-                sys.exit()
 
         elif self.test_flag == 'test':
-            assert( mode in self.control_mode_dict), "Invalid units is given"
+            assert( mode in self.control_mode_dict), f"Invalid argument; mode: ['Remote', 'Local']"
 
     def magnet_power_supply_current(self):
         # only query; power supply current
@@ -560,9 +506,6 @@ class Cryomagnetics_4G:
                 if state in self.persistent_switch_heater_dict:
                     flag = self.persistent_switch_heater_dict[state]
                     self.device_write('PSHTR ' + str(flag))
-                else:
-                    general.message("Invalid persistent switch heater is given")
-                    sys.exit()
 
             elif len( st ) == 0:
                 raw_answer = int( self.device_query('PSHTR?') )
@@ -570,18 +513,16 @@ class Cryomagnetics_4G:
                     return 'Off'
                 elif raw_answer == 1:
                     return 'On'
-            else:
-                general.message("Invalid Persistent Switch Argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len( st ) == 1:
                 state = str(st[0])
-                assert( state in self.persistent_switch_heater_dict), "Invalid persistent switch heater is given"
+                assert( state in self.persistent_switch_heater_dict), \
+                    f"Invalid persistent switch heater; state: {list(self.persistent_switch_heater_dict.keys())}"
             elif len( st ) == 0:
                 return self.persistent_switch_heater_state
             else:
-                assert( 1 == 2 ), "Invalid Argument"
+                assert( 1 == 2 ), "Invalid argument; state: ['On', 'Off']"
 
     def magnet_power_supply_command(self, command):
         if self.test_flag != 'test':

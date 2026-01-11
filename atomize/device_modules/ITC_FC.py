@@ -59,21 +59,13 @@ class ITC_FC:
                     try:
                         # test should be here
                         self.status_flag = 1
-                    except pyvisa.VisaIOError:
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         self.status_flag = 0
                         general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message(f"No connection {self.__class__.__name__}")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
+                except (pyvisa.VisaIOError, BrokenPipeError):
                         general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
-                except BrokenPipeError:
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0
-                    sys.exit()
 
         elif self.test_flag == 'test':
             self.test_field = 3500
@@ -110,11 +102,10 @@ class ITC_FC:
                 self.field = start_field
                 self.field_step = field_step
                 self.magnet_field(self.field)
-            else:
-                general.message('Incorrect field range')
-                sys.exit()
+
         elif self.test_flag == 'test':
-            assert(start_field <= self.max_field and start_field >= self.min_field), 'Incorrect field range'
+            assert(start_field <= self.max_field and start_field >= self.min_field),\
+                f'Incorrect field range. The available range is from {self.min_field} to {self.max_field}'
             self.field = start_field
             self.field_step = field_step
             self.magnet_field(self.field)
@@ -144,22 +135,16 @@ class ITC_FC:
                         #general.wait('70 ms')
                         
                         return self.field
-                    else:
-                        general.message('Incorrect field range')
-                        sys.exit()
 
             elif len(field) == 0:
                     answer = self.field
                     return answer
 
-            else:
-                send.message("Invalid argument")
-                sys.exit()
-
         elif self.test_flag == 'test':
             if len(field) == 1:
                 field = field[0]
-                assert(field <= self.max_field and field >= self.min_field), 'Incorrect field range'
+                assert(field <= self.max_field and field >= self.min_field),\
+                    f'Incorrect field range. The available range is from {self.min_field} to {self.max_field}'
                 if calibration == 'False':
                     self.field = field
                 elif calibration == 'True':
@@ -174,8 +159,9 @@ class ITC_FC:
                 answer = self.test_field
                 return answer
             else:
-                assert(1 == 2), 'Invalid argument'
+                assert(1 == 2), 'Invalid argument; field: float'
 
+    ##### UNDOCUMENTED; FOR TEST ONLY
     def magnet_pid(self, p = 3.5, i = 0.01, d = 8.0):
         if self.test_flag != 'test':
             p_coef = round(p, 3)
@@ -195,7 +181,7 @@ class ITC_FC:
             self.device_write(f'pid {p}')
         elif self.test_flag == 'test':
             p = int(state)
-            assert(p == 0 or p == 1), 'ERROR'
+            assert(p == 0 or p == 1), 'Incorrect PID state; state: [0, 1]'
 
     def magnet_shim(self, level):
         if self.test_flag != 'test':
@@ -204,7 +190,7 @@ class ITC_FC:
 
         elif self.test_flag == 'test':
             p = int(level)
-            assert(p <= 100 and p >= 0), 'ERROR'
+            assert(p <= 100 and p >= 0), 'Incorrect shim value. The available range is from 0 to 100'
 
     def magnet_command(self, command):
         if self.test_flag != 'test':

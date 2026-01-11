@@ -11,6 +11,7 @@ import signal
 import socket
 import threading
 import webbrowser
+import subprocess
 import configparser
 import platform
 #from tkinter import filedialog#, ttk
@@ -92,7 +93,7 @@ class MainWindow(QtWidgets.QMainWindow):
         #path_config_file = os.path.join(path_to_main,'atomize/config.ini')
         path_config_file = os.path.join(path_to_main, '..', 'config.ini')
         path_config_file_device = os.path.join(path_to_main, '..', 'device_modules/config')
-        path_config_file, path_config2 = lconf.copy_config(path_config_file, path_config_file_device)
+        path_config_file, self.path_config2 = lconf.copy_config(path_config_file, path_config_file_device)
 
         config = configparser.ConfigParser()
         config.read(path_config_file)
@@ -109,7 +110,7 @@ class MainWindow(QtWidgets.QMainWindow):
         print( f'DATA DIRECTORY: {self.open_dir}' )
         print( f'SCRIPTS DIRECTORY: {self.script_dir}' )
         print( f'MAIN CONFIG PATH: {path_config_file}' )
-        print( f'DEVICE CONFIG DIRECTORY: {path_config2}' )
+        print( f'DEVICE CONFIG DIRECTORY: {self.path_config2}' )
 
         self.path = self.script_dir
         self.test_timeout = int(config['DEFAULT']['test_timeout']) * 1000 # in ms
@@ -416,10 +417,21 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.text_errors.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
         self.text_errors.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); } \
-                                    QMenu::item { color: rgb(211, 194, 78); } QMenu::item:selected {color: rgb(193, 202, 227); }")
+                                    QMenu::item { color: rgb(211, 194, 78); } QMenu::item:selected {background-color: rgb(48, 48, 75);  }\
+                                    QMenu::item:selected:active {background-color: rgb(63, 63, 97); } ")
         clear_action = QAction('Clear', self.text_errors)
         clear_action.triggered.connect(self.clear_errors)
         self.text_errors.addAction(clear_action)
+
+
+        conf_dir_action = QAction('Open Config Directory', self.text_errors)
+        conf_dir_action.triggered.connect(self.conf_dir_action)
+        self.text_errors.addAction(conf_dir_action)
+
+        list_resources_action = QAction('List Resources', self.text_errors)
+        list_resources_action.triggered.connect(self.list_resources_action)
+        self.text_errors.addAction(list_resources_action)
+
 
         self.dockarea2 = DockArea()
         self.dockarea3 = DockArea()
@@ -447,7 +459,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.namelist.setStyleSheet("background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); border: 2px solid rgb(40, 30, 45)")
         self.namelist.namelist_view.setStyleSheet("QListView::item:selected:active {background-color: rgb(63, 63, 97);\
             color: rgb(211, 194, 78); } QListView::item:hover {background-color: rgb(48, 48, 75); }")
-        self.namelist.namelist_view.setStyleSheet("QMenu::item:selected {background-color: rgb(48, 48, 75);  }")
+        self.namelist.namelist_view.setStyleSheet("QMenu::item:selected {background-color: rgb(48, 48, 75);  } \
+                QMenu::item:selected:active {background-color: rgb(63, 63, 97); }")
 
     def _on_destroyed(self):
         """
@@ -457,6 +470,15 @@ class MainWindow(QtWidgets.QMainWindow):
     
     def clear_errors(self):
         self.text_errors.clear()
+
+    def conf_dir_action(self):
+        self.open_directory(self.path_config2)
+
+    def list_resources_action(self):
+        import pyvisa
+
+        rm = pyvisa.ResourceManager()
+        print(f"AVAILABLE INSTRUMENTS: {rm.list_resources()}")
 
     def quit(self):
         """
@@ -706,6 +728,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 self.process_python.close()
 
+    def open_directory(self, path):
+        if os.name == 'nt':
+            os.startfile(path)
+        elif os.name == 'posix': 
+            subprocess.Popen(['open', path]) 
+        else:
+            print(f"Unsupported operating system: {os.name}")
+
 class NameList(QDockWidget):
     def __init__(self, window):
         super(NameList, self).__init__('Current Plots:')
@@ -827,57 +857,6 @@ class NameList(QDockWidget):
         pw.setAxisLabels(xname = 'X', xscale = 'Arb. U.',yname = 'X', yscale = 'Arb. U.',\
             zname = 'X', zscale = 'Arb. U.')
         pw.setImage(data, axes = {'y': 0, 'x': 1})
-
-    # unused
-    def open_file_dialog(self, directory = '', header = 0):
-        pass
-        # For Tkinter Open 1D; Unused
-        # file_path = self.file_dialog(directory = directory)
-
-        #header_array = [];
-        #file_to_read = open(file_path, 'r')
-        #for i, line in enumerate(file_to_read):
-        #    if i is header: break
-        #    temp = line.split("#")
-        #    header_array.append(temp)
-        #file_to_read.close()
-
-        #temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 0) 
-        #data = np.transpose(temp)
-
-        #name_plot = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
-        #pw = self.window.add_new_plot(1, name_plot)
-        #if len(data) == 2:
-        #    pw.plot(data[0], data[1], parametric = True, name = file_path, xname = 'X', xscale = 'Arb. U.',\
-        #            yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
-        #elif len(data) == 3:
-        #    pw.plot(data[0], data[1], parametric = True, name = file_path + '_1', xname = 'X', xscale = 'Arb. U.',\
-        #            yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
-        #    pw.plot(data[0], data[2], parametric = True, name = file_path + '_2', xname = 'X', xscale = 'Arb. U.',\
-        #            yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
-
-    # unused
-    def open_file_dialog_2(self, directory = '', header = 0):
-        pass
-        # For Tkinter Open 1D; Unused
-        #file_path = self.file_dialog(directory = directory)
-
-        #header_array = []
-        #file_to_read = open(file_path, 'r')
-        #for i, line in enumerate(file_to_read):
-        #    if i is header: break
-        #    temp = line.split("#")
-        #    header_array.append(temp)
-        #file_to_read.close()
-
-        #temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 0) 
-        #data = temp
-
-        #name_plot = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
-        #pw = self.window.add_new_plot(2, name_plot)
-        #pw.setAxisLabels(xname = 'X', xscale = 'Arb. U.',yname = 'X', yscale = 'Arb. U.',\
-        #    zname = 'X', zscale = 'Arb. U.')
-        #pw.setImage(data, axes = {'y': 0, 'x': 1})
 
     def file_dialog(self, directory = ''):
         """

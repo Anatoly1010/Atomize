@@ -5,6 +5,7 @@ import os
 import gc
 import sys
 import pyvisa
+import pyqtgraph as pg
 from pyvisa.constants import StopBits, Parity
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
@@ -24,14 +25,14 @@ class ECC_15K:
         self.specific_parameters = cutil.read_specific_parameters(self.path_config_file)
 
         # Ramges and limits
-        self.min_freq = 10 # MHz
-        self.max_freq = 15000 # MHz
+        self.min_freq = 1e7
+        self.max_freq = 1.5e10
         self.min_power_level = 0
         self.max_power_level = 15
 
         self.state_list = {'On', 'Off'}
         self.frequency_dict = {'GHz': 1000000000, 'MHz': 1000000, 'kHz': 1000, 'Hz': 1, }
-        self.freq = 1000 # MHz
+        self.freq = '1 GHz'
         self.power_level = 0
         self.state = 'Off'
 
@@ -54,26 +55,18 @@ class ECC_15K:
                     try:
                         # test should be here
                         self.status_flag = 1
-                    except pyvisa.VisaIOError:
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         self.status_flag = 0
                         general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message(f"No connection {self.__class__.__name__}")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
+                except (pyvisa.VisaIOError, BrokenPipeError):
                         general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
-                except BrokenPipeError:
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0
-                    sys.exit()
 
         # Test run parameters
         # These values are returned by the modules in the test run 
         elif self.test_flag == 'test':
-            self.test_freq = 1000
+            self.test_freq = '1 GHz'
             self.test_power_level = 15
             self.test_state = 'Off'
 
@@ -116,28 +109,30 @@ class ECC_15K:
     def synthetizer_frequency(self, *freq):
         """
         Function for changing the frequency.
-        The frequency is set in MHz in the range of 10 MHz to 15000 MHz in 1 MHz step.
+        The frequency is set as a string in the range of 10 MHz to 15000 MHz in 1 MHz step.
         The ECC 15K supports a step of 0.005 Hz.
         """
         if self.test_flag != 'test':
             if len(freq) == 1:
-                freq = int( freq[0] )
-                if freq <= self.max_freq and freq >= self.min_freq:
-                    self.device_write(f':FREQ {freq} MHz')
-                    general.wait('50 ms')
-                    self.freq = freq
-                else:
-                    general.message('Incorrect frequency')
-                    sys.exit()
-            elif len(freq) == 0:
-                answer = int( float( self.device_query(':FREQ?') ) / 1000000)
+                freq = str( freq[0] )
+                self.device_write(f':FREQ {freq}')
                 general.wait('50 ms')
-                return f'{answer} MHz'
+                self.freq = freq
+
+            elif len(freq) == 0:
+                raw_answer = int( self.device_query(':FREQ?') )
+                general.wait('50 ms')
+                answer = pg.siFormat( raw_answer, suffix = 'Hz', precision = 9, allowUnicode = False)
+                return answer
 
         elif self.test_flag == 'test':
             if len(freq) == 1:
-                freq = int( freq[0] )
-                assert(freq <= self.max_freq and freq >= self.min_freq), 'Incorrect frequency'
+                freq = str( freq[0] )
+                freq_check = pg.siEval( freq )
+                min_freq = pg.siFormat( self.min_freq, suffix = 'Hz', precision = 3, allowUnicode = False)
+                max_freq = pg.siFormat( self.max_freq, suffix = 'Hz', precision = 3, allowUnicode = False)
+                assert(freq_check <= self.max_freq and freq_check >= self.min_freq),\
+                    f'Incorrect frequency. The available range if from {min_freq} to {max_freq}'
                 self.freq = freq
             elif len(freq) == 0:
                 answer = self.test_freq
@@ -166,7 +161,7 @@ class ECC_15K:
         elif self.test_flag == 'test':
             if len(state) == 1:
                 state = str( state[0] )
-                assert(state in self.state_list), 'Incorrect state'
+                assert(state in self.state_list), "Incorrect state; state: ['On', 'Off']"
                 self.state = state
             elif len(state) == 0:
                 answer = self.test_state
@@ -185,27 +180,23 @@ class ECC_15K:
                     self.device_write(f':POW {level}')
                     general.wait('50 ms')
                     self.power_level = level
-                else:
-                    general.message('Incorrect power level range')
-                    sys.exit()
+
             elif len(level) == 0:
                 answer = int( float( self.device_query(':POW?') ) )
                 general.wait('50 ms')
                 return answer
-            else:
-                send.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(level) == 1:
                 level = int( level[0] )
-                assert(level <= self.max_power_level and level >= self.min_power_level), 'Incorrect power level range'
+                assert(level <= self.max_power_level and level >= self.min_power_level),\
+                    f'Incorrect power level range. The available range is from {self.min_power_level} to {self.max_power_level}'
                 self.power_level = level
             elif len(level) == 0:
                 answer = self.test_power_level
                 return answer
             else:
-                assert(1 == 2), 'Invalid argument'
+                assert(1 == 2), 'Invalid argument; level: int'
 
     def synthetizer_command(self, command):
         if self.test_flag != 'test':

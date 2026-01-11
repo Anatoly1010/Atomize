@@ -70,7 +70,7 @@ class Owen_MK110_220_4DN_4R:
                     sys.exit()
 
             else:
-                general.message("Incorrect interface setting")
+                general.message(f"Incorrect interface setting {self.__class__.__name__}")
                 self.status_flag = 0
                 sys.exit()
 
@@ -119,12 +119,9 @@ class Owen_MK110_220_4DN_4R:
                 ch = self.channel_dict[channel]
                 answer = int(self.device_read_unsigned(63 + ch, 0))
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
         
         elif self.test_flag == 'test':
-            assert(channel in self.channel_dict), "Incorrect channel"
+            assert(channel in self.channel_dict), f"Incorrect channel; channel: {list(self.channel_dict.keys())}"
             answer = self.test_counter
             return answer
 
@@ -134,11 +131,9 @@ class Owen_MK110_220_4DN_4R:
             if channel in self.channel_dict:
                 ch = self.channel_dict[channel]
                 self.device_write_unsigned(63 + ch, 0, 0)
-            else:
-                general.message("Invalid argument")
-                sys.exit()
+
         elif self.test_flag == 'test':
-            assert(channel in self.channel_dict), "Incorrect channel"
+            assert(channel in self.channel_dict), f"Incorrect channel; channel: {list(self.channel_dict.keys())}"
 
     # No argument; Output in the form '1234' that means input 1-4 are on
     def discrete_io_input_state(self):
@@ -160,9 +155,7 @@ class Owen_MK110_220_4DN_4R:
                 if st in self.output_state_dict:
                     flag = int(self.output_state_dict[st], 2)
                     self.device_write_unsigned(50, flag, 0)
-                else:
-                    general.message("Invalid state")
-                    sys.exit()
+
             elif len(state) == 0:
                 raw_answer = bin(int(self.device_read_unsigned(50, 0))).replace("0b","")
                 answer = cutil.search_keys_dictionary(self.output_state_dict, raw_answer)
@@ -171,13 +164,12 @@ class Owen_MK110_220_4DN_4R:
         elif self.test_flag == 'test':
             if len(state) == 1:
                 st = state[0]
-                assert(st in self.output_state_dict), "Incorrect state"
+                assert(st in self.output_state_dict), f"Incorrect state; channel: {list(self.output_state_dict.keys())}"
             elif len(state) == 0:
                 answer = self.test_output_state
                 return answer
             else:
-                assert(1 == 2), "Incorrect argument"
-
+                assert(1 == 2), f"Incorrect argument; state: {list(self.output_state_dict.keys())}"
 
 def main():
     pass

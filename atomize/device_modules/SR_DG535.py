@@ -5,6 +5,7 @@ import os
 import gc
 import sys
 import pyvisa
+import pyqtgrpah as pg
 from pyvisa.constants import StopBits, Parity
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
@@ -28,7 +29,7 @@ class SR_DG535:
         self.input_output_channel_dict = {'Trigger': 0, 'T0': 1, 'A': 2, 'B': 3, 'AB': 4, 'C': 5, 'D': 6, 'CD': 7,}
         self.output_channel_dict = {'T0': 1, 'A': 2, 'B': 3, 'AB': 4, 'C': 5, 'D': 6, 'CD': 7,}
         self.time_dict = {'s': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000, 'ps': 1000000000000,}
-        self.impedance_dict = {'50': 0, 'High Z': 1,}
+        self.impedance_dict = {'50': 0, '1 M': 1,}
         self.mode_dict = {'TTL': 0, 'NIM': 1, 'ECL': 2, 'Variable': 3,}
         self.ampl_dict = {'V': 1, 'mV': 1000,}
         self.polarity_dict = {'Inverted': 0, 'Normal': 1,}
@@ -68,13 +69,13 @@ class SR_DG535:
                     sys.exit()
 
             else:
-                general.message("Incorrect interface setting")
+                general.message(f"Incorrect interface setting {self.__class__.__name__}")
                 self.status_flag = 0
                 sys.exit()
 
         elif self.test_flag == 'test':
-            self.test_delay = 'B + 1.0'
-            self.test_impedance = 'High Z'
+            self.test_delay = 'B + 1.0 us'
+            self.test_impedance = '1 M'
             self.test_mode = 'TTL'
             self.test_amplitude_offset = 'Amplitude: 2. V; Offset: 0. V'
             self.test_polarity = 'Normal'
@@ -107,7 +108,7 @@ class SR_DG535:
             sys.exit()
 
     #### device specific functions
-    def delay_gen_name(self):
+    def delay_generator_name(self):
         if self.test_flag != 'test':
             answer = self.config['name']
             return answer
@@ -115,7 +116,7 @@ class SR_DG535:
             answer = self.config['name']
             return answer
 
-    def delay_gen_delay(self, *delay):
+    def delay_generator_delay(self, *delay):
         if self.test_flag != 'test':
             if len(delay) == 3:
                 ch_1 = str(delay[0])
@@ -130,15 +131,6 @@ class SR_DG535:
                         coef = self.time_dict[scaling]
                         if delay/coef >= self.delay_min and delay/coef <= self.delay_max:
                             self.device_write('DT ' + str(flag_1) + ',' + str(flag_2) + ',' + str(delay/coef))
-                        else:
-                            general.message("Incorrect delay range")
-                            sys.exit()
-                    else:
-                        general.message("Incorrect delay scaling")
-                        sys.exit()
-                else:
-                    general.message("Incorrect channel")
-                    sys.exit()
 
             elif len(delay) == 1:
                 ch_1 = str(delay[0])
@@ -146,16 +138,10 @@ class SR_DG535:
                     flag_1 = self.delay_channel_dict[ch_1]
                     raw_answer = str(self.device_query('DT ' + str(flag_1))).split(',')
                     ch_answer = cutil.search_keys_dictionary(self.delay_channel_dict, int(raw_answer[0]))
-                    delay_answer = float(raw_answer[1])*1000000
-                    answer = str(ch_answer) + ' + ' + str(delay_answer)
+                    delay_answer = float(raw_answer[1])
+                    del_answer = pg.siFormat( delay_answer, suffix = 's', precision = 5, allowUnicode = False)
+                    answer = str(ch_answer) + ' + ' + str(del_answer)
                     return answer
-                else:
-                    general.message("Incorrect channel")
-                    sys.exit()
-
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(delay) == 3:
@@ -164,21 +150,24 @@ class SR_DG535:
                 temp = delay[2].split(" ")
                 delay = float(temp[0])
                 scaling = temp[1]
-                assert(ch_1 in self.delay_channel_dict), 'Invalid channel_1 argument'
-                assert(ch_2 in self.delay_channel_dict), 'Invalid channel_2 argument'
-                assert(scaling in self.time_dict), 'Invalid scaling argument'
+                assert(ch_1 in self.delay_channel_dict), f"Incorrect channel 1; channel: {list(self.delay_channel_dict.keys())}"
+                assert(ch_2 in self.delay_channel_dict), f"Incorrect channel 2; channel: {list(self.delay_channel_dict.keys())}"
+                assert(scaling in self.time_dict), f"Invalid argument; channel 1, 2: {list(self.delay_channel_dict.keys())}; delay: int + [' s', ' ms', ' us', ' ns', ' ps']"
                 coef = self.time_dict[scaling]
-                assert(delay/coef >= self.delay_min and delay/coef <= self.delay_max), "Incorrect delay range"
+                min_d = pg.siFormat( self.delay_min, suffix = 's', precision = 3, allowUnicode = False)
+                max_d = pg.siFormat( self.delay_max, suffix = 's', precision = 3, allowUnicode = False)
+                assert(delay/coef >= self.delay_min and delay/coef <= self.delay_max), \
+                    f"Incorrect delay. The available range is from {min_d} to {max_d}"
 
             elif len(delay) == 1:
                 ch_1 = str(delay[0])
-                assert(ch_1 in self.delay_channel_dict), 'Incorrect channel'
+                assert(ch_1 in self.delay_channel_dict), f"Incorrect channel 1; channel: {list(self.delay_channel_dict.keys())}"
                 answer = self.test_delay
                 return answer
             else:
-                assert(1 == 2), 'Invalid argument'
+                assert(1 == 2), f"Invalid argument; channel 1, 2: {list(self.delay_channel_dict.keys())}; delay: int + [' s', ' ms', ' us', ' ns', ' ps']"
 
-    def delay_gen_impedance(self, *impedance):
+    def delay_generator_impedance(self, *impedance):
         if self.test_flag != 'test':
             if len(impedance) == 2:
                 ch = str(impedance[0])
@@ -188,12 +177,6 @@ class SR_DG535:
                     if imp in self.impedance_dict:
                         flag_2 = self.impedance_dict[imp]
                         self.device_write('TZ ' + str(flag_1) + ',' + str(flag_2))
-                    else:
-                        general.message("Incorrect impedance")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()    
             
             elif len(impedance) == 1:
                 ch = str(impedance[0])
@@ -202,27 +185,23 @@ class SR_DG535:
                     raw_answer = int(self.device_query('TZ ' + str(flag)))
                     answer = cutil.search_keys_dictionary(self.impedance_dict, raw_answer)
                     return answer
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(impedance) == 2:
                 ch = str(impedance[0])
                 imp = str(impedance[1])
-                assert(ch in self.input_output_channel_dict), 'Invalid channel argument'
-                assert(imp in self.impedance_dict), 'Invalid impedance argument'
+                assert(ch in self.input_output_channel_dict), f"Incorrect channel; channel: {list(self.input_output_channel_dict.keys())}"
+                assert(imp in self.impedance_dict), f'Invalid impedance; impedance: {list(self.impedance_dict.keys())}'
 
             elif len(impedance) == 1:
                 ch = str(impedance[0])
-                assert(ch in self.input_output_channel_dict), 'Invalid channel argument'
+                assert(ch in self.input_output_channel_dict), f"Incorrect channel; channel: {list(self.input_output_channel_dict.keys())}"
                 answer = self.test_impedance
                 return answer
+            else:
+                assert(1 == 2), f"Invalid argument; channel: {list(self.input_output_channel_dict.keys())}; impedance: {list(self.impedance_dict.keys())}"
 
-    def delay_gen_output_mode(self, *mode):
+    def delay_generator_output_mode(self, *mode):
         if self.test_flag != 'test':
             if len(mode) == 2:
                 ch = str(mode[0])
@@ -232,12 +211,6 @@ class SR_DG535:
                     if md in self.mode_dict:
                         flag_2 = self.mode_dict[md]
                         self.device_write('OM ' + str(flag_1) + ',' + str(flag_2))
-                    else:
-                        general.message("Incorrect mode")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()    
             
             elif len(mode) == 1:
                 ch = str(mode[0])
@@ -246,27 +219,23 @@ class SR_DG535:
                     raw_answer = int(self.device_query('OM ' + str(flag)))
                     answer = cutil.search_keys_dictionary(self.mode_dict, raw_answer)
                     return answer
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(mode) == 2:
                 ch = str(mode[0])
                 md = str(mode[1])
-                assert(ch in self.output_channel_dict), 'Invalid channel argument'
-                assert(md in self.mode_dict), 'Invalid mode argument'
+                assert(ch in self.output_channel_dict), f"Incorrect channel; channel: {list(self.output_channel_dict.keys())}"
+                assert(md in self.mode_dict), f"Invalid argument; channel: {list(self.output_channel_dict.keys())}; mode: {list(self.mode_dict.keys())}"
 
             elif len(mode) == 1:
                 ch = str(mode[0])
-                assert(ch in self.output_channel_dict), 'Invalid channel argument'
+                assert(ch in self.output_channel_dict), f"Incorrect channel; channel: {list(self.output_channel_dict.keys())}"
                 answer = self.test_mode
                 return answer
+            else:
+                assert(1 == 2), f"Invalid argument; channel: {list(self.output_channel_dict.keys())}; mode: {list(self.mode_dict.keys())}"
 
-    def delay_gen_amplitude_offset(self, *amplitude_offset):
+    def delay_generator_amplitude_offset(self, *amplitude_offset):
         if self.test_flag != 'test':
             if len(amplutide) == 3:
                 ch = str(amplutide[0])
@@ -289,19 +258,7 @@ class SR_DG535:
                             (ofst/coef_2) <= self.var_ampl_max:
                                 self.device_write('OA ' + str(flag_1) + ',' + str(ampl/coef_1))
                                 self.device_write('OO ' + str(flag_1) + ',' + str(ofst/coef_2))
-                            else:
-                                general.message("Incorrect amplitude and offset range")
-                                sys.exit()
-                        else:
-                            general.message("You are not in Variable mode")
-                            pass
-                    else:
-                        general.message("Incorrect scaling")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
-            
+
             elif len(amplutide) == 1:
                 ch = str(amplutide[0])
                 if ch in self.output_channel_dict:
@@ -310,12 +267,6 @@ class SR_DG535:
                     answer_2 = float(self.device_query('OO ' + str(flag)))
                     answer = 'Amplitude: ' + str(answer_1) + ' V; ' + 'Offset: ' + str(answer_2) + ' V'
                     return answer
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(amplutide) == 3:
@@ -326,22 +277,30 @@ class SR_DG535:
                 scaling_1 = temp_1[1]
                 ofst = float(temp_2[0])
                 scaling_2 = temp_2[1]
-                assert(ch in self.output_channel_dict), 'Invalid channel'
-                assert(scaling_1 in self.ampl_dict), 'Invalid scaling of amplitude setting'
-                assert(scaling_2 in self.ampl_dict), 'Invalid scaling of offset setting'
+                assert(ch in self.output_channel_dict), f"Incorrect channel; channel: {list(self.output_channel_dict.keys())}"
+                assert(scaling_1 in self.ampl_dict),\
+                    f"Invalid argument; channel: {list(self.output_channel_dict.keys())}; amplutide: float + [' mV', ' V']; offset: float + [' mV', ' V']"
+                assert(scaling_2 in self.ampl_dict),\
+                    f"Invalid argument; channel: {list(self.output_channel_dict.keys())}; amplutide: float + [' mV', ' V']; offset: float + [' mV', ' V']"
                 coef_1 = self.ampl_dict[scaling_1]
                 coef_2 = self.ampl_dict[scaling_2]
-                assert(ampl/coef_1 >= self.var_ampl_min and ampl/coef_1 <= self.var_ampl_max), "Incorrect amplitude range"
-                assert(ofst/coef_2 >= self.var_ampl_min and ofst/coef_2 <= self.var_ampl_max), "Incorrect offset range"
-                assert(ampl/coef_1 + ofst/coef_2 >= self.var_ampl_min and ampl/coef_1 + ofst/coef_2 <= self.var_ampl_max), "Incorrect range"
+                min_a = pg.siFormat( self.var_ampl_min, suffix = 'V', precision = 3, allowUnicode = False)
+                max_a = pg.siFormat( self.var_ampl_max, suffix = 'V', precision = 3, allowUnicode = False)
+                assert(ampl/coef_1 >= self.var_ampl_min and ampl/coef_1 <= self.var_ampl_max), f"Incorrect amplitude. The available rande is from {min_a} to {max_a}"
+                assert(ofst/coef_2 >= self.var_ampl_min and ofst/coef_2 <= self.var_ampl_max), f"Incorrect offset. The available rande is from {min_a} to {max_a}"
+                assert(ampl/coef_1 + ofst/coef_2 >= self.var_ampl_min and ampl/coef_1 + ofst/coef_2 <= self.var_ampl_max), \
+                    f"Incorrect range. The available rande is from {min_a} to {max_a}"
 
             elif len(amplutide) == 1:
                 ch = str(amplutide[0])
-                assert(ch in self.output_channel_dict), 'Invalid channel argument'
+                assert(ch in self.output_channel_dict), f"Incorrect channel; channel: {list(self.output_channel_dict.keys())}"
                 answer = self.test_amplitude_offset
                 return answer
+            else:
+                assert(1 == 2),\
+                    f"Invalid argument; channel: {list(self.output_channel_dict.keys())}; amplutide: float + [' mV', ' V']; offset: float + [' mV', ' V']"
 
-    def delay_gen_output_polarity(self, *polarity):
+    def delay_generator_output_polarity(self, *polarity):
         if self.test_flag != 'test':
             if len(polarity) == 2:
                 ch = str(polarity[0])
@@ -354,13 +313,7 @@ class SR_DG535:
                             general.wait('30 ms')
                             self.device_write('OP ' + str(flag_1) + ',' + str(flag_2))
                         else:
-                            general.message("You are in Variable mode")
-                    else:
-                        general.message("Incorrect polarity")
-                        sys.exit()
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()    
+                            general.message("You are in Variable mode")  
             
             elif len(polarity) == 1:
                 ch = str(polarity[0])
@@ -369,35 +322,31 @@ class SR_DG535:
                     raw_answer = int(self.device_query('OP ' + str(flag)))
                     answer = cutil.search_keys_dictionary(self.polarity_dict, raw_answer)
                     return answer
-                else:
-                    general.message("Invalid channel")
-                    sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(polarity) == 2:
                 ch = str(polarity[0])
                 plr = str(polarity[1])
-                assert(ch in self.output_channel_dict), 'Invalid channel argument'
-                assert(plr in self.polarity_dict), 'Invalid polarity argument'
+                assert(ch in self.output_channel_dict), f"Incorrect channel; channel: {list(self.output_channel_dict.keys())}"
+                assert(plr in self.polarity_dict), f"Incorrect polarity; polarity: {list(self.polarity_dict.keys())}"
 
             elif len(polarity) == 1:
                 ch = str(polarity[0])
-                assert(ch in self.output_channel_dict), 'Invalid channel argument'
+                assert(ch in self.output_channel_dict), f"Incorrect channel; channel: {list(self.output_channel_dict.keys())}"
                 answer = self.test_polarity
                 return answer
+            else:
+                assert(1 == 2), f"Invalid argument; channel: {list(self.output_channel_dict.keys())}; polarity: {list(self.polarity_dict.keys())}"
 
     # TO DO trigger commands
 
-    def delay_gen_command(self, command):
+    def delay_generator_command(self, command):
         if self.test_flag != 'test':
             self.device_write(command)
         elif self.test_flag == 'test':
             pass
 
-    def delay_gen_query(self, command):
+    def delay_generator_query(self, command):
         if self.test_flag != 'test':
             answer = self.device_query(command)
             return answer

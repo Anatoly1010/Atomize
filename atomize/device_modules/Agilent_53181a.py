@@ -5,6 +5,7 @@ import os
 import gc
 import sys
 import pyvisa
+import pyqtgraph as pg
 from pyvisa.constants import StopBits, Parity
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
@@ -28,7 +29,7 @@ class Agilent_53181a:
         # auxilary dictionaries
         self.startarm_dic = {'Immediate': 'IMMediate', 'External': 'EXTernal', }
         self.stoparm_dic = {'Immediate': 'IMMediate', 'External': 'EXTernal', 'Timer': 'TIMer', 'Digits': 'DIGits', }
-        self.scale_dict = {'ks': 1000, 's': 1, 'ms': 0.001, }
+        self.scale_dict = {'ks': 1000, 's': 1, 'ms': 0.001, 'us': 0.000001 }
         self.scalefreq_dict = {'GHz': 1000000000, 'MHz': 1000000, 'kHz': 1000, 'Hz': 1, }
         self.impedance_dict = {'1 M': 1000000, '50': 50, }
 
@@ -122,33 +123,26 @@ class Agilent_53181a:
                         #    general.message('During internal device test errors are found')
                         #    self.status_flag = 0
                         #    sys.exit()
-                    except pyvisa.VisaIOError:
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         self.status_flag = 0
-                        general.message("No connection")
+                        general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message("No connection")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
-                    general.message("No connection")
-                    self.status_flag = 0
-                    sys.exit()
-                except BrokenPipeError:
-                    general.message("No connection")
+
+                except (pyvisa.VisaIOError, BrokenPipeError):
+                    general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
 
         elif self.test_flag == 'test':
             
-            self.test_frequency = 10000
+            self.test_frequency = '10 MHz'
             self.test_impedance = '1 M'
             self.test_coupling = 'AC'
             self.test_gate_stop_mode = 'Immediate'
             self.test_gate_start_mode = 'Immediate'
             self.test_digits = 10
-            self.test_gate_time = 0.1
-            self.test_expect_freq = 10000
+            self.test_gate_time = '10 ms'
+            self.test_expect_freq = '10 MHz'
             self.test_period = 10
 
     def close_connection(self):
@@ -163,7 +157,7 @@ class Agilent_53181a:
             command = str(command)
             self.device.write(command)
         else:
-            general.message("No Connection")
+            general.message(f"No connection {self.__class__.__name__}")
             self.status_flag = 0
             sys.exit()
 
@@ -178,10 +172,10 @@ class Agilent_53181a:
                 answer = self.device.query(command)
                 return answer
             else:
-                general.message('Incorrect interface setting')
+                general.message(f'Incorrect interface setting {self.__class__.__name__}')
                 self.status_flag = 0
         else:
-            general.message("No Connection")
+            general.message(f"No connection {self.__class__.__name__}")
             self.status_flag = 0
             sys.exit()
 
@@ -200,22 +194,21 @@ class Agilent_53181a:
                 # make sure that the channel is correct
                 self.device_write(":FUNC 'FREQ 1'")
                 general.wait('30 ms')
-                answer = float(self.device_query(':READ?'))/1000
+                raw_answer = float(self.device_query(':READ?'))
+                answer = pg.siFormat( raw_answer, suffix = 'Hz', precision = 11, allowUnicode = False)
                 self.device_write(':INIT:CONT ON')
                 return answer
             elif channel == 'CH2':
                 # make sure that the channel is correct
                 self.device_write(":FUNC 'FREQ 2'")
                 general.wait('30 ms')
-                answer = float(self.device_query(':READ?'))/1000
+                raw_answer = float(self.device_query(':READ?'))
+                answer = pg.siFormat( raw_answer, suffix = 'Hz', precision = 11, allowUnicode = False)
                 self.device_write(':INIT:CONT ON')
                 return answer
-            else:
-                general.message('Invalid argument')
-                sys.exit()
 
         elif self.test_flag == 'test':
-            assert(channel == 'CH1' or channel == 'CH2'), 'Invalid channel'
+            assert(channel == 'CH1' or channel == 'CH2'), "Invalid channel; channel: ['CH1', 'CH2']"
             answer = self.test_frequency
             return answer
 
@@ -230,8 +223,6 @@ class Agilent_53181a:
                         self.device_write(":INPut1:IMPedance " + str(flag))
                     elif ch == 'CH2':
                         general.message('The impedance for CH2 is only 50 Ohm')
-                    elif ch == 'CH3':
-                        general.message('Invalid channel')
             elif len(impedance) == 1:
                 ch = str(impedance[0])
                 if ch == 'CH1':
@@ -242,25 +233,20 @@ class Agilent_53181a:
                     answer = '50'
                     general.message('The impedance for CH2 is only 50 Ohm')
                     return answer
-                elif ch == 'CH3':
-                    general.message('Invalid channel')
-            else:
-                general.message('Invalid argument')
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(impedance) == 2:
                 ch = str(impedance[0])
                 imp = str(impedance[1])
-                assert(ch == 'CH1' or ch == 'CH2'), 'Invalid channel is given'
-                assert(imp in self.impedance_dict), 'Invalid impedance is given'
+                assert(ch == 'CH1' or ch == 'CH2'), "Invalid channel; channel: ['CH1', 'CH2']"
+                assert(imp in self.impedance_dict), f'Invalid impedance; impedance: {list( self.impedance_dict.keys() )}'
             elif len(impedance) == 1:
                 ch = str(impedance[0])
-                assert(ch == 'CH1' or ch == 'CH2'), 'Invalid channel is given'
+                assert(ch == 'CH1' or ch == 'CH2'), "Invalid channel; channel: ['CH1', 'CH2']"
                 answer = self.test_impedance
                 return answer
             else:
-                assert(1 == 2), "Incorrect impedance argument"
+                assert(1 == 2), f"Incorrect argument; channel: ['CH1', 'CH2']; impedance: {list( self.impedance_dict.keys() )}"
 
     def freq_counter_coupling(self, *coupling):
         if self.test_flag != 'test':
@@ -271,8 +257,7 @@ class Agilent_53181a:
                     self.device_write(":INPut1:COUPling " + str(cpl))
                 elif ch == 'CH2':
                     general.message('The coupling for CH2 is only AC')
-                elif ch == 'CH3':
-                    general.message('Invalid channel')
+
             elif len(coupling) == 1:
                 ch = str(coupling[0])
                 if ch == 'CH1':
@@ -282,25 +267,20 @@ class Agilent_53181a:
                     answer = 'AC'
                     general.message('The coupling for CH2 is only AC')
                     return answer
-                elif ch == 'CH3':
-                    general.message('Invalid channel')
-            else:
-                general.message('Invalid argument')
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(coupling) == 2:
                 ch = str(coupling[0])
                 cpl = str(coupling[1])
-                assert(ch == 'CH1' or ch == 'CH2'), 'Invalid channel is given'
-                assert(cpl == 'AC' or cpl == 'DC'), 'Invalid coupling is given'
+                assert(ch == 'CH1' or ch == 'CH2'), "Invalid channel; channel: ['CH1', 'CH2']"
+                assert(cpl == 'AC' or cpl == 'DC'), "Invalid coupling; coupling: ['DC', 'AC']"
             elif len(coupling) == 1:
                 ch = str(coupling[0])
-                assert(ch == 'CH1' or ch == 'CH2'), 'Invalid channel is given'
+                assert(ch == 'CH1' or ch == 'CH2'), "Invalid channel; channel: ['CH1', 'CH2']"
                 answer = self.test_coupling
                 return answer
             else:
-                assert(1 == 2), "Incorrect coupling argument"
+                assert(1 == 2), f"Incorrect argument; channel: ['CH1', 'CH2', 'CH3']; coupling: ['DC', 'AC']"
 
     def freq_counter_stop_mode(self, *mode):
         if self.test_flag != 'test':
@@ -309,16 +289,10 @@ class Agilent_53181a:
                 if md in self.stoparm_dic:
                     flag = self.stoparm_dic[md]
                     self.device_write(":FREQuency:ARM:STOP:SOURce " + str(flag))
-                else:
-                    general.message("Invalid stop arm mode")
-                    sys.exit()
             elif len(mode) == 0:
                 raw_answer = self.device_query(":FREQuency:ARM:STOP:SOURce?")
                 answer = cutil.search_keys_dictionary(self.stoparm_dic, raw_answer)
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if  len(mode) == 1:
@@ -326,12 +300,12 @@ class Agilent_53181a:
                 if md in self.stoparm_dic:
                     flag = self.stoparm_dic[md]
                 else:
-                    assert(1 == 2), "Invalid stop arm mode"
+                    assert(1 == 2), f"Invalid stop arm mode; mode: {list(self.stoparm_dic.keys())}"
             elif len(mode) == 0:
                 answer = self.test_gate_stop_mode
                 return answer
             else:
-                assert(1 == 2), "Invalid argument"
+                assert(1 == 2), f"Invalid argument; mode: {list(self.stoparm_dic.keys())}"
 
     def freq_counter_start_mode(self, *mode):
         if self.test_flag != 'test':
@@ -340,16 +314,10 @@ class Agilent_53181a:
                 if md in self.startarm_dic:
                     flag = self.startarm_dic[md]
                     self.device_write(":FREQuency:ARM:START:SOURce " + str(flag))
-                else:
-                    general.message("Invalid start arm mode")
-                    sys.exit()
             elif len(mode) == 0:
                 raw_answer = self.device_query(":FREQuency:ARM:START:SOURce?")
                 answer = cutil.search_keys_dictionary(self.startarm_dic, raw_answer)
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if  len(mode) == 1:
@@ -357,12 +325,12 @@ class Agilent_53181a:
                 if md in self.startarm_dic:
                     flag = self.startarm_dic[md]
                 else:
-                    assert(1 == 2), "Invalid start arm mode"
+                    assert(1 == 2), f"Invalid start arm mode; mode: {list(self.startarm_dic.keys())}"
             elif len(mode) == 0:
                 answer = self.test_gate_start_mode
                 return answer
             else:
-                assert(1 == 2), "Invalid argument"
+                assert(1 == 2), f"Invalid argument; mode: {list(self.startarm_dic.keys())}"
 
     def freq_counter_digits(self, *digits):
         if self.test_flag != 'test':
@@ -370,25 +338,20 @@ class Agilent_53181a:
                 val = int(digits[0])
                 if val >= self.min_digits and val <= self.max_digits:
                     self.device_write(":FREQuency:ARM:STOP:DIGits " + str(val))
-                else:
-                    general.message("Invalid amount of digits")
-                    sys.exit()
             elif len(digits) == 0:
                 answer = int(self.device_query(':FREQuency:ARM:STOP:DIGits?'))
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if  len(digits) == 1:
                 val = int(digits[0])
-                assert(val >= self.min_digits and val <= self.max_digits), "Invalid amount of digits"
+                assert(val >= self.min_digits and val <= self.max_digits),\
+                    f"Invalid amount of digits. The available number of digits is from {self.min_digits} to {self.max_digits}"
             elif len(digits) == 0:
                 answer = self.test_digits
                 return answer
             else:
-                assert(1 == 2), "Invalid argument"
+                assert(1 == 2), "Invalid argument; digits: int [3-15]"
 
     def freq_counter_gate_time(self, *time):
         if self.test_flag != 'test':
@@ -400,18 +363,9 @@ class Agilent_53181a:
                     coef = self.scale_dict[scaling]
                     if tb*coef >= self.min_gate_time and tb*coef <= self.max_gate_time:
                         self.device_write(":FREQuency:ARM:STOP:TIMer " + str(tb*coef))
-                    else:
-                        general.message("Incorrect gate time range")
-                        sys.exit()
-                else:
-                    general.message("Incorrect gate time")
-                    sys.exit()
             elif len(time) == 0:
                 answer = float(self.device_query(":FREQuency:ARM:STOP:TIMer?"))
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(time) == 1:
@@ -420,14 +374,17 @@ class Agilent_53181a:
                 scaling = temp[1]
                 if scaling in self.scale_dict:
                     coef = self.scale_dict[scaling]
-                    assert(tb*coef >= self.min_gate_time and tb*coef <= self.max_gate_time), "Incorrect gate time range"
+                    min_gate = pg.siFormat( self.min_gate_time, suffix = 's', precision = 3, allowUnicode = False)
+                    max_gate = pg.siFormat( self.max_gate_time, suffix = 's', precision = 3, allowUnicode = False)
+                    assert(tb*coef >= self.min_gate_time and tb*coef <= self.max_gate_time),\
+                        f"Incorrect gate time range. The available range is from {min_gate} to {max_gate}"
                 else:
-                    assert(1 == 2), "Incorrect gate time"
+                    assert(1 == 2), "Incorrect gate time; time: float + [' ks', ' s', ' ms', ' us']"
             elif len(time) == 0:
                 answer = self.test_gate_time
                 return answer
             else:
-                assert(1 == 2), "Invalid argument"
+                assert(1 == 2), "Invalid argument; time: float + [' ks', ' s', ' ms', ' us']"
 
     def freq_counter_expected_freq(self, *frequency):
         if self.test_flag != 'test':
@@ -442,36 +399,24 @@ class Agilent_53181a:
                         self.device_write(":FREQuency:EXPected1 "+str(val*coef))
                     elif ch == 'CH2':
                         self.device_write(":FREQuency:EXPected2 "+str(val*coef))
-                    elif ch == 'CH3':
-                        general.message("Invalid channel is given")
-                    else:
-                        general.message("Invalid channel is given")
-                        sys.exit()
-                else:
-                    general.message("Invalid argument")
-                    sys.exit()
             elif len(frequency) == 1:
                 ch = str(frequency[0])
                 if ch == 'CH1':
                     temp = int(self.device_query(':FREQuency:EXPected1:AUTO?'))
                     if temp == 0:
-                        answer = float(self.device_query(":FREQuency:EXPected1?"))
+                        raw_answer = float(self.device_query(":FREQuency:EXPected1?"))
+                        answer = pg.siFormat( raw_answer, suffix = 'Hz', precision = 11, allowUnicode = False)
                         return answer
                     else:
                         general.message("No expected frequency is found")
                 elif ch == 'CH2':
                     temp = int(self.device_query(':FREQuency:EXPected2:AUTO?'))
                     if temp == 0:
-                        answer = float(self.device_query(":FREQuency:EXPected2?"))
+                        raw_answer = float(self.device_query(":FREQuency:EXPected2?"))
+                        answer = pg.siFormat( raw_answer, suffix = 'Hz', precision = 11, allowUnicode = False)
                         return answer
                     else:
                         general.message("No expected frequency is found")
-                else:
-                    general.message("Invalid channel is given")
-                    sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(frequency) == 2:
@@ -481,30 +426,29 @@ class Agilent_53181a:
                 scaling = str(temp[1])
                 if scaling in self.scalefreq_dict:
                     coef = self.scalefreq_dict[scaling]
-                    assert(ch == 'CH1' or ch == 'CH2'), "Invalid channel is given"
+                    assert(ch == 'CH1' or ch == 'CH2'), "Invalid channel; channel: ['CH1', 'CH2']"
                 else:
-                    assert(1 == 2), "Invalid argument"
+                    assert(1 == 2), "Invalid argument; channel: ['CH1', 'CH2']; freq: float + [' GHz', ' MHz', ' kHz', ' Hz']"
             elif len(frequency) == 1:
                 ch = str(frequency[0])
-                assert(ch == 'CH1' or ch == 'CH2'), "Invalid channel is given"
+                assert(ch == 'CH1' or ch == 'CH2'), "Invalid channel; channel: ['CH1', 'CH2']"
                 answer = self.test_expect_freq
             else:
-                assert(1 == 2), "Invalid argument"
+                assert(1 == 2), "Invalid argument; channel: ['CH1', 'CH2']; freq: float + [' GHz', ' MHz', ' kHz', ' Hz']"
 
     def freq_counter_period(self, channel):
         if self.test_flag != 'test':
             if channel == 'CH1':
-                answer = float(self.device_query(':MEASURE:PERiod? (@1)'))*1000000
+                raw_answer = float(self.device_query(':MEASURE:PERiod? (@1)'))
+                answer = pg.siFormat( raw_answer, suffix = 's', precision = 11, allowUnicode = False)
                 return answer
             elif channel == 'CH2':
-                answer = float(self.device_query(':MEASURE:PERiod? (@2)'))*1000000
+                raw_answer = float(self.device_query(':MEASURE:PERiod? (@2)'))
+                answer = pg.siFormat( raw_answer, suffix = 's', precision = 11, allowUnicode = False)
                 return answer
-            else:
-                general.message('Invalid argument')
-                sys.exit()
 
         elif self.test_flag == 'test':
-            assert(channel == 'CH1' or channel == 'CH2'), 'Invalid channel is given'
+            assert(channel == 'CH1' or channel == 'CH2'), "Invalid channel; channel: ['CH1', 'CH2', 'CH3']"
             answer = self.test_period
             return answer
 

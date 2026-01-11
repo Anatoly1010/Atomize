@@ -45,6 +45,14 @@ class Saver_Opener:
             self.test_data_2d = np.meshgrid(self.test_data, self.test_data)
             self.test_file_path = os.path.join(self.path_to_main, 'test')
             self.test_file_param_path = os.path.join(self.path_to_main, 'test.param')
+            try:
+                os.remove( self.test_file_path )
+            except FileNotFoundError:
+                pass
+            try:
+                os.remove( self.test_file_param_path )
+            except FileNotFoundError:
+                pass
 
     def open_1D(self, path, header = 0):
         if self.test_flag != 'test':
@@ -213,9 +221,11 @@ class Saver_Opener:
             np.savetxt(file_for_save, [], fmt='%.6e', delimiter=',', \
                                         newline='\n', header=header, footer='', comments='# ', encoding=None)
             file_for_save.close()
+
         elif self.test_flag == 'test':
             file_for_save = open(filename, mode)
             file_for_save.close()
+            os.remove( filename )
 
     def save_data(self, filename, data, header = '', mode = 'w'):
         if self.test_flag != 'test':
@@ -240,10 +250,19 @@ class Saver_Opener:
                                                     newline='\n', header=header, footer='', comments='# ', encoding=None)
                         file_for_save.close()
 
+            try:
+                os.remove( os.path.join(self.path_to_main, 'temp.csv') )
+            except (TypeError, FileNotFoundError):
+                pass
+            try:
+                os.remove( os.path.join(self.path_to_main, 'temp.param') )
+            except (TypeError, FileNotFoundError):
+                pass
+
         elif self.test_flag == 'test':
             file_for_save = open(filename, mode)
             file_for_save.close()
-            os.remove(filename) 
+            os.remove( filename )
 
     def file_dialog(self, directory = '', mode = 'Open'):
         root = tkinter.Tk()

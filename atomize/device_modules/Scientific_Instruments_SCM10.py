@@ -46,22 +46,16 @@ class Scientific_Instruments_SCM10:
                     try:
                         # test should be here
                         answer = self.device_query('*IDN?')
-                    except pyvisa.VisaIOError:
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         self.status_flag = 0
                         general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message(f"No connection {self.__class__.__name__}")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
+
+                except (pyvisa.VisaIOError, BrokenPipeError):
                     general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
-                except BrokenPipeError:
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0
-                    sys.exit()
+
             elif self.config['interface'] == 'ethernet':
                 try:
                     self.status_flag = 1
@@ -72,24 +66,18 @@ class Scientific_Instruments_SCM10:
                     try:
                         # test should be here
                         answer = self.device_query('*IDN?')
-                    except pyvisa.VisaIOError:
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         general.message(f"No connection {self.__class__.__name__}")
                         self.status_flag = 0
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message(f"No connection {self.__class__.__name__}")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
+
+                except (pyvisa.VisaIOError, BrokenPipeError):
                     general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
-                except BrokenPipeError:
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0
-                    sys.exit()
+
             else:
-                general.message("Incorrect interface setting")
+                general.message(f"Incorrect interface setting {self.__class__.__name__}")
                 self.status_flag = 0
                 sys.exit()
             
@@ -135,12 +123,9 @@ class Scientific_Instruments_SCM10:
             if channel == '1':
                 answer = float(self.device_query('T?').split(' ')[1])
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
         
         elif self.test_flag == 'test':
-            assert(channel == '1'), "Incorrect channel"
+            assert(channel == '1'), "Incorrect channel; channel: ['1']"
             answer = self.test_temperature
             return answer
 

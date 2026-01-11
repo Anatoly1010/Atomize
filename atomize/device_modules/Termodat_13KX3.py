@@ -10,7 +10,6 @@ import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
-
 class Termodat_13KX3:
     #### Basic interaction functions
     def __init__(self):
@@ -76,7 +75,7 @@ class Termodat_13KX3:
                     sys.exit()
 
             else:
-                general.message("Incorrect interface setting")
+                general.message(f"Incorrect interface setting {self.__class__.__name__}")
                 self.status_flag = 0
                 sys.exit()
 
@@ -145,14 +144,11 @@ class Termodat_13KX3:
                 answer = round(float(self.device_read_signed(368, 1)) + 273.15, 1)
                 return answer
             elif channel == '2':
-                answer = round(float(self.device_read_signed(1392, 1)) + 273.1, 1)
+                answer = round(float(self.device_read_signed(1392, 1)) + 273.15, 1)
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
         
         elif self.test_flag == 'test':
-            assert(channel == '1' or channel == '2'), "Incorrect channel"
+            assert(channel == '1' or channel == '2'), "Incorrect channel; channel: ['1', '2']"
             answer = self.test_temperature
             return answer
 
@@ -166,57 +162,36 @@ class Termodat_13KX3:
                         flag = self.channel_dict[ch]
                         if flag <= self.channels:
                             if ch == '1':
-                                self.device_write_signed(369, temp - 273.1, 1)
+                                self.device_write_signed(369, temp - 273.16, 1)
                             elif ch == '2':
-                                self.device_write_signed(1393, temp - 273.1, 1)
-                            else:
-                                general.message("Incorrect channel")
-                        else:
-                            general.message("Invalid channel")
-                            sys.exit()
-                    else:
-                        general.message("Invalid channel")
-                        sys.exit()
-                else:
-                    general.message("Incorrect set point temperature")
-                    sys.exit()
+                                self.device_write_signed(1393, temp - 273.16, 1)
+
             elif len(temperature) == 1:
                 ch = str(temperature[0])
                 if ch in self.channel_dict:
                     flag = self.channel_dict[ch]
                     if flag <= self.channels:
                         if ch == '1':
-                            answer = round(float(self.device_read_signed(369, 1)) + 273.15, 1)
+                            answer = round(float(self.device_read_signed(369, 1)) + 273.16, 1)
                             return answer
                         elif ch == '2':
-                            answer = round(float(self.device_read_signed(1393, 1)) + 273.15, 1)
+                            answer = round(float(self.device_read_signed(1393, 1)) + 273.16, 1)
                             return answer
-                        else:
-                            general.message("Incorrect channel")
-                            sys.exit()
-                    else:
-                        general.message("Incorrect channel")
-                        sys.exit()
-                else:
-                    general.message("Incorrect channel")
-                    sys.exit()
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(temperature) == 2:
                 ch = str(temperature[0])
                 temp = float(temperature[1])
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), "Incorrect channel; channel: ['1', '2']"
                 flag = self.channel_dict[ch]
-                assert(flag <= self.channels), "Invalid channel"
-                assert(temp <= self.temperature_max and temp >= self.temperature_min), 'Incorrect set point temperature is reached'
+                assert(flag <= self.channels), "Incorrect channel; channel: ['1', '2']"
+                assert(temp <= self.temperature_max and temp >= self.temperature_min),\
+                    f'Incorrect set point temperature is reached. The available range is from {self.temperature_min} to {self.temperature_max}'
             elif len(temperature) == 1:
                 ch = str(temperature[0])
-                assert(ch in self.channel_dict), 'Invalid channel argument'
+                assert(ch in self.channel_dict), "Incorrect channel; channel: ['1', '2']"
                 flag = self.channel_dict[ch]
-                assert(flag <= self.channels), "Invalid channel"
+                assert(flag <= self.channels), "Incorrect channel; channel: ['1', '2']"
                 answer = self.test_set_point
                 return answer
 
@@ -228,12 +203,9 @@ class Termodat_13KX3:
             elif channel == '2':
                 answer = round(float(self.device_read_unsigned(1394, 1)), 1)
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
-        
+
         elif self.test_flag == 'test':
-            assert(channel == '1' or channel == '2'), "Incorrect channel"
+            assert(channel == '1' or channel == '2'), "Incorrect channel; channel: ['1', '2']"
             answer = self.test_power
             return answer
 
@@ -244,17 +216,12 @@ class Termodat_13KX3:
                 state = str(sensor[1])
                 if state in self.state_dict:
                     flag = self.state_dict[state]
-                else:
-                    general.message('Incorrect state')
-                    sys.exit()                    
                 if sens in self.channel_dict:
                     if sens == '1':
                         self.device_write_unsigned(384, flag, 0)
                     elif sens == '2':
                         self.device_write_unsigned(1408, flag, 0)
-                else:
-                    general.message('Incorrect loop')
-                    sys.exit()
+
             elif len(sensor) == 1:
                 sens = str(sensor[0])
                 if sens in self.channel_dict:
@@ -266,22 +233,16 @@ class Termodat_13KX3:
                         raw_answer = int(self.device_read_unsigned(1408, 0))
                         answer = cutil.search_keys_dictionary(self.state_dict, raw_answer)
                         return answer
-                else:
-                    general.message('Incorrect loop')
-                    sys.exit()
-            else:
-                general.message('Invalid argument')
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(sensor) == 2:
                 sens = str(sensor[0])
                 state = str(sensor[1])
-                assert(sens in self.channel_dict), 'Invalid loop'
-                assert(state in self.state_dict), 'Invalid state'
+                assert(sens in self.channel_dict), f'Invalid argument; channel: {list(self.channel_dict.keys())}; state: {list(self.state_dict.keys())}'
+                assert(state in self.state_dict), f'Invalid argument; channel: {list(self.channel_dict.keys())}; state: {list(self.state_dict.keys())}'
             elif len(sensor) == 1:
                 sens = str(sensor[0])
-                assert(sens in self.channel_dict), 'Invalid loop'
+                assert(sens in self.channel_dict), f'Invalid argument; channel: {list(self.channel_dict.keys())}; state: {list(self.state_dict.keys())}'
                 answer = self.test_loop_state
                 return answer
 
@@ -289,94 +250,76 @@ class Termodat_13KX3:
         if self.test_flag != 'test':
             if len(prop) == 2:
                 ch = str(prop[0])
-                value = round(float(prop[1]), 1)*10
+                value = round(float(prop[1]), 1) * 10
                 if ch in self.channel_dict:
                     if value >= self.proportional_min and value <= self.proportional_max:
                         if ch == '1':
                             self.device_write_unsigned(386, value, 0)
                         elif ch == '2':
                             self.device_write_unsigned(1410, value, 0)
-                    else:
-                        general.message('Incorrect proportional coefficient')
-                        sys.exit()
-                else:
-                    general.message('Incorrect channel')
-                    sys.exit()
+
             elif len(prop) == 1:
                 ch = str(prop[0])
                 if ch in self.channel_dict:
                     if ch == '1':
-                        answer = int(self.device_read_unsigned(386, 0))/10
+                        answer = int(self.device_read_unsigned(386, 0)) / 10
                         return answer
                     elif ch == '2':
-                        answer = int(self.device_read_unsigned(1410, 0))/10
+                        answer = int(self.device_read_unsigned(1410, 0)) / 10
                         return answer
-                else:
-                    general.message('Incorrect channel')
-                    sys.exit()
-            else:
-                general.message('Invalid argument')
-                sys.exit()
+
         elif self.test_flag != 'test':
             if len(prop) == 2:
                 ch = str(prop[0])
-                value = round(float(prop[1]), 1)*10
-                assert(ch in self.channel_dict), 'Invalid channel'
-                assert(value >= self.proportional_min and value <= self.proportional_max), 'Invalid proportional coefficient'
+                value = round(float(prop[1]), 1) * 10
+                assert(ch in self.channel_dict), 'Invalid argument; channel: ['1', '2']; P: float'
+                assert(value >= self.proportional_min and value <= self.proportional_max),\
+                    f'Invalid proportional coefficient; The available range is from {self.proportional_min} to {self.proportional_max}'
             elif len(prop) == 1:
                 ch = str(prop[0])
-                assert(ch in self.channel_dict), 'Invalid channel'
+                assert(ch in self.channel_dict), 'Invalid argument; channel: ['1', '2']'
                 answer = self.test_proportional
-                return answer                         
+                return answer
             else:
-                general.message('Invalid argument')
+                general.message('Invalid argument; channel: ['1', '2']; P: float')
                 sys.exit()
 
     def tc_derivative(self, *der):
         if self.test_flag != 'test':
             if len(der) == 2:
                 ch = str(der[0])
-                value = round(float(der[1]), 1)*10
+                value = round(float(der[1]), 1) * 10
                 if ch in self.channel_dict:
                     if value >= self.derivative_min and value <= self.derivative_max:
                         if ch == '1':
                             self.device_write_unsigned(388, value, 0)
                         elif ch == '2':
                             self.device_write_unsigned(1412, value, 0)
-                    else:
-                        general.message('Incorrect derivative coefficient')
-                        sys.exit()
-                else:
-                    general.message('Incorrect channel')
-                    sys.exit()
+
             elif len(der) == 1:
                 ch = str(der[0])
                 if ch in self.channel_dict:
                     if ch == '1':
-                        answer = int(self.device_read_unsigned(388, 0))/10
+                        answer = int(self.device_read_unsigned(388, 0)) / 10
                         return answer
                     elif ch == '2':
-                        answer = int(self.device_read_unsigned(1412, 0))/10
+                        answer = int(self.device_read_unsigned(1412, 0)) / 10
                         return answer
-                else:
-                    general.message('Incorrect channel')
-                    sys.exit()
-            else:
-                general.message('Invalid argument')
-                sys.exit()
+
         elif self.test_flag != 'test':
             if len(der) == 2:
                 ch = str(der[0])
-                value = round(float(der[1]), 1)*10
-                assert(ch in self.channel_dict), 'Invalid channel'
-                assert(value >= self.derivative_min and value <= self.derivative_max), 'Invalid derivative coefficient'
+                value = round(float(der[1]), 1) * 10
+                assert(ch in self.channel_dict), 'Invalid argument; channel: ['1', '2']; D: float'
+                assert(value >= self.derivative_min and value <= self.derivative_max),\
+                    f'Invalid derivative coefficient; The available range is from {self.derivative_min} to {self.derivative_max}'
             elif len(der) == 1:
                 ch = str(der[0])
-                assert(ch in self.channel_dict), 'Invalid channel'
+                assert(ch in self.channel_dict), 'Invalid argument; channel: ['1', '2']'
                 answer = self.test_derivative
                 return answer                         
             else:
-                general.message('Invalid argument')
+                general.message('Invalid argument; channel: ['1', '2']; D: float')
                 sys.exit()
 
     def tc_integral(self, *integ):
@@ -390,12 +333,7 @@ class Termodat_13KX3:
                             self.device_write_unsigned(387, value, 0)
                         elif ch == '2':
                             self.device_write_unsigned(1411, value, 0)
-                    else:
-                        general.message('Incorrect integral coefficient')
-                        sys.exit()
-                else:
-                    general.message('Incorrect channel')
-                    sys.exit()
+
             elif len(integ) == 1:
                 ch = str(integ[0])
                 if ch in self.channel_dict:
@@ -405,25 +343,21 @@ class Termodat_13KX3:
                     elif ch == '2':
                         answer = int(self.device_read_unsigned(1411, 0))
                         return answer
-                else:
-                    general.message('Incorrect channel')
-                    sys.exit()
-            else:
-                general.message('Invalid argument')
-                sys.exit()
+
         elif self.test_flag != 'test':
             if len(integ) == 2:
                 ch = str(integ[0])
                 value = round(float(integ[1]), 1)
-                assert(ch in self.channel_dict), 'Invalid channel'
-                assert(value >= self.integral_min and value <= self.integral_max), 'Invalid integral coefficient'
+                assert(ch in self.channel_dict), 'Invalid argument; channel: ['1', '2']; I: int'
+                assert(value >= self.integral_min and value <= self.integral_max),\
+                    f'Invalid integral coefficient; The available range is from {self.integral_min} to {self.integral_max}'
             elif len(integ) == 1:
                 ch = str(integ[0])
-                assert(ch in self.channel_dict), 'Invalid channel'
+                assert(ch in self.channel_dict), 'Invalid argument; channel: ['1', '2']'
                 answer = self.test_integral
                 return answer                         
             else:
-                general.message('Invalid argument')
+                general.message('Invalid argument; channel: ['1', '2']; I: int')
                 sys.exit()
 
 def main():

@@ -55,7 +55,7 @@ class Lakeshore_332:
                         if answer == 0:
                             self.status_flag = 1
                         else:
-                            general.message('During internal device test errors are found')
+                            general.message(f'During internal device test errors were found {self.__class__.__name__}')
                             self.status_flag = 0
                             sys.exit()
                     except BrokenPipeError:
@@ -82,22 +82,14 @@ class Lakeshore_332:
                         if answer == 0:
                             self.status_flag = 1
                         else:
-                            general.message('During internal device test errors are found')
+                            general.message(f'During internal device test errors are found {self.__class__.__name__}')
                             self.status_flag = 0
                             sys.exit()
-                    except pyvisa.VisaIOError:
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         self.status_flag = 0
                         general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
-                    except BrokenPipeError:
-                        general.message(f"No connection {self.__class__.__name__}")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0
-                    sys.exit()
-                except BrokenPipeError:
+                except (pyvisa.VisaIOError, BrokenPipeError):
                     general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
@@ -160,12 +152,9 @@ class Lakeshore_332:
             elif channel == 'B':
                 answer = float(self.device_query('KRDG? B'))
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
-        
+
         elif self.test_flag == 'test':
-            assert(channel == 'A' or channel == 'B'), "Incorrect channel"
+            assert(channel == 'A' or channel == 'B'), "Incorrect channel; channel: ['A', 'B']"
             answer = self.test_temperature
             return answer
 
@@ -176,27 +165,22 @@ class Lakeshore_332:
                     temp = float(temp[0])
                     if temp <= self.temperature_max and temp >= self.temperature_min:
                         self.device.write('SETP ' + str(self.loop_config) + ',' + str(temp))
-                    else:
-                        general.message("Incorrect set point temperature")
-                        sys.exit()
+
                 elif len(temp) == 0:
                     answer = float(self.device_query('SETP? ' + str(self.loop_config)))
                     return answer   
-                else:
-                    general.message("Invalid argument")
-                    sys.exit()
-            else:
-                general.message("Invalid loop")
-                sys.exit()              
-
+        
         elif self.test_flag == 'test':
             if len(temp) == 1:
                 temp = float(temp[0])
-                assert(temp <= self.temperature_max and temp >= self.temperature_min), 'Incorrect set point temperature is reached'
-                assert(int(self.loop_config) in self.loop_list), 'Invalid loop argument'
+                assert(temp <= self.temperature_max and temp >= self.temperature_min),\
+                    f'Incorrect set point temperature is reached. The available range is from {self.temperature_min} to {self.temperature_max}'
+                assert(int(self.loop_config) in self.loop_list), f'Invalid loop argument. Check the configuration file; loop: {self.loop_list}'
             elif len(temp) == 0:
                 answer = self.test_set_point
                 return answer
+            else:
+                assert(1 == 2), f"Invalid set point argument; temp: float; channel: ['A', 'B']"
 
     def tc_heater_range(self, *heater):
         if self.test_flag != 'test':
@@ -206,33 +190,25 @@ class Lakeshore_332:
                     flag = self.heater_dict[hr]
                     if int(self.loop_config) in self.loop_list:
                         self.device_write("RANGE " + str(self.loop_config) + ',' + str(flag))
-                    else:
-                        general.message('Invalid loop')
-                        sys.exit()
-                else:
-                    general.message("Invalid heater range")
-                    sys.exit()
+
             elif len(heater) == 0:
                 raw_answer = int(self.device_query("RANGE? " + str(self.loop_config)))
                 answer = cutil.search_keys_dictionary(self.heater_dict, raw_answer)
                 return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()
 
         elif self.test_flag == 'test':                           
             if  len(heater) == 1:
                 hr = str(heater[0])
                 if hr in self.heater_dict:
                     flag = self.heater_dict[hr]
-                    assert(int(self.loop_config) in self.loop_list), 'Invalid loop argument'
+                    assert(int(self.loop_config) in self.loop_list), f'Invalid loop argument. Check the configuration file; loop: {self.loop_list}'
                 else:
-                    assert(1 == 2), "Invalid heater range"
+                    assert(1 == 2), f"Invalid heater range; heater: {list(self.heater_dict.keys())}"
             elif len(heater) == 0:
                 answer = self.test_heater_range
                 return answer
             else:
-                assert(1 == 2), "Invalid heater range"
+                assert(1 == 2), f"Invalid heater range; heater: {list(self.heater_dict.keys())}"
 
     def tc_heater_power(self):
         if self.test_flag != 'test':
@@ -241,12 +217,9 @@ class Lakeshore_332:
                 answer = float(self.device_query('HTR? ' + str(self.loop_config)))
                 full_answer = [answer, answer1]
                 return full_answer
-            else:
-                general.message('Invalid loop')
-                sys.exit()                 
-
+        
         elif self.test_flag == 'test':
-            assert(int(self.loop_config) in self.loop_list), 'Invalid loop argument'
+            assert(int(self.loop_config) in self.loop_list), f'Invalid loop argument. Check the configuration file; loop: {self.loop_list}'
             answer1 = self.test_heater_range
             answer = self.test_heater_percentage
             full_answer = [answer, answer1]
@@ -256,17 +229,9 @@ class Lakeshore_332:
         if self.test_flag != 'test':
             if len(sensor) == 1:
                 sens = int(sensor[0])
-                if self.loop_config in self.loop_list:
-                    pass
-                else:
-                    general.message('Invalid loop')
-                    sys.exit()
                 if sens in self.sens_dict:
                     flag = self.sens_dict[sens]
                     self.device_write('CSET '+ str(self.loop_config) + ',' + str(flag) +',0,2')
-                else:
-                    general.message('Invalid sensor')
-                    sys.exit()
 
             elif len(sensor) == 0:
                 raw_answer1 = self.device_query('CSET?' + str(self.loop_config))
@@ -280,8 +245,8 @@ class Lakeshore_332:
         elif self.test_flag == 'test':
             if len(sensor) == 1:
                 sens = int(sensor[0])
-                assert(self.loop_config in self.loop_list), 'Invalid loop argument'
-                assert(sens in self.sens_dict), 'Invalid sensor'
+                assert(self.loop_config in self.loop_list), f'Invalid loop argument. Check the configuration file; loop: {self.loop_list}'
+                assert(sens in self.sens_dict), f'Invalid sensor argument; sensor: {list(self.sens_dict.keys())}'
             elif len(sensor) == 0:
                 answer = self.test_sensor
                 return answer
@@ -304,9 +269,7 @@ class Lakeshore_332:
                     elif flag == 3:
                         self.device_write('LOCK 0,123')
                         self.device_write('MODE 1')
-                else:
-                    general.message("Invalid argument")
-                    sys.exit()
+
             elif len(lock) == 0:
                 raw_answer1 = self.device_query('LOCK?')
                 if self.config['interface'] == 'gpib':
@@ -329,10 +292,7 @@ class Lakeshore_332:
                 elif answer1 == 0 and answer2 == 1:
                     answer_flag = 3
                     answer = cutil.search_keys_dictionary(self.lock_dict, answer_flag)
-                    return answer
-            else:
-                general.message("Invalid argument")
-                sys.exit()                      
+                    return answer                 
 
         elif self.test_flag == 'test':
             if len(lock) == 1:
@@ -340,12 +300,12 @@ class Lakeshore_332:
                 if lk in self.lock_dict:
                     flag = self.lock_dict[lk]
                 else:
-                    assert(1 == 2), "Invalid lock argument"
+                    assert(1 == 2), f"Invalid lock argument; lock: {list( self.lock_dict.keys() )}"
             elif len(lock) == 0:
                 answer = self.test_lock
                 return answer    
             else:
-                assert(1 == 2), "Invalid argument"
+                assert(1 == 2), f"Invalid lock argument; lock: {list( self.lock_dict.keys() )}"
 
     def tc_command(self, command):
         if self.test_flag != 'test':

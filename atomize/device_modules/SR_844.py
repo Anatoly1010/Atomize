@@ -5,6 +5,7 @@ import os
 import gc
 import sys
 import pyvisa
+import pyqtgraph as pg
 from pyvisa.constants import StopBits, Parity
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
@@ -88,29 +89,22 @@ class SR_844:
                         self.device_write('*CLS')
                         self.ref_freq = float( self.device_query( 'FREQ?' ) )
                         self.mode_2f = int( self.device_query( 'HARM?' ) )
-                    except pyvisa.VisaIOError:
+                    except (pyvisa.VisaIOError, BrokenPipeError):
                         self.status_flag = 0
                         general.message(f"No connection {self.__class__.__name__}")
                         sys.exit();
-                    except BrokenPipeError:
-                        general.message(f"No connection {self.__class__.__name__}")
-                        self.status_flag = 0
-                        sys.exit()
-                except pyvisa.VisaIOError:
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0
-                    sys.exit()
-                except BrokenPipeError:
+
+                except (pyvisa.VisaIOError, BrokenPipeError):
                     general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
 
         elif self.test_flag == 'test':
             self.test_signal = 0.001
-            self.test_frequency = 10000
-            self.test_phase = 10
+            self.test_frequency = '10 kHz'
+            self.test_phase = '10 deg'
             self.test_timeconstant = '10 ms'
-            self.test_amplitude = 0.3
+            self.test_amplitude = '300 mV'
             self.test_sensitivity = '100 mV'
             self.test_lp_filter = '6 dB'
             self.test_ref_mode = 'Internal'
@@ -155,34 +149,40 @@ class SR_844:
             return answer
 
     def lock_in_ref_frequency(self, *frequency):
+        min_f = pg.siFormat( self.ref_freq_min, suffix = 'Hz', precision = 3, allowUnicode = False)
+        max_f = pg.siFormat( self.ref_freq_max, suffix = 'Hz', precision = 3, allowUnicode = False)
+        min_2f = pg.siFormat( self.ref_freq_2f_min, suffix = 'Hz', precision = 3, allowUnicode = False)
+
         if self.test_flag != 'test':
             if len(frequency) == 1:
-                freq = float(frequency[0])
+                freq_str = str(frequency[0])
+                freq = pg.siEval( freq_str )
+
                 if self.mode_2f == 0:
                     assert( freq >= self.ref_freq_min and freq <= self.ref_freq_max ), \
-                            f"Incorrect reference frequency. The available range is: {self.ref_freq_min} - {self.ref_freq_max} Hz"
+                            f"Incorrect reference frequency. The available range is from {min_f} to {max_f}"
                     self.device_write('FREQ '+ str(freq))
 
                 elif self.mode_2f == 1:
                     assert( freq >= self.ref_freq_2f_min and freq <= self.ref_freq_max ), \
-                            f"Incorrect reference frequency in 2F mode. The available range is: {self.ref_freq_2f_min} - {self.ref_freq_max} Hz"
+                            f"Incorrect reference frequency in 2F mode.  The available range is from {min_2f} to {max_f}"
                     self.device_write('FREQ '+ str(freq))
 
             elif len(frequency) == 0:
                 self.ref_freq = float(self.device_query('FREQ?'))
-                return self.ref_freq
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
+                answer = pg.siFormat( self.ref_freq, suffix = 'Hz', precision = 7, allowUnicode = False)
+                return raw_answer
 
         elif self.test_flag == 'test':
             if len(frequency) == 1:
                 freq = float(frequency[0])
                 assert(freq >= self.ref_freq_min and freq <= self.ref_freq_max), \
-                            f"Incorrect reference frequency. The available range is: {self.ref_freq_min} - {self.ref_freq_max} Hz"
+                            f"Incorrect frequency. The available range is from {min_f} to {max_f}"
             elif len(frequency) == 0:
                 answer = self.test_frequency
                 return answer
+            else:
+                assert( 1 == 2 ), "Incorrect argument; frequency: float + [' MHz', ' kHz', ' Hz', ' mHz']"
 
     def lock_in_phase(self, *degree):
         if self.test_flag != 'test':
@@ -190,24 +190,20 @@ class SR_844:
                 degs = float(degree[0])
                 if degs >= -360 and degs <= 360:
                     self.device_write('PHAS '+str(degs))
-                else:
-                    general.message("Incorrect phase")
-                    sys.exit()
+
             elif len(degree) == 0:
                 answer = float(self.device_query('PHAS?'))
-                return answer
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
+                return f"{answer} deg"
 
         elif self.test_flag == 'test':
             if len(degree) == 1:
                 degs = float(degree[0])
-                assert(degs >= -360 and degs <= 360), \
-                            f"Incorrect phase is used. The available range is: {-360} - {360}"
+                assert(degs >= -360 and degs <= 360), f"Incorrect phase. The available range is from {-360} to {360}"
             elif len(degree) == 0:
                 answer = self.test_phase
                 return answer
+            else:
+                assert( 1 == 2 ), "Incorrect argument; phase: float"
 
     def lock_in_auto_phase(self):
         """
@@ -241,16 +237,16 @@ class SR_844:
         elif self.test_flag == 'test':
             if len(timeconstant) == 1:
                 tc = timeconstant[0]
-                assert( isinstance(tc, str) ), "Incorrect argument is used. The time constant should be in the form: str(int + ' ' + [us, ms, s, ks])"
+                assert( isinstance(tc, str) ), "Incorrect argument; time_constant: int + [' us', ' ms', ' s', ' ks']"
                 val, val_key, b = cutil.search_and_limit_keys_dictionary( self.timeconstant_dict, \
                                     cutil.parse_pg(tc, self.helper_tc_list)[0], 100e-6, 30e3 )
-                assert( val_key in self.timeconstant_dict ), "Incorrect argument is used. The time constant should be in the form: str(int + ' ' + [us, ms, s, ks])"
+                assert( val_key in self.timeconstant_dict ), "Incorrect argument; time_constant: int + [' us', ' ms', ' s', ' ks']"
 
             elif len(timeconstant) == 0:
                 answer = self.test_timeconstant
                 return answer
             else:
-                assert( 1 == 2), "Incorrect argument is used. The time constant should be in the form: str(int + ' ' + [us, ms, s, ks])"
+                assert( 1 == 2), "Incorrect argument; time_constant: int + [' us', ' ms', ' s', ' ks']"
 
     def lock_in_get_data(self, *channel):
         if self.test_flag != 'test':
@@ -290,7 +286,7 @@ class SR_844:
                 return answer
             elif len(channel) == 1:
                 assert(int(channel[0]) == 1 or int(channel[0]) == 2 or \
-                    int(channel[0]) == 3 or int(channel[0]) == 4), 'Invalid channel is given'
+                    int(channel[0]) == 3 or int(channel[0]) == 4), "Invalid channel; channel: ['1', '2', '3', '4']"
                 answer = self.test_signal
                 return answer
             elif len(channel) == 2 and int(channel[0]) == 1 and int(channel[1]) == 2:
@@ -299,6 +295,8 @@ class SR_844:
             elif len(channel) == 3 and int(channel[0]) == 1 and int(channel[1]) == 2 and int(channel[2]) == 3:
                 x = y = r = self.test_signal
                 return x, y, r
+            else:
+                assert( 1 == 2 ), "Incorrect argument; channel1: int, channel2: int, channel3: int"
 
     def lock_in_sensitivity(self, *sensitivity):
         if self.test_flag != 'test':
@@ -319,16 +317,16 @@ class SR_844:
         elif self.test_flag == 'test':
             if len(sensitivity) == 1:
                 sens = sensitivity[0]
-                assert( isinstance(sens, str) ), "Incorrect argument is used. The sensitivity should be in the form: str(int + ' ' + [nV, uV, mV, V])"
+                assert( isinstance(sens, str) ), "Incorrect argument; sensitivity: int + [' nV', ' uV', ' mV', ' V']"
                 val, val_key, b = cutil.search_and_limit_keys_dictionary( self.sensitivity_dict, \
                                     cutil.parse_pg(sens, self.helper_sens_list)[0], 100e-9, 1e0 )
-                assert( val_key in self.sensitivity_dict ), "Incorrect argument is used. The sensitivity should be in the form: str(int + ' ' + [nV, uV, mV, V])"
+                assert( val_key in self.sensitivity_dict ), "Incorrect argument; sensitivity: int + [' nV', ' uV', ' mV', ' V']"
 
             elif len(sensitivity) == 0:
                 answer = self.test_sensitivity
                 return answer
             else:
-                assert( 1 == 2), "Incorrect argument is used. The sensitivity should be in the form: str(int + ' ' + [nV, uV, mV, V])"
+                assert( 1 == 2), "Incorrect argument; sensitivity: int + [' nV', ' uV', ' mV', ' V']"
 
     def lock_in_auto_sensitivity(self):
         """
@@ -365,16 +363,11 @@ class SR_844:
                 if md in self.ref_mode_dict:
                     flag = self.ref_mode_dict[md]
                     self.device_write("FMOD "+ str(flag))
-                else:
-                    general.message("Invalid mode")
-                    sys.exit()
+
             elif len(mode) == 0:
                 raw_answer = int(self.device_query("FMOD?"))
                 answer = cutil.search_keys_dictionary(self.ref_mode_dict, raw_answer)
                 return answer
-            else:
-                general.message("Invalid argumnet")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(mode) == 1:
@@ -382,11 +375,13 @@ class SR_844:
                 if md in self.ref_mode_dict:
                     pass
                 else:
-                    assert(1 == 2), f"Incorrect ref mode is used. The only available options are: {self.ref_mode_dict}"
+                    assert(1 == 2), f"Incorrect mode; mode: {list(self.ref_mode_dict.keys())}"
             elif len(mode) == 0:
                 answer = self.test_ref_mode
                 return answer
- 
+            else:
+                assert( 1 == 2 ), f"Incorrect argument; mode: {list(self.ref_mode_dict.keys())}"
+
     def lock_in_lp_filter(self, *mode):
         if self.test_flag != 'test':
             if len(mode) == 1:
@@ -394,16 +389,11 @@ class SR_844:
                 if md in self.lp_fil_dict:
                     flag = self.lp_fil_dict[md]
                     self.device_write("OFSL "+ str(flag))
-                else:
-                    general.message("Invalid mode")
-                    sys.exit()
+
             elif len(mode) == 0:
                 raw_answer = int(self.device_query("OFSL?"))
                 answer = cutil.search_keys_dictionary(self.lp_fil_dict, raw_answer)
                 return answer
-            else:
-                general.message("Invalid argumnet")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(mode) == 1:
@@ -411,44 +401,46 @@ class SR_844:
                 if md in self.lp_fil_dict:
                     pass
                 else:
-                    assert(1 == 2), f"Incorrect low pass filter is used. The only available options are: {self.lp_fil_dict}"
+                    assert(1 == 2), f"Incorrect low pass filter; filter: {list(self.lp_fil_dict.keys())}"
             elif len(mode) == 0:
                 answer = self.test_lp_filter
                 return answer
+            else:
+                assert( 1 == 2 ), f"Incorrect argument; filter: {list(self.lp_fil_dict.keys())}"
 
     def lock_in_harmonic(self, *harmonic):
+        min_f = pg.siFormat( self.ref_freq_min, suffix = 'Hz', precision = 3, allowUnicode = False)
+        max_f = pg.siFormat( self.ref_freq_max, suffix = 'Hz', precision = 3, allowUnicode = False)
+        min_2f = pg.siFormat( self.ref_freq_2f_min, suffix = 'Hz', precision = 3, allowUnicode = False)
+
         if self.test_flag != 'test':
             if len(harmonic) == 1:
                 harm = int(harmonic[0]) - 1
 
                 if harm == 1:
                     assert( self.ref_freq <= self.ref_freq_max and  self.ref_freq >= self.ref_freq_2f_min ), \
-                            f"Incorrect reference frequency. \
-                                        The available range is: {self.ref_freq_2f_min} - {self.ref_freq_max} Hz"
+                            f"Incorrect reference frequency. The available range is from {min_2f} to {max_f}"
                 elif harm == 0:
                     assert( self.ref_freq <= self.ref_freq_max and self.ref_freq >= self.ref_freq_min ), \
-                            f"Incorrect reference frequency. \
-                                        The available range is: {self.ref_freq_min} - {self.ref_freq_max} Hz"
+                           f"Incorrect reference frequency. The available range is from {min_f} to {max_f}"
 
                 self.device_write('HARM '+ str(harm))
 
             elif len(harmonic) == 0:
                 self.mode_2f = int(self.device_query("HARM?"))
                 return self.mode_2f
-            else:
-                general.message("Invalid Argument")
-                sys.exit()
 
         elif self.test_flag == 'test':
             if len(harmonic) == 1:
                 harm = int(harmonic[0])
-                assert(harm <= self.harm_max and harm >= self.harm_min), f"Incorrect harmonic is reached. \
-                                                    The available range is: {self.harm_min} - {self.harm_max}"
-
+                assert(harm <= self.harm_max and harm >= self.harm_min), \
+                    f"Incorrect harmonic. The available range is from {self.harm_min} to {self.harm_max}"
             elif len(harmonic) == 0:
                 answer = self.mode_2f
                 return answer
-
+            else:
+                assert( 1 == 2 ), f"Incorrect argument; harmonic: int [{self.harm_min} {self.harm_max}]"
+    
     def lock_in_command(self, command):
         if self.test_flag != 'test':
             self.device_write(command)

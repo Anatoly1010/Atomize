@@ -217,7 +217,7 @@ class L_card_L502:
                 # open card
                 self.hCard = self.libX.X502_Create()
                 if self.hCard == None:
-                    general.message("No card found...")
+                    general.message(f"No card found {self.__class__.__name__}")
                     sys.exit()
 
                 # connect to the first found card
@@ -359,16 +359,10 @@ class L_card_L502:
                 if self.clock_mode == 0:
                     if rate in self.ref_clock_list:
                         self.reference_clock = rate
-                    else:
-                        general.message('Incorrect reference clock for Internal mode; Should be 1.5 or 2.0 MHz')
-                        sys.exit()
 
                 elif self.clock_mode == 1:
                     if rate <= 1.5:
                         self.reference_clock = rate
-                    else:
-                        general.message('Incorrect reference clock for External mode; Should be less than 1.5 MHz')
-                        sys.exit()
 
             elif len(ref_clock) == 0:
                 return str(self.reference_clock) + ' MHz'
@@ -379,16 +373,16 @@ class L_card_L502:
             if len(ref_clock) == 1:
                 rate = round( float(ref_clock[0]), 1 )
                 if self.clock_mode == 0:
-                    assert(rate in self.ref_clock_list), "Incorrect reference clock for Internal mode; Should be 1.5 or 2.0 MHz"
+                    assert(rate in self.ref_clock_list), f"Incorrect reference clock for Internal mode. The available clock are {self.ref_clock_list}"
                 elif self.clock_mode == 1:
-                    assert(rate <= 1.5), 'Incorrect reference clock for External mode; Should be less than 1.5 MHz'
+                    assert(rate <= 1.5), 'Incorrect reference clock for External mode. The available range is from 0 MHz to 1.5 MHz'
 
                 self.reference_clock = rate
 
             elif len(ref_clock) == 0:
                 return self.test_ref_clock
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), 'Incorrect argument; clock: float'
 
     def digitizer_clock_mode(self, *mode):
         """
@@ -406,9 +400,6 @@ class L_card_L502:
                     self.clock_mode = 0
                 elif md == 'External':
                     self.clock_mode = 1
-                else:
-                    general.message('Incorrect clock mode; Only Internal and External modes are available')
-                    sys.exit()
 
             elif len(mode) == 0:
                 if self.clock_mode == 0:
@@ -421,7 +412,7 @@ class L_card_L502:
 
             if len(mode) == 1:
                 md = str(mode[0])
-                assert(md == 'Internal' or md == 'External'), "Incorrect clock mode; Only Internal and External modes are available"
+                assert(md == 'Internal' or md == 'External'), "Incorrect clock mode; mode: ['Internal', 'External']"
                 if md == 'Internal':
                     self.clock_mode = 0
                 elif md == 'External':
@@ -430,7 +421,7 @@ class L_card_L502:
             elif len(mode) == 0:
                 return self.test_clock_mode
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), "Incorrect argument; mode: ['Internal', 'External']"
 
     def digitizer_flow(self, *flow):
         """
@@ -453,11 +444,11 @@ class L_card_L502:
             
             if len(flow) == 1:
                 fl = str(flow[0])
-                assert(fl in self.flow_dict.values()), "Incorrect flow mode; Should be 'ADC'; 'DIN'; 'DAC1'; 'DAC2'; 'DOUT'; 'AIN'; 'AOUT'"
+                assert(fl in self.flow_dict.values()), "Incorrect flow mode; flow: ['ADC', 'DIN', 'DAC1', 'DAC2', 'DOUT', 'AIN', 'AOUT']"
             elif len(flow) == 0:
                 return self.test_flow_type
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
+                assert( 1 == 2 ), "Incorrect argument; flow: ['ADC', 'DIN', 'DAC1', 'DAC2', 'DOUT', 'AIN', 'AOUT']"
 
     def digitizer_number_of_points(self, *points):
         """
@@ -473,7 +464,7 @@ class L_card_L502:
                 pnts = int(points[0])
                 if pnts < 1:
                     pnts = 1
-                    general.message('Number of points must be more than 1')
+                    general.message('Incorrect number of points. Number of points must be more than 1')
                 else:
                     self.points = pnts
 
@@ -488,15 +479,12 @@ class L_card_L502:
 
             if len(points) == 1:
                 pnts = int(points[0])
-                assert( pnts >= 1 ), "Number of points must be more than 1"
+                assert( pnts >= 1 ), "Incorrect number of points. Number of points must be more than 1"
                 self.points = pnts
             elif len(points) == 0:
                 return self.points
             else:
-                assert( 1 == 2 ), 'Incorrect argument'
-
-
-
+                assert( 1 == 2 ), 'Incorrect argument; points: int'
 
     # internal functions
     def __error_check(self, value):
@@ -534,12 +522,3 @@ class L_card_L502:
 
 if __name__ == '__main__':
     main()
-
-
-
-
-#a = ctypes.c_uint32(0)
-#p = ctypes.create_string_buffer( 32 )   
-#lib.L502_GetSerialList.argtypes = [ctypes.c_char*32, ctypes.c_uint32, ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint32)]
-#pen = lib.L502_GetSerialList( p, ctypes.c_uint32(1), ctypes.c_uint32(0), ctypes.byref(a) )
-#print(pen)
