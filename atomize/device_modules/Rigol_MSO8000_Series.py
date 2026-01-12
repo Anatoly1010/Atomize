@@ -83,27 +83,26 @@ class Rigol_MSO8000_Series:
                     self.status_flag = 1
                     self.device = rm.open_resource(self.config['ethernet_address'])
                     self.device.timeout = self.config['timeout'] # in ms
-                    self.device.read_termination = self.config['read_termination']  # for WORD (a kind of binary) format
+                    #self.device.read_termination = self.config['read_termination']  # for WORD (a kind of binary) format
                     try:
                         self.device_write('*CLS')
                         self.device_write(':WAVeform:MODE RAW')
 
                         # enabling fine adjustment
                         self.device_write(':TIMebase:VERNier')
-                        for i in range self.analog_channels:
+                        for i in range(self.analog_channels):
                             self.device_write(f':CHANnel{i}:VERNier')
                         
-                        self.wg_coupling_1 = self.device_query(":OUTPut1:IMPedance?")
-                        self.wg_coupling_2 = self.device_query(":OUTPut2:IMPedance?")
-                        
+                        self.wg_coupling_1 = self.device_query(":OUTPut1:IMPedance?")[:-1]
+                        self.wg_coupling_2 = self.device_query(":OUTPut2:IMPedance?")[:-1]
                         if self.wg_coupling_1 == 'OMEG':
                             self.wg_coupling_1 = '1 M'
-                        elif self.wg_coupling_1 == 'FIFTy':
+                        elif self.wg_coupling_1 == 'FIFT':
                             self.wg_coupling_1 = '50'
                         
                         if self.wg_coupling_2 == 'OMEG':
                             self.wg_coupling_2 = '1 M'
-                        elif self.wg_coupling_2 == 'FIFTy':
+                        elif self.wg_coupling_2 == 'FIFT':
                             self.wg_coupling_2 = '50'
 
                         self.status_flag = 1
@@ -177,7 +176,7 @@ class Rigol_MSO8000_Series:
 
     def device_read_binary(self, command):
         if self.status_flag == 1:
-            answer = self.device.query_binary_values(command, 'H', is_big_endian=True, container=np.array)
+            answer = self.device.query_binary_values(command, 'H', is_big_endian=False, container=np.array)
             # H for 3034T; h for 2012A
             return answer
         else:
@@ -200,28 +199,28 @@ class Rigol_MSO8000_Series:
                 temp = int(points[0])
                 test_acq_type = self.oscilloscope_acquisition_type()
                 if test_acq_type == 'Average':
-                    poi = min(self.points_list_average, key = lambda x: abs(x - temp))
+                    poi = int(min(self.points_list_average, key = lambda x: abs(x - temp)))
                     if int(poi) != temp:
                         general.message(f"Desired record length cannot be set, the nearest available value of {poi} is used")
                     self.device_write(":ACQuire:MDEPth " + str(poi))
                 else:
-                    poi = min(self.points_list, key = lambda x: abs(x - temp))
+                    poi = int(min(self.points_list, key = lambda x: abs(x - temp)))
                     if int(poi) != temp:
                         general.message(f"Desired record length cannot be set, the nearest available value of {poi} is used")
                     self.device_write(":ACQuire:MDEPth " + str(poi))
 
             elif len(points) == 0:
-                answer = int(self.device_query(':ACQuire:MDEPth?'))
+                answer = int(float(self.device_query(':ACQuire:MDEPth?')))
                 return answer
 
         elif self.test_flag == 'test':
             if len(points) == 1:
                 temp = int(points[0])
                 if self.test_acquisition_type == 'Average':
-                    poi = min(self.points_list, key = lambda x: abs(x - temp))
+                    poi = int(min(self.points_list, key = lambda x: abs(x - temp)))
                     self.test_record_length = poi
                 else:
-                    poi = min(self.points_list_average, key = lambda x: abs(x - temp))
+                    poi = int(min(self.points_list_average, key = lambda x: abs(x - temp)))
                     self.test_record_length = poi
             elif len(points) == 0:
                 answer = self.test_record_length
@@ -237,7 +236,7 @@ class Rigol_MSO8000_Series:
                     flag = self.ac_type_dic[at]
                     self.device_write(":ACQuire:TYPE " + str(flag))
             elif len(ac_type) == 0:
-                raw_answer = str(self.device_query(":ACQuire:TYPE?"))
+                raw_answer = str(self.device_query(":ACQuire:TYPE?"))[:-1]
                 answer  = cutil.search_keys_dictionary(self.ac_type_dic, raw_answer)
                 return answer
 
@@ -265,11 +264,11 @@ class Rigol_MSO8000_Series:
                 if ac == "Average":
                     self.device_write(":ACQuire:AVERages " + str(numave))
                 elif ac == 'Normal':
-                    general.message("Your are in NORM mode")
+                    general.message("You are in NORM mode")
                 elif ac == 'Hres':
-                    general.message("Your are in HRES mode")
+                    general.message("You are in HRES mode")
                 elif ac == 'Peak':
-                    general.message("Your are in PEAK mode")
+                    general.message("You are in PEAK mode")
             elif len(number_of_averages) == 0:
                 answer = int(self.device_query(":ACQuire:AVERages?"))
                 return answer
@@ -294,9 +293,9 @@ class Rigol_MSO8000_Series:
                 if scaling in self.timebase_dict:
                     coef = self.timebase_dict[scaling]
                     if tb/coef >= self.timebase_min and tb/coef <= self.timebase_max:
-                        self.device_write(":TIMebase:MAIN:SCALe "+ str(10*tb/coef))
+                        self.device_write(":TIMebase:MAIN:SCALe "+ str(tb/coef/10))
             elif len(timebase) == 0:
-                raw_answer = 10 * float(self.device_query(":TIMebase:MAIN:SCALe?"))
+                raw_answer = 10*float(self.device_query(":TIMebase:MAIN:SCALe?"))
                 answer = pg.siFormat( raw_answer, suffix = 's', precision = 3, allowUnicode = False)
                 return answer
 
@@ -334,7 +333,7 @@ class Rigol_MSO8000_Series:
     def oscilloscope_start_acquisition(self):
         if self.test_flag != 'test':
             self.device_write(':WAVeform:FORMat WORD')
-            self.device_query('*ESR?;:DIGitize;*OPC?') # return 1, if everything is ok;
+            #self.device_query('*ESR?;:DIGitize;*OPC?') # return 1, if everything is ok;
             # the whole sequence is the following 1-binary format; 2-clearing; 3-digitizing; 4-checking of the completness
         elif self.test_flag == 'test':
             pass
@@ -387,8 +386,15 @@ class Rigol_MSO8000_Series:
             if ch in self.channel_dict:
                 flag = self.channel_dict[ch]
                 if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
+                    self.oscilloscope_stop()
                     self.device_write(':WAVeform:SOURce ' + str(flag))
+                    self.device_write(':WAVeform:MODE RAW')
+                    self.device_write(':WAVeform:FORM WORD')
+                    self.device_write(':WAVeform:POINTs 100000')
+    
+                    # STOP for RAW MODE
                     array_y = self.device_read_binary(':WAVeform:DATA?')
+                    general.message(len(array_y))
                     preamble = self.device_query_ascii(":WAVeform:PREamble?")
                     #x_orig = preamble[5]
                     y_inc = preamble[7]
@@ -427,7 +433,9 @@ class Rigol_MSO8000_Series:
                     integ = np.sum( array_y[self.win_left:self.win_right] ) * ( pg.siEval(self.oscilloscope_time_resolution()) )
                     xs = np.arange( len(array_y) ) * ( self.oscilloscope_time_resolution() )
                     return xs, array_y, integ
-    
+
+
+
     def oscilloscope_area(self, channel):
         if self.test_flag != 'test':
             ch = str(channel)
@@ -670,7 +678,6 @@ class Rigol_MSO8000_Series:
                 md = str(mode[0])
                 if md == 'Auto':
                     self.device_write(":TRIGger:SWEep " + 'AUTO')
-                    :TRIGger:SWEep <sweep>
                 elif md == 'Normal':
                     self.device_write(":TRIGger:SWEep " + 'NORMal')
             elif len(mode) == 0:
