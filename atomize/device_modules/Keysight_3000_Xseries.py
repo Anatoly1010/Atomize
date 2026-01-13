@@ -457,7 +457,7 @@ class Keysight_3000_Xseries:
                         if ch in self.channel_dict:
                             flag = self.channel_dict[ch]
                             if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
-                                self.device_write(':' + str(flag) + ':SCALe ' + str(int(val/coef)))
+                                self.device_write(':' + str(flag) + ':SCALe ' + str(float(val/coef)))
 
             elif len(channel) == 1:
                 ch = str(channel[0])
@@ -510,7 +510,7 @@ class Keysight_3000_Xseries:
                     if ch in self.channel_dict:
                         flag = self.channel_dict[ch]
                         if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
-                            self.device_write(':' + str(flag) + ':OFFSet ' + str(int(val/coef)))
+                            self.device_write(':' + str(flag) + ':OFFSet ' + str(float(val/coef)))
 
             elif len(channel) == 1:
                 ch = str(channel[0])
@@ -713,7 +713,7 @@ class Keysight_3000_Xseries:
         if self.test_flag != 'test':
             if len(level) == 2:
                 ch = str(level[0])
-                lvl = float(level[1])
+                lvl = pg.siEval(level[1])
                 if ch in self.channel_dict:
                     flag = self.channel_dict[ch]
                     if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
@@ -731,7 +731,7 @@ class Keysight_3000_Xseries:
         elif self.test_flag == 'test':
             if len(level) == 2:
                 ch = str(level[0])
-                lvl = float(level[1])
+                lvl = pg.siEval(level[1])
                 assert(ch in self.channel_dict), f'Invalid trigger channel is given; channel: {list(self.trigger_channel_dict.keys())}'
                 flag = self.channel_dict[ch]
                 if flag[0] == 'C' and int(flag[-1]) > self.analog_channels:

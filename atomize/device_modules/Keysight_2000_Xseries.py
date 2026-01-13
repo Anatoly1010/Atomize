@@ -37,7 +37,7 @@ class Keysight_2000_Xseries:
         self.timebase_dict = {'s': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000,};
         self.scale_dict = {'V': 1, 'mV': 1000,};
         self.frequency_dict = {'MHz': 1000000, 'kHz': 1000, 'Hz': 1, 'mHz': 0.001,};
-        self.wavefunction_dic = {'Sin': 'SINusoid', 'Sq': 'SQUare', 'Ramp': 'RAMP', 'Pulse': 'PULSe', 'DC': 'DC', 'Noise': 'NOISe'};
+        self.wavefunction_dic = {'Sin': 'SIN', 'Sq': 'SQU', 'Ramp': 'RAMP', 'Pulse': 'PULS', 'DC': 'DC', 'Noise': 'NOIS'};
         self.ac_type_dic = {'Normal': "NORMal", 'Average': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
 
         self.modulation_wavefunction_dict = {'Sin': 'SIN', 'Sq': 'SQU', 'Ramp': 'RAMP'}
@@ -454,7 +454,7 @@ class Keysight_2000_Xseries:
                         if ch in self.channel_dict:
                             flag = self.channel_dict[ch]
                             if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
-                                self.device_write(':' + str(flag) + ':SCALe ' + str(int(val/coef)))
+                                self.device_write(':' + str(flag) + ':SCALe ' + str(float(val/coef)))
 
             elif len(channel) == 1:
                 ch = str(channel[0])
@@ -507,7 +507,7 @@ class Keysight_2000_Xseries:
                     if ch in self.channel_dict:
                         flag = self.channel_dict[ch]
                         if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
-                            self.device_write(':' + str(flag) + ':OFFSet ' + str(int(val/coef)))
+                            self.device_write(':' + str(flag) + ':OFFSet ' + str(float(val/coef)))
 
             elif len(channel) == 1:
                 ch = str(channel[0])
@@ -707,7 +707,7 @@ class Keysight_2000_Xseries:
         if self.test_flag != 'test':
             if len(level) == 2:
                 ch = str(level[0])
-                lvl = float(level[1])
+                lvl = pg.siEval(level[1])
                 if ch in self.channel_dict:
                     flag = self.channel_dict[ch]
                     if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
@@ -725,7 +725,7 @@ class Keysight_2000_Xseries:
         elif self.test_flag == 'test':
             if len(level) == 2:
                 ch = str(level[0])
-                lvl = float(level[1])
+                lvl = pg.siEval(level[1])
                 assert(ch in self.channel_dict), f'Invalid trigger channel is given; channel: {list(self.trigger_channel_dict.keys())}'
                 flag = self.channel_dict[ch]
                 if flag[0] == 'C' and int(flag[-1]) > self.analog_channels:
@@ -1047,7 +1047,6 @@ class Keysight_2000_Xseries:
             self.device_write(":WGEN:OUTPut 0")
         elif self.test_flag == 'test':
             pass
-
 
     def wave_gen_modulation_type(self, *type):
         """

@@ -35,12 +35,13 @@ class Rigol_MSO8000_Series:
         self.timebase_dict = {'s': 1, 'ms': 1000, 'us': 1000000, 'ns': 1000000000};
         self.scale_dict = {'V': 1, 'mV': 1000};
         self.frequency_dict = {'MHz': 1000000, 'kHz': 1000, 'Hz': 1, 'mHz': 0.001,};
-        self.wavefunction_dic = {'Sin': 'SINusoid', 'Sq': 'SQUare', 'Ramp': 'RAMP', 'Pulse': 'PULSe',
-                            'DC': 'DC', 'Noise': 'NOISe', 'Sinc': 'SINC', 'ERise': 'EXPRise',
-                            'EFall': 'EXPFall', 'ECG': 'ECG', 'Gauss': 'GAUSs',
-                            'Lorentz': 'LORentz', 'Haversine': 'HAVersine'};
+        self.wavefunction_dic = {'Sin': 'SIN', 'Sq': 'SQU', 'Ramp': 'RAMP', 'Pulse': 'PULS',
+                            'DC': 'DC', 'Noise': 'NOIS', 'Sinc': 'SINC', 'ERise': 'EXPR',
+                            'EFall': 'EXPF', 'ECG': 'ECG', 'Gauss': 'GAUS',
+                            'Lorentz': 'LOR', 'Haversine': 'HAV'};
 
         self.ac_type_dic = {'Normal': "NORM", 'Average': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
+        self.mode_dict = {'Normal': "NORM", 'Raw': "RAW"}
         self.wave_gen_interpolation_dictionary = {'On': 1, 'Off': 0}
         self.number_average_list = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, \
                                     32768, 65536]
@@ -49,8 +50,8 @@ class Rigol_MSO8000_Series:
         self.analog_channels = int(self.specific_parameters['analog_channels'])
         self.numave_min = 2
         self.numave_max = 65536
-        self.max_duty = 90
-        self.min_duty = 10
+        self.max_duty = 98
+        self.min_duty = 2
         self.ampl_50_max = 2.5
         self.ampl_50_min = 0.01
         self.ampl_hz_max = 5
@@ -86,7 +87,6 @@ class Rigol_MSO8000_Series:
                     #self.device.read_termination = self.config['read_termination']  # for WORD (a kind of binary) format
                     try:
                         self.device_write('*CLS')
-                        self.device_write(':WAVeform:MODE RAW')
 
                         # enabling fine adjustment
                         self.device_write(':TIMebase:VERNier')
@@ -176,6 +176,16 @@ class Rigol_MSO8000_Series:
 
     def device_read_binary(self, command):
         if self.status_flag == 1:
+            answer = self.device.query_binary_values(command, 'h', is_big_endian=True, container=np.array)
+            # H for 3034T; h for 2012A
+            return answer
+        else:
+            general.message(f"No connection {self.__class__.__name__}")
+            self.status_flag = 0
+            sys.exit()
+
+    def device_read_binary_H(self, command):
+        if self.status_flag == 1:
             answer = self.device.query_binary_values(command, 'H', is_big_endian=False, container=np.array)
             # H for 3034T; h for 2012A
             return answer
@@ -234,7 +244,18 @@ class Rigol_MSO8000_Series:
                 at = str(ac_type[0])
                 if at in self.ac_type_dic:
                     flag = self.ac_type_dic[at]
+
+                    # only when running
+                    self.oscilloscope_run()
                     self.device_write(":ACQuire:TYPE " + str(flag))
+                    # very long operation
+                    while True:
+                        ans = int( self.device_query("*OPC?") )
+                        if ans == 1:
+                            break
+                        else:
+                            general.wait('30 ms')
+
             elif len(ac_type) == 0:
                 raw_answer = str(self.device_query(":ACQuire:TYPE?"))[:-1]
                 answer  = cutil.search_keys_dictionary(self.ac_type_dic, raw_answer)
@@ -327,18 +348,13 @@ class Rigol_MSO8000_Series:
             raw_answer = pg.siEval(self.test_timebase) / self.test_record_length
             answer = pg.siFormat( raw_answer, suffix = 's', precision = 9, allowUnicode = False)
             return answer
-
-    ##########################
     
     def oscilloscope_start_acquisition(self):
         if self.test_flag != 'test':
-            self.device_write(':WAVeform:FORMat WORD')
-            #self.device_query('*ESR?;:DIGitize;*OPC?') # return 1, if everything is ok;
-            # the whole sequence is the following 1-binary format; 2-clearing; 3-digitizing; 4-checking of the completness
+            self.device_write(':CLEar')
+            self.oscilloscope_run()
         elif self.test_flag == 'test':
             pass
-
-    ##########################
 
     def oscilloscope_preamble(self, channel):
         if self.test_flag != 'test':
@@ -380,32 +396,46 @@ class Rigol_MSO8000_Series:
         elif self.test_flag == 'test':
             pass
 
-    def oscilloscope_get_curve(self, channel, integral = False):
+    def oscilloscope_get_curve(self, channel, integral = False, mode = 'Normal'):
         if self.test_flag != 'test':
             ch = str(channel)
             if ch in self.channel_dict:
                 flag = self.channel_dict[ch]
                 if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
-                    self.oscilloscope_stop()
-                    self.device_write(':WAVeform:SOURce ' + str(flag))
-                    self.device_write(':WAVeform:MODE RAW')
-                    self.device_write(':WAVeform:FORM WORD')
-                    self.device_write(':WAVeform:POINTs 100000')
-    
-                    # STOP for RAW MODE
-                    array_y = self.device_read_binary(':WAVeform:DATA?')
-                    general.message(len(array_y))
+
+                    if mode == 'Normal':
+                        self.device_write(':WAVeform:SOURce ' + str(flag))
+                        self.device_write(f':WAVeform:MODE {self.mode_dict[mode]}')
+                        self.device_write(':WAVeform:FORM WORD')
+                    elif mode == 'Raw':
+                        self.oscilloscope_stop()
+                        self.device_write(':WAVeform:SOURce ' + str(flag))
+                        self.device_write(f':WAVeform:MODE {self.mode_dict[mode]}')
+                        self.device_write(':WAVeform:FORM WORD')
+                        points = int(float(self.device_query(':ACQuire:MDEPth?')))
+                        self.device_write(f':WAVeform:POINTs {points}')
+
+                    ac_type = str(self.device_query(":ACQuire:TYPE?"))[:-1]
+                    if ac_type == 'NORM':
+                        array_y = self.device_read_binary(':WAVeform:DATA?')
+                    else:
+                        array_y = self.device_read_binary_H(':WAVeform:DATA?')
+
                     preamble = self.device_query_ascii(":WAVeform:PREamble?")
-                    #x_orig = preamble[5]
+
+                    x_inc = preamble[4]
+                    x_orig = preamble[5]
+                    #x_ref = preamble[6]
                     y_inc = preamble[7]
                     y_orig = preamble[8]
                     y_ref = preamble[9]
-                    #print(y_inc)
-                    #print(y_orig)
-                    #print(y_ref)
-                    array_y = (array_y - y_ref)*y_inc + y_orig
-                    #array_x = list(map(lambda x: resolution*(x+1) + 1000000*x_orig, list(range(points))))
-                    #final_data = list(zip(array_x,array_y))
+
+                    if ac_type == 'NORM':
+                        array_y = (array_y - 128) / 256 * y_inc * 65536
+                    else:
+                        array_y = (array_y - y_ref) * y_inc 
+                    #xs = x_orig + np.arange( len(array_y) ) * x_inc
+
                     if integral == False:
                         return array_y
                     elif integral == True:
@@ -413,7 +443,7 @@ class Rigol_MSO8000_Series:
                         return integ
                     elif integral == 'Both':
                         integ = np.sum( array_y[self.win_left:self.win_right] ) * ( pg.siEval(self.oscilloscope_time_resolution()) )
-                        xs = np.arange( len(array_y) ) * ( pg.siEval(self.oscilloscope_time_resolution()) )
+                        xs = x_orig + np.arange( len(array_y) ) * x_inc
                         return xs, array_y, integ
 
         elif self.test_flag == 'test':
@@ -423,7 +453,13 @@ class Rigol_MSO8000_Series:
             if flag[0] == 'C' and int(flag[-1]) > self.analog_channels:
                 assert(1 == 2), f'Invalid channel is given; channel: {list(self.channel_dict.keys())}'
             else:
-                array_y = np.arange(self.test_record_length)
+                if mode == 'Normal':
+                    array_y = np.arange(1000)
+                    xs = np.arange(1000)
+                elif mode == 'Raw':
+                    array_y = np.arange(self.test_record_length)
+                    xs = np.arange(self.test_record_length)
+
                 if integral == False:
                     return array_y
                 elif integral == True:
@@ -431,10 +467,8 @@ class Rigol_MSO8000_Series:
                     return integ
                 elif integral == 'Both':
                     integ = np.sum( array_y[self.win_left:self.win_right] ) * ( pg.siEval(self.oscilloscope_time_resolution()) )
-                    xs = np.arange( len(array_y) ) * ( self.oscilloscope_time_resolution() )
+                    xs = np.arange( len(array_y) ) * ( pg.siEval(self.oscilloscope_time_resolution()) )
                     return xs, array_y, integ
-
-
 
     def oscilloscope_area(self, channel):
         if self.test_flag != 'test':
@@ -467,7 +501,7 @@ class Rigol_MSO8000_Series:
                         if ch in self.channel_dict:
                             flag = self.channel_dict[ch]
                             if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
-                                self.device_write(':' + str(flag) + ':SCALe ' + str(int(val/coef)))
+                                self.device_write(':' + str(flag) + ':SCALe ' + str(float(val/coef)))
 
             elif len(channel) == 1:
                 ch = str(channel[0])
@@ -521,7 +555,7 @@ class Rigol_MSO8000_Series:
                     if ch in self.channel_dict:
                         flag = self.channel_dict[ch]
                         if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
-                            self.device_write(':' + str(flag) + ':OFFSet ' + str(int(val/coef)))
+                            self.device_write(':' + str(flag) + ':OFFSet ' + str(float(val/coef)))
 
             elif len(channel) == 1:
                 ch = str(channel[0])
@@ -567,10 +601,10 @@ class Rigol_MSO8000_Series:
                 if scaling in self.timebase_dict:
                     coef = self.timebase_dict[scaling]
                     # :TIMebase:DELay:SCALe <scale>
-                    self.device_write(":TIMebase:DELay:OFFSet "+ str(offset/coef))
+                    self.device_write(":TIMebase:OFFSet "+ str(offset/coef))
 
             elif len(h_offset) == 0:
-                raw_answer = float(self.device_query(":TIMebase:DELay:OFFSet?"))
+                raw_answer = float(self.device_query(":TIMebase:OFFSet?"))
                 answer = pg.siFormat( raw_answer, suffix = 's', precision = 6, allowUnicode = False)
                 return answer
 
@@ -590,6 +624,9 @@ class Rigol_MSO8000_Series:
                 assert(1 == 2), "Incorrect horizontal offset argument; h_offset: float + [' s', ' ms', ' us', ' ns']"
 
     def oscilloscope_coupling(self, *coupling):
+        """
+        AC only for 1 M impedance
+        """
         if self.test_flag != 'test':
             if len(coupling) == 2:
                 ch = str(coupling[0])
@@ -597,14 +634,21 @@ class Rigol_MSO8000_Series:
                 if ch in self.channel_dict:
                     flag = self.channel_dict[ch]
                     if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
-                        self.device_write(':' + str(flag) + ':COUPling ' + str(cpl))
+                        imp = self.device_query(":" + str(flag) + ":IMPedance?")[:-1]
+                        if cpl == 'AC':
+                            if imp == 'OMEG':
+                                self.device_write(':' + str(flag) + ':COUPling ' + str(cpl))
+                            elif imp == 'FIFT':
+                                general.message("AC couping is not available for '50' impedance")
+                        else:
+                            self.device_write(':' + str(flag) + ':COUPling ' + str(cpl))
 
             elif len(coupling) == 1:
                 ch = str(coupling[0])
                 if ch in self.channel_dict:
                     flag = self.channel_dict[ch]
                     if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
-                        answer = self.device_query(":" + str(flag) + ":COUPling?")
+                        answer = self.device_query(":" + str(flag) + ":COUPling?")[:-1]
                         return answer
 
         elif self.test_flag == 'test':
@@ -646,7 +690,7 @@ class Rigol_MSO8000_Series:
                 if ch in self.channel_dict:
                     flag = self.channel_dict[ch]
                     if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
-                        raw_answer = self.device_query(":" + str(flag) + ":IMPedance?")
+                        raw_answer = self.device_query(":" + str(flag) + ":IMPedance?")[:-1]
                         if raw_answer == 'OMEG':
                             return '1 M'
                         elif raw_answer == 'FIFT':
@@ -681,7 +725,7 @@ class Rigol_MSO8000_Series:
                 elif md == 'Normal':
                     self.device_write(":TRIGger:SWEep " + 'NORMal')
             elif len(mode) == 0:
-                answer = self.device_query(":TRIGger:SWEep?")
+                answer = self.device_query(":TRIGger:SWEep?")[:-1]
                 return answer
 
         elif self.test_flag == 'test':
@@ -706,7 +750,7 @@ class Rigol_MSO8000_Series:
                         self.device_write(':TRIGger:EDGE:SOURce ' + str(flag))
 
             elif len(channel) == 0:
-                answer = self.device_query(":TRIGger:EDGE:SOURce?")
+                answer = self.device_query(":TRIGger:EDGE:SOURce?")[:-1]
                 return answer
 
         if self.test_flag == 'test':        
@@ -727,7 +771,7 @@ class Rigol_MSO8000_Series:
             if len(level) == 2:
                 self.device_write(':TRIGger:MODE EDGE')
                 ch = str(level[0])
-                lvl = float(level[1])
+                lvl = pg.siEval(level[1])
                 if ch in self.channel_dict:
                     flag = self.channel_dict[ch]
                     if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
@@ -745,7 +789,7 @@ class Rigol_MSO8000_Series:
         elif self.test_flag == 'test':
             if len(level) == 2:
                 ch = str(level[0])
-                lvl = float(level[1])
+                lvl = pg.siEval(level[1])
                 assert(ch in self.channel_dict), f'Invalid trigger channel is given; channel: {list(self.trigger_channel_dict.keys())}'
                 flag = self.channel_dict[ch]
                 if flag[0] == 'C' and int(flag[-1]) > self.analog_channels:
@@ -893,15 +937,15 @@ class Rigol_MSO8000_Series:
         if self.test_flag != 'test':
             ch = channel
             if ch == '1' or ch == '2':
-                answer = self.device_query(f":SOURce{ch}:FUNCtion:SHAPe?")
+                answer = self.device_query(f":SOURce{ch}:FUNCtion:SHAPe?")[:-1]
                 if answer == 'PULS':
                     if len(width) == 1:
                         temp = width[0]
                         wid = int(temp)
-                        self.device_write(f":SOURce{ch}:PULSe:DCYCle {width}")
+                        self.device_write(f":SOURce{ch}:PULSe:DCYCle {wid}")
 
                     elif len(width) == 0:
-                        raw_answer = int(self.device_query(f":SOURce{ch}:PULSe:DCYCle?"))
+                        raw_answer = float(self.device_query(f":SOURce{ch}:PULSe:DCYCle?"))
                         return f"{raw_answer} %"
                 else:
                     general.message(f"You are not using the pulsed function of the waveform generator {self.__class__.__name__}")
@@ -931,11 +975,12 @@ class Rigol_MSO8000_Series:
                         self.device_write(f":SOURce{ch}:FUNCtion:SHAPe {flag}")
 
                 elif len(function) == 0:
-                    raw_answer = str(self.device_query(f":SOURce{ch}:FUNCtion:SHAPe?"))
+                    raw_answer = str(self.device_query(f":SOURce{ch}:FUNCtion:SHAPe?"))[:-1]
                     answer = cutil.search_keys_dictionary(self.wavefunction_dic, raw_answer)
                     return answer
 
         if self.test_flag == 'test':
+            ch = channel
             assert(ch == '1' or ch == '2'), "Incorrect waveform generator channel; channel: ['1', '2']"
             if len(function) == 1:
                 func = str(function[0])
@@ -1072,7 +1117,7 @@ class Rigol_MSO8000_Series:
                         self.device_write( f":OUTPut{ch}:IMPedance {cpl}" )
 
                 elif len(impedance) == 0:
-                    answer = str(self.device_query( f":OUTPut{ch}:IMPedance?" ) )
+                    answer = str(self.device_query( f":OUTPut{ch}:IMPedance?" ) )[:-1]
                     return answer
 
         elif self.test_flag == 'test':

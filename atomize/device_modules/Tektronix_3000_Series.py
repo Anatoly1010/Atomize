@@ -407,7 +407,7 @@ class Tektronix_3000_Series:
                         if ch in self.channel_dict:
                             flag = self.channel_dict[ch]
                             if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
-                                self.device_write(str(flag) + ':SCAle ' + str(int(val/coef)))
+                                self.device_write(str(flag) + ':SCAle ' + str(float(val/coef)))
 
             elif len(channel) == 1:
                 ch = str(channel[0])
@@ -462,7 +462,7 @@ class Tektronix_3000_Series:
                     if ch in self.channel_dict:
                         flag = self.channel_dict[ch]
                         if flag[0] == 'C' and int(flag[-1]) <= self.analog_channels:
-                            self.device_write(str(flag) + ':OFFSet ' + str(int(val/coef)))
+                            self.device_write(str(flag) + ':OFFSet ' + str(float(val/coef)))
 
             elif len(channel) == 1:
                 ch = str(channel[0])

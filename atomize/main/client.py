@@ -92,7 +92,7 @@ class LivePlotClient(object):
             'label': label,
         }
         self.send_to_plotter(meta, arr.astype('float64'))
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
+        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
 
     def plot_z(self, name, arr, extent=None, start_step=None, xname='X axis',\
      xscale='arb. u.', yname='Y axis', yscale='arb. u.', zname='Y axis', zscale='arb. u.', text=''):
@@ -121,7 +121,7 @@ class LivePlotClient(object):
             'value': text,
         }
         self.send_to_plotter(meta, arr.astype('float64'))
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
+        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
 
     def plot_xy(self, name, xs, ys, label='', xname='X axis', xscale='arb. u.',\
      yname='Y axis', yscale='arb. u.', scatter='False', timeaxis='False', vline='False', text=''):
@@ -144,11 +144,11 @@ class LivePlotClient(object):
 
         if len( np.shape( ys ) ) == 1:
             self.send_to_plotter(meta, np.array([xs, ys]).astype('float64'))
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
         elif len( np.shape( ys ) ) == 2:
             # simultaneous plot of two curves
             self.send_to_plotter(meta, np.array([[xs, xs], ys]).astype('float64'))
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
 
     def append_y(self, name, point, start_step=(0, 1), label='', xname='X axis',\
      xscale='arb. u.', yname='Y axis', yscale='arb. u.',scatter='False', timeaxis='False', vline='False'):
@@ -167,7 +167,7 @@ class LivePlotClient(object):
             'TimeAxis': timeaxis,
             'Vline': vline
         })
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
+        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
 
     def append_xy(self, name, x, y, label=''):
         self.send_to_plotter({
@@ -177,7 +177,7 @@ class LivePlotClient(object):
             'rank': 1,
             'label': label,
         })
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
+        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
 
     def append_z(self, name, arr, start_step=None, xname='X axis',\
      xscale='arb. u.', yname='Y axis', yscale='arb. u.', zname='Y axis', zscale='arb. u.'):
@@ -195,7 +195,7 @@ class LivePlotClient(object):
             'Zname': zname,
             }
         self.send_to_plotter(meta, arr.astype('float64'))
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
+        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
 
     def label(self, name, text):
         self.send_to_plotter({
@@ -203,7 +203,7 @@ class LivePlotClient(object):
             'operation': 'label',
             'value': text
         })
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
+        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
 
     def clear(self, name=None):
         self.send_to_plotter({
@@ -222,7 +222,7 @@ class LivePlotClient(object):
             'name': name,
             'operation': 'remove'
         })
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0.]))
+        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
 
     def disconnect_received(self):
         self.is_connected = False
