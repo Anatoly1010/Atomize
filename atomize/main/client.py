@@ -4,6 +4,7 @@ import uuid
 import warnings
 import numpy as np
 import logging
+import platform
 import time
 from PyQt6.QtNetwork import QLocalSocket
 from PyQt6.QtCore import QCoreApplication, QSharedMemory
@@ -22,6 +23,7 @@ class LivePlotClient(object):
 
         self.sock = QLocalSocket()
         self.sock.connectToServer("LivePlot")
+        self.system = platform.system()
 
         if not self.sock.waitForConnected():
             raise EnvironmentError("Couldn't find LivePlotter instance")
@@ -92,7 +94,10 @@ class LivePlotClient(object):
             'label': label,
         }
         self.send_to_plotter(meta, arr.astype('float64'))
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+        if self.system == 'Windows':
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+        else:
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def plot_z(self, name, arr, extent=None, start_step=None, xname='X axis',\
      xscale='arb. u.', yname='Y axis', yscale='arb. u.', zname='Y axis', zscale='arb. u.', text=''):
@@ -121,7 +126,10 @@ class LivePlotClient(object):
             'value': text,
         }
         self.send_to_plotter(meta, arr.astype('float64'))
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+        if self.system == 'Windows':
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+        else:
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def plot_xy(self, name, xs, ys, label='', xname='X axis', xscale='arb. u.',\
      yname='Y axis', yscale='arb. u.', scatter='False', timeaxis='False', vline='False', text=''):
@@ -144,11 +152,17 @@ class LivePlotClient(object):
 
         if len( np.shape( ys ) ) == 1:
             self.send_to_plotter(meta, np.array([xs, ys]).astype('float64'))
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            if self.system == 'Windows':
+                self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            else:
+                self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))        
         elif len( np.shape( ys ) ) == 2:
             # simultaneous plot of two curves
             self.send_to_plotter(meta, np.array([[xs, xs], ys]).astype('float64'))
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            if self.system == 'Windows':
+                self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            else:
+                self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def append_y(self, name, point, start_step=(0, 1), label='', xname='X axis',\
      xscale='arb. u.', yname='Y axis', yscale='arb. u.',scatter='False', timeaxis='False', vline='False'):
@@ -167,7 +181,11 @@ class LivePlotClient(object):
             'TimeAxis': timeaxis,
             'Vline': vline
         })
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+
+        if self.system == 'Windows':
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+        else:
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def append_xy(self, name, x, y, label=''):
         self.send_to_plotter({
@@ -177,7 +195,11 @@ class LivePlotClient(object):
             'rank': 1,
             'label': label,
         })
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+
+        if self.system == 'Windows':
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+        else:
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def append_z(self, name, arr, start_step=None, xname='X axis',\
      xscale='arb. u.', yname='Y axis', yscale='arb. u.', zname='Y axis', zscale='arb. u.'):
@@ -195,7 +217,11 @@ class LivePlotClient(object):
             'Zname': zname,
             }
         self.send_to_plotter(meta, arr.astype('float64'))
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+
+        if self.system == 'Windows':
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+        else:
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def label(self, name, text):
         self.send_to_plotter({
@@ -203,7 +229,11 @@ class LivePlotClient(object):
             'operation': 'label',
             'value': text
         })
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+
+        if self.system == 'Windows':
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+        else:
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def clear(self, name=None):
         self.send_to_plotter({
@@ -222,8 +252,12 @@ class LivePlotClient(object):
             'name': name,
             'operation': 'remove'
         })
-        self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
 
+        if self.system == 'Windows':
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+        else:
+            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
+        
     def disconnect_received(self):
         self.is_connected = False
         #warnings.warn('Disconnected from LivePlotter server, plotting has been disabled')
