@@ -48,6 +48,8 @@ class SR_850:
         self.ref_ampl_max = 5
         self.harm_max = 32767
         self.harm_min = 1
+        self.ref_freq = 50
+        self.harm = 1
 
         # Test run parameters
         # These values are returned by the modules in the test run 
@@ -96,6 +98,9 @@ class SR_850:
                     general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
+            
+            self.ref_freq = float( self.device_query( 'FREQ?' ) )
+            self.harm = int(self.device_query("HARM?"))
 
         elif self.test_flag == 'test':
             self.test_signal = 0.001
@@ -154,11 +159,15 @@ class SR_850:
             if len(frequency) == 1:
                 freq_str = str(frequency[0])
                 freq = pg.siEval( freq_str )
-                if freq >= self.ref_freq_min and freq <= self.ref_freq_max:
+                if (freq >= self.ref_freq_min and freq <= self.ref_freq_max and self.harm * freq <= self.ref_freq_max ):
                     self.device_write('FREQ '+ str(freq))
-
+                    self.ref_freq = freq
+                else:
+                    general.message(f"Incorrect reference frequency. The maximum value of the product of the harmonic and the current reference frequency is {self.ref_freq_max}. The current harmonic is { self.harm}")
+                    
             elif len(frequency) == 0:
                 raw_answer = float(self.device_query('FREQ?'))
+                self.ref_freq = raw_answer
                 answer = pg.siFormat( raw_answer, suffix = 'Hz', precision = 7, allowUnicode = False)
                 return answer
 
@@ -170,6 +179,9 @@ class SR_850:
                 max_f = pg.siFormat( self.ref_freq_max, suffix = 'Hz', precision = 3, allowUnicode = False)
                 assert(freq >= self.ref_freq_min and freq <= self.ref_freq_max), \
                             f"Incorrect frequency. The available range is from {min_f} to {max_f}"
+                assert( self.harm * freq <= self.ref_freq_max ), f"Incorrect reference frequency. The maximum value of the product of the harmonic and the current reference frequency is {self.ref_freq_max}. The current harmonic is { self.harm}"
+                self.ref_freq = freq
+
             elif len(frequency) == 0:
                 answer = self.test_frequency
                 return answer
@@ -443,7 +455,11 @@ class SR_850:
             if len(harmonic) == 1:
                 harm = int(harmonic[0]);
                 if harm <= self.harm_max and harm >= self.harm_min:
-                    self.device_write('HARM '+ str(harm))
+                    if  (harm * self.ref_freq <= self.ref_freq_max ):
+                        self.device_write('HARM '+ str(harm))
+                        self.harm = harm
+                    else:
+                        general.message(f"Incorrect harmonic. The maximum value of the product of the harmonic and the current reference frequency is {self.ref_freq_max}. The current reference frequency is { pg.siFormat( self.ref_freq_max, suffix = 'Hz', precision = 3, allowUnicode = False)}")
 
             elif len(harmonic) == 0:
                 answer = int(self.device_query("HARM?"))
@@ -451,9 +467,12 @@ class SR_850:
 
         elif self.test_flag == 'test':
             if len(harmonic) == 1:
-                harm = float(harmonic[0])
+                harm = int(harmonic[0])
                 assert(harm <= self.harm_max and harm >= self.harm_min), \
                     f"Incorrect harmonic. The available range is from {self.harm_min} to {self.harm_max}"
+                assert( harm * self.ref_freq <= self.ref_freq_max ), f"Incorrect harmonic. The maximum value of the product of the harmonic and the current reference frequency is {self.ref_freq_max}. The current reference frequency is { pg.siFormat( self.ref_freq_max, suffix = 'Hz', precision = 3, allowUnicode = False)}"
+                self.harm = harm
+
             elif len(harmonic) == 0:
                 answer = self.test_harmonic
                 return answer
