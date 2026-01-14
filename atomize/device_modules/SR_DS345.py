@@ -26,7 +26,7 @@ class SR_DS345:
         #### Inizialization
         # setting path to *.ini file
         self.path_current_directory = lconf.load_config_device()
-        self.path_config_file = os.path.join(self.path_current_directory, 'SR_DS345.ini')
+        self.path_config_file = os.path.join(self.path_current_directory, 'SR_DS345_config.ini')
 
         # configuration data
         self.config = cutil.read_conf_util(self.path_config_file)
@@ -81,6 +81,7 @@ class SR_DS345:
                     write_termination=self.config['write_termination'], baud_rate=self.config['baudrate'],
                     data_bits=self.config['databits'], parity=self.config['parity'], stop_bits=self.config['stopbits'])
                     self.device.timeout = self.config['timeout'] # in ms
+                    
                     try:
                         # test should be here
                         self.device_write('*CLS')
@@ -92,17 +93,18 @@ class SR_DS345:
                             general.message(f'During internal device test errors were found {self.__class__.__name__}')
                             sys.exit()
 
+                        """
                         # run-time checks
                         self.ampl = float(self.device_query( f"AMPL? VP" ) ) / 2
                         self.offset = float(self.device_query( f"OFFS?" ) )
                         self.freq = float(self.device_query("FREQ?"))
                         self.tr_source = int(self.device_query('TSRC?'))
                         self.func_type = int(self.device_query('FUNC?'))
-
+                        
                         # Modulation sweep
                         self.start_freq = float(self.device_query("STFR?"))
                         self.stop_freq = float(self.device_query("SPFR?"))
-
+                        """
                     except (pyvisa.VisaIOError, BrokenPipeError):
                         self.status_flag = 0
                         general.message(f"No connection {self.__class__.__name__}")

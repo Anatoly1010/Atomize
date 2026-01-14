@@ -10,7 +10,7 @@ r8104 = key.Rigol_MSO8000_Series()
 r8104.oscilloscope_record_length(10000)
 #general.message(r8104.oscilloscope_record_length())
 
-r8104.oscilloscope_acquisition_type('Average')
+r8104.oscilloscope_acquisition_type('Normal')
 #general.message(r8104.oscilloscope_acquisition_type())
 
 #r8104.oscilloscope_number_of_averages(10)
@@ -29,7 +29,7 @@ r8104.oscilloscope_acquisition_type('Average')
 r8104.oscilloscope_start_acquisition()
 x, y, i = r8104.oscilloscope_get_curve('CH1', mode='Normal', integral = 'Both')
 
-general.plot_1d('1D', x, y, label = 'raw2', xname = 'Delay', xscale = 's', yname = 'Area', yscale = 'V')
+general.plot_1d('1D', x, y, label = 'raw', xname = 'Delay', xscale = 's', yname = 'Area', yscale = 'V')
 
 #r8104.oscilloscope_sensitivity('CH1', '20 mV')
 #general.message(r8104.oscilloscope_sensitivity('CH1'))

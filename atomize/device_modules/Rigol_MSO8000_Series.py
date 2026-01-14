@@ -62,6 +62,7 @@ class Rigol_MSO8000_Series:
         self.sensitivity_max = float(self.specific_parameters['sensitivity_max'])
         self.wave_gen_freq_max = float(self.specific_parameters['wave_gen_freq_max'])
         self.wave_gen_freq_min = float(self.specific_parameters['wave_gen_freq_min'])
+        self.wave_gen = str(self.specific_parameters['wage_gen'])
 
         #integration window
         self.win_left = 0
@@ -92,19 +93,24 @@ class Rigol_MSO8000_Series:
                         self.device_write(':TIMebase:VERNier')
                         for i in range(self.analog_channels):
                             self.device_write(f':CHANnel{i}:VERNier')
-                        
-                        self.wg_coupling_1 = self.device_query(":OUTPut1:IMPedance?")[:-1]
-                        self.wg_coupling_2 = self.device_query(":OUTPut2:IMPedance?")[:-1]
-                        if self.wg_coupling_1 == 'OMEG':
-                            self.wg_coupling_1 = '1 M'
-                        elif self.wg_coupling_1 == 'FIFT':
-                            self.wg_coupling_1 = '50'
-                        
-                        if self.wg_coupling_2 == 'OMEG':
-                            self.wg_coupling_2 = '1 M'
-                        elif self.wg_coupling_2 == 'FIFT':
-                            self.wg_coupling_2 = '50'
 
+                        if self.wave_gen == 'True':
+                        
+                            self.wg_coupling_1 = self.device_query(":OUTPut1:IMPedance?")[:-1]
+                            self.wg_coupling_2 = self.device_query(":OUTPut2:IMPedance?")[:-1]
+                            if self.wg_coupling_1 == 'OMEG':
+                                self.wg_coupling_1 = '1 M'
+                            elif self.wg_coupling_1 == 'FIFT':
+                                self.wg_coupling_1 = '50'
+                            
+                            if self.wg_coupling_2 == 'OMEG':
+                                self.wg_coupling_2 = '1 M'
+                            elif self.wg_coupling_2 == 'FIFT':
+                                self.wg_coupling_2 = '50'
+
+                        else:
+                            pass
+                        
                         self.status_flag = 1
                     except (pyvisa.VisaIOError, BrokenPipeError):
                         general.message(f"No connection {self.__class__.__name__}")

@@ -362,7 +362,7 @@ class SR_865a:
                 sens = sensitivity[0]
                 parsed_value, int_value, a = cutil.parse_pg(sens, self.helper_sens_list)
                 val, val_key, b = cutil.search_and_limit_keys_dictionary( self.sensitivity_dict, parsed_value, 1e-9, 1e0 )
-                self.device_write("SCAL "+ str(flag))
+                self.device_write("SCAL "+ str(val))
            
                 if ( a == 1 ) or ( b == 1 ):
                     general.message(f"Desired sensitivity cannot be set, the nearest available value of {val_key} is used")

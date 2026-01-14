@@ -5,6 +5,7 @@ import os
 import gc
 import sys
 import pyvisa
+import time
 import numpy as np 
 import pyqtgraph as pg
 import atomize.main.local_config as lconf
@@ -41,7 +42,7 @@ class Keysight_4000_Xseries:
                             'DC': 'DC', 'Noise': 'NOIS', 'Sinc': 'SINC', 'ERise': 'EXPR',
                             'EFall': 'EXPF', 'Card': 'CARD', 'Gauss': 'GAUS',
                             'Arb': 'ARB'};
-        self.ac_type_dic = {'Normal': "NORMal", 'Average': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
+        self.ac_type_dic = {'Normal': "NORM", 'Average': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
         self.wave_gen_interpolation_dictionary = {'On': 1, 'Off': 0, }
 
         # Limits and Ranges (depends on the exact model):
@@ -58,7 +59,8 @@ class Keysight_4000_Xseries:
         self.sensitivity_max = float(self.specific_parameters['sensitivity_max'])
         self.wave_gen_freq_max = float(self.specific_parameters['wave_gen_freq_max'])
         self.wave_gen_freq_min = float(self.specific_parameters['wave_gen_freq_min'])
-        
+        self.wave_gen = str(self.specific_parameters['wave_gen'])
+
         #integration window
         self.win_left = 0
         self.win_right = 1
@@ -85,18 +87,23 @@ class Keysight_4000_Xseries:
                         self.device_write('*CLS')
                         self.status_flag = 1
 
-                        self.wg_coupling_1 = self.device_query(":WGEN1:OUTPut:LOAD?")
-                        self.wg_coupling_2 = self.device_query(":WGEN2:OUTPut:LOAD?")
-                        
-                        if self.wg_coupling_1 == 'ONEM':
-                            self.wg_coupling_1 = '1 M'
-                        elif self.wg_coupling_1 == 'FIFTy':
-                            self.wg_coupling_1 = '50'
-                        
-                        if self.wg_coupling_2 == 'ONEM':
-                            self.wg_coupling_2 = '1 M'
-                        elif self.wg_coupling_2 == 'FIFTy':
-                            self.wg_coupling_2 = '50'
+                        if self.wave_gen == 'True':
+
+                            self.wg_coupling_1 = self.device_query(":WGEN1:OUTPut:LOAD?")
+                            self.wg_coupling_2 = self.device_query(":WGEN2:OUTPut:LOAD?")
+                            
+                            if self.wg_coupling_1 == 'ONEM':
+                                self.wg_coupling_1 = '1 M'
+                            elif self.wg_coupling_1 == 'FIFTy':
+                                self.wg_coupling_1 = '50'
+                            
+                            if self.wg_coupling_2 == 'ONEM':
+                                self.wg_coupling_2 = '1 M'
+                            elif self.wg_coupling_2 == 'FIFTy':
+                                self.wg_coupling_2 = '50'
+
+                        else:
+                            pass
 
                     except (pyvisa.VisaIOError, BrokenPipeError):
                         general.message(f"No connection {self.__class__.__name__}")
@@ -191,6 +198,8 @@ class Keysight_4000_Xseries:
             if len(points) == 1:
                 temp = int(points[0])
                 test_acq_type = self.oscilloscope_acquisition_type()
+                self.oscilloscope_run()
+
                 if test_acq_type == 'Average':
                     poi = min(self.points_list_average, key = lambda x: abs(x - temp))
                     if int(poi) != temp:
@@ -202,6 +211,25 @@ class Keysight_4000_Xseries:
                         general.message(f"Desired record length cannot be set, the nearest available value of {poi} is used")
                     self.device_write(":WAVeform:POINts " + str(poi))
 
+                # 4000 / 3999
+                answer = int(self.device_query(':WAVeform:POINts?'))
+                tb_0 = pg.siEval(self.oscilloscope_timebase())
+                i = 0
+                st_time = time.time()
+                while answer != poi:
+                    mod_tb = pg.siEval(self.oscilloscope_timebase()) + 0.01 * tb_0
+                    self.oscilloscope_timebase( pg.siFormat( mod_tb, suffix = 's', precision = 5, allowUnicode = False))
+                    answer = int(self.device_query(':WAVeform:POINts?'))
+                
+                    if i == 0:
+                        general.message('Incorrect number of points. Timebase will be changed')
+                        i = 1
+
+                    if (time.time() - st_time) > 60:
+                        general.message(f'Correct timebase was not found. The number of points is {answer}')
+                        self.oscilloscope_timebase( pg.siFormat( tb_0, suffix = 's', precision = 5, allowUnicode = False))
+                        break
+                
             elif len(points) == 0:
                 answer = int(self.device_query(':WAVeform:POINts?'))
                 return answer
@@ -223,6 +251,8 @@ class Keysight_4000_Xseries:
                 if at in self.ac_type_dic:
                     flag = self.ac_type_dic[at]
                     self.device_write(":ACQuire:TYPE " + str(flag))
+                    general.wait('100 ms')
+
             elif len(ac_type) == 0:
                 raw_answer = str(self.device_query(":ACQuire:TYPE?"))
                 answer  = cutil.search_keys_dictionary(self.ac_type_dic, raw_answer)
@@ -280,9 +310,10 @@ class Keysight_4000_Xseries:
                     coef = self.timebase_dict[scaling]
                     if tb/coef >= self.timebase_min and tb/coef <= self.timebase_max:
                         self.device_write(":TIMebase:RANGe "+ str(tb/coef))
+
             elif len(timebase) == 0:
                 raw_answer = float(self.device_query(":TIMebase:RANGe?"))
-                answer = pg.siFormat( raw_answer, suffix = 's', precision = 3, allowUnicode = False)
+                answer = pg.siFormat( raw_answer, suffix = 's', precision = 4, allowUnicode = False)
                 return answer
 
         elif self.test_flag == 'test':
@@ -375,7 +406,9 @@ class Keysight_4000_Xseries:
                     self.device_write(':WAVeform:SOURce ' + str(flag))
                     array_y = self.device_read_binary(':WAVeform:DATA?')
                     preamble = self.device_query_ascii(":WAVeform:PREamble?")
-                    #x_orig = preamble[5]
+
+                    x_inc = preamble[4]
+                    x_orig = preamble[5]
                     y_inc = preamble[7]
                     y_orig = preamble[8]
                     y_ref = preamble[9]
@@ -392,7 +425,7 @@ class Keysight_4000_Xseries:
                         return integ
                     elif integral == 'Both':
                         integ = np.sum( array_y[self.win_left:self.win_right] ) * ( pg.siEval(self.oscilloscope_time_resolution()) )
-                        xs = np.arange( len(array_y) ) * ( pg.siEval(self.oscilloscope_time_resolution()) )
+                        xs = x_orig + np.arange( len(array_y) ) * x_inc
                         return xs, array_y, integ
 
         elif self.test_flag == 'test':

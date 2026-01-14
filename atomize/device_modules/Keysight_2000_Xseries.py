@@ -5,6 +5,7 @@ import os
 import gc
 import sys
 import pyvisa
+import time
 import numpy as np
 import pyqtgraph as pg
 import atomize.main.local_config as lconf
@@ -26,8 +27,8 @@ class Keysight_2000_Xseries:
 
         # auxilary dictionaries
         self.points_list = [100, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000]
-        #self.points_list_average = [99, 247, 479, 959, 1919, 3839, 7679]
-        self.points_list_average = [100, 250, 500, 1000, 2500, 4000, 8000, 16000]
+        self.points_list_average = [99, 247, 479, 959, 1919, 3839, 7679]
+        #self.points_list_average = [100, 250, 500, 1000, 2500, 4000, 8000, 16000]
         # Number of point is different for Average mode and three other modes
 
         self.channel_dict = {'CH1': 'CHAN1', 'CH2': 'CHAN2', 'CH3': 'CHAN3', 'CH4': 'CHAN4',}
@@ -38,7 +39,7 @@ class Keysight_2000_Xseries:
         self.scale_dict = {'V': 1, 'mV': 1000,};
         self.frequency_dict = {'MHz': 1000000, 'kHz': 1000, 'Hz': 1, 'mHz': 0.001,};
         self.wavefunction_dic = {'Sin': 'SIN', 'Sq': 'SQU', 'Ramp': 'RAMP', 'Pulse': 'PULS', 'DC': 'DC', 'Noise': 'NOIS'};
-        self.ac_type_dic = {'Normal': "NORMal", 'Average': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
+        self.ac_type_dic = {'Normal': "NORM", 'Average': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
 
         self.modulation_wavefunction_dict = {'Sin': 'SIN', 'Sq': 'SQU', 'Ramp': 'RAMP'}
         self.status_dict = {'Off': 0, 'On': 1}
@@ -62,6 +63,7 @@ class Keysight_2000_Xseries:
         self.sensitivity_max = float(self.specific_parameters['sensitivity_max'])
         self.wave_gen_freq_max = float(self.specific_parameters['wave_gen_freq_max'])
         self.wave_gen_freq_min = float(self.specific_parameters['wave_gen_freq_min'])
+        self.wave_gen = str(self.specific_parameters['wave_gen'])
 
         self.max_freq_dict = {'SIN': 20e6, 'SQU': 10e6, 'RAMP': 100e3, 'PULS': 10e6, 'DC': 0, 'NOIS': 0}
 
@@ -94,16 +96,21 @@ class Keysight_2000_Xseries:
                         self.device_write('*CLS')
                         self.status_flag = 1
 
-                        self.wg_coupling_1 = self.device_query(":WGEN:OUTPut:LOAD?")
-                        
-                        if self.wg_coupling_1 == 'ONEM':
-                            self.wg_coupling_1 = '1 M'
-                        elif self.wg_coupling_1 == 'FIFTy':
-                            self.wg_coupling_1 = '50'
+                        if self.wave_gen == 'True':
+                            self.wg_coupling_1 = self.device_query(":WGEN:OUTPut:LOAD?")
+                            
+                            if self.wg_coupling_1 == 'ONEM':
+                                self.wg_coupling_1 = '1 M'
+                            elif self.wg_coupling_1 == 'FIFTy':
+                                self.wg_coupling_1 = '50'
 
-                        self.func_type = str(self.device_query(':WGEN:FUNCtion?'))
-                        self.mod_type = str(self.device_query(':WGEN:MODulation:TYPE?'))
-                        self.freq = float(self.device_query(":WGEN:FREQuency?"))
+                            self.func_type = str(self.device_query(':WGEN:FUNCtion?'))
+                            self.mod_type = str(self.device_query(':WGEN:MODulation:TYPE?'))
+                            self.freq = float(self.device_query(":WGEN:FREQuency?"))
+
+                        else:
+                            pass
+
 
                     except (pyvisa.VisaIOError, BrokenPipeError):
                         general.message(f"No connection {self.__class__.__name__}")
@@ -200,16 +207,35 @@ class Keysight_2000_Xseries:
             if len(points) == 1:
                 temp = int(points[0])
                 test_acq_type = self.oscilloscope_acquisition_type()
+                self.oscilloscope_run()
+
                 if test_acq_type == 'Average':
                     poi = min(self.points_list_average, key = lambda x: abs(x - temp))
                     if int(poi) != temp:
                         general.message(f"Desired record length cannot be set, the nearest available value of {poi} is used")
-                    self.device_write(":WAVeform:POINts " + str(poi))
                 else:
                     poi = min(self.points_list, key = lambda x: abs(x - temp))
                     if int(poi) != temp:
                         general.message(f"Desired record length cannot be set, the nearest available value of {poi} is used")
                     self.device_write(":WAVeform:POINts " + str(poi))
+
+                # 4000 / 3999
+                answer = int(self.device_query(':WAVeform:POINts?'))
+                tb_0 = pg.siEval(self.oscilloscope_timebase())
+                i = 0
+                st_time = time.time()
+                while answer != poi:
+                    mod_tb = pg.siEval(self.oscilloscope_timebase()) - 0.01 * tb_0
+                    self.oscilloscope_timebase( pg.siFormat( mod_tb, suffix = 's', precision = 5, allowUnicode = False))
+                    answer = int(self.device_query(':WAVeform:POINts?'))
+                    if i == 0:
+                        general.message('Incorrect number of points. Timebase will be changed')
+                        i = 1
+
+                    if (time.time() - st_time) > 60:
+                        general.message(f'Correct timebase was not found. The number of points is {answer}')
+                        self.oscilloscope_timebase( pg.siFormat( tb_0, suffix = 's', precision = 5, allowUnicode = False))
+                        break
 
             elif len(points) == 0:
                 answer = int(self.device_query(':WAVeform:POINts?'))
@@ -232,7 +258,7 @@ class Keysight_2000_Xseries:
                 if at in self.ac_type_dic:
                     flag = self.ac_type_dic[at]
                     self.device_write(":ACQuire:TYPE " + str(flag))
-
+                    general.wait('150 ms')
             elif len(ac_type) == 0:
                 raw_answer = str(self.device_query(":ACQuire:TYPE?"))
                 answer  = cutil.search_keys_dictionary(self.ac_type_dic, raw_answer)
@@ -289,10 +315,11 @@ class Keysight_2000_Xseries:
                 if scaling in self.timebase_dict:
                     coef = self.timebase_dict[scaling]
                     if tb/coef >= self.timebase_min and tb/coef <= self.timebase_max:
-                        self.device_write(":TIMebase:RANGe "+ str(tb/coef))
+                        self.device_write(f":TIMebase:RANGe {tb/coef}")
+
             elif len(timebase) == 0:
                 raw_answer = float(self.device_query(":TIMebase:RANGe?"))
-                answer = pg.siFormat( raw_answer, suffix = 's', precision = 3, allowUnicode = False)
+                answer = pg.siFormat( raw_answer, suffix = 's', precision = 4, allowUnicode = False)
                 return answer
 
         elif self.test_flag == 'test':
@@ -385,7 +412,9 @@ class Keysight_2000_Xseries:
                     self.device_write(':WAVeform:SOURce ' + str(flag))
                     array_y = self.device_read_binary(':WAVeform:DATA?')
                     preamble = self.device_query_ascii(":WAVeform:PREamble?")
-                    #x_orig = preamble[5]
+
+                    x_inc = preamble[4]
+                    x_orig = preamble[5]
                     y_inc = preamble[7]
                     y_orig = preamble[8]
                     y_ref = preamble[9]
@@ -402,7 +431,7 @@ class Keysight_2000_Xseries:
                         return integ
                     elif integral == 'Both':
                         integ = np.sum( array_y[self.win_left:self.win_right] ) * ( pg.siEval(self.oscilloscope_time_resolution()) )
-                        xs = np.arange( len(array_y) ) * ( pg.siEval(self.oscilloscope_time_resolution()) )
+                        xs = x_orig + np.arange( len(array_y) ) * x_inc
                         return xs, array_y, integ
 
         elif self.test_flag == 'test':
@@ -419,7 +448,7 @@ class Keysight_2000_Xseries:
                     integ = np.sum( array_y[self.win_left:self.win_right] ) * ( pg.siEval(self.oscilloscope_time_resolution()) )
                     return integ
                 elif integral == 'Both':
-                    integ = np.sum( array_y[self.win_left:self.win_right] ) *( pg.siEval(self.oscilloscope_time_resolution()) )
+                    integ = np.sum( array_y[self.win_left:self.win_right] ) * ( pg.siEval(self.oscilloscope_time_resolution()) )
                     xs = np.arange( len(array_y) ) * ( pg.siEval(self.oscilloscope_time_resolution()) )
                     return xs, array_y, integ
 
@@ -832,7 +861,7 @@ class Keysight_2000_Xseries:
             return answer
 
     def wave_gen_frequency(self, *frequency):
-         f_max = pg.siFormat( self.max_freq_dict[self.func_type], suffix = 'Hz', precision = 3, allowUnicode = False)
+        f_max = pg.siFormat( self.max_freq_dict[self.func_type], suffix = 'Hz', precision = 3, allowUnicode = False)
         if self.test_flag != 'test':
             if len(frequency) == 1:
                 temp = frequency[0].split(" ")
