@@ -439,7 +439,7 @@ class SR_844:
                 answer = self.mode_2f
                 return answer
             else:
-                assert( 1 == 2 ), f"Incorrect argument; harmonic: int [{self.harm_min} {self.harm_max}]"
+                assert( 1 == 2 ), f"Incorrect argument; harmonic: int [{self.harm_min}-{self.harm_max}]"
     
     def lock_in_command(self, command):
         if self.test_flag != 'test':
