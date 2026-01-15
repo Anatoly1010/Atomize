@@ -19,7 +19,7 @@ class Keysight_2000_Xseries:
         #### Inizialization
         # setting path to *.ini file
         self.path_current_directory = lconf.load_config_device()
-        self.path_config_file = os.path.join(self.path_current_directory, 'Keysight_2012a_config.ini')
+        self.path_config_file = os.path.join(self.path_current_directory, 'Keysight_2012a_2_config.ini')
 
         # configuration data
         self.config = cutil.read_conf_util(self.path_config_file)
@@ -27,8 +27,8 @@ class Keysight_2000_Xseries:
 
         # auxilary dictionaries
         self.points_list = [100, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000]
-        self.points_list_average = [99, 247, 479, 959, 1919, 3839, 7679]
-        #self.points_list_average = [100, 250, 500, 1000, 2500, 4000, 8000, 16000]
+        #self.points_list_average = [99, 247, 479, 959, 1919, 3839, 7679]
+        self.points_list_average = [100, 250, 500, 1000, 2000, 4000, 8000, 16000]
         # Number of point is different for Average mode and three other modes
 
         self.channel_dict = {'CH1': 'CHAN1', 'CH2': 'CHAN2', 'CH3': 'CHAN3', 'CH4': 'CHAN4',}
@@ -110,7 +110,6 @@ class Keysight_2000_Xseries:
 
                         else:
                             pass
-
 
                     except (pyvisa.VisaIOError, BrokenPipeError):
                         general.message(f"No connection {self.__class__.__name__}")
@@ -213,6 +212,7 @@ class Keysight_2000_Xseries:
                     poi = min(self.points_list_average, key = lambda x: abs(x - temp))
                     if int(poi) != temp:
                         general.message(f"Desired record length cannot be set, the nearest available value of {poi} is used")
+                    self.device_write(":WAVeform:POINts " + str(poi))
                 else:
                     poi = min(self.points_list, key = lambda x: abs(x - temp))
                     if int(poi) != temp:
@@ -225,10 +225,10 @@ class Keysight_2000_Xseries:
                 i = 0
                 st_time = time.time()
                 while answer != poi:
-                    mod_tb = pg.siEval(self.oscilloscope_timebase()) - 0.01 * tb_0
+                    mod_tb = pg.siEval(self.oscilloscope_timebase()) + 0.01 * tb_0
                     self.oscilloscope_timebase( pg.siFormat( mod_tb, suffix = 's', precision = 5, allowUnicode = False))
                     answer = int(self.device_query(':WAVeform:POINts?'))
-                    general.message(answer)
+                
                     if i == 0:
                         general.message('Incorrect number of points. Timebase will be changed')
                         i = 1
@@ -259,7 +259,8 @@ class Keysight_2000_Xseries:
                 if at in self.ac_type_dic:
                     flag = self.ac_type_dic[at]
                     self.device_write(":ACQuire:TYPE " + str(flag))
-                    general.wait('150 ms')
+                    general.wait('100 ms')
+
             elif len(ac_type) == 0:
                 raw_answer = str(self.device_query(":ACQuire:TYPE?"))
                 answer  = cutil.search_keys_dictionary(self.ac_type_dic, raw_answer)
@@ -316,8 +317,7 @@ class Keysight_2000_Xseries:
                 if scaling in self.timebase_dict:
                     coef = self.timebase_dict[scaling]
                     if tb/coef >= self.timebase_min and tb/coef <= self.timebase_max:
-                        self.device_write(f":TIMebase:RANGe {tb/coef}")
-
+                        self.device_write(":TIMebase:RANGe "+ str(tb/coef))
             elif len(timebase) == 0:
                 raw_answer = float(self.device_query(":TIMebase:RANGe?"))
                 answer = pg.siFormat( raw_answer, suffix = 's', precision = 4, allowUnicode = False)
@@ -862,7 +862,7 @@ class Keysight_2000_Xseries:
             return answer
 
     def wave_gen_frequency(self, *frequency):
-        f_max = pg.siFormat( self.max_freq_dict[self.func_type], suffix = 'Hz', precision = 3, allowUnicode = False)
+         f_max = pg.siFormat( self.max_freq_dict[self.func_type], suffix = 'Hz', precision = 3, allowUnicode = False)
         if self.test_flag != 'test':
             if len(frequency) == 1:
                 temp = frequency[0].split(" ")

@@ -233,7 +233,7 @@ class Keysight_3000_Xseries:
                         i = 1
 
                     if (time.time() - st_time) > 30:
-                        general.message(f'Correct timebase was not found. The number of points is {answer}')
+                        general.message(f'Correct timebase was not found. The number of point is {answer}')
                         self.oscilloscope_timebase( pg.siFormat( tb_0, suffix = 's', precision = 5, allowUnicode = False))
                         break
 
@@ -946,8 +946,14 @@ class Keysight_3000_Xseries:
                 func = str(function[0])
                 if func in self.wavefunction_dic:
                     flag = self.wavefunction_dic[func]
-                    self.func_type = flag
-                    self.device_write(":WGEN:FUNCtion " + str(flag))
+                    f_max = pg.siFormat( self.max_freq_dict[flag], suffix = 'Hz', precision = 3, allowUnicode = False)
+
+                    if self.freq >= self.wave_gen_freq_min and self.freq <= self.max_freq_dict[self.func_type]:
+                        self.device_write(":WGEN:FUNCtion " + str(flag))
+                        self.func_type = flag
+                    else:
+                        general.message(f"Incorrect frequency range for {cutil.search_keys_dictionary(self.wavefunction_dic, flag)}. The available range is from {self.f_min} to {f_max}")
+
             elif len(function) == 0:
                 raw_answer = str(self.device_query(':WGEN:FUNCtion?'))
                 answer = cutil.search_keys_dictionary(self.wavefunction_dic, raw_answer)
@@ -959,9 +965,14 @@ class Keysight_3000_Xseries:
                 func = str(function[0])
                 if func in self.wavefunction_dic:
                     flag = self.wavefunction_dic[func]
-                    self.func_type = flag
+                    f_max = pg.siFormat( self.max_freq_dict[flag], suffix = 'Hz', precision = 3, allowUnicode = False)
                 else:
                     assert(1 == 2), f"Invalid waveform generator function. Available options are {list(self.wavefunction_dic.keys())}"
+
+                assert( self.freq >= self.wave_gen_freq_min and self.freq <= self.max_freq_dict[flag]), f"Incorrect frequency range for {cutil.search_keys_dictionary(self.wavefunction_dic, flag)}. The available range is from {self.f_min} to {f_max}"
+
+                self.func_type = flag
+
             elif len(function) == 0:
                 answer = self.test_wave_gen_function
                 return answer

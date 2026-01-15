@@ -12,13 +12,6 @@ import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
 
-# TO DO
-# error check? wave_gen_modulation_status
-# esb_answer = self.device_query("*ESE?")
-# shifted_value = esb_answer >> 4
-# bit_value = shifted_value & 1
-#
-
 class SR_DS345:
     #### Basic interaction functions
     def __init__(self):
@@ -47,12 +40,12 @@ class SR_DS345:
         # Limits and Ranges (depends on the exact model):
         self.wave_gen_freq_max = float(self.specific_parameters['freq_max'])
         self.wave_gen_freq_min = float(self.specific_parameters['freq_min'])
-        self.freq_max_ramp_tri = 100e3
-        self.freq_max_noise_arb = 10e6
+
         self.f_min = pg.siFormat( self.wave_gen_freq_min, suffix = 'Hz', precision = 3, allowUnicode = False)
         self.f_max = pg.siFormat( self.wave_gen_freq_max, suffix = 'Hz', precision = 3, allowUnicode = False)
-        self.f_max_r_tri = pg.siFormat( self.freq_max_ramp_tri, suffix = 'Hz', precision = 3, allowUnicode = False)
-        self.f_max_n_arb = pg.siFormat( self.freq_max_noise_arb, suffix = 'Hz', precision = 3, allowUnicode = False)
+
+        self.max_freq_dict = {0: 30e6, 1: 30e6, 2: 100e3, 3: 100e3, 4: 10e6, 5: 10e6}
+
 
         self.ampl_max = float(self.specific_parameters['ampl_max'])
         self.ampl_min = float(self.specific_parameters['ampl_min'])
@@ -64,6 +57,8 @@ class SR_DS345:
         self.max_fm_points = 1500
         self.max_pm_points = 4000
         self.length = 0
+        self.offset = 0
+        self.freq = 1e-6
 
         # Test run parameters
         # These values are returned by the modules in the test run 
@@ -86,16 +81,10 @@ class SR_DS345:
                         # test should be here
                         self.device_write('*CLS')
                         general.wait('50 ms')
-                        test = self.device_query('*TST?')
-                        if test == 0:
-                            pass
-                        else:
-                            general.message(f'During internal device test errors were found {self.__class__.__name__}')
-                            sys.exit()
 
                         """
                         # run-time checks
-                        self.ampl = float(self.device_query( f"AMPL? VP" ) ) / 2
+                        self.ampl = float(self.device_query( f"AMPL? VP" ).split("VP")[0] ) / 2
                         self.offset = float(self.device_query( f"OFFS?" ) )
                         self.freq = float(self.device_query("FREQ?"))
                         self.tr_source = int(self.device_query('TSRC?'))
@@ -105,12 +94,46 @@ class SR_DS345:
                         self.start_freq = float(self.device_query("STFR?"))
                         self.stop_freq = float(self.device_query("SPFR?"))
                         """
+
                     except (pyvisa.VisaIOError, BrokenPipeError):
                         self.status_flag = 0
                         general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
 
                 except (pyvisa.VisaIOError, BrokenPipeError):
+                    general.message(f"No connection {self.__class__.__name__}")
+                    self.status_flag = 0
+                    sys.exit()
+            elif self.config['interface'] == 'gpib':
+                try:
+                    import Gpib
+                    self.status_flag = 1
+                    self.device = Gpib.Gpib(self.config['board_address'], self.config['gpib_address'], timeout = self.config['timeout'])
+                    try:
+                        # test should be here
+                        self.status_flag = 1
+                        self.device_write('*CLS')
+                        general.wait('50 ms')
+
+                        # run-time checks
+                        self.ampl = float(self.device_query( f"AMPL? VP" ).split("VP")[0] ) / 2
+                        self.offset = float(self.device_query( f"OFFS?" ) )
+                        self.freq = float(self.device_query("FREQ?"))
+                        self.tr_source = int(self.device_query('TSRC?'))
+                        self.func_type = int(self.device_query('FUNC?'))
+                        
+                        # Modulation sweep
+                        self.start_freq = float(self.device_query("STFR?"))
+                        self.stop_freq = float(self.device_query("SPFR?"))
+
+                        self.mod_type = cutil.search_keys_dictionary(self.modulation_type_dict, int(self.device_query('MTYP?')))
+                        self.mod_func = cutil.search_keys_dictionary(self.modulation_wavefunction_dict, int(self.device_query('MDWF?')))
+
+                    except BrokenPipeError:
+                        general.message(f"No connection {self.__class__.__name__}")
+                        self.status_flag = 0
+                        sys.exit()
+                except BrokenPipeError:
                     general.message(f"No connection {self.__class__.__name__}")
                     self.status_flag = 0
                     sys.exit()
@@ -142,19 +165,32 @@ class SR_DS345:
             self.device.write(command)
         else:
             general.message(f"No connection {self.__class__.__name__}")
+            self.status_flag = 0
             sys.exit()
 
     def device_query(self, command):
         if self.status_flag == 1:
-            answer = self.device.query(command)
+            if self.config['interface'] == 'gpib':
+                self.device.write(command)
+                general.wait('50 ms')
+                answer = self.device.read().decode()
+            elif self.config['interface'] == 'rs232':
+                answer = self.device.query(command)
             return answer
         else:
             general.message(f"No connection {self.__class__.__name__}")
+            self.status_flag = 0
             sys.exit()
 
+    # change for gpib
     def device_write_binary_16_sign(self, command, value):
         if self.status_flag == 1:
-            self.device.write_binary_values(command, value, 'h', is_big_endian = False)
+            if self.config['interface'] == 'gpib':
+                general.message(value.tobytes())
+                self.device.write(value.tobytes())
+
+            elif self.config['interface'] == 'rs232':
+                self.device.write_binary_values(command, value, 'h', is_big_endian = False)
             # h is signed short
         else:
             general.message(f"No connection {self.__class__.__name__}")
@@ -163,7 +199,10 @@ class SR_DS345:
 
     def device_write_binary_32_sign(self, command, value):
         if self.status_flag == 1:
-            self.device.write_binary_values(command, value, 'i', is_big_endian = False)
+            if self.config['interface'] == 'gpib':
+                pass
+            elif self.config['interface'] == 'rs232':
+                self.device.write_binary_values(command, value, 'i', is_big_endian = False)
             # h is signed short
         else:
             general.message(f"No connection {self.__class__.__name__}")
@@ -172,7 +211,10 @@ class SR_DS345:
 
     def device_write_binary_32_unsign(self, command, value):
         if self.status_flag == 1:
-            self.device.write_binary_values(command, value, 'I', is_big_endian = False)
+            if self.config['interface'] == 'gpib':
+                pass
+            elif self.config['interface'] == 'rs232':            
+                self.device.write_binary_values(command, value, 'I', is_big_endian = False)
             # h is signed short
         else:
             general.message(f"No connection {self.__class__.__name__}")
@@ -183,7 +225,7 @@ class SR_DS345:
     # GENERAL
     def wave_gen_name(self):
         if self.test_flag != 'test':
-            answer = self.device_query('*IDN?')
+            answer = self.device_query('*IDN?').split('\n')[0]
             return answer
         elif self.test_flag == 'test':
             answer = self.config['name']
@@ -195,23 +237,17 @@ class SR_DS345:
         1 uHz resolution. If the current waveform is NOISE an error will
         be generated and the frequency will not be changed
         """
+        f_max = pg.siFormat( self.max_freq_dict[self.func_type], suffix = 'Hz', precision = 3, allowUnicode = False)
         if self.test_flag != 'test':
             if len(frequency) == 1:
                 freq = pg.siEval( frequency[0] )
-                if self.func_type == 0 or self.func_type == 1:
-                    self.device_write( f"FREQ {freq}" )
-                elif self.func_type == 2 or self.func_type == 3:
-                    if (freq <= self.freq_max_ramp_tri):
-                        self.device_write( f"FREQ {freq}" )
-                    else:
-                        general.message(f"Incorrect frequency range. The available range is from {self.f_min} to {self.f_max_r_tri}")
-                elif self.func_type == 4 or self.func_type == 5:
-                    if (freq <= self.freq_max_noise_arb):
-                        self.device_write( f"FREQ {freq}" )
-                    else:
-                        general.message(f"Incorrect frequency range. The available range is from {self.f_min} to {self.f_max_n_arb}")
-                
-                self.freq = freq
+
+                if freq >= self.wave_gen_freq_min and freq <= self.max_freq_dict[self.func_type]:
+                    self.device_write(f"FREQ {freq}")
+                    self.freq = freq
+                else:
+                    general.message(f"Incorrect frequency range for {cutil.search_keys_dictionary(self.wavefunction_dict, self.func_type)}. The available range is from {self.f_min} to {f_max}")
+
 
             elif len(frequency) == 0:
                 raw_answer = float(self.device_query("FREQ?"))
@@ -224,11 +260,12 @@ class SR_DS345:
                 freq = pg.siEval( frequency[0] )
                 temp = frequency[0].split(" ")
                 scaling = temp[1]
-                self.freq = freq
 
                 assert(scaling in self.freq_list), f"Incorrect SI suffix. Available options are {self.freq_list}"
 
-                assert(freq >= self.wave_gen_freq_min and freq <= self.wave_gen_freq_max), f"Incorrect frequency range. The available range is from {self.f_min} to {self.f_max}"
+                assert( freq >= self.wave_gen_freq_min and freq <= self.max_freq_dict[self.func_type]), f"Incorrect frequency range for {cutil.search_keys_dictionary(self.wavefunction_dict, self.func_type)}. The available range is from {self.f_min} to {f_max}"
+                self.freq = freq
+
             elif len(frequency) == 0:
                 answer = self.test_frequency
                 return answer
@@ -241,12 +278,19 @@ class SR_DS345:
         FUNC?
         'Sin': 0, 'Sq': 1, 'Triangle': 2, 'Ramp': 3, 'Noise': 4, 'Arb': 5
         """
+
         if self.test_flag != 'test':
             if len(function) == 1:
                 func = str(function[0])
                 flag = self.wavefunction_dict[func]
-                self.func_type = flag
-                self.device_write(f"FUNC {flag}")
+                f_max = pg.siFormat( self.max_freq_dict[flag], suffix = 'Hz', precision = 3, allowUnicode = False)
+
+                if self.freq >= self.wave_gen_freq_min and self.freq <= self.max_freq_dict[self.func_type]:
+                    self.device_write(f"FUNC {flag}")
+                    self.func_type = flag
+                else:
+                    general.message(f"Incorrect frequency range for {cutil.search_keys_dictionary(self.wavefunction_dict, flag)}. The available range is from {self.f_min} to {f_max}")
+
             elif len(function) == 0:
                 raw_answer = int(self.device_query('FUNC?'))
                 self.func_type = raw_answer
@@ -256,7 +300,15 @@ class SR_DS345:
         elif self.test_flag == 'test':
             if  len(function) == 1:
                 func = str(function[0])
+                flag = self.wavefunction_dict[func]
+                f_max = pg.siFormat( self.max_freq_dict[flag], suffix = 'Hz', precision = 3, allowUnicode = False)
+
                 assert(func in self.wavefunction_dict), f"Invalid waveform generator function. Available options are {list(self.wavefunction_dict.keys())}"
+
+                assert( self.freq >= self.wave_gen_freq_min and self.freq <= self.max_freq_dict[flag]), f"Incorrect frequency range for {cutil.search_keys_dictionary(self.wavefunction_dict, flag)}. The available range is from {self.f_min} to {f_max}"
+
+                self.func_type = flag
+
             elif len(function) == 0:
                 answer = self.function
                 return answer
@@ -293,7 +345,7 @@ class SR_DS345:
                         self.offset = -1.3
 
             elif len(amplitude) == 0:
-                raw_answer = float(self.device_query( f"AMPL? VP" ) )
+                raw_answer = float(self.device_query( f"AMPL? VP" ).split("VP")[0] )
                 answer = pg.siFormat( raw_answer, suffix = 'V', precision = 3, allowUnicode = False)
                 self.ampl = raw_answer / 2
                 return answer
@@ -398,14 +450,33 @@ class SR_DS345:
             func = str(function[0])
             flag = self.modulation_wavefunction_dict[func]
             if self.test_flag != 'test':
-                self.device_write(f"MDWF {flag}")
+
+                if func == 'Sin' or func == 'Sq' or func == 'Arb':
+                    if self.mod_type != 'Lin Sweep' or self.mod_type != 'Log Sweep':
+                        self.device_write(f"MDWF {flag}")
+                    else:
+                        general.message(f"Incorrect modulation function for {self.mod_type} modulation type. ['Single': 'Lin Sweep', 'Log Sweep']; ['Ramp', 'Triangle': 'Lin Sweep', 'Log Sweep', 'AM', 'FM', 'PM']; ['Sin', 'Sq', 'Arb': 'AM', 'FM', 'PM']; ['None': 'Burst']")
+                elif func == 'Single':
+                    if self.mod_type != 'AM' or self.mod_type != 'FM' or self.mod_type != 'PM':
+                        self.device_write(f"MDWF {flag}")
+                    else:
+                        general.message(f"Incorrect modulation function for {self.mod_type} modulation type. ['Single': 'Lin Sweep', 'Log Sweep']; ['Ramp', 'Triangle': 'Lin Sweep', 'Log Sweep', 'AM', 'FM', 'PM']; ['Sin', 'Sq', 'Arb': 'AM', 'FM', 'PM']; ['None': 'Burst']")
+                elif self.mod_type == 'Burst':
+                    self.device_write(f"MDWF {6}")
+                else:
+                    self.device_write(f"MDWF {flag}")
+
             elif self.test_flag == 'test':
                 assert(func in self.modulation_wavefunction_dict), f"Invalid modulation function. Available options are {list(self.modulation_wavefunction_dict.keys())}"
+
+            self.mod_func = func
 
         elif len(function) == 0:
             if self.test_flag != 'test':            
                 raw_answer = int(self.device_query('MDWF?'))
+                
                 answer = cutil.search_keys_dictionary(self.modulation_wavefunction_dict, raw_answer)
+                self.mod_func_flag = answer
                 return answer
             elif self.test_flag == 'test':
                 answer = self.mod_function
@@ -424,9 +495,27 @@ class SR_DS345:
             func = str(type[0])
             flag = self.modulation_type_dict[func]
             if self.test_flag != 'test':
-                self.device_write(f"MTYP {flag}")
+
+                if func == 'Lin Sweep' or func == 'Log Sweep':
+                    if self.mod_func == 'Single' or self.mod_func == 'Ramp' or self.mod_func == 'Triangle':
+                        self.device_write(f"MTYP {flag}")
+                    else:
+                        general.message(f"Incorrect modulation function for {self.mod_func} modulation type. ['Lin Sweep', 'Log Sweep': 'Single']; ['Lin Sweep', 'Log Sweep', 'AM', 'FM', 'PM': 'Ramp', 'Triangle']; ['AM', 'FM', 'PM': 'Sin', 'Sq', 'Arb']; ['Burst': 'None']")
+                elif func == 'AM' or func == 'FM' or func == 'PM':
+                    if self.mod_func != 'Single':
+                        self.device_write(f"MTYP {flag}")
+                    else:
+                        general.message(f"Incorrect modulation function for {self.mod_func} modulation type. ['Lin Sweep', 'Log Sweep': 'Single']; ['Lin Sweep', 'Log Sweep', 'AM', 'FM', 'PM': 'Ramp', 'Triangle']; ['AM', 'FM', 'PM': 'Sin', 'Sq', 'Arb']; ['Burst': 'None']")
+                elif func == 'Burst':
+                    self.device_write(f"MTYP {flag}")
+                    self.device_write(f"MDWF {6}")
+                else:
+                    self.device_write(f"MTYP {flag}")
+
             elif self.test_flag == 'test':
                 assert(func in self.modulation_type_dict), f"Invalid modulation function. Available options are {list(self.modulation_type_dict.keys())}"
+            
+            self.mod_type = func
 
         elif len(type) == 0:
             if self.test_flag != 'test':            
@@ -774,17 +863,16 @@ class SR_DS345:
         """
         self.length = len(p_list)
         if self.test_flag != 'test':
-            p_list_int = np.asarray( np.asarray(p_list) * 2047, dtype = np.int16 )
-            total = np.sum(p_list_int)
+            p_list_int = np.asarray( np.asarray(p_list) * 2047, dtype = np.int16)#, dtype = np.int16) 
+            total = np.sum(p_list_int, dtype = np.int16)
             answer = int( self.device_query(f"LDWF? 0,{self.length}" ) )
+            general.message(f"LDWF: {np.append(p_list_int, total)}")
             if answer == 1:
                 self.device_write_binary_16_sign('', np.append(p_list_int, total))
 
-            esb_answer = self.device_query("*ESE?")
-            shifted_value = esb_answer >> 4
-            bit_value = shifted_value & 1
+            esb_answer = self._error_check()
 
-            if bit_value == 0:
+            if esb_answer == 0:
                 pass
             else:
                 general.message("Incorrect arbitrary waveform")
@@ -848,11 +936,9 @@ class SR_DS345:
             if answer == 1:
                 self.device_write_binary_16_sign('', np.append(p_list_int, total))
 
-            esb_answer = self.device_query("*ESE?")
-            shifted_value = esb_answer >> 4
-            bit_value = shifted_value & 1
+            esb_answer = self._error_check()
 
-            if bit_value == 0:
+            if esb_answer == 0:
                 pass
             else:
                 general.message("Incorrect arbitrary amplitude modulation")
@@ -880,11 +966,9 @@ class SR_DS345:
             if answer == 1:
                 self.device_write_binary_32_unsign('', np.append(p_list_int, total))
 
-            esb_answer = self.device_query("*ESE?")
-            shifted_value = esb_answer >> 4
-            bit_value = shifted_value & 1
+            esb_answer = self._error_check()
 
-            if bit_value == 0:
+            if esb_answer == 0:
                 pass
             else:
                 general.message("Incorrect arbitrary frequency modulation")
@@ -912,11 +996,9 @@ class SR_DS345:
             if answer == 1:
                 self.device_write_binary_32_sign('', np.append(p_list_int, total))
 
-            esb_answer = self.device_query("*ESE?")
-            shifted_value = esb_answer >> 4
-            bit_value = shifted_value & 1
+            esb_answer = self._error_check()
 
-            if bit_value == 0:
+            if esb_answer == 0:
                 pass
             else:
                 general.message("Incorrect arbitrary phase modulation")
@@ -965,6 +1047,17 @@ class SR_DS345:
         elif self.test_flag == 'test':
             answer = None
             return answer
+
+    def _error_check(self):
+        """
+        The *ESR common command reads the value of the standard event status
+        register. If the parameter i is present the value of bit i is returned (0 or 1).
+        Reading this register will clear it while reading bit i will clear just bit i.
+        bit 4: Execution err Set by an out of range parameter, or non-completion of
+        some command due a condition such as an incorrect waveform type
+        """
+        if self.test_flag != 'test':
+            return self.device_query("*ESR? 4").split('\n')[0]
 
 
 def main():
