@@ -213,6 +213,7 @@ class Keysight_2000_Xseries:
                     poi = min(self.points_list_average, key = lambda x: abs(x - temp))
                     if int(poi) != temp:
                         general.message(f"Desired record length cannot be set, the nearest available value of {poi} is used")
+                    self.device_write(":WAVeform:POINts " + str(poi))
                 else:
                     poi = min(self.points_list, key = lambda x: abs(x - temp))
                     if int(poi) != temp:
