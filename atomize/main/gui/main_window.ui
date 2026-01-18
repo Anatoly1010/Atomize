@@ -199,7 +199,7 @@ QTabBar::tab:selected {
              <string notr="true">background-color: rgb(136, 138, 133);</string>
             </property>
             <property name="text">
-             <string>Start Experiment</string>
+             <string>&amp;Start Experiment</string>
             </property>
            </widget>
           </item>
@@ -221,7 +221,7 @@ QTabBar::tab:selected {
              <string notr="true">background-color: rgb(136, 138, 133);</string>
             </property>
             <property name="text">
-             <string>Update Script</string>
+             <string>&amp;Update Script</string>
             </property>
            </widget>
           </item>
@@ -249,7 +249,7 @@ QTabBar::tab:selected {
              <string notr="true">background-color: rgb(136, 138, 133);</string>
             </property>
             <property name="text">
-             <string>Open Script</string>
+             <string>&amp;Open Script</string>
             </property>
            </widget>
           </item>
@@ -287,7 +287,7 @@ QTabBar::tab:selected {
              <string notr="true">background-color: rgb(136, 138, 133);</string>
             </property>
             <property name="text">
-             <string>Edit Script</string>
+             <string>&amp;Edit Script</string>
             </property>
            </widget>
           </item>
@@ -379,7 +379,7 @@ QTabBar::tab:selected {
              <string notr="true">background-color: rgb(136, 138, 133);</string>
             </property>
             <property name="text">
-             <string>Test Script</string>
+             <string>&amp;Test Script</string>
             </property>
            </widget>
           </item>
@@ -401,7 +401,7 @@ QTabBar::tab:selected {
              <string notr="true">background-color: rgb(136, 138, 133);</string>
             </property>
             <property name="text">
-             <string>Help</string>
+             <string>&amp;Help</string>
             </property>
            </widget>
           </item>
