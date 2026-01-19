@@ -5,7 +5,6 @@ import os
 import gc
 import sys
 import pyvisa
-import time
 import numpy as np
 import pyqtgraph as pg
 import atomize.main.local_config as lconf
@@ -27,8 +26,8 @@ class Keysight_2000_Xseries:
 
         # auxilary dictionaries
         self.points_list = [100, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000]
-        self.points_list_average = [99, 247, 479, 959, 1919, 3839, 7679]
-        #self.points_list_average = [100, 250, 500, 1000, 2500, 4000, 8000, 16000]
+        self.points_list_average = [100, 250, 500, 1000, 2000, 4000, 8000]
+        self.points_list_average_real = [99, 247, 479, 959, 1919, 3839, 7679]
         # Number of point is different for Average mode and three other modes
 
         self.channel_dict = {'CH1': 'CHAN1', 'CH2': 'CHAN2', 'CH3': 'CHAN3', 'CH4': 'CHAN4',}
@@ -211,8 +210,9 @@ class Keysight_2000_Xseries:
 
                 if test_acq_type == 'Average':
                     poi = min(self.points_list_average, key = lambda x: abs(x - temp))
+                    poi_real = min(self.points_list_average_real, key = lambda x: abs(x - temp))   
                     if int(poi) != temp:
-                        general.message(f"Desired record length cannot be set, the nearest available value of {poi} is used")
+                        general.message(f"Desired record length cannot be set, the nearest available value of {poi_real} is used")
                     self.device_write(":WAVeform:POINts " + str(poi))
                 else:
                     poi = min(self.points_list, key = lambda x: abs(x - temp))
@@ -220,24 +220,23 @@ class Keysight_2000_Xseries:
                         general.message(f"Desired record length cannot be set, the nearest available value of {poi} is used")
                     self.device_write(":WAVeform:POINts " + str(poi))
 
-                # 4000 / 3999
-                answer = int(self.device_query(':WAVeform:POINts?'))
-                tb_0 = pg.siEval(self.oscilloscope_timebase())
-                i = 0
-                st_time = time.time()
-                while answer != poi:
-                    mod_tb = pg.siEval(self.oscilloscope_timebase()) - 0.01 * tb_0
-                    self.oscilloscope_timebase( pg.siFormat( mod_tb, suffix = 's', precision = 5, allowUnicode = False))
-                    answer = int(self.device_query(':WAVeform:POINts?'))
-                    general.message(answer)
-                    if i == 0:
-                        general.message('Incorrect number of points. Timebase will be changed')
-                        i = 1
+                #answer = int(self.device_query(':WAVeform:POINts?'))
+                #tb_0 = pg.siEval(self.oscilloscope_timebase())
+                #i = 0
+                #st_time = time.time()
+                #while answer != poi_real:
+                #    mod_tb = pg.siEval(self.oscilloscope_timebase()) + 0.001 * tb_0
+                #    self.oscilloscope_timebase( pg.siFormat( mod_tb, suffix = 's', precision = 5, allowUnicode = False))
+                #    answer = int(self.device_query(':WAVeform:POINts?'))
+                #    general.message(answer)
+                #    if i == 0:
+                #        general.message('Incorrect number of points. Timebase will be changed')
+                #        i = 1
 
-                    if (time.time() - st_time) > 60:
-                        general.message(f'Correct timebase was not found. The number of point is {answer}')
-                        self.oscilloscope_timebase( pg.siFormat( tb_0, suffix = 's', precision = 5, allowUnicode = False))
-                        break
+                #    if (time.time() - st_time) > 60:
+                #        general.message(f'Correct timebase was not found. The number of point is {answer}')
+                #        self.oscilloscope_timebase( pg.siFormat( tb_0, suffix = 's', precision = 5, allowUnicode = False))
+                #        break
 
             elif len(points) == 0:
                 answer = int(self.device_query(':WAVeform:POINts?'))

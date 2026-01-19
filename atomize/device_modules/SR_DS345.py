@@ -5,6 +5,7 @@ import os
 import gc
 import sys
 import pyvisa
+import struct
 import numpy as np 
 import pyqtgraph as pg
 import atomize.main.local_config as lconf
@@ -60,6 +61,7 @@ class SR_DS345:
         self.offset = 0
         self.freq = 1e-6
 
+        self.gpib_be = 0
         # Test run parameters
         # These values are returned by the modules in the test run 
         if len(sys.argv) > 1:
@@ -106,9 +108,23 @@ class SR_DS345:
                     sys.exit()
             elif self.config['interface'] == 'gpib':
                 try:
-                    import Gpib
+                    address = self.config['gpib_address']
+
+                    try:
+                        f_let = address[0]
+                    except TypeError:
+                        f_let = 0
+
+                    if f_let == 'G':
+                        rm = pyvisa.ResourceManager()
+                        self.device = rm.open_resource(self.config['gpib_address'], timeout = self.config['timeout'])
+                        self.gpib_be = 1
+
+                    else:
+                        import Gpib
+                        self.device = Gpib.Gpib(self.config['board_address'], self.config['gpib_address'], timeout = self.config['timeout'])
+
                     self.status_flag = 1
-                    self.device = Gpib.Gpib(self.config['board_address'], self.config['gpib_address'], timeout = self.config['timeout'])
                     try:
                         # test should be here
                         self.status_flag = 1
@@ -171,9 +187,13 @@ class SR_DS345:
     def device_query(self, command):
         if self.status_flag == 1:
             if self.config['interface'] == 'gpib':
-                self.device.write(command)
-                general.wait('50 ms')
-                answer = self.device.read().decode()
+                if self.gpib_be == 0:
+                    self.device.write(command)
+                    general.wait('50 ms')
+                    answer = self.device.read().decode()
+                else:
+                    answer = self.device.query(command)
+
             elif self.config['interface'] == 'rs232':
                 answer = self.device.query(command)
             return answer
@@ -183,39 +203,13 @@ class SR_DS345:
             sys.exit()
 
     # change for gpib
-    def device_write_binary_16_sign(self, command, value):
+    def device_write_binary(self, value):
         if self.status_flag == 1:
             if self.config['interface'] == 'gpib':
-                general.message(value.tobytes())
-                self.device.write(value.tobytes())
-
-            elif self.config['interface'] == 'rs232':
-                self.device.write_binary_values(command, value, 'h', is_big_endian = False)
-            # h is signed short
-        else:
-            general.message(f"No connection {self.__class__.__name__}")
-            self.status_flag = 0
-            sys.exit()
-
-    def device_write_binary_32_sign(self, command, value):
-        if self.status_flag == 1:
-            if self.config['interface'] == 'gpib':
-                pass
-            elif self.config['interface'] == 'rs232':
-                self.device.write_binary_values(command, value, 'i', is_big_endian = False)
-            # h is signed short
-        else:
-            general.message(f"No connection {self.__class__.__name__}")
-            self.status_flag = 0
-            sys.exit()
-
-    def device_write_binary_32_unsign(self, command, value):
-        if self.status_flag == 1:
-            if self.config['interface'] == 'gpib':
-                pass
-            elif self.config['interface'] == 'rs232':            
-                self.device.write_binary_values(command, value, 'I', is_big_endian = False)
-            # h is signed short
+                if self.gpib_be == 0:
+                    self.device.write(value)
+                else:
+                    self.device.write_raw(value)
         else:
             general.message(f"No connection {self.__class__.__name__}")
             self.status_flag = 0
@@ -863,15 +857,23 @@ class SR_DS345:
         """
         self.length = len(p_list)
         if self.test_flag != 'test':
-            p_list_int = np.asarray( np.asarray(p_list) * 2047, dtype = np.int16)#, dtype = np.int16) 
+            p_list_int = np.asarray( np.asarray(p_list) * 2047, dtype = np.int16)
             total = np.sum(p_list_int, dtype = np.int16)
-            answer = int( self.device_query(f"LDWF? 0,{self.length}" ) )
-            general.message(f"LDWF: {np.append(p_list_int, total)}")
-            if answer == 1:
-                self.device_write_binary_16_sign('', np.append(p_list_int, total))
+            
+            total = total & 0xFFFF
 
             esb_answer = self._error_check()
 
+            binary_payload = struct.pack(f'<{self.length}h', *(p_list_int))
+            binary_payload += struct.pack('<h', total)
+
+            answer = int( self.device_query(f"LDWF? 0,{self.length}" ) )
+
+            if answer == 1:
+                #self.device_write_binary_16_sign('', np.append(p_list_int, total))
+                self.device_write_binary(binary_payload)
+
+            esb_answer = self._error_check()
             if esb_answer == 0:
                 pass
             else:
@@ -932,9 +934,14 @@ class SR_DS345:
             p_list_int = np.asarray( np.asarray(p_list) * 2**15, dtype = np.int16 )
             total = np.sum(p_list_int)
 
+            total = total & 0xFFFF
+
+            binary_payload = struct.pack(f'<{self.length}h', *(p_list_int))
+            binary_payload += struct.pack('<h', total)
+
             answer = int( self.device_query(f"AMOD? {len(p_list)}" ) )
             if answer == 1:
-                self.device_write_binary_16_sign('', np.append(p_list_int, total))
+                self.device_write_binary(binary_payload)
 
             esb_answer = self._error_check()
 
@@ -962,9 +969,14 @@ class SR_DS345:
             p_list_int = np.asarray( np.asarray(p_list) * 2**32, dtype = np.int32 )
             total = np.sum(p_list_int)
 
+            total = total & (2**32 - 1)
+
+            binary_payload = struct.pack(f'<{self.length}h', *(p_list_int))
+            binary_payload += struct.pack('<h', total)
+
             answer = int( self.device_query(f"AMOD? {len(p_list)}" ) )
             if answer == 1:
-                self.device_write_binary_32_unsign('', np.append(p_list_int, total))
+                self.device_write_binary(binary_payload)
 
             esb_answer = self._error_check()
 
@@ -991,10 +1003,15 @@ class SR_DS345:
         if self.test_flag != 'test':
             p_list_int = np.asarray( np.asarray(p_list) * 2**31, dtype = np.int32 )
             total = np.sum(p_list_int)
+            
+            total = total & (2**32 - 1)
+
+            binary_payload = struct.pack(f'<{self.length}h', *(p_list_int))
+            binary_payload += struct.pack('<h', total)
 
             answer = int( self.device_query(f"AMOD? {len(p_list)}" ) )
             if answer == 1:
-                self.device_write_binary_32_sign('', np.append(p_list_int, total))
+                self.device_write_binary(binary_payload)
 
             esb_answer = self._error_check()
 
@@ -1057,7 +1074,7 @@ class SR_DS345:
         some command due a condition such as an incorrect waveform type
         """
         if self.test_flag != 'test':
-            return self.device_query("*ESR? 4").split('\n')[0]
+            return int( self.device_query("*ESR? 4").split('\n')[0] )
 
 
 def main():
