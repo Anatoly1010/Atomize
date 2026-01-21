@@ -6,7 +6,6 @@ import gc
 import sys
 import pyvisa
 import pyqtgrpah as pg
-from pyvisa.constants import StopBits, Parity
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
@@ -33,12 +32,20 @@ class SR_DG535:
         self.mode_dict = {'TTL': 0, 'NIM': 1, 'ECL': 2, 'Variable': 3,}
         self.ampl_dict = {'V': 1, 'mV': 1000,}
         self.polarity_dict = {'Inverted': 0, 'Normal': 1,}
+        self.trigger_source_dict = {'Internal': 0, 'External': 1, 'Single': 2, 'Burst': 3,}
+        self.trigger_slope_dict = {'Falling': 0, 'Rising': 1}
 
         # Ranges and limits
         self.delay_max = 999.99
         self.delay_min = 0.
         self.var_ampl_min = -3.
         self.var_ampl_max = 4.
+        self.trigger_rate_min = 1e-3
+        self.trigger_rate_max = 1e6
+        self.burst_count_min = 2
+        self.burst_count_max = 32766
+        self.burst_period_min = 4
+        self.burst_period_max = 32766
 
         # Test run parameters
         # These values are returned by the modules in the test run 
@@ -52,12 +59,12 @@ class SR_DG535:
                 try:
                     import Gpib
                     self.status_flag = 1
-                    self.device = Gpib.Gpib(self.config['board_address'], self.config['gpib_address'], \
-                                            timeout = self.config['timeout'])
+                    self.device = Gpib.Gpib(self.config['board_address'], self.config['gpib_address'], timeout = self.config['timeout'])
                     try:
                         pass
                         # test should be here
                         #self.device_write('*CLS')
+                        self.tr_source = int(self.device_query('TM'))
 
                     except BrokenPipeError:
                         general.message(f"No connection {self.__class__.__name__}")
@@ -79,6 +86,7 @@ class SR_DG535:
             self.test_mode = 'TTL'
             self.test_amplitude_offset = 'Amplitude: 2. V; Offset: 0. V'
             self.test_polarity = 'Normal'
+            self.trigger_source = 'Internal'
 
     def close_connection(self):
         if self.test_flag != 'test':
@@ -117,6 +125,10 @@ class SR_DG535:
             return answer
 
     def delay_generator_delay(self, *delay):
+        """
+        attempt to reference A to B
+        and B to A so that neither is referenced to T0. 
+        """
         if self.test_flag != 'test':
             if len(delay) == 3:
                 ch_1 = str(delay[0])
@@ -131,6 +143,10 @@ class SR_DG535:
                         coef = self.time_dict[scaling]
                         if delay/coef >= self.delay_min and delay/coef <= self.delay_max:
                             self.device_write('DT ' + str(flag_1) + ',' + str(flag_2) + ',' + str(delay/coef))
+
+                            ans = int( self.device_query('ES 4') )
+                            if ans == 1:
+                                general.message('Delay linkage error. At least one channel should be referenced to "T0"')
 
             elif len(delay) == 1:
                 ch_1 = str(delay[0])
@@ -236,6 +252,13 @@ class SR_DG535:
                 assert(1 == 2), f"Invalid argument; channel: {list(self.output_channel_dict.keys())}; mode: {list(self.mode_dict.keys())}"
 
     def delay_generator_amplitude_offset(self, *amplitude_offset):
+        """
+        The maximum step size is limited
+        to ±4 Volts: the minimum step size is ±0.1VDC.
+        The specified step size must not cause the output
+        level (including the programmed offset) to
+        exceed +4V or -3V.
+        """
         if self.test_flag != 'test':
             if len(amplutide) == 3:
                 ch = str(amplutide[0])
@@ -252,12 +275,11 @@ class SR_DG535:
                         coef_2 = self.ampl_dict[scaling_2]
                         if int(self.device_query('OM ' + str(flag_1))) == 3:
                             general.wait('30 ms')
-                            if (ampl/coef_1 + ofst/coef_2) >= self.var_ampl_min and \
-                            (ampl/coef_1 + ofst/coef_2) <= self.var_ampl_max and (ampl/coef_1) >= self.var_ampl_min \
-                            (ampl/coef_1) <= self.var_ampl_max and (ofst/coef_2) >= self.var_ampl_min \
-                            (ofst/coef_2) <= self.var_ampl_max:
-                                self.device_write('OA ' + str(flag_1) + ',' + str(ampl/coef_1))
-                                self.device_write('OO ' + str(flag_1) + ',' + str(ofst/coef_2))
+                            if (ampl/coef_1 + ofst/coef_2) >= self.var_ampl_min and (ampl/coef_1 + ofst/coef_2) <= self.var_ampl_max and (ampl/coef_1) >= self.var_ampl_min and (ampl/coef_1) <= self.var_ampl_max and (ofst/coef_2) >= self.var_ampl_min (ofst/coef_2) <= self.var_ampl_max:
+                                self.device_write('OA ' + str(flag_1) + ',' + str(round( ampl/coef_1, 1 )))
+                                self.device_write('OO ' + str(flag_1) + ',' + str(round( ofst/coef_2, 1 )))
+                        else:
+                            general.message(f"Delay generator {self.__class__.__name__} is not in 'Variable' output mode")
 
             elif len(amplutide) == 1:
                 ch = str(amplutide[0])
@@ -313,7 +335,7 @@ class SR_DG535:
                             general.wait('30 ms')
                             self.device_write('OP ' + str(flag_1) + ',' + str(flag_2))
                         else:
-                            general.message("You are in Variable mode")  
+                            general.message(f"Delay generator {self.__class__.__name__} is in 'Variable' output mode")
             
             elif len(polarity) == 1:
                 ch = str(polarity[0])
@@ -339,6 +361,44 @@ class SR_DG535:
                 assert(1 == 2), f"Invalid argument; channel: {list(self.output_channel_dict.keys())}; polarity: {list(self.polarity_dict.keys())}"
 
     # TO DO trigger commands
+
+    def delay_generator_trigger_source(self, *tr_type):
+        """
+        TM {i}
+        Set Trigger Mode to Int, Ext, SS or Bur (i=0,1,2,3).
+        This command selects between Internal, External, Single-Shot, or Burst trigger modes
+        """
+        if len(tr_type) == 1:
+            func = str(tr_type[0])
+            flag = self.trigger_source_dict[func]
+            self.tr_source = flag
+            if self.test_flag != 'test':
+                self.device_write(f"TM {flag}")
+            elif self.test_flag == 'test':
+                assert(func in self.trigger_source_dict), f"Invalid trigger source. Available options are {list(self.trigger_source_dict.keys())}"
+
+        elif len(tr_type) == 0:
+            if self.test_flag != 'test':            
+                raw_answer = int(self.device_query('TM'))
+                self.tr_source = raw_answer
+                answer = cutil.search_keys_dictionary(self.trigger_source_dict, raw_answer)
+                return answer
+            elif self.test_flag == 'test':
+                answer = self.trigger_source
+                return answer
+        else:
+            if self.test_flag == 'test':
+                assert( 1 == 2 ), f"Incorrect argument; tr_type: {list(self.trigger_source_dict.keys())}"
+
+    def delay_generator_trigger(self):
+        """
+        Single-Shot trigger if Trigger Mode = 2
+        """
+        if self.test_flag != 'test':
+            if self.tr_source == 2:
+                self.device_write( "SS" )
+            else:
+                general.message( "The trigger source should be set to 'Single" )
 
     def delay_generator_command(self, command):
         if self.test_flag != 'test':

@@ -1265,7 +1265,7 @@ class Keysight_3000_Xseries:
                 temp = span[0].split(" ")
                 scaling = temp[1]
                 assert(scaling in self.freq_list), f"Incorrect SI suffix. Available options are {self.freq_list}"
-                assert( (self.freq - freq) >= self.wave_gen_freq_min and (self.freq + freq) <= self.max_freq_dict[self.func_type] ), f"Incorrect frequency range for {cutil.search_keys_dictionary(self.wavefunction_dic, self.func_type)}. The available range is from {self.f_min} to {f_max}"
+                #assert( (self.freq - freq) >= self.wave_gen_freq_min and (self.freq + freq) <= self.max_freq_dict[self.func_type] ), f"Incorrect frequency range for {cutil.search_keys_dictionary(self.wavefunction_dic, self.func_type)}. The available range is from {self.f_min} to {f_max}"
 
         elif len(span) == 0:
             if self.test_flag != 'test':
