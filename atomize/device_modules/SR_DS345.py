@@ -127,7 +127,6 @@ class SR_DS345:
                     self.status_flag = 1
                     try:
                         # test should be here
-                        self.status_flag = 1
                         self.device_write('*CLS')
                         general.wait('50 ms')
 
@@ -195,7 +194,7 @@ class SR_DS345:
                     general.wait('50 ms')
                     answer = self.device.read().decode()
                 else:
-                    answer = self.device.query(command)
+                    answer = self.device.query(command, 0.05)
 
             elif self.config['interface'] == 'rs232':
                 answer = self.device.query(command)
@@ -795,7 +794,7 @@ class SR_DS345:
                 temp = rate[0].split(" ")
                 scaling = temp[1]
                 assert(scaling in self.rate_freq_list), f"Incorrect SI suffix. Available options are {self.rate_freq_list}"
-                assert( freq >= 0.001 and freq <= 10e3 ), f"Incorrect trigger rate range. The available range is from 1 mHz to 10 kHz"
+                assert( freq >= 0.001 and freq <= 10e3 ), f"Incorrect trigger rate. The available range is from 1 mHz to 10 kHz"
 
         elif len(rate) == 0:
             if self.test_flag != 'test':

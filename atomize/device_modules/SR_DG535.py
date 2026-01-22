@@ -5,7 +5,10 @@ import os
 import gc
 import sys
 import pyvisa
-import pyqtgrpah as pg
+from typing import (
+    Any,
+    Optional, )
+import pyqtgraph as pg
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
@@ -34,6 +37,9 @@ class SR_DG535:
         self.polarity_dict = {'Inverted': 0, 'Normal': 1,}
         self.trigger_source_dict = {'Internal': 0, 'External': 1, 'Single': 2, 'Burst': 3,}
         self.trigger_slope_dict = {'Falling': 0, 'Rising': 1}
+        self.rate_freq_list = ['MHz', 'kHz', 'Hz', 'mHz']
+        self.level_list = ['V', 'mV']
+
 
         # Ranges and limits
         self.delay_max = 999.99
@@ -46,6 +52,8 @@ class SR_DG535:
         self.burst_count_max = 32766
         self.burst_period_min = 4
         self.burst_period_max = 32766
+        self.burst_count = 2
+        self.burst_period = 4
 
         # Test run parameters
         # These values are returned by the modules in the test run 
@@ -57,14 +65,27 @@ class SR_DG535:
         if self.test_flag != 'test':
             if self.config['interface'] == 'gpib':
                 try:
-                    import Gpib
-                    self.status_flag = 1
-                    self.device = Gpib.Gpib(self.config['board_address'], self.config['gpib_address'], timeout = self.config['timeout'])
+                    address = self.config['gpib_address']
+
                     try:
-                        pass
-                        # test should be here
-                        #self.device_write('*CLS')
+                        f_let = address[0]
+                    except TypeError:
+                        f_let = 0
+
+                    if f_let == 'G':
+                        rm = pyvisa.ResourceManager()
+                        self.device = rm.open_resource(self.config['gpib_address'], timeout = self.config['timeout'])
+                        self.gpib_be = 1
+                    else:
+                        import Gpib
+                        self.device = Gpib.Gpib(self.config['board_address'], self.config['gpib_address'], timeout = self.config['timeout'])
+
+                    self.status_flag = 1
+
+                    try:
                         self.tr_source = int(self.device_query('TM'))
+                        self.burst_count = int(self.device_query('BC'))
+                        self.burst_period = int(self.device_query('BP'))
 
                     except BrokenPipeError:
                         general.message(f"No connection {self.__class__.__name__}")
@@ -87,6 +108,9 @@ class SR_DG535:
             self.test_amplitude_offset = 'Amplitude: 2. V; Offset: 0. V'
             self.test_polarity = 'Normal'
             self.trigger_source = 'Internal'
+            self.test_trigger_rate = '1 kHz'
+            self.test_trigger_level = '2 V'
+            self.test_trigger_slope = 'Rising'
 
     def close_connection(self):
         if self.test_flag != 'test':
@@ -107,9 +131,12 @@ class SR_DG535:
     def device_query(self, command):
         if self.status_flag == 1:
             if self.config['interface'] == 'gpib':
-                self.device.write(command)
-                general.wait('50 ms')
-                answer = self.device.read().decode()
+                if self.gpib_be == 0:
+                    self.device.write(command)
+                    general.wait('50 ms')
+                    answer = self.device.read().decode()
+                else:
+                    answer = self.device.query(command, 0.05)
         else:
             general.message(f"No connection {self.__class__.__name__}")
             self.status_flag = 0
@@ -360,16 +387,14 @@ class SR_DG535:
             else:
                 assert(1 == 2), f"Invalid argument; channel: {list(self.output_channel_dict.keys())}; polarity: {list(self.polarity_dict.keys())}"
 
-    # TO DO trigger commands
-
-    def delay_generator_trigger_source(self, *tr_type):
+    def delay_generator_trigger_source(self, *source):
         """
         TM {i}
         Set Trigger Mode to Int, Ext, SS or Bur (i=0,1,2,3).
         This command selects between Internal, External, Single-Shot, or Burst trigger modes
         """
-        if len(tr_type) == 1:
-            func = str(tr_type[0])
+        if len(source) == 1:
+            func = str(source[0])
             flag = self.trigger_source_dict[func]
             self.tr_source = flag
             if self.test_flag != 'test':
@@ -377,7 +402,7 @@ class SR_DG535:
             elif self.test_flag == 'test':
                 assert(func in self.trigger_source_dict), f"Invalid trigger source. Available options are {list(self.trigger_source_dict.keys())}"
 
-        elif len(tr_type) == 0:
+        elif len(source) == 0:
             if self.test_flag != 'test':            
                 raw_answer = int(self.device_query('TM'))
                 self.tr_source = raw_answer
@@ -388,7 +413,55 @@ class SR_DG535:
                 return answer
         else:
             if self.test_flag == 'test':
-                assert( 1 == 2 ), f"Incorrect argument; tr_type: {list(self.trigger_source_dict.keys())}"
+                assert( 1 == 2 ), f"Incorrect argument; source: {list(self.trigger_source_dict.keys())}"
+
+    def delay_generator_trigger_rate(self, *rate):
+        """
+        TR i{,f}
+        Set Internal Trigger Rate (i=0) or Burst Trigger Rate
+        (i=1) to f Hz. The frequency may be any value
+        between 0.001 Hz and 1.000MHz.         
+        """
+        rate_min = pg.siFormat( self.trigger_rate_min, suffix = 'Hz', precision = 3, allowUnicode = False)
+        rate_max = pg.siFormat( self.trigger_rate_max, suffix = 'Hz', precision = 3, allowUnicode = False)
+        if len(rate) == 1:
+            freq = pg.siEval( rate[0] )
+
+            if freq < 10:
+                freq_r = pg.siEval( pg.siFormat( raw_answer, suffix = 'Hz', precision = 5, allowUnicode = False) )
+            else:
+                freq_r = pg.siEval( pg.siFormat( raw_answer, suffix = 'Hz', precision = 4, allowUnicode = False) )
+
+            if self.test_flag != 'test':
+                if self.tr_source == 0:
+                    # 3 Wrong mode for the command 
+                    self.device_write( f"TM 2; TR 0,{freq_r}" )
+                    general.wait('2000 ms')
+                    self.device_write( f"TM {self.tr_source}" )
+                elif self.tr_source == 3:
+                    self.device_write( f"TM 2; TR 1,{freq_r}" )
+                    general.wait('2000 ms')
+                    self.device_write( f"TM {self.tr_source}" )
+                else:
+                    general.message(f"Trigger rate can be set only for 'Internal' or 'Burst' mode. The current mode is {cutil.search_keys_dictionary(self.trigger_source_dict, self.tr_source)}")
+
+            elif self.test_flag == 'test':
+                temp = rate[0].split(" ")
+                scaling = temp[1]
+                assert(scaling in self.rate_freq_list), f"Incorrect SI suffix. Available options are {self.rate_freq_list}"
+                assert( freq_r >= self.trigger_rate_min and freq_r <= self.trigger_rate_max ), f"Incorrect trigger rate. The available range is from {rate_min} to {rate_max}"
+
+        elif len(rate) == 0:
+            if self.test_flag != 'test':
+                raw_answer = float(self.device_query("TR"))
+                answer = pg.siFormat( raw_answer, suffix = 'Hz', precision = 5, allowUnicode = False)
+                return answer
+            elif self.test_flag == 'test':
+                return self.test_trigger_rate
+
+        else:
+            if self.test_flag == 'test':
+                assert(1 == 2), "Incorrect argument; rate: float + [' MHz', ' kHz', ' Hz', ' mHz']"
 
     def delay_generator_trigger(self):
         """
@@ -399,6 +472,154 @@ class SR_DG535:
                 self.device_write( "SS" )
             else:
                 general.message( "The trigger source should be set to 'Single" )
+
+    def delay_generator_trigger_level(self, *level):
+        """
+        TL {v}
+        Set External Trigger Level to v Volts. This
+        command sets the threshold voltage for external
+        triggers. 
+        """
+        if len(level) == 1:
+            lvl = pg.siEval( level[0] )
+            lvl_r = pg.siEval( pg.siFormat( raw_answer, suffix = 'V', precision = 3, allowUnicode = False) )
+            if self.test_flag != 'test':
+                self.device_write( f"TL {lvl_r}" )
+            elif self.test_flag == 'test':
+                temp = level[0].split(" ")
+                scaling = temp[1]
+                assert(scaling in self.level_list), f"Incorrect SI suffix. Available options are {self.level_list}"
+
+        elif len(level) == 0:
+            if self.test_flag != 'test':
+                raw_answer = float(self.device_query("TL"))
+                answer = pg.siFormat( raw_answer, suffix = 'V', precision = 3, allowUnicode = False)
+                return answer
+            elif self.test_flag == 'test':
+                return self.test_trigger_level
+
+        else:
+            if self.test_flag == 'test':
+                assert(1 == 2), "Incorrect argument; level: float + [' V', ' mV']"
+
+    def delay_generator_trigger_slope(self, *slope):
+        """
+        TS {i}
+        Trigger Slope set to falling (i=0) or Rising Edge
+        (i=1)
+        """
+        if len(slope) == 1:
+            func = str(slope[0])
+            flag = self.trigger_slope_dict[func]
+            if self.test_flag != 'test':
+                self.device_write(f"TS {flag}")
+            elif self.test_flag == 'test':
+                assert(func in self.trigger_slope_dict), f"Invalid trigger slope. Available options are {list(self.trigger_slope_dict.keys())}"
+
+        elif len(slope) == 0:
+            if self.test_flag != 'test':            
+                raw_answer = int(self.device_query('TS'))
+                answer = cutil.search_keys_dictionary(self.trigger_slope_dict, raw_answer)
+                return answer
+            elif self.test_flag == 'test':
+                answer = self.test_trigger_slope
+                return answer
+        else:
+            if self.test_flag == 'test':
+                assert( 1 == 2 ), f"Incorrect argument; slope: {list(self.trigger_slope_dict.keys())}"
+
+    def delay_generator_trigger_impedance(self, *impedance):
+        """
+        TZ 0{,j}
+        Set the input impedance of the external trigger
+        input to 50Ω (j=0) or high impedance (j=1). 
+        """
+        if len(impedance) == 1:
+            func = str(impedance[0])
+            flag = self.self.impedance_dict[func]
+            if self.test_flag != 'test':
+                self.device_write(f"TZ {flag}")
+            elif self.test_flag == 'test':
+                assert(func in self.self.impedance_dict), f"Invalid trigger impedance. Available options are {list(self.impedance_dict.keys())}"
+
+        elif len(impedance) == 0:
+            if self.test_flag != 'test':            
+                raw_answer = int(self.device_query('TZ'))
+                answer = cutil.search_keys_dictionary(self.impedance_dict, raw_answer)
+                return answer
+            elif self.test_flag == 'test':
+                answer = self.test_impedance
+                return answer
+        else:
+            if self.test_flag == 'test':
+                assert( 1 == 2 ), f"Incorrect impedance; slope: {list(self.impedance_dict.keys())}"
+
+    def delay_generator_burst_count(self, count: Optional[int] = None):
+        """
+        BC {i}
+        Burst Count of i (2 to 32766) pulses per burst.
+        This command is used to specify the number of
+        pulses, which will be in each burst of pulses
+        when in the burst mode.
+        """
+        if isinstance(count, int):
+            if self.test_flag != 'test':
+                if self.tr_source == 3:
+                    self.device_write( f"BC {count}" )
+                    self.burst_count = count
+                else:
+                    general.message(f"Burst count can be set only for 'Burst' mode. The current mode is {cutil.search_keys_dictionary(self.trigger_source_dict, self.tr_source)}")
+
+            elif self.test_flag == 'test':
+                assert( count >= self.burst_count_min and count <= self.burst_count_max ), f"Incorrect burst count. The available range is from {self.burst_count_min} to {self.burst_count_max}"
+
+        elif count is None:
+            if self.test_flag != 'test':
+                raw_answer = int(self.device_query("BC"))
+                self.burst_count = raw_answer
+                return raw_answer
+            elif self.test_flag == 'test':
+                return self.burst_count
+
+        else:
+            if self.test_flag == 'test':
+                assert(1 == 2), "Incorrect argument; count: int [2 - 32766]"
+
+    def delay_generator_burst_period(self, *period):
+        """
+        BP {i}
+        Burst Period of i (4 to 32766) triggers per burst.
+        This command specifies the number of triggers
+        between the start of each burst of pulses when in
+        the burst mode. The burst period must always be
+        at least one larger than the Burst Count. 
+        """
+        if len(period) == 1:
+            pr = int( period[0] )
+            if self.test_flag != 'test':
+                if self.tr_source == 3:
+                    if pr > self.burst_count:
+                        self.device_write( f"BP {pr}" )
+                        self.burst_period = pr
+                    else:
+                        general.message(f"Burst period should always be at least one larger than the burst count. The current burst count is {self.burst_count}")
+                else:
+                    general.message(f"Burst period can be set only for 'Burst' mode. The current mode is {cutil.search_keys_dictionary(self.trigger_source_dict, self.tr_source)}")
+
+            elif self.test_flag == 'test':
+                assert( pr >= self.burst_period_min and pr <= self.burst_period_max ), f"Incorrect burst period. The available range is from {self.burst_period_min} to {self.burst_period_max}"
+
+        elif len(period) == 0:
+            if self.test_flag != 'test':
+                raw_answer = int(self.device_query("BP"))
+                self.burst_period = raw_answer
+                return raw_answer
+            elif self.test_flag == 'test':
+                return self.burst_period
+
+        else:
+            if self.test_flag == 'test':
+                assert(1 == 2), "Incorrect argument; period: int [4 - 32766]"
 
     def delay_generator_command(self, command):
         if self.test_flag != 'test':
