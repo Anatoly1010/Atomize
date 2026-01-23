@@ -190,7 +190,9 @@ class CrosshairDock(CloseableDock):
         self.open_dir = str(config['DEFAULT']['open_dir'])
         if self.open_dir == '':
             self.open_dir = lconf.load_scripts(os.path.join(path_to_main, '..', 'tests'))
-        
+        #plot_item.scene().contextMenu = None 
+
+
         # for not removing vertical line if the position is the same
         self.ver_line_1 = 0
         self.ver_line_2 = 0
@@ -590,7 +592,9 @@ class CrossSectionDock(CloseableDock):
         self.plot_item = view = pg.PlotItem(labels = kwargs.pop('labels', None))
         self.img_view = kwargs['widget'] = pg.ImageView(view = view)
         # plot options menu
-        #view.ctrlMenu.setStyleSheet("QMenu::item:selected {background-color: rgb(40, 40, 40); }")
+        #self.plot_item.getViewBox().menu.setStyleSheet("QMenu::item:selected {background-color: rgb(40, 40, 40); } QMenu::item { color: rgb(211, 194, 78); } QMenu {background-color: rgb(42, 42, 64); }")
+        #self.plot_item.ctrlMenu.setStyleSheet("QMenu::item:selected {background-color: rgb(40, 40, 40); } QMenu::item { color: rgb(211, 194, 78); } QMenu {background-color: rgb(42, 42, 64); }")
+        self.auto_levels = 0
         view.setAspectLocked(lock=False)
         self.ui = self.img_view.ui
         self.imageItem = self.img_view.imageItem
@@ -619,8 +623,8 @@ class CrossSectionDock(CloseableDock):
         self.clear_action = QtGui.QAction('Clear Contents', self)
         self.clear_action.triggered.connect(self.clear)
         self.img_view.scene.contextMenu.append(self.clear_action)
-
         self.ui.histogram.gradient.loadPreset('bipolar')
+
         try:
             self.connect_signal()
         except RuntimeError:
@@ -641,7 +645,6 @@ class CrossSectionDock(CloseableDock):
         self.v_cross_section_widget_data = self.v_cross_section_widget.plot([0,0])
 
     def setLabels(self, xlabel = "X", ylabel = "Y", zlabel = "Z"):
-        print(self.h_cross_dock.label)
         self.plot_item.setLabels(bottom=(xlabel,), left=(ylabel,))
         self.h_cross_section_widget.plotItem.setLabels(bottom=xlabel, left=zlabel)
         self.v_cross_section_widget.plotItem.setLabels(bottom=ylabel, left=zlabel)
@@ -669,9 +672,16 @@ class CrossSectionDock(CloseableDock):
 
         autorange = self.img_view.getView().vb.autoRangeEnabled()[0]
         kwargs['autoRange'] = autorange
+
+        if self.auto_levels == 0:
+            kwargs['autoLevels'] = True
+        else:
+            kwargs['autoLevels'] = False
+        self.auto_levels = 1
+
         self.img_view.setImage(*args, **kwargs )
         self.img_view.getView().vb.enableAutoRange(enable = autorange)
-        self.update_cross_section()
+        #self.update_cross_section()
 
     def setTitle(self, text):
         self.plot_item.setTitle(text)

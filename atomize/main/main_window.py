@@ -206,9 +206,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if name in self.namelist:
             pw = self.namelist[name]
-            if pw.closed:
-                pw.closed = False
-                self.dockarea.addDock(pw)
+            #if pw.closed:
+            #    pw.closed = False
+            #    self.dockarea.addDock(pw)
 
         elif name == "*":
             if operation == 'clear':
@@ -219,7 +219,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 list(map(remove, list(self.namelist.keys())))
             return
         else:
-            if operation in ('clear', 'close', 'remove','none'):
+            if operation in ('clear', 'close', 'remove', 'none'):
                 return
             pw = self.add_new_plot(meta['rank'], name)
 
@@ -930,6 +930,11 @@ class NameList(QDockWidget):
     def __delitem__(self, name):
         self.namelist_model.removeRow(self.namelist_model.findItems(name)[0].index().row())
         self.plot_dict[name].close()
+        try:
+            self.plot_dict[name].h_cross_dock.close()
+            self.plot_dict[name].v_cross_dock.close()
+        except AttributeError:
+            pass        
         del self.plot_dict[name]
 
     def keys(self):

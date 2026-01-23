@@ -95,7 +95,8 @@ class LivePlotClient(object):
         }
         self.send_to_plotter(meta, arr.astype('float64'))
         if self.system == 'Windows':
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            pass
         else:
             self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
@@ -127,7 +128,8 @@ class LivePlotClient(object):
         }
         self.send_to_plotter(meta, arr.astype('float64'))
         if self.system == 'Windows':
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            pass
         else:
             self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
@@ -153,14 +155,16 @@ class LivePlotClient(object):
         if len( np.shape( ys ) ) == 1:
             self.send_to_plotter(meta, np.array([xs, ys]).astype('float64'))
             if self.system == 'Windows':
-                self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+                #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+                pass
             else:
                 self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))        
         elif len( np.shape( ys ) ) == 2:
             # simultaneous plot of two curves
             self.send_to_plotter(meta, np.array([[xs, xs], ys]).astype('float64'))
             if self.system == 'Windows':
-                self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+                #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+                pass
             else:
                 self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
@@ -183,7 +187,8 @@ class LivePlotClient(object):
         })
 
         if self.system == 'Windows':
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            pass
         else:
             self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
@@ -197,7 +202,8 @@ class LivePlotClient(object):
         })
 
         if self.system == 'Windows':
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            pass
         else:
             self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
@@ -219,7 +225,8 @@ class LivePlotClient(object):
         self.send_to_plotter(meta, arr.astype('float64'))
 
         if self.system == 'Windows':
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            pass
         else:
             self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
@@ -231,7 +238,8 @@ class LivePlotClient(object):
         })
 
         if self.system == 'Windows':
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            pass
         else:
             self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
@@ -254,7 +262,8 @@ class LivePlotClient(object):
         })
 
         if self.system == 'Windows':
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
+            pass
         else:
             self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
         
