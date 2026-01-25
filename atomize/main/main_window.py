@@ -768,7 +768,7 @@ class NameList(QDockWidget):
         self.namelist_view.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
         delete_action = QAction("Delete Selected", self.namelist_view)
         ###
-        pause_action = QAction("Abort Experiment", self.namelist_view)
+        pause_action = QAction("Stop Experiment", self.namelist_view)
         delete_action.triggered.connect(self.delete_item)
         pause_action.triggered.connect(self.pause)
         self.namelist_view.addAction(delete_action)
