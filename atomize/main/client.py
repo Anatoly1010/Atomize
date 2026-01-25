@@ -52,7 +52,7 @@ class LivePlotClient(object):
         if meta["name"] is None:
             meta["name"] = "*"
         if arr is not None:
-            arrbytes = bytearray(arr)
+            arrbytes = arr.tobytes()
             arrsize = len(arrbytes)
             if arrsize > self.shared_mem.size():
                 raise ValueError("Array too big %s > %s" % (arrsize, self.shared_mem.size()))
@@ -61,22 +61,27 @@ class LivePlotClient(object):
             meta['shape'] = arr.shape
         else:
             meta['arrsize'] = 0
-        meta_bytes = json.dumps(meta).ljust(300)
-        if len(meta_bytes) > 300:
-            raise ValueError("meta object is too large (> 300 char)")
-
+        meta_bytes = json.dumps(meta).ljust(320)
+        if len(meta_bytes) > 320:
+            raise ValueError("meta object is too large (> 320 char)")
+        
         if arr is None:
             self.sock.write(meta_bytes.encode())
         else:
             if not self.sock.bytesAvailable():
                 # should be clarified
-                self.sock.waitForReadyRead(1000)
+                self.sock.waitForReadyRead(2000)
             self.sock.read(2)
-            self.shared_mem.lock()
-            self.sock.write(meta_bytes.encode())
-            region = self.shared_mem.data()
-            region[:arrsize] = arrbytes
-            self.shared_mem.unlock()
+            if self.shared_mem.lock():
+                try:
+                    # Get the pointer and cast to a writable memoryview
+                    ptr = self.shared_mem.data()
+                    region = memoryview(ptr).cast('B') 
+                    region[:len(arrbytes)] = arrbytes
+                finally:
+                    self.shared_mem.unlock()
+
+                self.sock.write(meta_bytes.encode())
 
     def plot_y(self, name, arr, extent=None, start_step=(0, 1), label=''):
         arr = np.array(arr)

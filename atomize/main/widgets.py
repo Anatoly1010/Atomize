@@ -32,23 +32,42 @@ def get_widget(rank, name):
 class CloseableDock(Dock):
     docklist = []
     def __init__(self, *args, **kwargs):
+        # Default 'closable' to False to prevent pyqtgraph's native button from interfering
+        kwargs.setdefault('closable', False)
         super(CloseableDock, self).__init__(*args, **kwargs)
+        
+        self.setStyleSheet("background: rgba(42, 42, 64, 255);")
         style = QtWidgets.QStyleFactory().create("fusion")
         close_icon = style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_TitleBarCloseButton)
-        close_button = QtWidgets.QPushButton(close_icon, "", self)
-        close_button.clicked.connect(self.close)
-        close_button.setGeometry(0, 0, 15, 15)
-        close_button.raise_()
-        self.closeClicked = close_button.clicked
-
-        #max_icon = style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_TitleBarMaxButton)
-        #max_button = QtWidgets.QPushButton(max_icon, "", self)
-        #max_button.clicked.connect(self.maximize)
-        #max_button.setGeometry(15, 0, 15, 15)
-        #max_button.raise_()
-
+        
+        self.close_button = QtWidgets.QPushButton(close_icon, "", self)
+        self.close_button.setGeometry(0, 0, 13, 13)
+        self.close_button.setStyleSheet("border: rgba(0, 0, 0, 255); background: rgba(211, 194, 78, 255);")
+        self.close_button.raise_()
+        self.close_button.clicked.connect(self.close)
+        
+        self.closeClicked = self.close_button.clicked
         self.closed = False
         CloseableDock.docklist.append(self)
+
+    def containerChanged(self, container):
+        """Triggered by pyqtgraph when the dock moves (including floating)."""
+        super().containerChanged(container)
+        container.setStyleSheet(f"background-color: rgba(42, 42, 64, 255);")
+        # Ensure button is on top when it moves to a new floating window
+        self.update_button_layout()
+
+    def resizeEvent(self, event):
+        """Keeps the button in the top-right corner during any resize."""
+        super().resizeEvent(event)
+        self.update_button_layout()
+
+    def update_button_layout(self):
+        """Positions the button relative to the current dock size."""
+        margin = 0
+        # Position at top-right
+        self.close_button.move(margin, margin)
+        self.close_button.raise_()
 
     def close(self):
         self.setParent(None)
@@ -56,11 +75,6 @@ class CloseableDock(Dock):
         if hasattr(self, '_container'):
             if self._container is not self.area.topContainer:
                 self._container.apoptose()
-
-    #def maximize(self):
-    #    for d in CloseableDock.docklist:
-    #        if d is not self and not d.closed:
-    #            d.close()
 
 class CrosshairPlotWidget(pg.PlotWidget):
     def __init__(self, parametric = False, *args, **kwargs):
@@ -220,19 +234,17 @@ class CrosshairDock(CloseableDock):
         self.menu.addMenu(self.shift_menu)
 
         open_action = QtGui.QAction('Open 1D Data', self)
-        open_action.triggered.connect(self.file_dialog) # self.open_file_dialog
+        open_action.triggered.connect(self.file_dialog)
         self.menu.addAction(open_action)
 
-        self.avail_colors = [pg.mkPen(color=(47,79,79),width=1), pg.mkPen(color=(255,153,0),width=1), pg.mkPen(color=(255,0,255),width=1), \
-        pg.mkPen(color=(0,0,255),width=1), \
-        pg.mkPen(color=(0,0,0),width=1), pg.mkPen(color=(255,0,0),width=1), \
-        pg.mkPen(color=(95,158,160),width=1), pg.mkPen(color=(0,128,0),width=1), pg.mkPen(color=(255,255,0),width=1), \
-        pg.mkPen(color=(255,255,255),width=1)]
+        self.avail_colors = [pg.mkPen(color=(47,79,79),width=1), pg.mkPen(color=(255,153,0),width=1), pg.mkPen(color=(255,0,255),width=1), pg.mkPen(color=(0,0,255),width=1), pg.mkPen(color=(0,0,0),width=1), pg.mkPen(color=(255,0,0),width=1), pg.mkPen(color=(95,158,160),width=1), pg.mkPen(color=(0,128,0),width=1), pg.mkPen(color=(255,255,0),width=1), pg.mkPen(color=(255,255,255),width=1)]
         self.avail_symbols= ['x','p','star','s','o','+']
-        self.avail_sym_pens = [ pg.mkPen(color=(0, 0, 0), width=0), pg.mkPen(color=(255, 255, 255), width=0),pg.mkPen(color=(0, 255, 0), width=0),
-        pg.mkPen(color=(0, 0, 255), width=0),pg.mkPen(color=(255, 0, 0), width=0),pg.mkPen(color=(255, 0, 255), width=0)]
-        self.avail_sym_brush = [pg.mkBrush(0, 0, 0, 255), pg.mkBrush(255, 255, 255, 255),pg.mkBrush(0, 255, 0, 255),pg.mkBrush(0, 0, 255, 255),
-        pg.mkBrush(255, 0, 0, 255),pg.mkBrush(255, 0, 255, 255)]
+        self.avail_sym_pens = [ pg.mkPen(color=(0, 0, 0), width=0), pg.mkPen(color=(255, 255, 255), width=0), pg.mkPen(color=(0, 255, 0), width=0), pg.mkPen(color=(0, 0, 255), width=0),pg.mkPen(color=(255, 0, 0), width=0),pg.mkPen(color=(255, 0, 255), width=0)]
+        self.avail_sym_brush = [pg.mkBrush(0, 0, 0, 255), pg.mkBrush(255, 255, 255, 255),pg.mkBrush(0, 255, 0, 255),pg.mkBrush(0, 0, 255, 255), pg.mkBrush(255, 0, 0, 255),pg.mkBrush(255, 0, 255, 255)]
+
+        self.white_pen = pg.mkPen(color=(255, 255, 255), width=1)
+        self.yellow_pen = pg.mkPen(color=(255, 255, 0), width=1)
+
         self.used_colors = {}
         self.used_pens = {}
         self.used_symbols = {}
@@ -251,6 +263,7 @@ class CrosshairDock(CloseableDock):
     def plot(self, *args, **kwargs):
         self.plot_widget.parametric = kwargs.pop('parametric', False)
         vline_arg = kwargs.get('vline', '')
+
         if kwargs.get('timeaxis', '') == 'True':
             # strange scaling when zoom
             axis = pg.DateAxisItem()
@@ -264,10 +277,7 @@ class CrosshairDock(CloseableDock):
 
         if name in self.curves:
             if kwargs.get('scatter', '') == 'True':
-                kwargs['pen'] = None;
-                kwargs['symbol'] = self.used_symbols[name]
-                kwargs['symbolPen'] = self.used_pens[name]
-                kwargs['symbolBrush'] = self.used_brush[name]
+                kwargs['pen'] = None        
                 kwargs['symbolSize'] = 7
                 self.curves[name].setData(*args, **kwargs)
             elif kwargs.get('scatter', '') == 'False':
@@ -295,7 +305,10 @@ class CrosshairDock(CloseableDock):
                                     self.setTitle( temp )
                             else:
                                 kwargs['name'] = name
-                                kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
+                                try:
+                                    kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
+                                except IndexError:
+                                    kwargs['pen'] = self.used_colors[name] = self.white_pen
                                 args_mod = (args[0][i], args[1][i])
                                 self.curves[name] = self.plot_widget.plot(*args_mod, **kwargs)
                                 # Text label above the graph
@@ -308,7 +321,6 @@ class CrosshairDock(CloseableDock):
                                 shifter = QtWidgets.QDoubleSpinBox()
                                 shiftAction = QtWidgets.QWidgetAction(self)
                                 self.add_del_shift_actions(name, del_action, shifter, shiftAction)
-
 
                 else:
                     kwargs['pen'] = self.used_colors[name]
@@ -333,10 +345,15 @@ class CrosshairDock(CloseableDock):
                         pass
         else:
             if kwargs.get('scatter', '') == 'True':
-                kwargs['pen'] = None;
-                kwargs['symbol'] = self.used_symbols[name] = self.avail_symbols.pop()
-                kwargs['symbolPen'] = self.used_pens[name] = self.avail_sym_pens.pop()
-                kwargs['symbolBrush'] = self.used_brush[name] = self.avail_sym_brush.pop()
+                kwargs['pen'] = None
+                try:
+                    kwargs['symbol'] = self.used_symbols[name] = self.avail_symbols.pop()
+                    kwargs['symbolPen'] = self.used_pens[name] = self.avail_sym_pens.pop()
+                    kwargs['symbolBrush'] = self.used_brush[name] = self.avail_sym_brush.pop()
+                except IndexError:
+                    kwargs['symbol'] = self.used_symbols[name] = '+'
+                    kwargs['symbolPen'] = self.used_pens[name] = pg.mkPen(color=(255, 255, 255), width=0)
+                    kwargs['symbolBrush'] = self.used_brush[name] = pg.mkBrush(255, 255, 255, 255)                    
                 kwargs['symbolSize'] = 7
                 self.curves[name] = self.plot_widget.plot(*args, **kwargs)
             elif kwargs.get('scatter', '') == 'False':
@@ -344,12 +361,16 @@ class CrosshairDock(CloseableDock):
                     # simultaneous plot of two curves
                     for i in range( len( args[0] )):
                         if i == 0:
-                            kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
+                            try:
+                                kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
+                            except IndexError:
+                                kwargs['pen'] = self.used_colors[name] = self.white_pen
                             args_mod = (args[0][i], args[1][i])
                             self.curves[name] = self.plot_widget.plot(*args_mod, **kwargs)
                         else:
                             kwargs['pen'] = self.used_colors[name]
                             args_mod = (args[0][0], args[1][0])
+
                             # the first curve is already plotted
                             self.curves[name].setData(*args_mod, **kwargs)
 
@@ -375,7 +396,10 @@ class CrosshairDock(CloseableDock):
                                 self.qaction_added = 1
                             else:
                                 kwargs['name'] = name
-                                kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
+                                try:
+                                    kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
+                                except IndexError:
+                                    kwargs['pen'] = self.used_colors[name] = self.yellow_pen
                                 args_mod = (args[0][i], args[1][i])
                                 # the second curve is a new one
                                 self.curves[name] = self.plot_widget.plot(*args_mod, **kwargs)
@@ -385,7 +409,10 @@ class CrosshairDock(CloseableDock):
                                     self.setTitle( temp )
 
                 else:
-                    kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
+                    try:
+                        kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
+                    except IndexError:
+                        kwargs['pen'] = self.used_colors[name] = self.white_pen
                     self.curves[name] = self.plot_widget.plot(*args, **kwargs)
                     # Text label above the graph
                     temp = kwargs.get('text', '')
@@ -395,7 +422,6 @@ class CrosshairDock(CloseableDock):
                 # vertical lines
                 if vline_arg != 'False':
                     try:
-                        # , pen = pg.mkPen(color=(230, 0, 126), width = 1)
                         self.vl1 = self.plot_widget.addLine( x = float(vline_arg[0]) )
                         self.vl2 = self.plot_widget.addLine( x = float(vline_arg[1]) )
                     except IndexError:
@@ -518,36 +544,11 @@ class CrosshairDock(CloseableDock):
             self.plot(data[0], data[3], parametric = True, name = file_path + '_2', xname = 'X', xscale = 'Arb. U.',\
                 yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
 
-    # unused
-    def open_file_dialog(self, directory = '', header = 0):
-        pass
-        #file_path = self.file_dialog(directory = directory)
-
-        #header_array = []
-        #file_to_read = open(file_path,'r')
-        #for i, line in enumerate(file_to_read):
-        #    if i is header: break
-        #    temp = line.split("#")
-        #    header_array.append(temp)
-        #file_to_read.close()
-
-        #temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 0) 
-        #data = np.transpose(temp)
-        #if len(data) == 2:
-        #    self.plot(data[0], data[1], parametric = True, name = file_path, xname = 'X', xscale = 'Arb. U.',\
-        #    yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
-        #elif len(data) == 3:
-        #    self.plot(data[0], data[1], parametric = True, name = file_path + '_1', xname = 'X', xscale = 'Arb. U.',\
-        #    yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
-        #    self.plot(data[0], data[2], parametric = True, name = file_path + '_2', xname = 'X', xscale = 'Arb. U.',\
-        #    yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
-
     def file_dialog(self, directory = ''):
         """
         A function to open a new window for choosing 1d data
         """
-        filedialog = QFileDialog(self, 'Open File', directory = self.open_dir, filter = "CSV (*.csv)", \
-                                    options = QtWidgets.QFileDialog.Option.DontUseNativeDialog ) 
+        filedialog = QFileDialog(self, 'Open File', directory = self.open_dir, filter = "CSV (*.csv)",  options = QtWidgets.QFileDialog.Option.DontUseNativeDialog ) 
         # options = QtWidgets.QFileDialog.Option.DontUseNativeDialog
         # use QFileDialog.Option.DontUseNativeDialog to change directory
         filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
@@ -591,6 +592,16 @@ class CrossSectionDock(CloseableDock):
     def __init__(self, trace_size = 80, **kwargs):
         self.plot_item = view = pg.PlotItem(labels = kwargs.pop('labels', None))
         self.img_view = kwargs['widget'] = pg.ImageView(view = view)
+
+        # Define positions and corresponding colors
+        pos = np.array([0.0, 0.5, 1.0])
+        color = np.array([
+            [0, 0, 255, 255],       # Blue
+            [255, 255, 255, 255],   # White
+            [255, 0, 0, 255]        # Red
+        ], dtype = np.ubyte)
+        cmap = pg.ColorMap(pos, color)
+
         # plot options menu
         #self.plot_item.getViewBox().menu.setStyleSheet("QMenu::item:selected {background-color: rgb(40, 40, 40); } QMenu::item { color: rgb(211, 194, 78); } QMenu {background-color: rgb(42, 42, 64); }")
         #self.plot_item.ctrlMenu.setStyleSheet("QMenu::item:selected {background-color: rgb(40, 40, 40); } QMenu::item { color: rgb(211, 194, 78); } QMenu {background-color: rgb(42, 42, 64); }")
@@ -623,7 +634,7 @@ class CrossSectionDock(CloseableDock):
         self.clear_action = QtGui.QAction('Clear Contents', self)
         self.clear_action.triggered.connect(self.clear)
         self.img_view.scene.contextMenu.append(self.clear_action)
-        self.ui.histogram.gradient.loadPreset('bipolar')
+        self.ui.histogram.gradient.setColorMap(cmap) #loadPreset('bipolar')
 
         try:
             self.connect_signal()
@@ -677,7 +688,7 @@ class CrossSectionDock(CloseableDock):
             kwargs['autoLevels'] = True
         else:
             kwargs['autoLevels'] = False
-        self.auto_levels = 1
+        self.auto_levels = 0
 
         self.img_view.setImage(*args, **kwargs )
         self.img_view.getView().vb.enableAutoRange(enable = autorange)
@@ -730,8 +741,8 @@ class CrossSectionDock(CloseableDock):
                   footer = '', comments = '#', encoding = None)
 
     def fileSaveDialog(self):
-        self.fileDialog = QFileDialog()
-        #self.fileDialog.setOption(QtGui.QFileDialog.Option.DontUseNativeDialog)
+        self.fileDialog = QFileDialog(self, 'Save File', options = QtWidgets.QFileDialog.Option.DontUseNativeDialog)
+        self.fileDialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
         self.fileDialog.setNameFilters(['*.csv','*.txt','*.dat'])
         self.fileDialog.setAcceptMode(QtWidgets.QFileDialog.AcceptMode.AcceptSave)
         global LastExportDirectory
@@ -764,7 +775,7 @@ class CrossSectionDock(CloseableDock):
         self.search_mode = True
 
         self.area.addDock(self.h_cross_dock)
-        self.area.addDock(self.v_cross_dock, position='right', relativeTo=self.h_cross_dock)
+        self.area.addDock(self.v_cross_dock, position='bottom', relativeTo=self.h_cross_dock)
         self.cross_section_enabled = True
 
     def hide_cross_section(self):
