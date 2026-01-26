@@ -1105,14 +1105,14 @@ class Keysight_3000_Xseries:
             func = str(type[0])
             flag = self.modulation_type_dict[func]
             if self.test_flag != 'test':
-                self.device_write(f" :WGEN:MODulation:TYPE {flag}")
+                self.device_write(f":WGEN:MODulation:TYPE {flag}")
                 self.mod_type = flag
             elif self.test_flag == 'test':
                 assert(func in self.modulation_type_dict), f"Invalid modulation function. Available options are {list(self.modulation_type_dict.keys())}"
 
         elif len(type) == 0:
             if self.test_flag != 'test':            
-                raw_answer = str(self.device_query(' :WGEN:MODulation:TYPE?'))
+                raw_answer = str(self.device_query(':WGEN:MODulation:TYPE?'))
                 self.mod_type = raw_answer
                 answer = cutil.search_keys_dictionary(self.modulation_type_dict, raw_answer)
                 return answer

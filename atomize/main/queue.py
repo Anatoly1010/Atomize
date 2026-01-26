@@ -11,12 +11,15 @@ class QueueList(QDockWidget):
         super(QueueList, self).__init__()
         self.setFeatures(QDockWidget.DockWidgetFeature.NoDockWidgetFeatures)
 
-        self.setStyleSheet("background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); border: 1px solid rgb(40, 30, 45)")
+        self.setStyleSheet("background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); border: 1px solid rgb(40, 30, 45); ")
+
 
         self.setTitleBarWidget(QWidget(self))
 
         self.namelist_model = QStandardItemModel()
         self.namelist_view = CustomListView()
+
+        self.namelist_view.setStyleSheet("""QListView::item:selected:!active {background-color: rgb(63, 63, 97); color: rgb(211, 194, 78)}""")
 
         self.namelist_view.setModel(self.namelist_model)
         self.namelist_view.selectionModel().currentChanged.connect(self.list_elements)

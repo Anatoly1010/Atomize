@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import json
+import ctypes
 import logging
 import signal
 import socket
@@ -14,25 +15,20 @@ import webbrowser
 import subprocess
 import configparser
 import platform
-#from tkinter import filedialog#, ttk
-#import tkinter
 import numpy as np
 from . import widgets
 import pyqtgraph as pg
 from datetime import datetime
 from pathlib import Path
-#import OpenGL
 from PyQt6.QtCore import QSharedMemory, QSize
 from PyQt6.QtGui import QColor, QIcon, QStandardItem, QStandardItemModel, QAction
 from PyQt6.QtWidgets import QFileDialog, QMessageBox, QListView, QDockWidget, QVBoxLayout
 from PyQt6.QtNetwork import QLocalServer
 from PyQt6 import QtWidgets, uic, QtCore, QtGui
-#from PyQt6.Qt import Qt as QtConst
 from pyqtgraph.dockarea import DockArea
 import atomize.main.queue as queue
 import atomize.main.local_config as lconf
 import atomize.main.messenger_socket_server as socket_server
-
 
 class MainWindow(QtWidgets.QMainWindow):
     """
@@ -47,10 +43,6 @@ class MainWindow(QtWidgets.QMainWindow):
         #path_to_main = os.path.abspath(os.getcwd())
         path_to_main = Path(__file__).parent
 
-        #self.icon_path = os.path.join(path_to_main,'atomize/main','Icon.png')
-        self.icon_path = os.path.join(path_to_main,'Icon.png')
-        self.setWindowIcon(QIcon(self.icon_path))
-
         #self.destroyed.connect(MainWindow._on_destroyed)         # connect some actions to exit
         self.destroyed.connect(lambda: self._on_destroyed())       # connect some actions to exit
         # Load the UI Page
@@ -58,6 +50,9 @@ class MainWindow(QtWidgets.QMainWindow):
         os.chdir(os.path.join(path_to_main, '..'))
         uic.loadUi(os.path.join(path_to_main,'gui','main_window.ui'), self) 
         os.chdir(path_to_main)
+
+        self.icon_path = os.path.join(path_to_main,'icon.ico')
+        self.setWindowIcon(QIcon(self.icon_path))
 
         # important attribures
         if len(sys.argv) > 1 and sys.argv[1] != '':  # for bash option
@@ -443,8 +438,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.dockarea4 = DockArea()        
         self.script_queue = queue.QueueList(self)
-        self.dockarea4.setMinimumHeight(65)
-        self.dockarea4.setMaximumHeight(65)
+        #self.dockarea4.setMinimumHeight(65)
+        self.dockarea4.setMaximumHeight(70)        
 
         self.dock_queue = self.dockarea4.addDock(name="Queue")
         self.gridLayout_tab.addWidget(self.dockarea4, 14, 0, 1, 3)
@@ -511,6 +506,9 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         if len(self.script_queue.keys()) != 0:
             self.queue = 1
+            first_index = self.script_queue.namelist_model.index(0, 0 )
+            self.script_queue.namelist_view.setCurrentIndex(first_index)
+
         else:
             self.queue = 0
 
@@ -942,10 +940,18 @@ class NameList(QDockWidget):
         return list(self.plot_dict.keys())
 
 
+
 def main():
     """
     A function to run the main window of the programm.
     """
+    # Windows taskbar
+    try:
+        myappid = 'atomize' 
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    except Exception:
+        pass
+
     app = QtWidgets.QApplication(sys.argv)
     main = MainWindow()
     helper = socket_server.Helper()
