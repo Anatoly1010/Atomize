@@ -692,7 +692,7 @@ class CrossSectionDock(CloseableDock):
 
         self.img_view.setImage(*args, **kwargs )
         self.img_view.getView().vb.enableAutoRange(enable = autorange)
-        #self.update_cross_section()
+        self.update_cross_section()
 
     def setTitle(self, text):
         self.plot_item.setTitle(text)
@@ -832,11 +832,11 @@ class CrossSectionDock(CloseableDock):
         ydata = np.linspace(y0, y0+(yscale*(ny-1)), ny)
         zval = self.imageItem.image[self.x_cross_index, self.y_cross_index]
         self.h_cross_section_widget_data.setData(xdata, self.imageItem.image[:, self.y_cross_index])
-        self.h_cross_section_widget.v_line.setPos(xdata[self.x_cross_index])
-        self.h_cross_section_widget.h_line.setPos(zval)
+        #self.h_cross_section_widget.v_line.setPos(xdata[self.x_cross_index])
+        #self.h_cross_section_widget.h_line.setPos(zval)
         self.v_cross_section_widget_data.setData(ydata, self.imageItem.image[self.x_cross_index, :])
-        self.v_cross_section_widget.v_line.setPos(ydata[self.y_cross_index])
-        self.v_cross_section_widget.h_line.setPos(zval)
+        #self.v_cross_section_widget.v_line.setPos(ydata[self.y_cross_index])
+        #self.v_cross_section_widget.h_line.setPos(zval)
 
 class MoviePlotDock(CrossSectionDock):
     def __init__(self, array, *args, **kwargs):
