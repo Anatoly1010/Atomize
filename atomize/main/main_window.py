@@ -759,7 +759,7 @@ class NameList(QDockWidget):
         self.window = window
         self.plot_dict = {}
 
-        self.namelist_view.setStyleSheet("QListView::item:selected:active {background-color: rgb(63, 63, 97); color: rgb(211, 194, 78); } QListView::item:hover {background-color: rgb(48, 48, 75); }")
+        self.namelist_view.setStyleSheet("QListView::item:selected:active {background-color: rgb(63, 63, 97); color: rgb(211, 194, 78); } QListView::item:hover {background-color: rgb(48, 48, 75); } QListView::item:selected:!active {background-color: rgb(63, 63, 97); color: rgb(211, 194, 78)}")
         self.namelist_view.setStyleSheet("QMenu::item:selected {background-color: rgb(48, 48, 75);  } QMenu::item:selected:active {background-color: rgb(63, 63, 97); }")
 
         self.namelist_view.doubleClicked.connect(self.activate_item)

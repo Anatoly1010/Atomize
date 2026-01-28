@@ -86,7 +86,7 @@ class CodeEditor(QPlainTextEdit):
         elif event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_F:
             self.trigger_search()
             return
-        elif event.key() == Qt.Key.Key_N:
+        elif event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_N:
             self.find_next()
             return
         else:
