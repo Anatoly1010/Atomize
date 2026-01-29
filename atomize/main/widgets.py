@@ -86,22 +86,32 @@ class CrosshairPlotWidget(pg.PlotWidget):
         self.search_mode = True
         self.label = None
         self.label2 = None
+        self.image_operation = 0
+        self.click_count = 1
 
     def toggle_search(self, mouse_event):
         if mouse_event.double():
             if self.cross_section_enabled:
                 self.hide_cross_hair()
             else:
+                self.image_operation = 0
                 item = self.getPlotItem()
                 vb = item.getViewBox()
                 view_coords = vb.mapSceneToView(mouse_event.scenePos())
                 x_log_mode, y_log_mode = vb.state['logMode'][0], vb.state['logMode'][1]
                 view_x, view_y = view_coords.x(), view_coords.y()
                 self.add_cross_hair(view_x, view_y)
+
         elif self.cross_section_enabled:
+            self.click_count = (self.click_count + 1 ) % 2
+            if self.click_count == 0:
+                self.image_operation = 0
+            elif self.click_count == 1:
+                self.image_operation = 1
             self.search_mode = not self.search_mode
             if self.search_mode:
                 self.handle_mouse_move(mouse_event.scenePos())
+
 
     def handle_mouse_move(self, mouse_event):
         if self.cross_section_enabled and self.search_mode:
@@ -606,6 +616,7 @@ class CrossSectionDock(CloseableDock):
         #self.plot_item.getViewBox().menu.setStyleSheet("QMenu::item:selected {background-color: rgb(40, 40, 40); } QMenu::item { color: rgb(211, 194, 78); } QMenu {background-color: rgb(42, 42, 64); }")
         #self.plot_item.ctrlMenu.setStyleSheet("QMenu::item:selected {background-color: rgb(40, 40, 40); } QMenu::item { color: rgb(211, 194, 78); } QMenu {background-color: rgb(42, 42, 64); }")
         self.auto_levels = 0
+        self.set_image = 0
         view.setAspectLocked(lock=False)
         self.ui = self.img_view.ui
         self.imageItem = self.img_view.imageItem
@@ -643,6 +654,7 @@ class CrossSectionDock(CloseableDock):
 
         self.y_cross_index = 0
         self.h_cross_section_widget = CrosshairPlotWidget()
+        self.h_cross_section_widget.image_operation = 1
         self.h_cross_dock = CloseableDock(name='X trace', widget=self.h_cross_section_widget, area=self.area)
         self.h_cross_section_widget.add_cross_hair_zero()
         self.h_cross_section_widget.search_mode = False
@@ -650,6 +662,7 @@ class CrossSectionDock(CloseableDock):
 
         self.x_cross_index = 0
         self.v_cross_section_widget = CrosshairPlotWidget()
+        self.v_cross_section_widget.image_operation = 1
         self.v_cross_dock = CloseableDock(name='Y trace', widget=self.v_cross_section_widget, area=self.area)
         self.v_cross_section_widget.add_cross_hair_zero()
         self.v_cross_section_widget.search_mode = False
@@ -681,6 +694,15 @@ class CrossSectionDock(CloseableDock):
         else:
             self._xscale, self._yscale = 1, 1
 
+        if self.set_image != 0:
+            if self._x0_prev != self._x0 or self._y0_prev != self._y0 or self._xscale_prev != self._xscale or self._yscale_prev != self._yscale:
+                self.hide_cross_section()
+
+        self._x0_prev = self._x0
+        self._y0_prev = self._y0
+        self._xscale_prev = self._xscale
+        self._yscale_prev = self._yscale
+
         autorange = self.img_view.getView().vb.autoRangeEnabled()[0]
         kwargs['autoRange'] = autorange
 
@@ -693,6 +715,7 @@ class CrossSectionDock(CloseableDock):
         self.img_view.setImage(*args, **kwargs )
         self.img_view.getView().vb.enableAutoRange(enable = autorange)
         self.update_cross_section()
+        self.set_image = 1
 
     def setTitle(self, text):
         self.plot_item.setTitle(text)
@@ -775,7 +798,7 @@ class CrossSectionDock(CloseableDock):
         self.search_mode = True
 
         self.area.addDock(self.h_cross_dock)
-        self.area.addDock(self.v_cross_dock, position='bottom', relativeTo=self.h_cross_dock)
+        self.area.addDock(self.v_cross_dock, position='right', relativeTo=self.h_cross_dock)
         self.cross_section_enabled = True
 
     def hide_cross_section(self):
@@ -832,11 +855,14 @@ class CrossSectionDock(CloseableDock):
         ydata = np.linspace(y0, y0+(yscale*(ny-1)), ny)
         zval = self.imageItem.image[self.x_cross_index, self.y_cross_index]
         self.h_cross_section_widget_data.setData(xdata, self.imageItem.image[:, self.y_cross_index])
-        #self.h_cross_section_widget.v_line.setPos(xdata[self.x_cross_index])
-        #self.h_cross_section_widget.h_line.setPos(zval)
         self.v_cross_section_widget_data.setData(ydata, self.imageItem.image[self.x_cross_index, :])
-        #self.v_cross_section_widget.v_line.setPos(ydata[self.y_cross_index])
-        #self.v_cross_section_widget.h_line.setPos(zval)
+
+        if self.v_cross_section_widget.image_operation == 1 and self.h_cross_section_widget.image_operation == 1:
+            self.h_cross_section_widget.v_line.setPos(xdata[self.x_cross_index])
+            self.h_cross_section_widget.h_line.setPos(zval)
+            self.v_cross_section_widget.v_line.setPos(ydata[self.y_cross_index])
+            self.v_cross_section_widget.h_line.setPos(zval)
+
 
 class MoviePlotDock(CrossSectionDock):
     def __init__(self, array, *args, **kwargs):

@@ -19,7 +19,7 @@ class QueueList(QDockWidget):
         self.namelist_model = QStandardItemModel()
         self.namelist_view = CustomListView()
 
-        self.namelist_view.setStyleSheet("""QListView::item:selected:!active {background-color: rgb(63, 63, 97); color: rgb(211, 194, 78)}""")
+        self.namelist_view.setStyleSheet("QListView {background-color: rgb(42, 42, 64); selection-color: rgb(211, 194, 78); color: rgb(211, 194, 78); selection-background-color: rgb(63, 63, 97); border: 1px solid rgb(40, 30, 45);}  QListView::item:hover { background-color: rgb(211, 194, 78); color: rgb(42, 42, 64)}")
 
         self.namelist_view.setModel(self.namelist_model)
         self.namelist_view.selectionModel().currentChanged.connect(self.list_elements)

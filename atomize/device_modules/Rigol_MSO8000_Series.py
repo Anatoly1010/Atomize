@@ -43,8 +43,19 @@ class Rigol_MSO8000_Series:
         self.ac_type_dic = {'Normal': "NORM", 'Average': "AVER", 'Hres': "HRES",'Peak': "PEAK"}
         self.mode_dict = {'Normal': "NORM", 'Raw': "RAW"}
         self.wave_gen_interpolation_dictionary = {'On': 1, 'Off': 0}
-        self.number_average_list = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, \
-                                    32768, 65536]
+        self.number_average_list = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536]
+
+        self.modulation_wavefunction_dict = {'Sin': 'SIN', 'Sq': 'SQU', 'Ramp': 'RAMP', 'Noise': 'NOIS'}
+        self.carrier_wavefunction_dict = {'Sin': 'SIN', 'Sq': 'SQU', 'Ramp': 'RAMP'}
+        self.status_dict = {'Off': 0, 'On': 1}
+        self.modulation_type_dict = {'AM': 'AM', 'FM': 'FM', 'Freq-Shift': 'FSK'}
+
+        self.func_type_1 = 'SIN'
+        self.mod_type_1 = 'AM'
+        self.freq_1 = 1e3
+        self.func_type_2 = 'SIN'
+        self.mod_type_2 = 'AM'
+        self.freq_2 = 1e3
 
         # Limits and Ranges (depends on the exact model):
         self.analog_channels = int(self.specific_parameters['analog_channels'])
@@ -108,6 +119,14 @@ class Rigol_MSO8000_Series:
                             elif self.wg_coupling_2 == 'FIFT':
                                 self.wg_coupling_2 = '50'
 
+                            self.func_type_1 = str(self.device_query(':SOURce1:FUNCtion:SHAPe?'))
+                            self.mod_type_1 = str(self.device_query(':SOURce1:MODulation:TYPE?'))
+                            self.freq_1 = float(self.device_query(":SOURce1:FREQuency?"))
+
+                            self.func_type_2 = str(self.device_query(':SOURce2:FUNCtion:SHAPe?'))
+                            self.mod_type_2 = str(self.device_query(':SOURce2:MODulation:TYPE?'))
+                            self.freq_2 = float(self.device_query(":SOURce2:FREQuency?"))
+
                         else:
                             pass
                         
@@ -145,6 +164,9 @@ class Rigol_MSO8000_Series:
             self.test_wave_gen_points = 10
             self.test_area = 0.001
             self.test_phase = 15
+
+            self.mod_function = 'Sin'
+            self.mod_type = 'AM'
 
     def close_connection(self):
         if self.test_flag != 'test':
@@ -1182,6 +1204,89 @@ class Rigol_MSO8000_Series:
 
         elif self.test_flag == 'test':
             assert( ch == '1' or ch == '2' ), "Incorrect waveform generator channel; phase: int; channel: ['1', '2']"
+
+    # MODULATION
+    def wave_gen_modulation_function(self, *function, channel = '1'):
+        """
+        :MOD:AM:INTernal:FUNCtion
+        [Sine', 'Sq', 'Ramp', 'Noise'] for AM and FM modulation
+        """
+        ch = channel
+        if len(function) == 1:
+            func = str(function[0])
+            flag = self.modulation_wavefunction_dict[func]
+            if self.test_flag != 'test':
+                if ch == '1':
+                    mod_type = self.mod_type_1
+                elif ch == '2':
+                    mod_type = self.mod_type_2
+
+                if mod_type == 'AM' or mod_type == 'FM':
+                    self.device_write(f":SOURce{ch}:MOD:{mod_type}:INTernal:FUNCtion {flag}")
+                else:
+                    general.message(f"Setting modulation function is available only for ['AM', 'FM'] modulation type. The current type is {mod_type}")
+
+            elif self.test_flag == 'test':
+                assert(func in self.modulation_wavefunction_dict), f"Invalid modulation function. Available options are {list(self.modulation_wavefunction_dict.keys())}"
+
+        elif len(function) == 0:
+            if self.test_flag != 'test':
+                if ch == '1':
+                    mod_type = self.mod_type_1
+                elif ch == '2':
+                    mod_type = self.mod_type_2
+                
+                if mod_type == 'AM' or mod_type == 'FM':
+                    raw_answer = str(self.device_query(f":SOURce{ch}:MOD:{mod_type}:INTernal:FUNCtion?"))
+                    answer = cutil.search_keys_dictionary(self.modulation_wavefunction_dict, raw_answer)
+                    return answer
+                else:
+                    general.message(f"Querying modulation function is available only for ['AM', 'FM'] modulation type. The current type is {mod_type}")
+                    return 'Incorrect modulation type' 
+
+            elif self.test_flag == 'test':
+                answer = self.mod_function
+                return answer
+
+        else:
+            if self.test_flag == 'test':
+                raise ValueError(f"Incorrect argument; function: {list(self.modulation_wavefunction_dict.keys())}")
+
+    def wave_gen_modulation_type(self, *type, channel = '1'):
+        """
+        [AM', 'FM', 'Freq-Shift']
+        """
+        ch = channel
+        if len(type) == 1:
+            func = str(type[0])
+            flag = self.modulation_type_dict[func]
+            if self.test_flag != 'test':
+                self.device_write(f":SOURce{ch}:MODulation:TYPE {flag}")
+                if ch == '1':
+                    self.mod_type_1 = flag
+                elif ch == '2':
+                    self.mod_type_2 = flag
+            elif self.test_flag == 'test':
+                assert(func in self.modulation_type_dict), f"Invalid modulation type. Available options are {list(self.modulation_type_dict.keys())}"
+
+        elif len(type) == 0:
+            if self.test_flag != 'test':            
+                raw_answer = str(self.device_query(f':SOURce{ch}:MODulation:TYPE?'))
+                if ch == '1':
+                    self.mod_type_1 = raw_answer
+                elif ch == '2':
+                    self.mod_type_2 = raw_answer
+                answer = cutil.search_keys_dictionary(self.modulation_type_dict, raw_answer)
+                return answer
+            elif self.test_flag == 'test':
+                answer = self.mod_type
+                return answer
+
+        else:
+            if self.test_flag == 'test':
+                raise ValueError(f"Incorrect argument; type: {list(self.modulation_type_dict.keys())}")
+
+
 
     def wave_gen_command(self, command):
         if self.test_flag != 'test':

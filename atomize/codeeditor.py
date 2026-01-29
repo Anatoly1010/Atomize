@@ -38,7 +38,6 @@ class CodeEditor(QPlainTextEdit):
 
         self.last_search_term = ""
 
-
     def update_whitespace_visibility(self):
         doc = self.document()
         options = doc.defaultTextOption()
@@ -150,7 +149,7 @@ class CodeEditor(QPlainTextEdit):
             self.ensureCursorVisible() # Ensure the line is in view
 
     def trigger_search(self):
-        self.setStyleSheet("""background-color: rgb(42, 42, 64); color: rgb(211, 194, 78);""")
+        self.setStyleSheet("""background-color: rgb(42, 42, 64); color: rgb(211, 194, 78);  selection-background-color: rgb(211, 197, 78); selection-color: rgb(63, 63, 97); """)
         
         text, ok = QInputDialog.getText(
             self, "Find Text", "Search for:", text=self.last_search_term

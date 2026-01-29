@@ -55,6 +55,7 @@ class SR_DG535:
         self.burst_count = 2
         self.burst_period = 4
 
+        self.gpib_be = 0
         # Test run parameters
         # These values are returned by the modules in the test run 
         if len(sys.argv) > 1:
@@ -137,6 +138,8 @@ class SR_DG535:
                     answer = self.device.read().decode()
                 else:
                     answer = self.device.query(command, 0.05)
+
+            return answer
         else:
             general.message(f"No connection {self.__class__.__name__}")
             self.status_flag = 0

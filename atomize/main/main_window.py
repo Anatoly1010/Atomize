@@ -374,7 +374,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.button_open.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97); border-style: outset; color: rgb(193, 202, 227); font-weight: bold; } QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset; font-weight: bold; }")
         self.button_edit.clicked.connect(self.edit_file)
         self.button_edit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97); border-style: outset; color: rgb(193, 202, 227); font-weight: bold; } QPushButton:pressed {background-color: rgb(211, 194, 78); ; border-style: inset; font-weight: bold; }")
-        self.button_test.clicked.connect(self.test)
+        #self.button_test.clicked.connect(self.test)
+        self.button_test.clicked.connect(lambda checked: self.test(self.script) ) 
         self.button_test.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97); border-style: outset; color: rgb(193, 202, 227); font-weight: bold; } QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset; font-weight: bold; }")
         self.button_reload.clicked.connect(self.reload)
         self.button_reload.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97); border-style: outset; color: rgb(193, 202, 227); font-weight: bold; } QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset; font-weight: bold; }")
@@ -384,7 +385,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.button_help.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97); border-style: outset; color: rgb(193, 202, 227); font-weight: bold; } QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset; font-weight: bold; }")
         self.button_quit.clicked.connect(lambda: self.quit())
         self.button_quit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97); border-style: outset; color: rgb(193, 202, 227); font-weight: bold; } QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset; font-weight: bold; }")
-        self.textEdit.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); } QScrollBar:vertical {background-color: rgb(42, 42, 64);}")
+        self.textEdit.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); selection-background-color: rgb(211, 197, 78); selection-color: rgb(63, 63, 97); } QScrollBar:vertical {background-color: rgb(42, 42, 64);}")
         self.textEdit.textChanged.connect(self.save_edited_text)
 
         self.button_queue.clicked.connect(self.add_to_queue)
@@ -408,7 +409,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.label_filename.setStyleSheet("QLabel { color : rgb(193, 202, 227); }")
 
         self.text_errors.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
-        self.text_errors.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); }  QMenu::item { color: rgb(211, 194, 78); } QMenu::item:selected {background-color: rgb(48, 48, 75);  } QMenu::item:selected:active {background-color: rgb(63, 63, 97); } QScrollBar:vertical {background-color: rgb(42, 42, 64);}")
+        self.text_errors.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); selection-background-color: rgb(211, 197, 78); selection-color: rgb(63, 63, 97); }  QMenu::item { color: rgb(211, 194, 78); } QMenu::item:selected {background-color: rgb(48, 48, 75);  } QMenu::item:selected:active {background-color: rgb(63, 63, 97); } QScrollBar:vertical {background-color: rgb(42, 42, 64);}")
         clear_action = QAction('Clear', self.text_errors)
         clear_action.triggered.connect(self.clear_errors)
         self.text_errors.addAction(clear_action)
@@ -455,6 +456,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.gridLayout_tab_liveplot.setAlignment(self.namelist, QtCore.Qt.AlignmentFlag.AlignLeft)
         self.gridLayout_tab_liveplot.addWidget(self.dockarea, 0, 1)
         #self.gridLayout_tab_liveplot.setAlignment(self.dockarea, QtConst.AlignRight)
+        self.namelist.setStyleSheet("QListView {background-color: rgb(42, 42, 64); selection-color: rgb(211, 194, 78); color: rgb(211, 194, 78); selection-background-color: rgb(63, 63, 97); border: 1px solid rgb(40, 30, 45);}  QListView::item:hover { background-color: rgb(211, 194, 78); color: rgb(42, 42, 64)}")
 
     def stop_script(self):
         sock = socket.socket()
@@ -758,9 +760,6 @@ class NameList(QDockWidget):
         self.setWidget(self.namelist_view)
         self.window = window
         self.plot_dict = {}
-
-        self.namelist_view.setStyleSheet("QListView::item:selected:active {background-color: rgb(63, 63, 97); color: rgb(211, 194, 78); } QListView::item:hover {background-color: rgb(48, 48, 75); } QListView::item:selected:!active {background-color: rgb(63, 63, 97); color: rgb(211, 194, 78)}")
-        self.namelist_view.setStyleSheet("QMenu::item:selected {background-color: rgb(48, 48, 75);  } QMenu::item:selected:active {background-color: rgb(63, 63, 97); }")
 
         self.namelist_view.doubleClicked.connect(self.activate_item)
         self.namelist_view.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
