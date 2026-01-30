@@ -83,9 +83,27 @@ class CrosshairPlotWidget(pg.PlotWidget):
         self.label2 = None
         self.image_operation = 0
         self.click_count = 1
+        self.axis = ['', '']
+
+        self.plot_item = self.getPlotItem()
+        self.plot_item.ctrl.fftCheck.toggled.connect(self.on_fft_toggled)
+
+    def on_fft_toggled(self, enabled):
+        if enabled:
+            self.plot_item.setLabel('bottom', 'Frequency', units = 'Hz')
+        else:
+            try:
+                self.plot_item.setLabel('bottom', self.axis[0], units = self.axis[1])
+            except AttributeError:
+                pass
 
     def toggle_search(self, mouse_event):
-        if mouse_event.double():
+        try:
+            event_type = mouse_event.double()
+        except AttributeError:
+            event_type = mouse_event
+
+        if event_type:
             if self.cross_section_enabled:
                 self.hide_cross_hair()
             else:
@@ -102,7 +120,8 @@ class CrosshairPlotWidget(pg.PlotWidget):
                 self.image_operation = 0
             elif self.click_count == 1:
                 self.image_operation = 1
-            self.search_mode = not self.search_mode
+            if mouse_event.button() == QtCore.Qt.MouseButton.MiddleButton:
+                self.search_mode = not self.search_mode
             if self.search_mode:
                 self.handle_mouse_move(mouse_event.scenePos())
 
@@ -128,28 +147,28 @@ class CrosshairPlotWidget(pg.PlotWidget):
 
                     # handle different options and different version of pyqtgraph
                     try:
-                        if item.items[0].opts['fftMode'] == True:
+                        if data_item.opts['fftMode'] == True:
                             xdata, ydata = self._fourierTransform(xdata_0, ydata_0)
-                            if item.items[0].opts['logMode'][0]:
+                            if data_item.opts['logMode'][0]:
                                 xdata = xdata[1:]
                                 ydata = ydata[1:]
-                        elif item.items[0].opts['subtractMeanMode'] == True:
+                        elif data_item.opts['subtractMeanMode'] == True:
                             xdata, ydata = xdata_0, ydata_0 - np.mean(ydata_0)
-                        elif item.items[0].opts['derivativeMode'] == True:
+                        elif data_item.opts['derivativeMode'] == True:
                             xdata, ydata = xdata_0[:-1], np.diff(ydata_0) / np.diff(xdata_0)
-                        elif item.items[0].opts['phasemapMode'] == True:
+                        elif data_item.opts['phasemapMode'] == True:
                             xdata, ydata = ydata_0[:-1], np.diff(ydata_0) / np.diff(xdata_0)
                         else:
                             xdata, ydata = xdata_0, ydata_0
                     except KeyError:
-                        if item.items[0].opts['fftMode'] == True:
+                        if data_item.opts['fftMode'] == True:
                             xdata, ydata = self._fourierTransform(xdata_0, ydata_0)
-                            if item.items[0].opts['logMode'][0]:
+                            if data_item.opts['logMode'][0]:
                                 xdata = xdata[1:]
                                 ydata = ydata[1:]
-                        elif item.items[0].opts['derivativeMode'] == True:
+                        elif data_item.opts['derivativeMode'] == True:
                             xdata, ydata = xdata_0[:-1], np.diff(ydata_0) / np.diff(xdata_0)
-                        elif item.items[0].opts['phasemapMode'] == True:
+                        elif data_item.opts['phasemapMode'] == True:
                             xdata, ydata = ydata_0[:-1], np.diff(ydata_0) / np.diff(xdata_0)
                         else:
                             xdata, ydata = xdata_0, ydata_0
@@ -742,6 +761,9 @@ class CrossSectionDock(CloseableDock):
         self.v_cross_section_widget.plotItem.setLabel(axis='bottom', text=kwargs.get('yname', ''), units=kwargs.get('yscale', ''))
         self.h_cross_section_widget.plotItem.setLabel(axis='left', text=kwargs.get('zname', ''), units=kwargs.get('zscale', ''))
 
+        self.h_cross_section_widget.axis = [kwargs.get('xname', ''), kwargs.get('xscale', '')] 
+        self.v_cross_section_widget.axis = [kwargs.get('yname', ''), kwargs.get('yscale', '')] 
+
     def setImage(self, *args, **kwargs):
         item = self.plot_item.getViewBox()
         item.invertY(False)        
@@ -867,7 +889,6 @@ class CrossSectionDock(CloseableDock):
             self.plot_item.removeItem(self.v_line)
             self.img_view.ui.graphicsView.removeItem(self.text_item)
             self.cross_section_enabled = False
-
             self.h_cross_dock.close()
             self.v_cross_dock.close()
 
