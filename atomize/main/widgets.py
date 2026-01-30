@@ -907,7 +907,8 @@ class CrossSectionDock(CloseableDock):
         if mouse_event.double():
             self.toggle_cross_section()
         elif self.cross_section_enabled:
-            self.search_mode = not self.search_mode
+            if mouse_event.button() == QtCore.Qt.MouseButton.MiddleButton:
+                self.search_mode = not self.search_mode
             if self.search_mode:
                 self.handle_mouse_move(mouse_event.scenePos())
 
