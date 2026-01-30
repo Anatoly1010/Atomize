@@ -165,8 +165,9 @@ class Rigol_MSO8000_Series:
             self.test_area = 0.001
             self.test_phase = 15
 
-            self.mod_function = 'Sin'
-            self.mod_type = 'AM'
+            self.test_mod_function = 'Sin'
+            self.test_mod_type = 'AM'
+            self.test_mod_depth = '100 %'
 
     def close_connection(self):
         if self.test_flag != 'test':
@@ -1227,6 +1228,7 @@ class Rigol_MSO8000_Series:
                     general.message(f"Setting modulation function is available only for ['AM', 'FM'] modulation type. The current type is {mod_type}")
 
             elif self.test_flag == 'test':
+                assert(ch == '1' or ch == '2'), "Incorrect waveform generator channel; channel: ['1', '2']"
                 assert(func in self.modulation_wavefunction_dict), f"Invalid modulation function. Available options are {list(self.modulation_wavefunction_dict.keys())}"
 
         elif len(function) == 0:
@@ -1245,12 +1247,13 @@ class Rigol_MSO8000_Series:
                     return 'Incorrect modulation type' 
 
             elif self.test_flag == 'test':
-                answer = self.mod_function
+                assert(ch == '1' or ch == '2'), "Incorrect waveform generator channel; channel: ['1', '2']"
+                answer = self.test_mod_function
                 return answer
 
         else:
             if self.test_flag == 'test':
-                raise ValueError(f"Incorrect argument; function: {list(self.modulation_wavefunction_dict.keys())}")
+                raise ValueError(f"Incorrect argument; function: {list(self.modulation_wavefunction_dict.keys())}; channel = ['1', '2']")
 
     def wave_gen_modulation_type(self, *type, channel = '1'):
         """
@@ -1267,6 +1270,7 @@ class Rigol_MSO8000_Series:
                 elif ch == '2':
                     self.mod_type_2 = flag
             elif self.test_flag == 'test':
+                assert(ch == '1' or ch == '2'), "Incorrect waveform generator channel; channel: ['1', '2']"
                 assert(func in self.modulation_type_dict), f"Invalid modulation type. Available options are {list(self.modulation_type_dict.keys())}"
 
         elif len(type) == 0:
@@ -1279,12 +1283,40 @@ class Rigol_MSO8000_Series:
                 answer = cutil.search_keys_dictionary(self.modulation_type_dict, raw_answer)
                 return answer
             elif self.test_flag == 'test':
-                answer = self.mod_type
+                assert(ch == '1' or ch == '2'), "Incorrect waveform generator channel; channel: ['1', '2']"
+                answer = self.test_mod_type
                 return answer
 
         else:
             if self.test_flag == 'test':
-                raise ValueError(f"Incorrect argument; type: {list(self.modulation_type_dict.keys())}")
+                raise ValueError(f"Incorrect argument; type: {list(self.modulation_type_dict.keys())}; channel = ['1', '2']")
+
+    def wave_gen_modulation_depth(self, *depth, channel = '1'):
+        """
+        [:SOURce[<n>]]:MOD:AM[:DEPTh] <depth>
+        0 - 100
+        """
+        ch = channel
+        if len(depth) == 1:
+            val = int(depth[0])
+            if self.test_flag != 'test':
+                self.device_write(f":SOURce{ch}:MOD:AM:DEPTh {val}")
+            elif self.test_flag == 'test':
+                assert(ch == '1' or ch == '2'), "Incorrect waveform generator channel; channel: ['1', '2']"
+                assert( (val >= 0) and (val <= 100) ), f"Invalid modulation depth range. The available range is from 0 % to 100 %"
+
+        elif len(depth) == 0:
+            if self.test_flag != 'test':            
+                raw_answer = int(self.device_query(f":SOURce{ch}:MOD:AM:DEPTh?"))
+                return f"{raw_answer} %"
+            elif self.test_flag == 'test':
+                assert(ch == '1' or ch == '2'), "Incorrect waveform generator channel; channel: ['1', '2']"
+                answer = self.test_mod_depth
+                return answer
+
+        else:
+            if self.test_flag == 'test':
+                assert( 1 == 2 ), f"Incorrect argument; depth: int [0 - 100]; channel = ['1', '2']"
 
 
 

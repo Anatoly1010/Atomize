@@ -4,23 +4,18 @@ import configparser
 import pyqtgraph as pg
 import numpy as np
 import math
-#from tkinter import filedialog
-#import tkinter
 from datetime import datetime
 from pathlib import Path
 from pyqtgraph.dockarea import Dock
 from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtWidgets import QFileDialog
 import atomize.main.local_config as lconf
-#import OpenGL
 
 pg.setConfigOption('background', (63,63,97))
 pg.setConfigOption('leftButtonPan', False)
 pg.setConfigOption('foreground', (192, 202, 227))
 #pg.setConfigOptions(imageAxisOrder='row-major')
 
-#pg.setConfigOption('useOpenGL', True)
-#pg.setConfigOption('enableExperimental', True)
 LastExportDirectory = None
 
 def get_widget(rank, name):
@@ -98,7 +93,6 @@ class CrosshairPlotWidget(pg.PlotWidget):
                 item = self.getPlotItem()
                 vb = item.getViewBox()
                 view_coords = vb.mapSceneToView(mouse_event.scenePos())
-                x_log_mode, y_log_mode = vb.state['logMode'][0], vb.state['logMode'][1]
                 view_x, view_y = view_coords.x(), view_coords.y()
                 self.add_cross_hair(view_x, view_y)
 
@@ -111,7 +105,6 @@ class CrosshairPlotWidget(pg.PlotWidget):
             self.search_mode = not self.search_mode
             if self.search_mode:
                 self.handle_mouse_move(mouse_event.scenePos())
-
 
     def handle_mouse_move(self, mouse_event):
         if self.cross_section_enabled and self.search_mode:
@@ -131,8 +124,37 @@ class CrosshairPlotWidget(pg.PlotWidget):
             best_guesses = []
             for data_item in item.items:
                 if isinstance(data_item, pg.PlotDataItem) and (data_item.isVisible()):
-                    xdata, ydata = data_item.xData, data_item.yData
-                    index_distance = lambda i: ((xdata[i]-view_x))**2 + ((ydata[i] - view_y)/view_y)**2
+                    xdata_0, ydata_0 = data_item.xData, data_item.yData
+
+                    # handle different options and different version of pyqtgraph
+                    try:
+                        if item.items[0].opts['fftMode'] == True:
+                            xdata, ydata = self._fourierTransform(xdata_0, ydata_0)
+                            if item.items[0].opts['logMode'][0]:
+                                xdata = xdata[1:]
+                                ydata = ydata[1:]
+                        elif item.items[0].opts['subtractMeanMode'] == True:
+                            xdata, ydata = xdata_0, ydata_0 - np.mean(ydata_0)
+                        elif item.items[0].opts['derivativeMode'] == True:
+                            xdata, ydata = xdata_0[:-1], np.diff(ydata_0) / np.diff(xdata_0)
+                        elif item.items[0].opts['phasemapMode'] == True:
+                            xdata, ydata = ydata_0[:-1], np.diff(ydata_0) / np.diff(xdata_0)
+                        else:
+                            xdata, ydata = xdata_0, ydata_0
+                    except KeyError:
+                        if item.items[0].opts['fftMode'] == True:
+                            xdata, ydata = self._fourierTransform(xdata_0, ydata_0)
+                            if item.items[0].opts['logMode'][0]:
+                                xdata = xdata[1:]
+                                ydata = ydata[1:]
+                        elif item.items[0].opts['derivativeMode'] == True:
+                            xdata, ydata = xdata_0[:-1], np.diff(ydata_0) / np.diff(xdata_0)
+                        elif item.items[0].opts['phasemapMode'] == True:
+                            xdata, ydata = ydata_0[:-1], np.diff(ydata_0) / np.diff(xdata_0)
+                        else:
+                            xdata, ydata = xdata_0, ydata_0
+
+                    index_distance = lambda i: ((xdata[i] - view_x))**2 + ((ydata[i] - view_y))**2
                     if self.parametric:
                         index = min(list(range(len(xdata))), key=index_distance)
                     else:
@@ -197,6 +219,24 @@ class CrosshairPlotWidget(pg.PlotWidget):
         self.removeItem(self.h_line)
         self.removeItem(self.v_line)
         self.cross_section_enabled = False
+
+    def _fourierTransform(self, x, y):
+        # Perform Fourier transform. If x values are not sampled uniformly,
+        # then use np.interp to resample before taking fft.
+        if len(x) == 1: 
+            return np.array([0]), abs(y)
+        dx = np.diff(x)
+        uniform = not np.any(np.abs(dx - dx[0]) > (abs(dx[0]) / 1000.))
+        if not uniform:
+            x2 = np.linspace(x[0], x[-1], len(x))
+            y = np.interp(x2, x, y)
+            x = x2
+        n = y.size
+        f = np.fft.rfft(y) / n
+        d = float(x[-1] - x[0]) / (len(x) - 1)
+        x = np.fft.rfftfreq(n, d)
+        y = np.abs(f)
+        return x, y
 
 class CrosshairDock(CloseableDock):
     def __init__(self, **kwargs):
@@ -269,6 +309,18 @@ class CrosshairDock(CloseableDock):
         self.value_prev = 0
         # for delete and shift q_action
         self.qaction_added = 0
+
+        self.plot_item = self.plot_widget.getPlotItem()
+        self.plot_item.ctrl.fftCheck.toggled.connect(self.on_fft_toggled)
+
+    def on_fft_toggled(self, enabled):
+        if enabled:
+            self.plot_item.setLabel('bottom', 'Frequency', units = 'Hz')
+        else:
+            try:
+                self.plot_item.setLabel('bottom', self.bottom_axis_text, units = self.bottom_axis_units)
+            except AttributeError:
+                pass
 
     def plot(self, *args, **kwargs):
         self.plot_widget.parametric = kwargs.pop('parametric', False)
@@ -442,7 +494,15 @@ class CrosshairDock(CloseableDock):
                 shifter_2 = QtWidgets.QDoubleSpinBox()
                 shiftAction_2 = QtWidgets.QWidgetAction(self)
                 self.add_del_shift_actions(name, del_action_2, shifter_2, shiftAction_2)
-    
+
+        item = self.plot_widget.getPlotItem()
+        fft_state = item.items[0].opts['fftMode']
+        self.on_fft_toggled( fft_state )
+
+        if not fft_state:
+            self.bottom_axis_text = self.plot_widget.getAxis('bottom').labelText
+            self.bottom_axis_units = self.plot_widget.getAxis('bottom').labelUnits
+
     def add_del_shift_actions(self, gr_name, del_act, shiftspinbox, shift_act):
         """
         05-01-2021
