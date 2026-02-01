@@ -38,18 +38,18 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         A function for connecting actions and creating a main window.
         """
+        additional_path = kwargs.pop('ptm', '')
         super(MainWindow, self).__init__(*args, **kwargs)
-        # absolute path to icon:
-        #path_to_main = os.path.abspath(os.getcwd())
-        path_to_main = Path(__file__).parent
 
-        #self.destroyed.connect(MainWindow._on_destroyed)         # connect some actions to exit
-        self.destroyed.connect(lambda: self._on_destroyed())       # connect some actions to exit
-        # Load the UI Page
-        #uic.loadUi('atomize/main/gui/main_window.ui', self)        # Design file
+        path_to_main = Path(__file__).parent
+        self.destroyed.connect(lambda: self._on_destroyed())
+
         os.chdir(os.path.join(path_to_main, '..'))
         uic.loadUi(os.path.join(path_to_main,'gui','main_window.ui'), self) 
         os.chdir(path_to_main)
+
+        path_to_main_lib = os.path.join(path_to_main, additional_path)
+        os.chdir(path_to_main_lib)
 
         self.icon_path = os.path.join(path_to_main,'icon.ico')
         self.setWindowIcon(QIcon(self.icon_path))
@@ -498,9 +498,6 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         self.process_python.terminate()
         sys.exit()
-        ####
-        #### QProcess: Destroyed while process ("python3") is still running.
-        ####
 
     def start_experiment(self):
         """
@@ -586,8 +583,8 @@ class MainWindow(QtWidgets.QMainWindow):
             text = open(self.script).read()
             self.textEdit.setPlainText(text)
         except FileNotFoundError:
-            pass    
-        
+            pass
+
     def on_finished_checking(self):
         """
         A function to add the information about errors found during syntax checking
@@ -631,7 +628,6 @@ class MainWindow(QtWidgets.QMainWindow):
         A function to open a documentation
         """
         webbrowser.open("https://anatoly1010.github.io/atomize_docs/functions/", new = 0, autoraise = True)
-        #pass
 
     def edit_file(self):
         """
@@ -676,8 +672,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         A function to open a new window for choosing an experimental script.
         """
-        filedialog = QFileDialog(self, 'Open File', directory = self.path, filter = "python (*.py)",\
-            options = QtWidgets.QFileDialog.Option.DontUseNativeDialog)
+        filedialog = QFileDialog(self, 'Open File', directory = self.path, filter = "python (*.py)",options = QtWidgets.QFileDialog.Option.DontUseNativeDialog)
         # use QFileDialog.Option.DontUseNativeDialog to change directory
         filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
         filedialog.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
@@ -688,8 +683,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         A function to open a new window for choosing a name for a new experimental script.
         """
-        filedialog = QFileDialog(self, 'Save File', directory = self.path, filter = "python (*.py)",\
-            options = QtWidgets.QFileDialog.Option.DontUseNativeDialog)
+        filedialog = QFileDialog(self, 'Save File', directory = self.path, filter = "python (*.py)",options = QtWidgets.QFileDialog.Option.DontUseNativeDialog)
         filedialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
         # use QFileDialog.Option.DontUseNativeDialog to change directory
         filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
@@ -710,7 +704,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.textEdit.toPlainText() != '': # save file dialog will be opened after at least one character is added
                 self.save_file_dialog()
         
-    @QtCore.pyqtSlot(str) 
+    @QtCore.pyqtSlot(str)
     def add_error_message(self, data):
         """
         A function for adding an error message to a dedicated text box in the main window of the programm;
@@ -861,8 +855,7 @@ class NameList(QDockWidget):
         """
         A function to open a new window for choosing 1d data
         """
-        filedialog = QFileDialog(self, 'Open File', directory = self.open_dir, filter = "CSV (*.csv)", \
-                                    options = QtWidgets.QFileDialog.Option.DontUseNativeDialog )
+        filedialog = QFileDialog(self, 'Open File', directory = self.open_dir, filter = "CSV (*.csv)", options = QtWidgets.QFileDialog.Option.DontUseNativeDialog )
         # options = QtWidgets.QFileDialog.Option.DontUseNativeDialog
         # use QFileDialog.Option.DontUseNativeDialog to change directory
         filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
@@ -937,7 +930,6 @@ class NameList(QDockWidget):
 
     def keys(self):
         return list(self.plot_dict.keys())
-
 
 
 def main():

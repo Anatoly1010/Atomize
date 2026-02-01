@@ -87,23 +87,28 @@ class CrosshairPlotWidget(pg.PlotWidget):
 
         self.plot_item = self.getPlotItem()
         self.plot_item.ctrl.fftCheck.toggled.connect(self.on_fft_toggled)
+        self.plot_item.ctrl.logXCheck.toggled.connect( self.hide_cross_hair )
+        self.plot_item.ctrl.logYCheck.toggled.connect( self.hide_cross_hair )
+        self.plot_item.ctrl.derivativeCheck.toggled.connect( self.hide_cross_hair )
+        self.plot_item.ctrl.phasemapCheck.toggled.connect( self.hide_cross_hair )
+        try:
+            self.plot_item.ctrl.subtractMeanCheck.toggled.connect( self.hide_cross_hair )
+        except Exception:
+            pass
 
     def on_fft_toggled(self, enabled):
         if enabled:
+            self.hide_cross_hair()
             self.plot_item.setLabel('bottom', 'Frequency', units = 'Hz')
         else:
             try:
+                self.hide_cross_hair()
                 self.plot_item.setLabel('bottom', self.axis[0], units = self.axis[1])
             except AttributeError:
                 pass
 
     def toggle_search(self, mouse_event):
-        try:
-            event_type = mouse_event.double()
-        except AttributeError:
-            event_type = mouse_event
-
-        if event_type:
+        if mouse_event.double():
             if self.cross_section_enabled:
                 self.hide_cross_hair()
             else:
