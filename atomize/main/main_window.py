@@ -20,7 +20,7 @@ from . import widgets
 import pyqtgraph as pg
 from datetime import datetime
 from pathlib import Path
-from PyQt6.QtCore import QSharedMemory, QSize
+from PyQt6.QtCore import QSharedMemory, QSize, QEventLoop
 from PyQt6.QtGui import QColor, QIcon, QStandardItem, QStandardItemModel, QAction
 from PyQt6.QtWidgets import QFileDialog, QMessageBox, QListView, QDockWidget, QVBoxLayout
 from PyQt6.QtNetwork import QLocalServer
@@ -67,6 +67,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.design_setting()
         self.queue = 0
+        self.success = False
 
         # Liveplot server settings
         self.server = QLocalServer()
@@ -109,14 +110,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.test_timeout = int(config['DEFAULT']['test_timeout']) * 1000 # in ms
 
         # for running different processes using QProcess
-        self.process = QtCore.QProcess(self)
         self.process_text_editor = QtCore.QProcess(self)
         self.process_python = QtCore.QProcess(self)
         self.pid = 0
 
         if self.system == 'Windows':
             self.process_text_editor.setProgram(str(config['DEFAULT']['editorW']))
-            self.process.setProgram('python.exe')
             self.process_python.setProgram('python.exe')
             print('EDITOR: ' + str(config['DEFAULT']['editorW']))
         elif self.system == 'Linux':
@@ -127,10 +126,8 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 self.process_text_editor.setProgram(str(config['DEFAULT']['editor']))
                 print('EDITOR: ' + str(config['DEFAULT']['editor']))
-            self.process.setProgram('python3')
             self.process_python.setProgram('python3')
 
-        self.process.finished.connect(self.on_finished_checking)
         self.process_python.finished.connect(self.on_finished_script)
 
     ##### Liveplot Functions
@@ -467,8 +464,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def add_to_queue(self):
         key_number = str( len(self.script_queue.keys()) )
         self.test(self.script)
-        exec_code = self.process.waitForFinished( msecs = self.test_timeout )
-
+        exec_code = self.success
         if self.test_flag == 0 and exec_code == True:
             self.script_queue[key_number] = self.script
         else:
@@ -523,7 +519,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         self.test(name)
-        exec_code = self.process.waitForFinished( msecs = self.test_timeout ) # timeout in msec
+        exec_code = self.success
 
         if self.test_flag == 1:
             self.text_errors.appendPlainText("Experiment cannot be started, since test is not passed. Test execution timeout is " + str( self.test_timeout / 60000 ) + " minutes")
@@ -531,6 +527,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         elif self.test_flag == 0 and exec_code == True:
             self.process_python.setArguments([name])
+            self.button_start.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(211, 194, 78); border-style: outset; color: rgb(63, 63, 97); font-weight: bold; } ")
             self.process_python.start()
             self.pid = self.process_python.processId()
             print(f'SCRIPT PROCESS ID: {self.pid}')
@@ -543,6 +540,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.start_experiment()
         elif btn.text() == "Update Script":
             self.reload()
+            self.start_experiment()
         else:
             return
 
@@ -550,6 +548,13 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         A function to run script check.
         """
+        self.success = False
+        process = QtCore.QProcess()
+
+        if self.system == 'Windows':
+            process.setProgram('python.exe')
+        elif self.system == 'Linux':
+            process.setProgram('python3')
 
         if name != '':
             stamp = os.stat(name).st_mtime
@@ -569,10 +574,17 @@ class MainWindow(QtWidgets.QMainWindow):
             message.buttonClicked.connect(self.message_box_clicked)
             return
 
+        self.button_test.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(193, 202, 227); border-style: outset; color: rgb(63, 63, 97); font-weight: bold; } ")
+
+        loop = QEventLoop()
+        process.finished.connect(lambda exit_code, exit_status: self.on_finished_checking(exit_code, exit_status, loop, process))
+
         #self.text_errors.appendPlainText("Testing... Please, wait!")
         #self.process.setArguments(['--errors-only', self.script])
-        self.process.setArguments([name, 'test'])
-        self.process.start()
+        process.setArguments([name, 'test'])
+        process.start()
+
+        loop.exec()
 
     def reload(self):
         """
@@ -585,13 +597,13 @@ class MainWindow(QtWidgets.QMainWindow):
         except FileNotFoundError:
             pass
 
-    def on_finished_checking(self):
+    def on_finished_checking(self, exit_code, exit_status, loop, process):
         """
         A function to add the information about errors found during syntax checking
         to a dedicated text box in the main window of the programm.
         """
-        text = self.process.readAllStandardOutput().data().decode()
-        text_errors_script = self.process.readAllStandardError().data().decode()
+        text = process.readAllStandardOutput().data().decode()
+        text_errors_script = process.readAllStandardError().data().decode()
         if text_errors_script == '':
             self.text_errors.appendPlainText("No errors are found")
             self.test_flag = 0
@@ -599,6 +611,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.test_flag = 1
             self.text_errors.appendPlainText(text_errors_script)
 
+        self.button_test.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97); border-style: outset; color: rgb(193, 202, 227); font-weight: bold; } ")
+
+        self.success = (exit_status == QtCore.QProcess.ExitStatus.NormalExit and exit_code == 0)
+        loop.quit()
+ 
     def on_finished_script(self):
         """
         A function to add the information about errors found during syntax checking to a dedicated text box in the main window of the programm.
@@ -616,6 +633,8 @@ class MainWindow(QtWidgets.QMainWindow):
         elif text_errors_script != '':
             self.text_errors.appendPlainText(f"The script PID {self.pid} was executed with errors")
             self.text_errors.appendPlainText(text_errors_script)
+
+        self.button_start.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97); border-style: outset; color: rgb(193, 202, 227); font-weight: bold; } ")
 
         if len(self.script_queue.keys()) != 0:
             self.start_experiment()
