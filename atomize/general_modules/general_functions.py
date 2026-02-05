@@ -278,6 +278,12 @@ def bot_message(*text):
     elif test_flag == 'test':
         pass
 
+def fmt(raw_str, w):
+    if ':' in raw_str:
+        name, val = raw_str.split(':', 1)
+        return f"{name.strip() + ':':<{w}} {val.strip()}"
+    return raw_str
+
 def main():
     pass
 
