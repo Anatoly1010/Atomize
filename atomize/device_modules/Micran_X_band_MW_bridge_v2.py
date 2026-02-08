@@ -58,6 +58,12 @@ class Micran_X_band_MW_bridge_v2:
             self.test_phase = '0 deg'
             self.test_cut_off = '300 MHz'
 
+        try:
+            path_to_main_status = os.path.dirname(os.path.abspath(__file__))
+            self.path_status_file = os.path.join(path_to_main_status, '..', 'control_center/bridge.param')
+        except FileNotFoundError:
+            pass
+
         #self.mw_bridge_rotary_vane(60, mode = 'Limit')
 
     def device_query(self, command, bytes_to_recieve):
@@ -101,6 +107,18 @@ class Micran_X_band_MW_bridge_v2:
                 MESSAGE = b'\x04' + b'\x08' + b'\x00' + b'\x00' + b'\x00' + temp.encode()
                 # 10 bytes to recieve
                 garb = self.device_query( MESSAGE, 10)
+
+                try:
+                    with open(self.path_status_file, 'r', encoding='utf-8') as f:
+                        lines = f.readlines()
+                    with open(self.path_status_file, 'w', encoding='utf-8') as f:
+                        for line in lines:
+                            if line.startswith('Frequency:'):
+                                f.write(f'Frequency:  {freq[0]}\n')
+                            else:
+                                f.write(line)
+                except FileNotFoundError:
+                    pass
 
             elif len(freq) == 0:
 
@@ -447,14 +465,29 @@ class Micran_X_band_MW_bridge_v2:
                         self.prev_dB = self.curr_dB
                         self.flag = 1
 
+                try:
+                    with open(self.path_status_file, 'r', encoding = 'utf-8') as f:
+                        lines = f.readlines()
+                    with open(self.path_status_file, 'w', encoding = 'utf-8') as f:
+                        for line in lines:
+                            if line.startswith('Rotary Vane:'):
+                                f.write(f'Rotary Vane:  {self.curr_dB}\n')
+                            else:
+                                f.write(line)
+                except FileNotFoundError:
+                    pass
+
             elif len(atten) == 0:
 
-                #MESSAGE = b'\x24' + b'\x01' + b'\x00'
-                # 6 bytes to recieve
-                # check
-                #data_raw = self.device_query( MESSAGE, 6)
-
-                answer = 'Rotary Vane Attenuation: ' + str( self.curr_dB ) + ' dB'
+                try:
+                    with open(self.path_status_file, 'r', encoding='utf-8') as file:
+                        for line in file:
+                            if line.startswith('Rotary Vane:'):
+                                raw_answer = line.split(':', 1)[1].strip()
+                                break
+                    answer = 'Rotary Vane Attenuation: ' + str( raw_answer ) + ' dB'
+                except FileNotFoundError:
+                    answer = 'Rotary Vane Attenuation: ' + str( self.curr_dB ) + ' dB'
 
                 return answer
 

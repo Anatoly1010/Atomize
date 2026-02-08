@@ -519,7 +519,7 @@ class Insys_FPGA:
             self.mes                               = 0
 
     # Module functions
-    ####################GIM################################################################################
+    ####################GIM#################
     def pulser_name(self):
         answer = 'Insys 312.5 MHz MPG'
         return answer
@@ -531,8 +531,7 @@ class Insys_FPGA:
         NAME, CHANNEL, START, LENGTH, DELTA_START, LENGTH_INCREMENT, PHASE_SEQUENCE
         """
         if self.test_flag != 'test':
-            pulse = {'name': name, 'channel': channel, 'start': start, 'length': length, 'delta_start' : delta_start,\
-             'length_increment': length_increment, 'phase_list': phase_list}
+            pulse = {'name': name, 'channel': channel, 'start': start, 'length': length, 'delta_start' : delta_start, 'length_increment': length_increment, 'phase_list': phase_list}
 
             temp_length = length.split(" ")
             if temp_length[1] in self.timebase_dict:
@@ -551,8 +550,7 @@ class Insys_FPGA:
                     #self.win_right = self.adc_window - 1
                 elif channel == 'TRIGGER_AWG':
                     self.dac_window = int( self.dac_window + ceil(p_length / self.timebase_pulser) )
-                    pulse_awg = {'name': name + 'AWG', 'channel': 'AWG', 'start': start, 'length': length, 'delta_start' : delta_start,\
-                            'length_increment': length_increment, 'phase_list': phase_list}
+                    pulse_awg = {'name': name + 'AWG', 'channel': 'AWG', 'start': start, 'length': length, 'delta_start' : delta_start, 'length_increment': length_increment, 'phase_list': phase_list}
                     self.pulse_array_pulser.append( pulse_awg )
                     self.pulse_name_array_pulser.append( pulse['name'] )
 
@@ -651,7 +649,7 @@ class Insys_FPGA:
                     assert(p_length >= self.min_pulse_length_pulser), 'Pulse is shorter than minimum available length (' + str(self.min_pulse_length_pulser) +' ns)'
                     assert(p_length <  self.max_pulse_length_pulser), 'Pulse is longer than maximum available length (' + str(self.max_pulse_length_pulser) +' ns)'
             else:
-                assert( 1 == 2 ), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
 
             temp_start = start.split(" ")
             if temp_start[1] in self.timebase_dict:
@@ -666,7 +664,7 @@ class Insys_FPGA:
                 assert(round(remainder(p_start, 3.2), 2) == 0), 'Pulse start should be divisible by 3.2'
                 assert(p_start >= 0), 'Pulse start is a negative number'
             else:
-                assert( 1 == 2 ), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
 
             temp_delta_start = delta_start.split(" ")
             if temp_delta_start[1] in self.timebase_dict:
@@ -682,7 +680,7 @@ class Insys_FPGA:
                 assert(round(remainder(p_delta_start, 3.2), 2) == 0), 'Pulse delta start should be divisible by 3.2'
                 assert(p_delta_start >= 0), 'Pulse delta start is a negative number'
             else:
-                assert( 1 == 2 ), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
 
             temp_length_increment = length_increment.split(" ")
             if temp_length_increment[1] in self.timebase_dict:
@@ -697,9 +695,9 @@ class Insys_FPGA:
 
                 assert(round(remainder(p_length_increment, 3.2), 2) == 0), 'Pulse length increment should be divisible by 3.2'
                 assert (p_length_increment >= 0 and p_length_increment < self.max_pulse_length_pulser), \
-                    'Pulse length increment is longer than maximum available length or negative'
+                'Pulse length increment is longer than maximum available length or negative'
             else:
-                assert( 1 == 2 ), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
 
             if channel in self.channel_dict_pulser:
                 if self.auto_defense_pulser == 'False':
@@ -716,9 +714,9 @@ class Insys_FPGA:
                         # deepcopy helps to create a TRULY NEW array and not a link to the object
                         self.pulse_array_init_pulser = deepcopy(self.pulse_array_pulser)
                 else:
-                    assert(1 == 2), 'Incorrect auto_defense setting; auto_defense: ["True", "False"]'
+                    assert(1 == 2), 'Incorrect auto_defense setting'
             else:
-                assert (1 == 2), f'Incorrect channel; channel: {list(self.channel_dict.keys())}'
+                assert (1 == 2), 'Incorrect channel name'
 
     def pulser_redefine_start(self, *, name, start):
         """
@@ -751,7 +749,7 @@ class Insys_FPGA:
 
         elif self.test_flag == 'test':
             i = 0
-            assert( name in self.pulse_name_array_pulser ), f'Pulse with the specified name {self.pulse_name_array_pulser} is not defined'
+            assert( name in self.pulse_name_array_pulser ), 'Pulse with the specified name is not defined'
 
             while i < len( self.pulse_array_pulser ):
                 if name == self.pulse_array_pulser[i]['name']:
@@ -767,7 +765,7 @@ class Insys_FPGA:
                         assert(round(remainder(p_start, 3.2), 2) == 0), 'Pulse start should be divisible by 3.2'
                         assert(p_start >= 0), 'Pulse start is a negative number'
                     else:
-                        assert( 1 == 2 ), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                        assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
 
                     self.pulse_array_pulser[i]['start'] = str(p_start) + ' ns'
                     self.shift_count_pulser = 1
@@ -807,7 +805,7 @@ class Insys_FPGA:
 
         elif self.test_flag == 'test':
             i = 0
-            assert( name in self.pulse_name_array_pulser ), f'Pulse with the specified name {self.pulse_name_array_pulser} is not defined'
+            assert( name in self.pulse_name_array_pulser ), 'Pulse with the specified name is not defined'
 
             while i < len( self.pulse_array_pulser ):
                 if name == self.pulse_array_pulser[i]['name']:
@@ -824,7 +822,7 @@ class Insys_FPGA:
                         assert(round(remainder(p_delta_start, 3.2), 2) == 0), 'Pulse delta start should be divisible by 3.2'
                         assert(p_delta_start >= 0), 'Pulse delta start is a negative number'
                     else:
-                        assert( 1 == 2 ), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                        assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
 
                     self.pulse_array_pulser[i]['delta_start'] = str(p_delta_start) + ' ns'
                     self.shift_count_pulser = 1
@@ -865,7 +863,7 @@ class Insys_FPGA:
         elif self.test_flag == 'test':
             i = 0
 
-            assert( name in self.pulse_name_array_pulser ), f'Pulse with the specified name {self.pulse_name_array_pulser} is not defined'
+            assert( name in self.pulse_name_array_pulser ), 'Pulse with the specified name is not defined'
 
             while i < len( self.pulse_array_pulser ):
                 if name == self.pulse_array_pulser[i]['name']:
@@ -880,9 +878,9 @@ class Insys_FPGA:
                         
                         assert(round(remainder(p_length_increment, 3.2), 2) == 0), 'Pulse length increment should be divisible by 3.2'
                         assert (p_length_increment >= 0 and p_length_increment < self.max_pulse_length_pulser), \
-                            'Pulse length increment is longer than maximum available length or negative'
+                        'Pulse length increment is longer than maximum available length or negative'
                     else:
-                        assert( 1 == 2 ), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                        assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
 
                     self.pulse_array_pulser[i]['length_increment'] = str(p_length_increment) + ' ns'
                     self.increment_count_pulser = 1
@@ -1076,7 +1074,7 @@ class Insys_FPGA:
                         self.phase_pulses_pulser += 2
 
                     else:
-                        assert( 1 == 2 ), 'Incorrect phase; phase: ["+x", "-x", "+y", "-y"]'
+                        assert( 1 == 2 ), 'Incorrect phase name (+x, -x, +y, -y)'
                 else:
                     pass
             
@@ -1190,7 +1188,7 @@ class Insys_FPGA:
             elif rep_rate_pulser[-3:] == 'MHz':
                 rep_time = int(1000/float(rep_rate_pulser[:-4]))
             else:
-                assert(1 == 2), "Incorrect repetition rate; rep_rate: int + [' Hz', ' kHz', ' MHz']"
+                assert(1 == 2), "Incorrect repetition rate dimension (Hz, kHz, MHz)"
 
             rep_time = self.round_to_closest(rep_time, 3.2)
             #assert( float(self.rep_rate_pulser[0].split(" ")[0]) < 12000 ), f'Repetition rate cannot exceed {12} kHz'
@@ -1360,14 +1358,14 @@ class Insys_FPGA:
                             flag = self.timebase_dict[temp[1]]
                             d_start = float((temp[0]))*flag
                         else:
-                            assert(1 == 2), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                            assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
 
                         temp2 = self.pulse_array_pulser[i]['start'].split(' ')
                         if temp2[1] in self.timebase_dict:
                             flag2 = self.timebase_dict[temp2[1]]
                             st = float((temp2[0]))*flag2
                         else:
-                            assert(1 == 2), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                            assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
                                 
                         self.pulse_array_pulser[i]['start'] = str( st + d_start ) + ' ns'
 
@@ -1391,14 +1389,15 @@ class Insys_FPGA:
                                 flag = self.timebase_dict[temp[1]]
                                 d_start = float((temp[0]))*flag
                             else:
-                                assert(1 == 2), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                                assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
                             
+
                             temp2 = self.pulse_array_pulser[pulse_index]['start'].split(' ')
                             if temp2[1] in self.timebase_dict:
                                 flag2 = self.timebase_dict[temp2[1]]
                                 st = float((temp2[0]))*flag2
                             else:
-                                assert(1 == 2), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                                assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
                                     
                             self.pulse_array_pulser[pulse_index]['start'] = str( st + d_start ) + ' ns'
 
@@ -1484,19 +1483,19 @@ class Insys_FPGA:
                             flag = self.timebase_dict[temp[1]]
                             d_length = (float(temp[0]))*flag
                         else:
-                            assert(1 == 2), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                            assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
 
                         temp2 = self.pulse_array_pulser[i]['length'].split(' ')
                         if temp2[1] in self.timebase_dict:
                             flag2 = self.timebase_dict[temp2[1]]
                             leng = (float(temp2[0]))*flag2
                         else:
-                            assert(1 == 2), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                            assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
                         
                         if ( leng + d_length ) <= self.max_pulse_length_pulser:
                             self.pulse_array_pulser[i]['length'] = str( leng + d_length ) + ' ns'
                         else:
-                            assert(1 == 2), 'Exceeded the maximum pulse length of 1900 ns when incrementing the pulse'
+                            assert(1 == 2), 'Exceeded maximum pulse length (1900 ns) when increment the pulse'
 
                     i += 1
 
@@ -1518,19 +1517,19 @@ class Insys_FPGA:
                                 flag = self.timebase_dict[temp[1]]
                                 d_length = (float(temp[0]))*flag
                             else:
-                                assert(1 == 2), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                                assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
 
                             temp2 = self.pulse_array_pulser[pulse_index]['length'].split(' ')
                             if temp2[1] in self.timebase_dict:
                                 flag2 = self.timebase_dict[temp2[1]]
                                 leng = (float(temp2[0]))*flag2
                             else:
-                                assert(1 == 2), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                                assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
                                     
                             if ( leng + d_length ) <= self.max_pulse_length_pulser:
                                 self.pulse_array_pulser[pulse_index]['length'] = str( leng + d_length ) + ' ns'
                             else:
-                                assert(1 == 2), 'Exceeded the maximum pulse length of 1900 ns when incrementing the pulse'
+                                assert(1 == 2), 'Exceeded maximum pulse length (1900 ns) when increment the pulse'
 
                         self.increment_count_pulser = 1
                         self.current_phase_index_pulser = 0
@@ -1555,7 +1554,8 @@ class Insys_FPGA:
             ###self.buffer_ready = 1
             self.reset_count_nip = 1
             self.sub_flag = 0
-            self.reset_flag = 1
+            # 1 -> 0
+            self.reset_flag = 0
             #self.flag_adc_buffer = 0
             #self.flag_phase_cycle = 0
             self.nid_pc_prev = 0
@@ -1597,7 +1597,7 @@ class Insys_FPGA:
             ###self.buffer_ready = 1
             self.reset_count_nip = 1
             self.sub_flag = 0
-            self.reset_flag = 1
+            self.reset_flag = 0
             #self.flag_adc_buffer = 0
             #self.flag_phase_cycle = 0
             self.N_IP = 0
@@ -1711,7 +1711,7 @@ class Insys_FPGA:
             sh_points = int(points * phases)
 
             if (( int( j - i ) < 0 ) or ( self.nid_pc_prev_no_reset == int( sh_points - phases) )) and (i != 0):
-                general.message(i, j, self.nid_pc_prev_no_reset)
+                #general.message(i, j, self.nid_pc_prev_no_reset)
                 i = 0
                 j = sh_points
                 k = 1
@@ -1787,12 +1787,12 @@ class Insys_FPGA:
                             
                             ###
                             if l == 1:
-                                if (self.count_nip[int(index + i)] == 1) and (index) != 0:
+                                if (self.count_nip[int(index + i)] == 1):# and (index) != 0:
                                     self.count_nip[int(index + i)] += 1
                             l = 0
                             ###
 
-                    #general.message(self.count_nip[i:j])
+                    #general.message(f'A: {self.count_nip[i:j]}')
 
                 data_for_cycling = self.data_raw[int(i*counts_adc_full):int(j*counts_adc_full)]
                 data_i =  self.adc_sens * (data_for_cycling[0::(2*self.dec_coef)]).reshape( points_to_cycle, counts_adc, order = 'C' ) / self.count_nip[i:j,None] / self.gimSum_brd / phases
@@ -1827,18 +1827,18 @@ class Insys_FPGA:
                 rect_p_phase = self.phase_array_length_pulser[0]
                 if rect_p_phase == 0:
                     rect_p_phase = 1
-                    assert( rect_p_phase == phases ), 'Number of phases of acquisition cycle and number of phases of RECT MW pulses have incompatible size'
+                    assert( rect_p_phase == phases ), 'Acquisition cycle and number of phases of RECT MW pulses have incompatible size'
                     rect_p_phase = 0
                 elif rect_p_phase != 0:
-                    assert( rect_p_phase == phases ), 'Number of phases of acquisition cycle and number of phases of RECT MW pulses have incompatible size'
+                    assert( rect_p_phase == phases ), 'Acquisition cycle and number of phases of RECT MW pulses have incompatible size'
             elif self.awg_pulses_pulser == 1:
                 awg_p_phase = self.phase_array_length_0_awg[0]
                 if awg_p_phase == 0:
                     awg_p_phase = 1
-                    assert( awg_p_phase == phases ), 'Number of phases of acquisition cycle and number of phases of AWG MW pulses have incompatible size'
+                    assert( awg_p_phase == phases ), 'Acquisition cycle and number of phases of AWG MW pulses have incompatible size'
                     awg_p_phase = 0
                 elif awg_p_phase != 0:
-                    assert( awg_p_phase == phases ), 'Number of phases of acquisition cycle and number of phases of AWG MW pulses have incompatible size'
+                    assert( awg_p_phase == phases ), 'Acquisition cycle and number of phases of AWG MW pulses have incompatible size'
 
             counts_adc = int( adc_window * 8 / self.dec_coef )
 
@@ -1902,7 +1902,7 @@ class Insys_FPGA:
             
             #self.setEnable_GIM(0)
             closeRet = self.closeBrd()
-            general.message(f'CLOSE BOARD: {closeRet}')
+            #general.message(f'CLOSE BOARD: {closeRet}')
             
             file_to_read = open(self.path_status_file, 'w')
             file_to_read.write('Status:  Off' + '\n')
@@ -1922,9 +1922,9 @@ class Insys_FPGA:
         if self.test_flag != 'test':
             self.synt_number = num
         elif self.test_flag == 'test':
-            assert(num == 1 or num == 2), 'Incorrect synthetizer number; number: [1, 2]'
+            assert(num == 1 or num == 2), 'Incorrect synthetizer number'
 
-    ####################ADC################################################################################
+    ####################ADC###############################
     def digitizer_name(self):
         answer = 'Insys 2.5 GHz 14 bit ADC'
         return answer
@@ -2095,7 +2095,7 @@ class Insys_FPGA:
 
         elif self.test_flag == 'test':
 
-
+            self.count_nip = np.ones( (int(p * ph)), dtype = np.int32 )
             #####
             rep_rate_pulser = self.rep_rate_pulser[0]
             if rep_rate_pulser[-3:] == ' Hz':
@@ -2115,18 +2115,18 @@ class Insys_FPGA:
                 rect_p_phase = self.phase_array_length_pulser[0]
                 if rect_p_phase == 0:
                     rect_p_phase = 1
-                    assert( rect_p_phase == ph ), 'Number of acquisition phases and number of phases of RECT MW pulses have incompatible size'
+                    assert( rect_p_phase == ph ), 'Number of phases and number of phases of RECT MW pulses have incompatible size'
                     rect_p_phase = 0
                 elif rect_p_phase != 0:
-                    assert( rect_p_phase == ph ), 'Number of acquisition phases and number of phases of RECT MW pulses have incompatible size'
+                    assert( rect_p_phase == ph ), 'Number of phases and number of phases of RECT MW pulses have incompatible size'
             elif self.awg_pulses_pulser == 1:
                 awg_p_phase = self.phase_array_length_0_awg[0]
                 if awg_p_phase == 0:
                     awg_p_phase = 1
-                    assert( awg_p_phase == ph ), 'Number of acquisition phases and number of phases of AWG MW pulses have incompatible size'
+                    assert( awg_p_phase == ph ), 'Number of phases and number of phases of AWG MW pulses have incompatible size'
                     awg_p_phase = 0
                 elif awg_p_phase != 0:
-                    assert( awg_p_phase == ph ), 'Number of acquisition phases and number of phases of AWG MW pulses have incompatible size'
+                    assert( awg_p_phase == ph ), 'Number of phases and number of phases of AWG MW pulses have incompatible size'
 
             adc_window = self.adc_window
             #self.data_raw = np.zeros( ( int(p * ph) * int( adc_window * 16) ) )
@@ -2306,6 +2306,8 @@ class Insys_FPGA:
                     #return np.sum( (self.data_i_ph).T[:, self.win_left:self.win_right], axis = 1 ), np.sum( (self.data_q_ph).T[:, self.win_left:self.win_right], axis = 1 ), self.buffer_ready
 
         elif self.test_flag == 'test':
+
+            self.count_nip = np.ones( (int(p * ph)), dtype = np.int32 )
             acq_cycle = self.detection_phase_list
 
             #####
@@ -2326,18 +2328,18 @@ class Insys_FPGA:
                 rect_p_phase = self.phase_array_length_pulser[0]
                 if rect_p_phase == 0:
                     rect_p_phase = 1
-                    assert( rect_p_phase == ph ), 'Number of acquisition phases and number of phases of RECT MW pulses have incompatible size'
+                    assert( rect_p_phase == ph ), 'Number of phases and number of phases of RECT MW pulses have incompatible size'
                     rect_p_phase = 0
                 elif rect_p_phase != 0:
-                    assert( rect_p_phase == ph ), 'Number of acquisition phases and number of phases of RECT MW pulses have incompatible size'
+                    assert( rect_p_phase == ph ), 'Number of phases and number of phases of RECT MW pulses have incompatible size'
             elif self.awg_pulses_pulser == 1:
                 awg_p_phase = self.phase_array_length_0_awg[0]
                 if awg_p_phase == 0:
                     awg_p_phase = 1
-                    assert( awg_p_phase == ph ), 'Number of acquisition phases and number of phases of AWG MW pulses have incompatible size'
+                    assert( awg_p_phase == ph ), 'Number of phases and number of phases of AWG MW pulses have incompatible size'
                     awg_p_phase = 0
                 elif awg_p_phase != 0:
-                    assert( awg_p_phase == ph ), 'Number of acquisition phases and number of phases of AWG MW pulses have incompatible size'
+                    assert( awg_p_phase == ph ), 'Number of phases and number of phases of AWG MW pulses have incompatible size'
 
             adc_window = self.adc_window
             #self.data_raw = np.zeros( ( int(p * ph) * int( adc_window * 16) ) )
@@ -2385,18 +2387,41 @@ class Insys_FPGA:
             elif len(averages) == 0:
                 return self.gimSum_brd
 
+            # to update on-the-fly
+            #if self.state == 0:
+            #    pass
+            #elif self.state == 1:
+
+            #    # change card mode and memory
+            #    if self.card_mode == 2:
+            #        spcm_dwSetParam_i32(self.hCard, SPC_MEMSIZE, int( self.points * self.aver ) )
+            #        #spcm_dwSetParam_i32(self.hCard, SPC_SEGMENTSIZE, self.points )
+
+            #    # correct buffer size
+            #    if self.channel == 1 or self.channel == 2:
+                
+            #        if self.card_mode == 2:
+            #            self.qwBufferSize = uint64 (int( self.points * self.aver ) * 1 * 1)
+
+            #    elif self.channel == 3:
+
+            #        if self.card_mode == 2:
+            #            self.qwBufferSize = uint64 (int( self.points * self.aver ) * 1 * 2)
+
+            #    spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
+
         elif self.test_flag == 'test':
             #self.setting_change_count = 1
 
             if len(averages) == 1:
                 ave = int(averages[0])
-                assert( ave >= 1 and ave <= 10000 ), "Incorrect number of averages. The available range is from 1 to 10000"
+                assert( ave >= 1 and ave <= 10000 ), "Incorrect number of averages; Should be 1 <= Averages <= 10000"
                 self.gimSum_brd = ave
 
             elif len(aver) == 0:
                 return self.gimSum_brd     
             else:
-                assert( 1 == 2 ), 'Incorrect argument; number: int [1 - 10000]'
+                assert( 1 == 2 ), 'Incorrect argument'
 
     def digitizer_window(self):
         """
@@ -2416,8 +2441,7 @@ class Insys_FPGA:
 
         elif self.test_flag == 'test':
             if  len(dec) == 1:
-                assert ( (int(dec[0]) > 0) and ( int(dec[0]) <= 4 ) ), \
-                    "Incorrect decimation coefficient. The available range is from 1 to 4"
+                assert ( (int(dec[0]) > 0) and ( int(dec[0]) <= 4 ) ), "Incorrect decimation coefficient. Should be 1-4"
                 self.dec_coef = int(dec[0])
             elif len(dec) == 0:
                 return self.dec_coef
@@ -2437,8 +2461,8 @@ class Insys_FPGA:
             # ['Points: 224', 'Sample Rate: 250', 'Posstriger: 16', 'Range: 500', 'CH0 Offset: 0', 'CH1 Offset: 0', 
             # 'Window Left: 0', 'Window Right: 0', '']
 
-            self.points = str( text_from_file[0].split(': ')[1] )
-            #points = int( text_from_file[0].split(' ')[1] )
+            points = str( text_from_file[0].split(': ')[1] )
+            self.points = int( points.split(' ')[0] )
             #self.digitizer_number_of_points( points )
 
             #self.sample_rate = int( text_from_file[1].split(' ')[2] )
@@ -2477,8 +2501,8 @@ class Insys_FPGA:
             # ['Points: 224', 'Sample Rate: 250', 'Posstriger: 16', 'Range: 500', 'CH0 Offset: 0', 'CH1 Offset: 0', 
             # 'Window Left: 0', 'Window Right: 0', '']
 
-            self.points = str( text_from_file[0].split(': ')[1] )
-            #points = int( text_from_file[0].split(' ')[1] )
+            points = str( text_from_file[0].split(': ')[1] )
+            self.points = int( points.split(' ')[0] )
             #self.digitizer_number_of_points( points )
 
             #sample_rate = int( text_from_file[1].split(' ')[2] )
@@ -2513,7 +2537,7 @@ class Insys_FPGA:
         elif self.test_flag == 'test':
             return self.test_sample_rate
 
-    ####################DAC################################################################################
+    ####################DAC#######################
     def awg_name(self):
         answer = 'Insys 1.25 GHz 16 bit DAC'
         return answer
@@ -2535,6 +2559,7 @@ class Insys_FPGA:
                 self.channel_1 , self.channel_2 = self.define_buffer_single_joined_awg()
 
                 self.shift_count_pulser = 1
+                
 
                 self.reset_count_awg = 1
                 self.shift_count_awg = 0
@@ -2553,6 +2578,7 @@ class Insys_FPGA:
 
                 self.shift_count_pulser = 1
 
+
                 self.reset_count_awg = 1
                 self.shift_count_awg = 0
                 self.increment_count_awg = 0
@@ -2561,8 +2587,7 @@ class Insys_FPGA:
             else:
                 pass
     
-    def awg_pulse(self, name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0,\
-     delta_phase = 0, phase_list = [], length = '16 ns', sigma = '0 ns', length_increment = '0 ns', start = '0 ns', delta_start = '0 ns', d_coef = 1, n = 1, b = 0.02):
+    def awg_pulse(self, name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = 0, phase_list = [], length = '16 ns', sigma = '0 ns', length_increment = '0 ns', start = '0 ns', delta_start = '0 ns', amplitude = 100, n = 1, b = 0.02):
         """
         A function for awg pulse creation;
         The possible arguments:
@@ -2577,16 +2602,16 @@ class Insys_FPGA:
         INCREMENT (in ns, us, ms; for incrementing both sigma and length)
         START (in ns, us, ms; for joined pulses in 'Single mode')
         DELTA_START (in ns, us, ms; for joined pulses in 'Single mode')
-        D_COEF (in arb u; additional coefficient to adjust pulse amplitudes)
+        AMPLITUDE (in %; additional coefficient to adjust pulse amplitudes)
         N (in arb u); special coefficient for WURST and SECH/TANH pulse determining the steepness of the amplitude function
         b (in ns^-1); special coefficient for SECH/TANH pulse determining the truncation parameter
 
         Buffer according to arguments will be filled after
         """
+        d_coef = 100 / amplitude
+
         if self.test_flag != 'test':
-            pulse = {'name': name, 'channel': channel, 'function': func, 'frequency': frequency, 'phase' : phase,\
-             'delta_phase': delta_phase, 'length': length, 'sigma': sigma, 'length_increment': length_increment, 'start': start,\
-              'delta_start': delta_start, 'amp': d_coef, 'phase_list': phase_list, 'n': n, 'b': b }
+            pulse = {'name': name, 'channel': channel, 'function': func, 'frequency': frequency, 'phase' : phase, 'delta_phase': delta_phase, 'length': length, 'sigma': sigma, 'length_increment': length_increment, 'start': start, 'delta_start': delta_start, 'amp': d_coef, 'phase_list': phase_list, 'n': n, 'b': b }
 
             # length
             temp_length = length.split(" ")
@@ -2661,15 +2686,13 @@ class Insys_FPGA:
                 self.phase_array_length_0_awg.append(len(list(phase_list)))
             
         elif self.test_flag == 'test':
-            pulse = {'name': name, 'channel': channel, 'function': func, 'frequency': frequency, 'phase' : phase,\
-             'delta_phase' : delta_phase, 'length': length, 'sigma': sigma, 'length_increment': length_increment, 'start': start,\
-              'delta_start': delta_start, 'amp': d_coef, 'phase_list': phase_list, 'n': n, 'b': b }
+            pulse = {'name': name, 'channel': channel, 'function': func, 'frequency': frequency, 'phase' : phase, 'delta_phase' : delta_phase, 'length': length, 'sigma': sigma, 'length_increment': length_increment, 'start': start, 'delta_start': delta_start, 'amp': d_coef, 'phase_list': phase_list, 'n': n, 'b': b }
 
             if channel == 'CH0':
                 # phase_list's length
                 self.phase_array_length_0_awg.append(len(list(phase_list)))
             else:
-                assert (1 == 2), "Incorrect channel is given; channel: ['CH0']"
+                assert (1 == 2), 'Incorrect channel is given. Only CH0 is available'
 
             # Checks
             # two equal names
@@ -2682,7 +2705,7 @@ class Insys_FPGA:
 
             # channels
             temp_ch = str(channel)
-            assert (temp_ch in self.channel_dict_awg), 'Incorrect channel; channel: ["CH0", "CH1"]'
+            assert (temp_ch in self.channel_dict_awg), 'Incorrect channel. Only CH0 or CH1 are available'
 
             # for Single/Multi mode checking
             if channel == 'CH0':
@@ -2692,7 +2715,7 @@ class Insys_FPGA:
 
             # Function type
             temp_func = str(func)
-            assert (temp_func in self.function_dict_awg), f'Incorrect pulse type; type : {list(self.function_dict.keys())}'
+            assert (temp_func in self.function_dict_awg), 'Incorrect pulse type. Only SINE, GAUSS, SINC, BLANK, WURST, and SECH/TANH pulses are available'
             if temp_func == 'WURST' or temp_func == 'TEST2' or temp_func == 'SECH/TANH':
                 assert ( len(frequency) == 2 ), 'For WURST and SECH/TANH pulses frequency should be a tuple: frequency = ("Center MHz", "Sweep MHz")'
 
@@ -2701,9 +2724,9 @@ class Insys_FPGA:
                 temp_freq = frequency.split(" ")
                 coef = temp_freq[1]
                 p_freq = float(temp_freq[0])
-                assert (coef == 'MHz'), "Incorrect frequency; frequency: int + [' MHz']"
+                assert (coef == 'MHz'), 'Incorrect frequency dimension. Only MHz is possible'
                 assert(p_freq >= self.min_freq_awg), 'Frequency is lower than minimum available (' + str(self.min_freq_awg) +' MHz)'
-                assert(p_freq < self.max_freq_awg), 'Frequency is larger than maximum available (' + str(self.max_freq_awg) +' MHz)'
+                assert(p_freq < self.max_freq_awg), 'Frequency is longer than minimum available (' + str(self.max_freq_awg) +' MHz)'
             else:
                 temp_freq_st = frequency[0].split(" ")
                 temp_freq_end = frequency[1].split(" ")
@@ -2711,9 +2734,9 @@ class Insys_FPGA:
                 coef_end = temp_freq_end[1]
                 p_freq_st = float(temp_freq_st[0])
                 p_freq_end = float(temp_freq_end[0])
-                assert (coef_st == 'MHz' and coef_end == 'MHz'), "Incorrect frequency; frequency: int + [' MHz']"
+                assert (coef_st == 'MHz' and coef_end == 'MHz'), 'Incorrect frequency dimension. Only MHz is possible'
                 assert(p_freq_st >= self.min_freq_awg and p_freq_end >= self.min_freq_awg), 'Frequency is lower than minimum available (' + str(self.min_freq_awg) +' MHz)'
-                assert(p_freq_st < self.max_freq_awg and p_freq_end < self.max_freq_awg), 'Frequency is larger than maximum available (' + str(self.max_freq_awg) +' MHz)'
+                assert(p_freq_st < self.max_freq_awg and p_freq_end < self.max_freq_awg), 'Frequency is longer than minimum available (' + str(self.max_freq_awg) +' MHz)'
                 #assert(p_freq_end > p_freq_st), 'End frequency in WURST pulse should be higher than start frequency)'
 
             # length
@@ -2732,7 +2755,7 @@ class Insys_FPGA:
                 assert(p_length >= self.min_pulse_length_awg), 'Pulse is shorter than minimum available length (' + str(self.min_pulse_length_awg) +' ns)'
                 assert(p_length < self.max_pulse_length_awg), 'Pulse is longer than maximum available length (' + str(self.max_pulse_length_awg) +' ns)'
             else:
-                assert( 1 == 2 ), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
 
             # sigma
             temp_sigma = sigma.split(" ")
@@ -2751,7 +2774,7 @@ class Insys_FPGA:
                 assert(p_sigma >= self.min_pulse_length_awg), 'Sigma is shorter than minimum available length (' + str(self.min_pulse_length_awg) +' ns)'
                 assert(p_sigma < self.max_pulse_length_awg), 'Sigma is longer than maximum available length (' + str(self.max_pulse_length_awg) +' ns)'
             else:
-                assert( 1 == 2 ), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
 
             # length should be longer than sigma
             assert( p_length >= p_sigma ), 'Pulse length should be longer or equal to sigma'
@@ -2769,9 +2792,9 @@ class Insys_FPGA:
                 assert( round(remainder(p_increment, 3.2), 2) == 0), 'Pulse increment should be divisible by 3.2'
 
                 assert (p_increment >= 0 and p_increment < self.max_pulse_length_awg), \
-                    'Length and sigma increment is longer than maximum available length or negative'
+                'Length and sigma increment is longer than maximum available length or negative'
             else:
-                assert( 1 == 2 ), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
 
             # start
             temp_start = start.split(" ")
@@ -2787,7 +2810,7 @@ class Insys_FPGA:
                 assert(p_start >= 0), 'Pulse start should be a positive number'
                 assert( round(remainder(p_start, 3.2), 2) == 0), 'Pulse start should be divisible by 3.2'
             else:
-                assert( 1 == 2 ), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
 
             # delta_start
             temp_delta_start = delta_start.split(" ")
@@ -2803,7 +2826,7 @@ class Insys_FPGA:
                 assert(p_delta_start >= 0), 'Pulse delta start should be a positive number'
                 assert( round(remainder(p_delta_start, 3.2), 2) == 0), 'Pulse delta start should be divisible by 3.2'
             else:
-                assert( 1 == 2 ), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
 
             # d_coef
             temp_amp = float( d_coef )
@@ -2919,7 +2942,7 @@ class Insys_FPGA:
                             self.reset_count_awg = 0
 
                     else:
-                        assert( 1 == 2 ), 'Incorrect phase; phase: ["+x", "-x", "+y", "-y"]'
+                        assert( 1 == 2 ), 'Incorrect phase name (+x, -x, +y, -y)'
 
             if self.phase_array_length_0_awg[0] == 1:
                 pass
@@ -2961,7 +2984,7 @@ class Insys_FPGA:
 
         elif self.test_flag == 'test':
             i = 0
-            assert( name in self.pulse_name_array_awg ), f'Pulse with the specified name {name} is not defined'
+            assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
 
             while i < len( self.pulse_array_awg ):
                 if name == self.pulse_array_awg[i]['name']:
@@ -2977,7 +3000,7 @@ class Insys_FPGA:
                         assert( round(remainder(p_delta_start, 3.2), 2) == 0), 'Pulse delta start should be divisible by 3.2'
                         assert(p_delta_start >= 0), 'Pulse delta start is a negative number'
                     else:
-                        assert( 1 == 2 ), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                        assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
 
                     self.pulse_array_awg[i]['delta_start'] = str(p_delta_start) + ' ns'
                     self.shift_count_awg = 1
@@ -3008,7 +3031,7 @@ class Insys_FPGA:
 
         elif self.test_flag == 'test':
             i = 0
-            assert( name in self.pulse_name_array_awg ), f'Pulse with the specified name {name} is not defined'
+            assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
 
             while i < len( self.pulse_array_awg ):
                 if name == self.pulse_array_awg[i]['name']:
@@ -3018,9 +3041,9 @@ class Insys_FPGA:
                         temp_freq = freq.split(" ")
                         coef = temp_freq[1]
                         p_freq = float(temp_freq[0])
-                        assert (coef == 'MHz'), "Incorrect frequency; frequency: int + [' MHz']"
+                        assert (coef == 'MHz'), 'Incorrect frequency dimension. Only MHz is possible'
                         assert(p_freq >= self.min_freq_awg), 'Frequency is lower than minimum available (' + str(self.min_freq_awg) +' MHz)'
-                        assert(p_freq < self.max_freq_awg), 'Frequency is larger than maximum available (' + str(self.max_freq_awg) +' MHz)'
+                        assert(p_freq < self.max_freq_awg), 'Frequency is longer than minimum available (' + str(self.max_freq_awg) +' MHz)'
                     else:
                         temp_freq_st = frequency[0].split(" ")
                         temp_freq_end = frequency[1].split(" ")
@@ -3028,9 +3051,9 @@ class Insys_FPGA:
                         coef_end = temp_freq_end[1]
                         p_freq_st = float(temp_freq_st[0])
                         p_freq_end = float(temp_freq_end[0])
-                        assert (coef_st == 'MHz' and coef_end == 'MHz'), "Incorrect frequency; frequency: int + [' MHz']"
+                        assert (coef_st == 'MHz' and coef_end == 'MHz'), 'Incorrect frequency dimension. Only MHz is possible'
                         assert(p_freq_st >= self.min_freq_awg and p_freq_end >= self.min_freq_awg), 'Frequency is lower than minimum available (' + str(self.min_freq_awg) +' MHz)'
-                        assert(p_freq_st < self.max_freq_awg and p_freq_end < self.max_freq_awg), 'Frequency is larger than maximum available (' + str(self.max_freq_awg) +' MHz)'
+                        assert(p_freq_st < self.max_freq_awg and p_freq_end < self.max_freq_awg), 'Frequency is longer than minimum available (' + str(self.max_freq_awg) +' MHz)'
 
                     self.pulse_array_awg[i]['frequency'] = freq
                     self.shift_count_awg = 1
@@ -3062,7 +3085,7 @@ class Insys_FPGA:
 
         elif self.test_flag == 'test':
             i = 0
-            assert( name in self.pulse_name_array_awg ), f'Pulse with the specified name {name} is not defined'
+            assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
 
             while i < len( self.pulse_array_awg ):
                 if name == self.pulse_array_awg[i]['name']:
@@ -3096,7 +3119,7 @@ class Insys_FPGA:
 
         elif self.test_flag == 'test':
             i = 0
-            assert( name in self.pulse_name_array_awg ), f'Pulse with the specified name {name} is not defined'
+            assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
 
             while i < len( self.pulse_array_awg ):
                 if name == self.pulse_array_awg[i]['name']:
@@ -3135,7 +3158,7 @@ class Insys_FPGA:
 
         elif self.test_flag == 'test':
             i = 0
-            assert( name in self.pulse_name_array_awg ), f'Pulse with the specified name {name} is not defined'
+            assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
 
             while i < len( self.pulse_array_awg ):
                 if name == self.pulse_array_awg[i]['name']:
@@ -3179,7 +3202,7 @@ class Insys_FPGA:
 
         elif self.test_flag == 'test':
             i = 0
-            assert( name in self.pulse_name_array_awg ), f'Pulse with the specified name {name} is not defined'
+            assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
 
             while i < len( self.pulse_array_awg ):
                 if name == self.pulse_array_awg[i]['name']:
@@ -3193,9 +3216,9 @@ class Insys_FPGA:
                             general.message(f"Pulse increment is not divisible by 3.2. The closest available Pulse increment of {p_increment} ns is used")
                         assert( round(remainder(p_increment, 3.2), 2) == 0), 'Pulse increment should be divisible by 3.2'
                         assert (p_increment >= 0 and p_increment < self.max_pulse_length_awg), \
-                            'Length and sigma increment is longer than maximum available length or negative'
+                        'Length and sigma increment is longer than maximum available length or negative'
                     else:
-                        assert( 1 == 2 ), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                        assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
 
                     self.pulse_array_awg[i]['length_increment'] = str(p_increment) + ' ns'
                     self.increment_count_awg = 1
@@ -3275,7 +3298,7 @@ class Insys_FPGA:
                             self.pulse_array_awg[pulse_index]['phase'] = temp + temp2
 
                     else:
-                        assert(1 == 2),  f'Pulse with the specified name is not defined'
+                        assert(1 == 2), "There is no pulse with the specified name"
 
     def awg_increment(self, *pulses):
         """
@@ -3384,21 +3407,21 @@ class Insys_FPGA:
                             d_length = (float(temp[0]))*flag
                             self.dac_window = int( self.dac_window + ceil(d_length / self.timebase_pulser) )
                         else:
-                            assert(1 == 2), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                            assert(1 == 2), "Incorrect time dimension (ns, us, ms)"
 
                         temp2 = self.pulse_array_awg[i]['length'].split(' ')
                         if temp2[1] in self.timebase_dict:
                             flag2 = self.timebase_dict[temp2[1]]
                             leng = (float(temp2[0]))*flag2
                         else:
-                            assert(1 == 2), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                            assert(1 == 2), "Incorrect time dimension (ns, us, ms)"
 
                         temp3 = self.pulse_array_awg[i]['sigma'].split(' ')
                         if temp3[1] in self.timebase_dict:
                             flag3 = self.timebase_dict[temp3[1]]
                             sigm = (float(temp3[0]))*flag3
                         else:
-                            assert(1 == 2), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                            assert(1 == 2), "Incorrect time dimension (ns, us, ms)"
                         
 
                         ratio = leng/sigm
@@ -3411,7 +3434,7 @@ class Insys_FPGA:
                                 self.pulse_array_awg[i]['length'] = str( leng + ratio*d_length ) + ' ns'
                                 self.pulse_array_awg[i]['sigma'] = str( sigm + d_length ) + ' ns'
                         else:
-                            assert(1 == 2), 'Exceeded the maximum pulse length ' + str(self.max_pulse_length_awg) + ' when incrementing the pulse'
+                            assert(1 == 2), 'Exceeded maximum pulse length' + str(self.max_pulse_length_awg) + 'when increment the pulse'
 
                     i += 1
 
@@ -3435,21 +3458,21 @@ class Insys_FPGA:
                                 self.dac_window = int( self.dac_window + ceil(d_length / self.timebase_pulser) )
 
                             else:
-                                assert(1 == 2), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                                assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
 
                             temp2 = self.pulse_array_awg[pulse_index]['length'].split(' ')
                             if temp2[1] in self.timebase_dict:
                                 flag2 = self.timebase_dict[temp2[1]]
                                 leng = (float(temp2[0]))*flag2
                             else:
-                                assert(1 == 2), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                                assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
                             
                             temp3 = self.pulse_array_awg[pulse_index]['sigma'].split(' ')
                             if temp3[1] in self.timebase_dict:
                                 flag3 = self.timebase_dict[temp3[1]]
                                 sigm = (float(temp3[0]))*flag3
                             else:
-                                assert(1 == 2), 'Incorrect time; time: float + [" ms", " us", " ns"]'
+                                assert(1 == 2), "Incorrect time dimension (ns, us, ms)"
 
                             ratio = leng/sigm
                             if ( leng + ratio*d_length ) <= self.max_pulse_length_awg:
@@ -3461,13 +3484,13 @@ class Insys_FPGA:
                                     self.pulse_array_awg[pulse_index]['length'] = str( leng + ratio*d_length ) + ' ns'
                                     self.pulse_array_awg[pulse_index]['sigma'] = str( sigm + d_length ) + ' ns'
                             else:
-                                assert(1 == 2), 'Exceeded the maximum pulse length ' + str(self.max_pulse_length_awg) + ' when incrementing the pulse'
+                                assert(1 == 2), 'Exceeded maximum pulse length' + str(self.max_pulse_length_awg) + 'when increment the pulse'
 
                         self.increment_count_awg = 1
                         self.current_phase_index_awg = 0
 
                     else:
-                        assert(1 == 2), f'Pulse with the specified name is not defined'
+                        assert(1 == 2), "There is no pulse with the specified name"
 
     def awg_pulse_reset(self, *pulses):
         """
@@ -3575,9 +3598,8 @@ class Insys_FPGA:
             if len(amplitude) == 2:
                 ch = str(amplitude[0])
                 ampl = int(amplitude[1])
-                assert(ch == 'CH0' or ch == 'CH1'), "Incorrect channel; channel: ['CH0', 'CH1']"
-                assert( ampl >= self.amplitude_min_awg and ampl <= self.amplitude_max_awg ), \
-                    "Incorrect amplitude; The available range is from 10 mV to 260 mV"
+                assert(ch == 'CH0' or ch == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
+                assert( ampl >= self.amplitude_min_awg and ampl <= self.amplitude_max_awg ), "Incorrect amplitude; Should be 10 <= amplitude <= 260"
                 if ch == 'CH0':
                     self.amplitude_0_awg = ampl
                 elif ch == 'CH1':
@@ -3588,12 +3610,10 @@ class Insys_FPGA:
                 ampl1 = int(amplitude[1])
                 ch2 = str(amplitude[2])
                 ampl2 = int(amplitude[3])
-                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel; channel: ['CH0', 'CH1']"
-                assert( ampl1 >= self.amplitude_min_awg and ampl1 <= self.amplitude_max_awg ), \
-                    "Incorrect amplitude 1; The available range is from 10 mV to 260 mV"
-                assert(ch2 == 'CH0' or ch2 == 'CH1'), "Incorrect channel; channel: ['CH0', 'CH1']"
-                assert( ampl2 >= self.amplitude_min_awg and ampl2 <= self.amplitude_max_awg ), \
-                    "Incorrect amplitude 2; The available range is from 10 mV to 260 mV"
+                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel 1; Should be CH0 or CH1"
+                assert( ampl1 >= self.amplitude_min_awg and ampl1 <= self.amplitude_max_awg ), "Incorrect amplitude 1; Should be 10 <= amplitude <= 260"
+                assert(ch2 == 'CH0' or ch2 == 'CH1'), "Incorrect channel 2; Should be CH0 or CH1"
+                assert( ampl2 >= self.amplitude_min_awg and ampl2 <= self.amplitude_max_awg ), "Incorrect amplitude 2; Should be 10 <= amplitude <= 260"
                 if ch1 == 'CH0':
                     self.amplitude_0_awg = ampl1
                 elif ch1 == 'CH1':
@@ -3605,13 +3625,13 @@ class Insys_FPGA:
 
             elif len(amplitude) == 1:
                 ch1 = str(amplitude[0])
-                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel; channel: ['CH0', 'CH1']"
+                assert(ch1 == 'CH0' or ch1 == 'CH1'), "Incorrect channel; Should be CH0 or CH1"
                 if ch1 == 'CH0':
                     return str(self.amplitude_0_awg) + ' mV'
                 elif ch1 == 'CH1':
                     return str(self.amplitude_1_awg) + ' mV'
             else:
-                assert( 1 == 2 ), "Incorrect arguments; channel 1: ['CH0', 'CH1']; amplitude 1: int; channel 2: ['CH0', 'CH1']; amplitude 2: int"
+                assert( 1 == 2 ), 'Incorrect arguments'
 
     def awg_test_flag(self, flag):
         """
@@ -3677,6 +3697,7 @@ class Insys_FPGA:
         self.low_level_awg = low_level
         self.limit_awg = limit
 
+    # UNDOCUMENTED
     def awg_clear(self):
         """
         A special function for AWG Control module
@@ -3698,6 +3719,7 @@ class Insys_FPGA:
         self.state_awg = 0
         self.current_phase_index_awg = 0
 
+    # UNDOCUMENTED
     def awg_clear_pulses(self):
         """
         A special function for clearing pulses and flags
@@ -3719,7 +3741,7 @@ class Insys_FPGA:
         self.state_awg = 1
         self.current_phase_index_awg = 0
 
-    ####################AUX################################################################################
+    ####################AUX#####################
     def gen_2d_array_from_buffer(self, data, adc_window, p, ph, live_mode):
         #начало заголовка
         #0хAA5500FF
@@ -3752,6 +3774,7 @@ class Insys_FPGA:
                 splitted_data_tail = (np.array([]), np.array([]))
             
             ###self.flag_buffer_cut = 0
+            # this does nothing
             self.reset_flag = 0
             #self.nid_prev = -1  # important
         
@@ -4214,40 +4237,57 @@ class Insys_FPGA:
             # sorted pulse list in order to be able to have an arbitrary pulse order inside
             # the definition in the experimental script
             sorted_np_array = np.asarray(sorted(np_array, key = lambda x: int(x[1])), dtype = np.int64)
-            ## 16-09-2021; An attempt to optimize the speed; all pulses should be already checked in the TEST RUN
-            ## Uncomment everything starting with ## if needed
 
             ### compare the end time with the start time for each couple of pulses
-            for index, element in enumerate(sorted_np_array[:-1]):
-                # minimal_distance is 40 ns now
-                if sorted_np_array[index + 1][1] - element[2] < self.min_pulse_length_pulser:
-                    element[2] = sorted_np_array[index + 1][2]
-                    sorted_np_array = np.delete(sorted_np_array, -1, 0)
+            index = 0
+            data_to_check = sorted_np_array[:-1] 
+
+            while index < len(sorted_np_array) - 1:
+                element = sorted_np_array[index]
+                next_element = sorted_np_array[index + 1]
+
+                if next_element[1] - element[2] < self.min_pulse_length_pulser:
+
+                    sorted_np_array[index][2] = next_element[2]
+                    sorted_np_array = np.delete(sorted_np_array, index + 1, 0)
+
                     if self.mes == 0:
                         general.message(f'Overlapping pulses or two pulses with less than {self.min_pulse_length_pulser} ns distance')
                         self.mes = 1
-                else:
-                    pass
+                    
+                    index = 0
+                    continue
+                        
+                index += 1
 
             return sorted_np_array
 
         elif self.test_flag == 'test':
             sorted_np_array = np.asarray(sorted(np_array, key = lambda x: int(x[1])), dtype = np.int64)
             
-            # compare the end time with the start time for each couple of pulses
-            for index, element in enumerate(sorted_np_array[:-1]):
-                # minimal_distance is 40 ns now
-                if sorted_np_array[index + 1][1] - element[2] < self.min_pulse_length_pulser:
+            index = 0
+            data_to_check = sorted_np_array[:-1] 
+
+            while index < len(sorted_np_array) - 1:
+                element = sorted_np_array[index]
+                next_element = sorted_np_array[index + 1]
+
+                if next_element[1] - element[2] < self.min_pulse_length_pulser:
                     if element[0] == 2**self.channel_dict_pulser['TRIGGER_AWG']:
-                        assert(1 == 2), f'Overlapping AWG pulses'
+                        assert False, 'Overlapping AWG pulses'
                     else:
-                        element[2] = sorted_np_array[index + 1][2]
-                        sorted_np_array = np.delete(sorted_np_array, -1, 0)
+
+                        sorted_np_array[index][2] = next_element[2]
+                        sorted_np_array = np.delete(sorted_np_array, index + 1, 0)
+
                         if self.mes == 0:
                             general.message(f'Overlapping pulses or two pulses with less than {self.min_pulse_length_pulser} ns distance')
                             self.mes = 1
-                else:
-                    pass
+                        
+                        index = 0 
+                        continue
+                        
+                index += 1
 
             return sorted_np_array
 
@@ -4615,6 +4655,7 @@ class Insys_FPGA:
                 return one_array
             else:
                 general.message('Pulse sequence is longer than one period of the repetition rate')
+                sys.exit()
 
         elif self.test_flag == 'test':
             answer = []
@@ -4998,14 +5039,14 @@ class Insys_FPGA:
                             amp_on_list.append( [2**(self.channel_dict_pulser['AMP_ON']), element[1] - self.switch_delay_pulser, element[2] + self.amp_delay_pulser] )
                             #amp_on_list.append( [self.channel_dict_pulser['SHAPER'], element[1] - self.switch_shaper_delay, element[2] + self.shaper_delay] )
                         else:
-                            assert(1 == 2), 'Maximum available length of 4980 ns for AMP_ON pulse is reached'
+                            assert(1 == 2), 'Maximum available length (4980 ns) for AMP_ON pulse is reached'
                     # AMP_ON and RECT_AWG coincide now
                     elif element[0] == 2**(self.channel_dict_pulser['AWG']):
                         if element[2] - element[1]  <= self.max_pulse_length_pulser/2:
                             amp_on_list.append( [2**(self.channel_dict_pulser['AMP_ON']), element[1] - self.switch_delay_pulser, element[2] + self.amp_delay_pulser] )
                             #amp_on_list.append( [self.channel_dict_pulser['SHAPER'], element[1] - self.switch_shaper_delay, element[2] + self.shaper_delay] )
                         else:
-                            assert(1 == 2), 'Maximum available length of 4980 ns for AMP_ON pulse is reached'
+                            assert(1 == 2), 'Maximum available length (4980 ns) for AMP_ON pulse is reached'
 
                     else:
                         pass
@@ -5385,7 +5426,7 @@ class Insys_FPGA:
                 par_st = int(float((temp[0]))*flag + delay)
                 new_parameter = str( par_st ) + ' ns'
             else:
-                assert(1 == 2), "Incorrect argument; delay: float + [' ns', ' us', ' ms']"
+                assert(1 == 2), 'Incorrect time dimension (ns, us, ms, s)'
 
             return new_parameter
 
@@ -5954,7 +5995,7 @@ class Insys_FPGA:
         """
         return round(( y * ( ( x // y ) + (round(x % y, 2) > 0) ) ), 1)
 
-    ####################BOARD##############################################################################
+    ####################BOARD#######################
     def write_data_GIM_brd(self):
         if self.test_flag != 'test':
             size , data             = self.data_buf_IP_GIM_brd
@@ -6028,6 +6069,7 @@ class Insys_FPGA:
                     print(new_line, end = '')
 
         elif self.test_flag == 'test':
+
             pass
 
     def change_two_ini_files(self, file_ini, search_text, new_text):
@@ -6063,7 +6105,7 @@ class Insys_FPGA:
                 else:
                     print(new_line, end = '')
 
-    def count_nip(self, ph):
+    def count_ip(self, ph):
         return np.sum( self.count_nip.reshape( len( self.count_nip ) // ph, ph, order = 'C' ), axis = 1 )
 
 def main():

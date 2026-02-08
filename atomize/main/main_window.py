@@ -366,7 +366,28 @@ class MainWindow(QtWidgets.QMainWindow):
         # Connection of different action to different Menus and Buttons
         self.tabwidget.tabBar().setTabTextColor(0, QColor(193, 202, 227))
         self.tabwidget.tabBar().setTabTextColor(1, QColor(193, 202, 227))
-        self.tabwidget.tabBar().setStyleSheet(" font-weight: bold ")
+        self.tabwidget.setStyleSheet("""
+            QTabBar::tab { 
+                width: 185px; 
+                height: 20px;
+                font-weight: bold; 
+                color: rgb(193, 202, 227);
+                background: rgb(63, 63, 97);
+                border: 1px solid rgb(43, 43, 77);
+                border-bottom: none;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+                margin-right: 2px;
+            }
+            QTabBar::tab:selected {
+                color: rgb(211, 194, 78);
+                background: rgb(83, 83, 117); /* Чуть светлее при выборе */
+                border-bottom: 2px solid rgb(211, 194, 78);
+            }
+            QTabBar::tab:hover {
+                background: rgb(73, 73, 107);
+            }
+        """)
         self.button_open.clicked.connect(self.open_file_dialog)
         self.button_open.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97); border-style: outset; color: rgb(193, 202, 227); font-weight: bold; } QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset; font-weight: bold; }")
         self.button_edit.clicked.connect(self.edit_file)
@@ -518,8 +539,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.text_errors.appendPlainText('No experimental script is opened')
             return
 
-        self.test(name)
-        exec_code = self.success
+        exec_code = self.test(name)
+        #exec_code = self.success
 
         if self.test_flag == 1:
             self.text_errors.appendPlainText("Experiment cannot be started, since test is not passed. Test execution timeout is " + str( self.test_timeout / 60000 ) + " minutes")
