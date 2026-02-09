@@ -367,8 +367,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabwidget.tabBar().setTabTextColor(0, QColor(193, 202, 227))
         self.tabwidget.tabBar().setTabTextColor(1, QColor(193, 202, 227))
         self.tabwidget.setStyleSheet("""
+            QTabWidget::pane {
+            border: 1.5px solid rgb(40, 30, 45 );
+            }
             QTabBar::tab { 
-                width: 185px; 
+                width: 185px;
                 height: 20px;
                 font-weight: bold; 
                 color: rgb(193, 202, 227);
@@ -539,8 +542,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.text_errors.appendPlainText('No experimental script is opened')
             return
 
-        exec_code = self.test(name)
-        #exec_code = self.success
+        self.test(name)
+        exec_code = self.success
 
         if self.test_flag == 1:
             self.text_errors.appendPlainText("Experiment cannot be started, since test is not passed. Test execution timeout is " + str( self.test_timeout / 60000 ) + " minutes")
