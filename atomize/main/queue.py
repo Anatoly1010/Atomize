@@ -15,11 +15,46 @@ class QueueList(QDockWidget):
 
 
         self.setTitleBarWidget(QWidget(self))
-
+        
         self.namelist_model = QStandardItemModel()
         self.namelist_view = CustomListView()
 
-        self.namelist_view.setStyleSheet("QListView {background-color: rgb(42, 42, 64); selection-color: rgb(211, 194, 78); color: rgb(211, 194, 78); selection-background-color: rgb(63, 63, 97); border: 1px solid rgb(40, 30, 45);}  QListView::item:hover { background-color: rgb(211, 194, 78); color: rgb(42, 42, 64)}")
+        self.namelist_view.setStyleSheet("""
+            QListView {
+                background-color: rgb(42, 42, 64); 
+                color: rgb(211, 194, 78); 
+                selection-color: rgb(211, 194, 78); 
+                selection-background-color: rgb(63, 63, 97); 
+                border: 1px solid rgb(40, 30, 45);
+                outline: none;
+            }
+            QListView::item:hover { 
+                background-color: rgb(211, 194, 78); 
+                color: rgb(42, 42, 64);
+            }
+
+            QScrollBar:vertical {
+                border: none;
+                background: rgb(43, 43, 77); 
+                width: 10px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgb(193, 202, 227); 
+                min-height: 20px;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgb(211, 194, 78); 
+            }
+            
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: none;
+            }
+        """)
 
         self.namelist_view.setModel(self.namelist_model)
         self.namelist_view.selectionModel().currentChanged.connect(self.list_elements)

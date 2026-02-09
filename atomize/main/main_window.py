@@ -363,6 +363,9 @@ class MainWindow(QtWidgets.QMainWindow):
     #####################################################
 
     def design_setting(self):
+
+        self.setMinimumHeight(800)
+        self.setMinimumWidth(1360)
         # Connection of different action to different Menus and Buttons
         self.tabwidget.tabBar().setTabTextColor(0, QColor(193, 202, 227))
         self.tabwidget.tabBar().setTabTextColor(1, QColor(193, 202, 227))
@@ -372,7 +375,7 @@ class MainWindow(QtWidgets.QMainWindow):
             }
             QTabBar::tab { 
                 width: 185px;
-                height: 20px;
+                height: 25px;
                 font-weight: bold; 
                 color: rgb(193, 202, 227);
                 background: rgb(63, 63, 97);
@@ -407,6 +410,45 @@ class MainWindow(QtWidgets.QMainWindow):
         self.button_quit.clicked.connect(lambda: self.quit())
         self.button_quit.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97); border-style: outset; color: rgb(193, 202, 227); font-weight: bold; } QPushButton:pressed {background-color: rgb(211, 194, 78); border-style: inset; font-weight: bold; }")
         self.textEdit.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); selection-background-color: rgb(211, 197, 78); selection-color: rgb(63, 63, 97); } QScrollBar:vertical {background-color: rgb(42, 42, 64);}")
+        self.textEdit.setStyleSheet("""
+            QPlainTextEdit {
+                background-color: rgb(42, 42, 64); 
+                color: rgb(211, 194, 78); 
+                selection-background-color: rgb(211, 197, 78); 
+                selection-color: rgb(63, 63, 97);
+            }
+
+            QMenu {
+                background-color: rgb(42, 42, 64);
+                border: 1px solid rgb(63, 63, 97);
+            }
+            QMenu::item { color: rgb(211, 194, 78); } 
+            QMenu::item:selected { background-color: rgb(48, 48, 75); } 
+
+            QScrollBar:vertical {
+                border: none;
+                background: rgb(43, 43, 77); 
+                width: 10px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgb(193, 202, 227); 
+                min-height: 20px;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgb(211, 194, 78); 
+            }
+            
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: none;
+            }
+        """)
+
+
         self.textEdit.textChanged.connect(self.save_edited_text)
 
         self.button_queue.clicked.connect(self.add_to_queue)
@@ -430,7 +472,44 @@ class MainWindow(QtWidgets.QMainWindow):
         self.label_filename.setStyleSheet("QLabel { color : rgb(193, 202, 227); }")
 
         self.text_errors.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
-        self.text_errors.setStyleSheet("QPlainTextEdit {background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); selection-background-color: rgb(211, 197, 78); selection-color: rgb(63, 63, 97); }  QMenu::item { color: rgb(211, 194, 78); } QMenu::item:selected {background-color: rgb(48, 48, 75);  } QMenu::item:selected:active {background-color: rgb(63, 63, 97); } QScrollBar:vertical {background-color: rgb(42, 42, 64);}")
+        self.text_errors.setStyleSheet("""
+            QPlainTextEdit {
+                background-color: rgb(42, 42, 64); 
+                color: rgb(211, 194, 78); 
+                selection-background-color: rgb(211, 197, 78); 
+                selection-color: rgb(63, 63, 97);
+            }
+
+            QMenu {
+                background-color: rgb(42, 42, 64);
+                border: 1px solid rgb(63, 63, 97);
+            }
+            QMenu::item { color: rgb(211, 194, 78); } 
+            QMenu::item:selected { background-color: rgb(48, 48, 75); } 
+
+            QScrollBar:vertical {
+                border: none;
+                background: rgb(43, 43, 77); 
+                width: 10px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgb(193, 202, 227); 
+                min-height: 20px;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgb(211, 194, 78); 
+            }
+            
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: none;
+            }
+        """)
+
         clear_action = QAction('Clear', self.text_errors)
         clear_action.triggered.connect(self.clear_errors)
         self.text_errors.addAction(clear_action)
@@ -777,6 +856,7 @@ class NameList(QDockWidget):
 
         self.setStyleSheet("background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); border: 2px solid rgb(40, 30, 45)")
 
+
         #directories
         path_to_main = os.path.abspath(os.getcwd())
         # configuration data
@@ -793,6 +873,42 @@ class NameList(QDockWidget):
         
         self.namelist_model = QStandardItemModel()
         self.namelist_view = QListView()
+        self.namelist_view.setStyleSheet("""
+            QListView {
+                background-color: rgb(42, 42, 64); 
+                color: rgb(211, 194, 78); 
+                selection-color: rgb(211, 194, 78); 
+                selection-background-color: rgb(63, 63, 97); 
+                border: 1px solid rgb(40, 30, 45);
+                outline: none;
+            }
+            QListView::item:hover { 
+                background-color: rgb(211, 194, 78); 
+                color: rgb(42, 42, 64);
+            }
+
+            QScrollBar:vertical {
+                border: none;
+                background: rgb(43, 43, 77); 
+                width: 10px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgb(193, 202, 227); 
+                min-height: 20px;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgb(211, 194, 78); 
+            }
+            
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: none;
+            }
+        """)        
         self.namelist_view.setModel(self.namelist_model)
         self.setWidget(self.namelist_view)
         self.window = window

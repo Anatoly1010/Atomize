@@ -2462,7 +2462,7 @@ class Insys_FPGA:
             # 'Window Left: 0', 'Window Right: 0', '']
 
             points = str( text_from_file[0].split(': ')[1] )
-            self.points = int( points.split(' ')[0] )
+            self.points =round( float(points.split(' ')[0]), 1)
             #self.digitizer_number_of_points( points )
 
             #self.sample_rate = int( text_from_file[1].split(' ')[2] )
@@ -2500,9 +2500,9 @@ class Insys_FPGA:
             text_from_file = file_to_read.read().split('\n')
             # ['Points: 224', 'Sample Rate: 250', 'Posstriger: 16', 'Range: 500', 'CH0 Offset: 0', 'CH1 Offset: 0', 
             # 'Window Left: 0', 'Window Right: 0', '']
-
             points = str( text_from_file[0].split(': ')[1] )
-            self.points = int( points.split(' ')[0] )
+
+            self.points = round( float(points.split(' ')[0]), 1)
             #self.digitizer_number_of_points( points )
 
             #sample_rate = int( text_from_file[1].split(' ')[2] )
