@@ -11,9 +11,6 @@ class QueueList(QDockWidget):
         super(QueueList, self).__init__()
         self.setFeatures(QDockWidget.DockWidgetFeature.NoDockWidgetFeatures)
 
-        self.setStyleSheet("background-color: rgb(42, 42, 64); color: rgb(211, 194, 78); border: 1px solid rgb(40, 30, 45); ")
-
-
         self.setTitleBarWidget(QWidget(self))
         
         self.namelist_model = QStandardItemModel()
@@ -25,7 +22,7 @@ class QueueList(QDockWidget):
                 color: rgb(211, 194, 78); 
                 selection-color: rgb(211, 194, 78); 
                 selection-background-color: rgb(63, 63, 97); 
-                border: 1px solid rgb(40, 30, 45);
+                border: 1px solid rgb(63, 63, 97);
                 outline: none;
             }
             QListView::item:hover { 

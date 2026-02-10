@@ -103,14 +103,14 @@ class CodeEditor(QPlainTextEdit):
     @pyqtSlot()
     def highlightCurrentLine(self):
         extraSelections = []
-        if not self.isReadOnly():
-            selection = QTextEdit.ExtraSelection()
-            lineColor = QColor(48, 48, 75)
-            selection.format.setBackground(lineColor)
-            selection.format.setProperty( 24576, True)
-            selection.cursor = self.textCursor()
-            selection.cursor.clearSelection()
-            extraSelections.append(selection)
+        #if not self.isReadOnly():
+        selection = QTextEdit.ExtraSelection()
+        lineColor = QColor(48, 48, 75)
+        selection.format.setBackground(lineColor)
+        selection.format.setProperty(QTextFormat.Property.FullWidthSelection, True)
+        selection.cursor = self.textCursor()
+        selection.cursor.clearSelection()
+        extraSelections.append(selection)
         self.setExtraSelections(extraSelections)
 
     @pyqtSlot(QRect, int)
