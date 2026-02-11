@@ -371,7 +371,7 @@ class MainWindow(QMainWindow):
         height = int(screen_geometry.height() * 0.7)
 
         #int(screen_geometry.height() * 0.6)
-        self.setMinimumSize(int(screen_geometry.width() * 0.5), 650)
+        self.setMinimumSize(int(screen_geometry.width() * 0.6), 650)
         self.resize(width, height)
 
         x = (screen_geometry.width() - self.width()) // 2
@@ -698,7 +698,7 @@ class MainWindow(QMainWindow):
             self.start_experiment()
         elif btn.text() == "Update Script":
             self.reload()
-            self.start_experiment()
+            #self.start_experiment()
         else:
             return
 
@@ -706,6 +706,10 @@ class MainWindow(QMainWindow):
         """
         A function to run script check.
         """
+        self.button_test.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(193, 202, 227); border-style: outset; color: rgb(63, 63, 97); font-weight: bold; } ")
+
+        QApplication.processEvents()
+
         self.success = False
         process = QtCore.QProcess()
 
@@ -725,14 +729,12 @@ class MainWindow(QMainWindow):
             message = QMessageBox(self);  # Message Box for warning of updated file
             message.setWindowTitle("Your script has been changed!")
             message.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78); }")
-            message.addButton(QtWidgets.QPushButton('Discrad and Run Experiment'), QtWidgets.QMessageBox.ButtonRole.YesRole)
-            message.addButton(QtWidgets.QPushButton('Update Script'), QtWidgets.QMessageBox.ButtonRole.NoRole)
+            message.addButton(QPushButton('Discrad and Run Experiment'), QMessageBox.ButtonRole.YesRole)
+            message.addButton(QPushButton('Update Script'), QMessageBox.ButtonRole.NoRole)
             message.setText("Your experimental script has been changed   ");
             message.show();
             message.buttonClicked.connect(self.message_box_clicked)
             return
-
-        self.button_test.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(193, 202, 227); border-style: outset; color: rgb(63, 63, 97); font-weight: bold; } ")
 
         loop = QEventLoop()
         process.finished.connect(lambda exit_code, exit_status: self.on_finished_checking(exit_code, exit_status, loop, process))
