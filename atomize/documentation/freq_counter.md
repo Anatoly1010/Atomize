@@ -8,10 +8,10 @@ parent: Documentation
 
 ### Devices
 
-- Agilent Frequency Counter (GPIB, RS-232)
+- Agilent Frequency Counter (GPIB: linux-gpib, RS-232)
 **53181A**; **53131A/132A**; Tested 01/2021<br/>
 **5343A**; GPIB, Tested 02/2023
-- Keysight Frequency Counter (GPIB, RS-232, Ethernet)
+- Keysight Frequency Counter (GPIB: linux-gpib, RS-232, Ethernet)
 **53230A/220A**; Untested
 
 ---
@@ -19,14 +19,14 @@ parent: Documentation
 ### Functions
 - [freq_counter_name()](#freq_counter_name)<br/>
 - [freq_counter_frequency(channel)](#freq_counter_frequencychannel)<br/>
-- [freq_counter_impedance(*impedance)](#freq_counter_impedanceimpedance)<br/>
-- [freq_counter_coupling(*coupling)](#freq_counter_couplingcoupling)<br/>
-- [freq_counter_stop_mode(*mode)](#freq_counter_stop_modemode)<br/>
-- [freq_counter_start_mode(*mode)](#freq_counter_start_modemode)<br/>
-- [freq_counter_gate_mode(*mode)](#freq_counter_gate_modemode)<br/>
-- [freq_counter_digits(*digits)](#freq_counter_digitsdigits)<br/>
-- [freq_counter_gate_time(*time)](#freq_counter_gate_timetime)<br/>
-- [freq_counter_expected_freq(*frequency)](#freq_counter_expected_freqfrequency)<br/>
+- [freq_counter_impedance(\*impedance)](#freq_counter_impedanceimpedance)<br/>
+- [freq_counter_coupling(\*coupling)](#freq_counter_couplingcoupling)<br/>
+- [freq_counter_stop_mode(\*mode)](#freq_counter_stop_modemode)<br/>
+- [freq_counter_start_mode(\*mode)](#freq_counter_start_modemode)<br/>
+- [freq_counter_gate_mode(\*mode)](#freq_counter_gate_modemode)<br/>
+- [freq_counter_digits(\*digits)](#freq_counter_digitsdigits)<br/>
+- [freq_counter_gate_time(\*time)](#freq_counter_gate_timetime)<br/>
+- [freq_counter_expected_freq(\*frequency)](#freq_counter_expected_freqfrequency)<br/>
 - [freq_counter_period(channel)](#freq_counter_periodchannel)<br/>
 - [freq_counter_command(command)](#freq_counter_commandcommand)<br/>
 - [freq_counter_query(command)](#freq_counter_commandquery)<br/>
@@ -52,7 +52,7 @@ This function returns a value with the measured frequency from the specified cha
 
 ---
 
-### freq_counter_impedance(*impedance)
+### freq_counter_impedance(\*impedance)
 ```python
 freq_counter_impedance(channel: ['CH1','CH2','CH3'], impedance: ['1 M','50']) -> none
 freq_counter_impedance(channel: ['CH1','CH2','CH3']) -> str
@@ -68,7 +68,7 @@ This function is not available for Agielnt 5343a.<br/>
 
 ---
 
-### freq_counter_coupling(*coupling)
+### freq_counter_coupling(\*coupling)
 ```python
 freq_counter_coupling(channel: ['CH1','CH2','CH3'], coupling: ['AC','DC']) -> none
 freq_counter_coupling(channel: ['CH1','CH2','CH3']) -> str
@@ -84,7 +84,7 @@ This function is not available for Agielnt 5343a.<br/>
 
 ---
 
-### freq_counter_stop_mode(*mode)
+### freq_counter_stop_mode(\*mode)
 ```python
 freq_counter_stop_mode(mode: ['Immediate','External','Timer','Digits']) -> none
 freq_counter_stop_mode() -> str
@@ -100,7 +100,7 @@ This function is not available for Agielnt 5343a.<br/>
 
 ---
 
-### freq_counter_start_mode(*mode)
+### freq_counter_start_mode(\*mode)
 ```python
 freq_counter_start_mode(mode: ['Immediate','External']) -> none
 freq_counter_start_mode() -> str
@@ -114,7 +114,7 @@ This function is not available for Agielnt 5343a.<br/>
 
 ---
 
-### freq_counter_gate_mode(*mode)
+### freq_counter_gate_mode(\*mode)
 ```python
 freq_counter_gate_mode(mode: ['Timer','External']) -> none
 freq_counter_gate_mode() -> str
@@ -128,7 +128,7 @@ This functions is available only for Keysight 53230a.<br/>
 
 ---
 
-### freq_counter_digits(*digits)
+### freq_counter_digits(\*digits)
 ```python
 freq_counter_digits(digits: int) -> none
 freq_counter_digits() -> int
@@ -142,7 +142,7 @@ This function is available for Agilent 53181a, 53131a, and 5343a.<br/>
 
 ---
 
-### freq_counter_gate_time(*time)
+### freq_counter_gate_time(\*time)
 ```python
 freq_counter_gate_time(time: float + [' s',' ms',' us',' ns']) -> none
 freq_counter_gate_time() -> float
@@ -156,7 +156,7 @@ This function is not available for Agielnt 5343a.<br/>
 
 ---
 
-### freq_counter_expected_freq(*frequency)
+### freq_counter_expected_freq(\*frequency)
 ```python
 freq_counter_expected_freq(channel: str, frequency: int + [' GHz',' MHz',' kHz',' Hz']) -> none
 freq_counter_expected_freq(channel: ['CH1','CH2','CH3']) -> str

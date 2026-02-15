@@ -22,26 +22,26 @@ parent: Documentation
 - [discrete_io_input_counter(channel)](#discrete_io_input_counterchannel)<br/>
 - [discrete_io_input_counter_reset(channel)](#discrete_io_input_counter_resetchannel)<br/>
 - [discrete_io_input_state()](#discrete_io_input_state)<br/>
-- [discrete_io_output_state(*state)](#discrete_io_output_statestate)<br/>
+- [discrete_io_output_state(\*state)](#discrete_io_output_statestate)<br/>
 - [cryogenic_refrigerator_name()](#cryogenic_refrigerator_name)<br/>
-- [cryogenic_refrigerator_state(*state)](#cryogenic_refrigerator_statestate)<br/>
+- [cryogenic_refrigerator_state(\*state)](#cryogenic_refrigerator_statestate)<br/>
 - [cryogenic_refrigerator_status_data()](#cryogenic_refrigerator_status_data)<br/>
 - [cryogenic_refrigerator_warning_data()](#cryogenic_refrigerator_warning_data)<br/>
 - [cryogenic_refrigerator_pressure_scale()](#cryogenic_refrigerator_pressure_scale)<br/>
 - [cryogenic_refrigerator_temperature_scale()](#cryogenic_refrigerator_temperature_scale)<br/>
 - [level_monitor_name()](#level_monitor_name)<br/>
-- [level_monitor_select_channel(*channel)](#level_monitor_select_channelchannel)<br/>
-- [level_monitor_boost_mode(*mode)](#level_monitor_boost_modemode)<br/>
-- [level_monitor_high_level_alarm(*level)](#level_monitor_high_level_alarmlevel)<br/>
-- [level_monitor_low_level_alarm(*level)](#level_monitor_low_level_alarmlevel)<br/>
+- [level_monitor_select_channel(\*channel)](#level_monitor_select_channelchannel)<br/>
+- [level_monitor_boost_mode(\*mode)](#level_monitor_boost_modemode)<br/>
+- [level_monitor_high_level_alarm(\*level)](#level_monitor_high_level_alarmlevel)<br/>
+- [level_monitor_low_level_alarm(\*level)](#level_monitor_low_level_alarmlevel)<br/>
 - [level_monitor_sensor_length()](#level_monitor_sensor_length)<br/>
-- [level_monitor_sample_mode(*mode)](#level_monitor_sample_modemode)<br/>
-- [level_monitor_units(*units)](#level_monitor_unitsunits)<br/>
+- [level_monitor_sample_mode(\*mode)](#level_monitor_sample_modemode)<br/>
+- [level_monitor_units(\*units)](#level_monitor_unitsunits)<br/>
 - [level_monitor_measure(channel)](#level_monitor_measurechannel)<br/>
-- [level_monitor_sample_interval(*interval)](#level_monitor_sample_intervalinterval)<br/>
-- [level_monitor_hrc_target_pressure(*pressure)](#level_monitor_hrc_target_pressurepressure)<br/>
-- [level_monitor_hrc_heater_power_limit(*limit)](#level_monitor_hrc_heater_power_limitlimit)<br/>
-- [level_monitor_hrc_heater_enable(*state)](#level_monitor_hrc_heater_enablestate)<br/>
+- [level_monitor_sample_interval(\*interval)](#level_monitor_sample_intervalinterval)<br/>
+- [level_monitor_hrc_target_pressure(\*pressure)](#level_monitor_hrc_target_pressurepressure)<br/>
+- [level_monitor_hrc_heater_power_limit(\*limit)](#level_monitor_hrc_heater_power_limitlimit)<br/>
+- [level_monitor_hrc_heater_enable(\*state)](#level_monitor_hrc_heater_enablestate)<br/>
 - [level_monitor_command(command)](#level_monitor_commandcommand)<br/>
 - [level_monitor_query(command)](#level_monitor_querycommand)<br/>
 
@@ -118,7 +118,7 @@ This function returns the input channel states of the discrete IO module and sho
 
 ---
 
-### discrete_io_output_state(*state)
+### discrete_io_output_state(\*state)
 ```python
 discrete_io_output_state(state: str ('1234', etc)) -> none
 discrete_io_output_state() -> str
@@ -139,7 +139,7 @@ This function returns device name.<br>
 
 ---
 
-### cryogenic_refrigerator_state(*state)
+### cryogenic_refrigerator_state(\*state)
 ```python
 cryogenic_refrigerator_state(state: str ['On','Off']) -> none
 cryogenic_refrigerator_state() -> str
@@ -225,7 +225,7 @@ This function returns device name.<br>
 
 ---
 
-### level_monitor_select_channel(*channel)
+### level_monitor_select_channel(\*channel)
 ```python
 level_monitor_select_channel(channel: str) -> none
 level_monitor_select_channel() -> str ['1','2']
@@ -238,7 +238,7 @@ This function sets or queries the default channel for future computer commands. 
 
 ---
 
-### level_monitor_boost_mode(*mode)
+### level_monitor_boost_mode(\*mode)
 ```python
 level_monitor_boost_mode(mode: str ['On','Off','Smart']) -> none
 level_monitor_boost_mode(*mode) -> str
@@ -251,7 +251,7 @@ The available modes are ['On', 'Off', 'Smart']. Boost 'Off' will eliminate the b
 
 ---
 
-### level_monitor_high_level_alarm(*level)
+### level_monitor_high_level_alarm(\*level)
 ```python
 level_monitor_high_level_alarm(level: float) -> none
 level_monitor_high_level_alarm() -> str
@@ -264,7 +264,7 @@ This function sets or queries the threshold for the high alarm in the present [u
 
 ---
 
-### level_monitor_low_level_alarm(*level)
+### level_monitor_low_level_alarm(\*level)
 ```python
 level_monitor_low_level_alarm(level: float) -> none
 level_monitor_low_level_alarm() -> str
@@ -289,7 +289,7 @@ This function returns the active sensor length in the present [units](#level_mon
 
 ---
 
-### level_monitor_sample_mode(*mode)
+### level_monitor_sample_mode(\*mode)
 ```python
 level_monitor_sample_mode(mode: str) -> none
 level_monitor_sample_mode() -> str ['Sample/Hold','Continuous','Off']
@@ -302,7 +302,7 @@ The available modes are ['Sample/Hold', 'Continuous', 'Off']. In the 'Sample/Hol
 
 ---
 
-### level_monitor_units(*units)
+### level_monitor_units(\*units)
 ```python
 level_monitor_units(units: str) -> none
 level_monitor_units() -> str ['cm','in','%']
@@ -326,7 +326,7 @@ This function starts a measurement on the [selected channel](#level_monitor_sele
 
 ---
 
-### level_monitor_sample_interval(*interval)
+### level_monitor_sample_interval(\*interval)
 ```python
 level_monitor_sample_interval(hours: int, minutes: int, seconds: int) -> none
 level_monitor_sample_interval() -> str 'hours:minutes:seconds'
@@ -339,7 +339,7 @@ The three arguments corresponds to hours (0-99), minutes (0-59), and seconds (0-
 
 ---
 
-### level_monitor_hrc_target_pressure(*pressure)
+### level_monitor_hrc_target_pressure(\*pressure)
 ```python
 level_monitor_hrc_target_pressure(pressure: float) -> none
 level_monitor_hrc_target_pressure() -> str
@@ -352,7 +352,7 @@ The target pressure should be between 0.15 and 14.25 psi. This function is only 
 
 ---
 
-### level_monitor_hrc_heater_power_limit(*limit)
+### level_monitor_hrc_heater_power_limit(\*limit)
 ```python
 level_monitor_hrc_heater_power_limit(limit: float) -> none
 level_monitor_hrc_heater_power_limit() -> str
@@ -366,7 +366,7 @@ The heater power limit should be between 0.1 and 10 watts. Note, that this funct
 
 ---
 
-### level_monitor_hrc_heater_enable(*state)
+### level_monitor_hrc_heater_enable(\*state)
 ```python
 level_monitor_hrc_heater_enable(state: str) -> none
 level_monitor_hrc_heater_enable() -> str ['On','Off']

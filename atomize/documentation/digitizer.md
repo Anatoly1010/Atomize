@@ -30,26 +30,27 @@ The L card device is available via ctypes. The original library can be found [he
 - [digitizer_get_curve(points, phases, integral = False, current_scan = 1, total_scan = 1)](#digitizer_get_curvepoints-phases-integral--false-current_scan--1-total_scan--1)<br/>
 - [digitizer_close()](#digitizer_close)<br/>
 - [digitizer_stop()](#digitizer_stop)<br/>
-- [digitizer_number_of_points(*points)](#digitizer_number_of_pointspoints)<br/>
-- [digitizer_posttrigger(*post_points)](#digitizer_posttriggerpost_points)<br/>
-- [digitizer_channel(*channel)](#digitizer_channelchannel)<br/>
-- [digitizer_sample_rate(*s_rate)](#digitizer_sample_rates_rate)<br/>
-- [digitizer_clock_mode(*mode)](#digitizer_clock_modemode)<br/>
-- [digitizer_reference_clock(*ref_clock)](#digitizer_reference_clockref_clock)<br/>
-- [digitizer_card_mode(*mode)](#digitizer_card_modemode)<br/>
-- [digitizer_trigger_channel(*ch)](#digitizer_trigger_channelch)<br/>
-- [digitizer_trigger_mode(*mode)](#digitizer_trigger_modemode)<br/>
-- [digitizer_number_of_averages(*averages)](#digitizer_number_of_averagesaverages)<br/>
-- [digitizer_trigger_delay(*delay)](#digitizer_trigger_delaydelay)<br/>
-- [digitizer_input_mode(*mode)](#digitizer_input_modemode)<br/>
-- [digitizer_amplitude(*ampl)](#digitizer_amplitudeampl)<br/>
-- [digitizer_offset(*offset)](#digitizer_offsetoffset)<br/>
-- [digitizer_coupling(*coupling)](#digitizer_couplingcoupling)<br/>
-- [digitizer_impedance(*impedance)](#digitizer_impedanceimpedance)<br/>
-- [digitizer_decimation(*dec)](#digitizer_decimationdec)<br/>
-- [digitizer_flow(*flow)](#digitizer_flowflow)<br/>
+- [digitizer_number_of_points(\*points)](#digitizer_number_of_pointspoints)<br/>
+- [digitizer_posttrigger(\*post_points)](#digitizer_posttriggerpost_points)<br/>
+- [digitizer_channel(\*channel)](#digitizer_channelchannel)<br/>
+- [digitizer_sample_rate(\*s_rate)](#digitizer_sample_rates_rate)<br/>
+- [digitizer_clock_mode(\*mode)](#digitizer_clock_modemode)<br/>
+- [digitizer_reference_clock(\*ref_clock)](#digitizer_reference_clockref_clock)<br/>
+- [digitizer_card_mode(\*mode)](#digitizer_card_modemode)<br/>
+- [digitizer_trigger_channel(\*ch)](#digitizer_trigger_channelch)<br/>
+- [digitizer_trigger_mode(\*mode)](#digitizer_trigger_modemode)<br/>
+- [digitizer_number_of_averages(\*averages)](#digitizer_number_of_averagesaverages)<br/>
+- [digitizer_trigger_delay(\*delay)](#digitizer_trigger_delaydelay)<br/>
+- [digitizer_input_mode(\*mode)](#digitizer_input_modemode)<br/>
+- [digitizer_amplitude(\*ampl)](#digitizer_amplitudeampl)<br/>
+- [digitizer_offset(\*offset)](#digitizer_offsetoffset)<br/>
+- [digitizer_coupling(\*coupling)](#digitizer_couplingcoupling)<br/>
+- [digitizer_impedance(\*impedance)](#digitizer_impedanceimpedance)<br/>
+- [digitizer_decimation(\*dec)](#digitizer_decimationdec)<br/>
+- [digitizer_flow(\*flow)](#digitizer_flowflow)<br/>
 - [digitizer_read_settings()](#digitizer_read_settings)<br/>
 - [digitizer_window()](#digitizer_window)<br/>
+- [digitizer_window_points()](#digitizer_window_points)<br/>
 
 ---
 
@@ -136,7 +137,7 @@ This function is not available for Insys FM214x3GDA, L card L-502. There is no n
 
 ---
 
-### digitizer_number_of_points(*points)
+### digitizer_number_of_points(\*points)
 ```python
 digitizer_number_of_points(points: int) -> none
 digitizer_number_of_points() -> int
@@ -149,7 +150,7 @@ This function is not available for Insys FM214x3GDA. The number of points is con
 
 ---
 
-### digitizer_posttrigger(*post_points)
+### digitizer_posttrigger(\*post_points)
 ```python
 digitizer_posttrigger(post_points: int) -> none
 digitizer_posttrigger() -> int
@@ -162,7 +163,7 @@ This function is not available for Insys FM214x3GDA, L card L-502.<br>
 
 ---
 
-### digitizer_channel(*channel)
+### digitizer_channel(\*channel)
 ```python
 digitizer_channel(channel: ['CH0','CH1']) -> none
 digitizer_channel() -> str
@@ -176,7 +177,7 @@ This function is not available for Insys FM214x3GDA, L card L-502.<br>
 
 ---
 
-### digitizer_sample_rate(*s_rate)
+### digitizer_sample_rate(\*s_rate)
 ```python
 digitizer_sample_rate(sample_rate: float) -> none
 digitizer_sample_rate() -> float
@@ -191,7 +192,7 @@ This function is not available for L card L-502.<br>
 
 ---
 
-### digitizer_clock_mode(*mode)
+### digitizer_clock_mode(\*mode)
 ```python
 digitizer_clock_mode(mode: ['Internal','External']) -> none
 digitizer_clock_mode() -> str
@@ -206,7 +207,7 @@ This function is not available for Insys FM214x3GDA.<br>
 
 ---
 
-### digitizer_reference_clock(*ref_clock)
+### digitizer_reference_clock(\*ref_clock)
 ```python
 digitizer_reference_clock(ref_clock: int) -> none
 digitizer_reference_clock() -> int
@@ -220,7 +221,7 @@ This function is not available for Insys FM214x3GDA.<br>
 
 ---
 
-### digitizer_card_mode(*mode)
+### digitizer_card_mode(\*mode)
 ```python
 digitizer_card_mode(mode: ['Single','Average']) -> none
 digitizer_card_mode() -> str
@@ -235,7 +236,7 @@ This function is not available for Insys FM214x3GDA, L card L-502.<br>
 
 ---
 
-### digitizer_trigger_channel(*ch)
+### digitizer_trigger_channel(\*ch)
 ```python
 digitizer_trigger_channel(channel: ['Software','External']) -> none
 digitizer_trigger_channel() -> str
@@ -249,7 +250,7 @@ This function is not available for Insys FM214x3GDA, L card L-502.<br>
 
 ---
 
-### digitizer_trigger_mode(*mode)
+### digitizer_trigger_mode(\*mode)
 ```python
 digitizer_trigger_mode(mode: ['Positive','Negative','High','Low']) -> none
 digitizer_trigger_mode() -> str
@@ -263,7 +264,7 @@ This function is not available for Insys FM214x3GDA, L card L-502.<br>
 
 ---
 
-### digitizer_number_of_averages(*averages)
+### digitizer_number_of_averages(\*averages)
 ```python
 digitizer_number_of_averages(averages: int) -> none
 digitizer_number_of_averages() -> int
@@ -277,7 +278,7 @@ This function is not available for L card L-502.<br>
 
 ---
 
-### digitizer_trigger_delay(*delay)
+### digitizer_trigger_delay(\*delay)
 ```python
 digitizer_trigger_delay(delay: str) -> none
 digitizer_trigger_delay() -> str
@@ -290,7 +291,7 @@ This function is not available for Insys FM214x3GDA, L card L-502.<br>
 
 ---
 
-### digitizer_input_mode(*mode)
+### digitizer_input_mode(\*mode)
 ```python
 digitizer_input_mode(mode: ['HF','Buffered']) -> none
 digitizer_input_mode() -> str
@@ -304,7 +305,7 @@ This function is not available for M4I 2211 X8, Insys FM214x3GDA, and L card L-5
 
 ---
 
-### digitizer_amplitude(*ampl)
+### digitizer_amplitude(\*ampl)
 ```python
 digitizer_amplitude(amplitude: int) -> none
 digitizer_amplitude() -> str
@@ -321,7 +322,7 @@ This function is not available for L card L-502.<br>
 
 ---
 
-### digitizer_offset(*offset)
+### digitizer_offset(\*offset)
 ```python
 digitizer_offset(ch0: str, offset0: int) -> none
 digitizer_offset(ch0: str, offset0: int, ch1: str, offset1: int) -> none
@@ -331,12 +332,12 @@ digitizer_offset() -> str, str
 Example: digitizer_offset('CH0', '1', 'CH1', '50') sets the offset of the CH0 to 1% of 
 the input range and the offset of the CH1 to 50% of the input range.
 ```
-This function queries or sets the vertical offset of the digitizer channels. If there is no argument the function will return the offset of the both digitizer channels. If there is an argument the specified offset (as a percentage of the input range) will be set for the specified channel. For M4I 4450 X8 the value of the offset (range * argument) is ALWAYS substracted from the signal. The step is 1%. According to the M4I 4450 X8 documentation, no offset can be used for 1000 mV and 10000 mV range in the ['Buffered' input mode](#digitizer_input_modemode). Default value is '0' for both channels.<br/>
+This function queries or sets the vertical offset of the digitizer channels. If there is no argument the function will return the offset of the both digitizer channels. If there is an argument the specified offset (as a percentage of the input range) will be set for the specified channel. For M4I 4450 X8 the value of the offset (range x argument) is ALWAYS substracted from the signal. The step is 1%. According to the M4I 4450 X8 documentation, no offset can be used for 1000 mV and 10000 mV range in the ['Buffered' input mode](#digitizer_input_modemode). Default value is '0' for both channels.<br/>
 This function is not available for Insys FM214x3GDA,  L card L-502.<br>
 
 ---
 
-### digitizer_coupling(*coupling)
+### digitizer_coupling(\*coupling)
 ```python
 digitizer_coupling(ch0: str, coupling0: ['AC','DC']) -> none
 digitizer_coupling(ch0: str, coupling0: str, ch1: str, coupling1: str) -> none
@@ -352,7 +353,7 @@ This function is not available for Insys FM214x3GDA, L card L-502.<br>
 
 ---
 
-### digitizer_impedance(*impedance)
+### digitizer_impedance(\*impedance)
 ```python
 digitizer_impedance(ch0: str, impedance0: ['1 M','50']) -> none
 digitizer_impedance(ch0: str, impedance0: str, ch1: str, impedance1: str) -> none
@@ -368,7 +369,7 @@ This function is not available for M4I 2211 X8, Insys FM214x3GDA, and L card L-5
 
 ---
 
-### digitizer_decimation(*dec)
+### digitizer_decimation(\*dec)
 ```python
 digitizer_decimation(decimation: int) -> none
 digitizer_decimation() -> int
@@ -381,7 +382,7 @@ The available range is 1-4, which corresponds to 0.4 ns/point - 1.6 ns/point. Th
 
 ---
 
-### digitizer_flow(*flow)
+### digitizer_flow(\*flow)
 ```python
 digitizer_flow(flow = ['ADC','DIN','DAC1','DAC2','DOUT','AIN','AOUT']) -> none
 ```
@@ -412,4 +413,16 @@ digitizer_window() -> float
 Examples: digitizer_window() returns the integration window of the digitizer.
 ```
 This function returns the integration window of the digitizer. The integration window is used in the [digitizer_get_curve()](#digitizer_get_curveintegral--true) function and is set via a special text file [digitizer.param](https://github.com/Anatoly1010/Atomize_ITC/tree/master/atomize/control_center).<br>
+This function is not available for L card L-502.<br>
+
+---
+
+### digitizer_window_points()
+```python
+digitizer_window_points() -> int
+```
+```
+Examples: digitizer_window_points() returns the number of points in the digitizer window.
+```
+This function returns the number of points in the digitizer window. The window is used in the [digitizer_get_curve()](#digitizer_get_curveintegral--true) function. The number of points in the window can be set as the length of the [DETECTION pulse](/atomize_docs/pages/functions/pulse_programmer#pulser_pulsekargs).<br>
 This function is not available for L card L-502.<br>

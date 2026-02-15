@@ -19,17 +19,17 @@ Available devices:
 - [mw_bridge_name()](#mw_bridge_name)<br/>
 - [mw_bridge_open()](#mw_bridge_open)<br/>
 - [mw_bridge_close()](#mw_bridge_close)<br/>
-- [mw_bridge_synthesizer(*freq)](#mw_bridge_synthesizerfreq)<br/>
-- [mw_bridge_att1_prd(*atten)](#mw_bridge_att1_prdatten)<br/>
-- [mw_bridge_att2_prd(*atten)](#mw_bridge_att2_prdatten)<br/>
-- [mw_bridge_fv_ctrl(*phase)](#mw_bridge_fv_ctrlphase)<br/>
-- [mw_bridge_fv_prm(*phase)](#mw_bridge_fv_prmphase)<br/>
-- [mw_bridge_att_prm(*atten)](#mw_bridge_att_prmatten)<br/>
-- [mw_bridge_att2_prm(*atten)](#mw_bridge_att2_prmatten)<br/>
-- [mw_bridge_k_prm(*amplif)](#mw_bridge_k_prmamplif)<br/>
-- [mw_bridge_att_pin(*atten)](#mw_bridge_att_pinatten)<br/>
-- [mw_bridge_cut_off(*cutoff)](#mw_bridge_cut_offcutoff)<br/>
-- [mw_bridge_rotary_vane(*atten, mode)](#mw_bridge_rotary_vaneatten-mode) <br/>
+- [mw_bridge_synthesizer(\*freq)](#mw_bridge_synthesizerfreq)<br/>
+- [mw_bridge_att1_prd(\*atten)](#mw_bridge_att1_prdatten)<br/>
+- [mw_bridge_att2_prd(\*atten)](#mw_bridge_att2_prdatten)<br/>
+- [mw_bridge_fv_ctrl(\*phase)](#mw_bridge_fv_ctrlphase)<br/>
+- [mw_bridge_fv_prm(\*phase)](#mw_bridge_fv_prmphase)<br/>
+- [mw_bridge_att_prm(\*atten)](#mw_bridge_att_prmatten)<br/>
+- [mw_bridge_att2_prm(\*atten)](#mw_bridge_att2_prmatten)<br/>
+- [mw_bridge_k_prm(\*amplif)](#mw_bridge_k_prmamplif)<br/>
+- [mw_bridge_att_pin(\*atten)](#mw_bridge_att_pinatten)<br/>
+- [mw_bridge_cut_off(\*cutoff)](#mw_bridge_cut_offcutoff)<br/>
+- [mw_bridge_rotary_vane(\*atten, mode)](#mw_bridge_rotary_vaneatten-mode) <br/>
 - [mw_bridge_telemetry()](#mw_bridge_telemetry)<br/>
 - [mw_bridge_initialize()](#mw_bridge_initialize)<br/>
 - [mw_bridge_reset()](#mw_bridge_reset)<br/>
@@ -60,7 +60,7 @@ This function is only available for Micran Q-band MW Bridge. It closes the drive
 
 ---
 
-### mw_bridge_synthesizer(*freq)
+### mw_bridge_synthesizer(\*freq)
 ```python
 mw_bridge_synthesizer(freq: int) -> none
 mw_bridge_synthesizer() -> 'Frequency: {int} MHz'
@@ -73,7 +73,7 @@ This function queries or sets the frequency of the synthesizer in MHz. If an arg
 
 ---
 
-### mw_bridge_att1_prd(*atten)
+### mw_bridge_att1_prd(\*atten)
 ```python
 mw_bridge_att1_prd(attenuation: float) -> none 
 mw_bridge_att1_prd() -> 'Attenuator PRD1: {float} dB'
@@ -86,7 +86,7 @@ This function queries or sets the attenuation (in dB) of the first attenuator in
 
 ---
 
-### mw_bridge_att2_prd(*atten)
+### mw_bridge_att2_prd(\*atten)
 ```python
 mw_bridge_att2_prd(attenuation: float) -> none 
 mw_bridge_att2_prd() -> 'Attenuator PRD2: {float} dB'
@@ -100,7 +100,7 @@ This function is not available for Micran Q-band MW bridge.<br>
 
 ---
 
-### mw_bridge_fv_ctrl(*phase)
+### mw_bridge_fv_ctrl(\*phase)
 ```python
 mw_bridge_fv_ctrl(phase: float) -> none
 mw_bridge_fv_ctrl() -> 'Phase CTRL: {float} deg'
@@ -114,7 +114,7 @@ This function is not available for Micran Q-band MW bridge.<br>
 
 ---
 
-### mw_bridge_fv_prm(*phase)
+### mw_bridge_fv_prm(\*phase)
 ```python
 mw_bridge_fv_prm(phase: float) -> none
 mw_bridge_fv_prm() -> 'Phase PRM: {float} deg'
@@ -127,7 +127,7 @@ This function is not available for Micran Q-band MW bridge.<br>
 
 ---
 
-### mw_bridge_att_prm(*atten)
+### mw_bridge_att_prm(\*atten)
 ```python
 mw_bridge_att_prm(attenuation: float) -> none
 mw_bridge_att_prm() -> 'Video Attenuation: {int} dB'
@@ -140,7 +140,7 @@ This function queries or sets the attenuation (in dB) of the attenuator in the P
 
 ---
 
-### mw_bridge_att2_prm(*atten)
+### mw_bridge_att2_prm(\*atten)
 ```python
 mw_bridge_att2_prm(attenuation: float) -> none
 mw_bridge_att2_prm() -> 'Video Attenuation 2: {int} dB'
@@ -154,7 +154,7 @@ This function is only available for the Micran X-band MW Bridge v2 and Micran Q-
 
 ---
 
-### mw_bridge_k_prm(*amplif)
+### mw_bridge_k_prm(\*amplif)
 ```python
 mw_bridge_k_prm(amplification: float) -> none
 mw_bridge_k_prm() -> 'Amplification PRM: {int} dB'
@@ -167,7 +167,7 @@ This function is only available for the Micran X-band MW Bridge. The function [m
 
 ---
 
-### mw_bridge_att_pin(*atten)
+### mw_bridge_att_pin(\*atten)
 ```python
 mw_bridge_att_pin(attenuation: float) -> none
 mw_bridge_att_pin() -> 'PIN Attenuator: {int} dB'
@@ -181,7 +181,7 @@ This function is only available for the Micran Q-band MW Bridge.<br>
 
 ---
 
-### mw_bridge_cut_off(*cutoff)
+### mw_bridge_cut_off(\*cutoff)
 ```python
 mw_bridge_cut_off(cutoff: [30, 105, 300]) -> none
 mw_bridge_cut_off() -> 'Cut-off Frequency: {int} MHz'
@@ -193,7 +193,7 @@ This function queries or sets the cut-off frequency (in MHz) of the bridge. If a
 
 ---
 
-### mw_bridge_rotary_vane(*atten, mode)
+### mw_bridge_rotary_vane(\*atten, mode)
 ```python
 mw_bridge_rotary_vane(attenuation: float, mode = 'Arbitrary')
 mw_bridge_rotary_vane() -> 'Rotary Vane Attenuation: {int} dB'

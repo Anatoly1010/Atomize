@@ -1,6 +1,6 @@
 ---
 title: Temperature Controllers
-nav_order: 37
+nav_order: 36
 layout: page
 permlink: /functions/temp_controller/
 parent: Documentation
@@ -8,7 +8,7 @@ parent: Documentation
 
 ### Devices
 
-- Lakeshore (GPIB, RS-232)
+- Lakeshore (GPIB: linux-gpib, RS-232)
 **325**; **331**; **332**; **335**; **336**; **340**; Tested 01/2021
 - Oxford Instruments (RS-232)
 **ITC 503**; Tested 01/2021
@@ -24,21 +24,21 @@ parent: Documentation
 ### Functions
 - [tc_name()](#tc_name)<br/>
 - [tc_temperature(channel)](#tc_temperaturechannel)<br/>
-- [tc_setpoint(*temp)](#tc_setpointtemp)<br/>
-- [tc_setpoint(channel, *temp)](#tc_setpointchanneltemp)<br/>
-- [tc_heater_range(*heater)](#tc_heater_rangeheater)<br/>
+- [tc_setpoint(\*temp)](#tc_setpointtemp)<br/>
+- [tc_setpoint(channel, \*temp)](#tc_setpointchanneltemp)<br/>
+- [tc_heater_range(\*heater)](#tc_heater_rangeheater)<br/>
 - [tc_heater_power()](#tc_heater_power)<br/>
 - [tc_heater_power(channel)](#tc_heater_powerchannel)<br/>
-- [tc_heater_power(*power_percent)](#tc_heater_powerpower_percent)<br/>
+- [tc_heater_power(\*power_percent)](#tc_heater_powerpower_percent)<br/>
 - [tc_heater_power_limit(power)](#tc_heater_power_limitpower)<br/>
-- [tc_state(*mode)](#tc_statemode)<br/>
-- [tc_sensor(*sensor)](#tc_sensorsensor)<br/>
-- [tc_sensor(channel, *state)](#tc_sensorchannelstate)<br/>
-- [tc_gas_flow(*flow)](#tc_gas_flowflow)<br/>
-- [tc_lock_keyboard(*lock)](#tc_lock_keyboardlock)<br/>
-- [tc_proportional(*prop)](#tc_proportionalprop)<br/>
-- [tc_derivative(*der)](#tc_derivativeder)<br/>
-- [tc_integral(*integ)](#tc_integralinteg)<br/>
+- [tc_state(\*mode)](#tc_statemode)<br/>
+- [tc_sensor(\*sensor)](#tc_sensorsensor)<br/>
+- [tc_sensor(channel, \*state)](#tc_sensorchannelstate)<br/>
+- [tc_gas_flow(\*flow)](#tc_gas_flowflow)<br/>
+- [tc_lock_keyboard(\*lock)](#tc_lock_keyboardlock)<br/>
+- [tc_proportional(\*prop)](#tc_proportionalprop)<br/>
+- [tc_derivative(\*der)](#tc_derivativeder)<br/>
+- [tc_integral(\*integ)](#tc_integralinteg)<br/>
 - [tc_command(command)](#tc_commandcommand)<br/>
 - [tc_query(command)](#tc_querycommand)<br/>
 
@@ -68,7 +68,7 @@ For Scientific Instruments SCM10 the only available argument is '1'.<br/>
 
 ---
 
-### tc_setpoint(*temp)
+### tc_setpoint(\*temp)
 ```python
 tc_setpoint(temp: float) -> none
 tc_setpoint() -> float
@@ -80,7 +80,7 @@ This function queries or changes the set point, i.e. the target temperature the 
 This function is not available for Scientific Instruments SCM10.<br/>
 For Termodat-11M6, 13KX3 and Stanford Research PTC10 the channel for which the set point is to be set should be specified as an agrument of the following function: 
 
-### tc_setpoint(channel, *temp)
+### tc_setpoint(channel, \*temp)
 ```python
 tc_setpoint(channel: str, temp: float) -> none
 tc_setpoint(channel: str) -> float
@@ -93,7 +93,7 @@ For Stanford Research PTC10 a channel argument should have the name of the outpu
 
 ---
 
-### tc_heater_range(*heater)
+### tc_heater_range(\*heater)
 ```python
 tc_heater_range(heater: str) -> none
 tc_heater_range() -> str
@@ -132,7 +132,7 @@ tc_heater_power(channel: str) -> float
 ```
 For Oxford Instruments ITC 503 the function returns only heater power as a percentage of the maximum power. In addition in the manual mode of ITC 503 this function allows to adjust the heater power by calling it with an argument between 0 and 99.9:
 
-### tc_heater_power(*power_percent)
+### tc_heater_power(\*power_percent)
 ```python
 tc_heater_power(power_percent: float) -> none
 tc_heater_power() -> float
@@ -153,7 +153,7 @@ It is not possible to query the heater power limit by calling this function with
 
 ---
 
-### tc_state(*mode)
+### tc_state(\*mode)
 ```python
 tc_state(mode: str) -> none
 tc_state() -> str
@@ -167,7 +167,7 @@ The first part corresponds to the heater state setting, the second to the gas st
 
 ---
 
-### tc_sensor(*sensor)
+### tc_sensor(\*sensor)
 ```python
 tc_sensor(sensor: int) -> none
 tc_sensor() -> int
@@ -183,7 +183,7 @@ In case of Lakeshore 325, 331, 332, 340 the use of this function also sets setpo
 In case of Lakeshore 335 and 336 the use of this function also sets the control mode to closed loop PID and specifies that the control loop is off after power-up.<br/>
 For Termodat-11M6, 13KX3 this function sets or queries the state of specified sensor:
 
-### tc_sensor(channel, *state)
+### tc_sensor(channel, \*state)
 ```python
 tc_sensor(channel: str, state: ['On','Off']) -> none
 tc_sensor(channel: str) -> str
@@ -196,7 +196,7 @@ If there is no state argument the function returns the current state for specifi
 
 ---
 
-### tc_gas_flow(*flow)
+### tc_gas_flow(\*flow)
 ```python
 tc_gas_flow(flow: float) -> none
 tc_gas_flow() -> float
@@ -208,7 +208,7 @@ This function is available only for Oxford Instruments ITC 503. It sets or queri
 
 ---
 
-### tc_lock_keyboard(*lock)
+### tc_lock_keyboard(\*lock)
 ```python
 tc_lock_keyboard(lock: str) -> none
 tc_lock_keyboard() -> str
@@ -225,7 +225,7 @@ The function is not available for Termodat-11M6, 13KX3, Stanford Research PTC10,
 
 ---
 
-### tc_proportional(*prop)
+### tc_proportional(\*prop)
 ```python
 tc_proportional(channel: str, proportional: float) -> none
 tc_proportional(channel: str) -> float
@@ -237,7 +237,7 @@ This function is only available for Termodat-11M6, 13KX3 and can be used to set 
 
 ---
 
-### tc_derivative(*der)
+### tc_derivative(\*der)
 ```python
 tc_derivative(channel: str, derivative: float) -> none
 tc_derivative(channel: str) -> float
@@ -249,7 +249,7 @@ This function is only available for Termodat-11M6, 13KX3 and can be used to set 
 
 ---
 
-### tc_integral(*integ)
+### tc_integral(\*integ)
 ```python
 tc_integral(channel: str, integral: int) -> none
 tc_integral(channel: str) -> int

@@ -1,5 +1,5 @@
 ---
-title: Arbitrary Wave Generators
+title: Arbitrary Waveform Generators
 nav_order: 21
 layout: page
 permlink: /functions/awg/
@@ -27,30 +27,30 @@ The Insys device is available via ctypes. The original library can be found [her
 - [awg_update()](#awg_update)<br/>
 - [awg_stop()](#awg_stop)<br/>
 - [awg_close()](#awg_close)<br/>
-- [awg_pulse(**kargs)](#awg_pulsekargs)<br/>
-- [awg_pulse_sequence(**kargs)](#awg_pulse_sequencekargs)<br/>
-- [awg_shift(*pulses)](#awg_shiftpulses)<br/>
-- [awg_increment(*pulses)](#awg_incrementpulses)<br/>
+- [awg_pulse(\*\*kargs)](#awg_pulsekargs)<br/>
+- [awg_pulse_sequence(\*\*kargs)](#awg_pulse_sequencekargs)<br/>
+- [awg_shift(\*pulses)](#awg_shiftpulses)<br/>
+- [awg_increment(\*pulses)](#awg_incrementpulses)<br/>
 - [awg_next_phase()](#awg_next_phase)<br/>
-- [awg_redefine_delta_phase(*, name, delta_phase)](#awg_redefine_delta_phase-name-delta_phase)<br/>
-- [awg_redefine_phase(*, name, phase)](#awg_redefine_phase-name-phase)<br/>
-- [awg_redefine_frequency(*, name, freq)](#awg_redefine_frequency-name-freq)<br/>
-- [awg_redefine_delta_start(*, name, delta_start)](#awg_redefine_delta_start-name-delta_start)<br/>
-- [awg_redefine_length_increment(*, name, length_increment)](#awg_redefine_length_increment-name-length_increment)<br/>
-- [awg_add_phase(*, name, add_phase)](#awg_add_phase-name-add_phase)<br/>
+- [awg_redefine_delta_phase(\*, name, delta_phase)](#awg_redefine_delta_phase-name-delta_phase)<br/>
+- [awg_redefine_phase(\*, name, phase)](#awg_redefine_phase-name-phase)<br/>
+- [awg_redefine_frequency(\*, name, freq)](#awg_redefine_frequency-name-freq)<br/>
+- [awg_redefine_delta_start(\*, name, delta_start)](#awg_redefine_delta_start-name-delta_start)<br/>
+- [awg_redefine_length_increment(\*, name, length_increment)](#awg_redefine_length_increment-name-length_increment)<br/>
+- [awg_add_phase(\*, name, add_phase)](#awg_add_phase-name-add_phase)<br/>
 - [awg_reset()](#awg_reset)<br/>
-- [awg_pulse_reset(*pulses)](#awg_pulse_resetpulses)<br/>
-- [awg_number_of_segments(*segments)](#awg_number_of_segmentssegments)<br/>
-- [awg_channel(*channel)](#awg_channelchannel)<br/>
-- [awg_sample_rate(*s_rate)](#awg_sample_rates_rate)<br/>
-- [awg_clock_mode(*mode)](#awg_clock_modemode)<br/>
-- [awg_reference_clock(*ref_clock)](#awg_reference_clockref_clock)<br/>
-- [awg_card_mode(*mode)](#awg_card_modemode)<br/>
-- [awg_trigger_channel(*channel)](#awg_trigger_channelchannel)<br/>
-- [awg_trigger_mode(*mode)](#awg_trigger_modemode)<br/>
-- [awg_loop(*loop)](#awg_looploop)<br/>
-- [awg_trigger_delay(*delay)](#awg_trigger_delaydelay)<br/>
-- [awg_amplitude(*amplitude)](#awg_amplitudeamplitude)<br/>
+- [awg_pulse_reset(\*pulses)](#awg_pulse_resetpulses)<br/>
+- [awg_number_of_segments(\*segments)](#awg_number_of_segmentssegments)<br/>
+- [awg_channel(\*channel)](#awg_channelchannel)<br/>
+- [awg_sample_rate(\*s_rate)](#awg_sample_rates_rate)<br/>
+- [awg_clock_mode(\*mode)](#awg_clock_modemode)<br/>
+- [awg_reference_clock(\*ref_clock)](#awg_reference_clockref_clock)<br/>
+- [awg_card_mode(\*mode)](#awg_card_modemode)<br/>
+- [awg_trigger_channel(\*channel)](#awg_trigger_channelchannel)<br/>
+- [awg_trigger_mode(\*mode)](#awg_trigger_modemode)<br/>
+- [awg_loop(\*loop)](#awg_looploop)<br/>
+- [awg_trigger_delay(\*delay)](#awg_trigger_delaydelay)<br/>
+- [awg_amplitude(\*amplitude)](#awg_amplitudeamplitude)<br/>
 - [awg_visualize()](#awg_visualize)<br/>
 - [awg_pulse_list()](#awg_pulse_list)<br/>
 - [awg_clear()](#awg_clear)<br>
@@ -134,7 +134,7 @@ This function is not available for Insys FM214x3GDA. This is done with [pulser_c
 
 ---
 
-### awg_pulse(**kargs)
+### awg_pulse(\*\*kargs)
 ```python
 awg_pulse(**kagrs) -> none
 ```
@@ -154,7 +154,7 @@ start = '0 ns' specifies a pulse start (['ns','us','ms']) for the 'Single
 Joined' card mode
 delta_start = '0 ns' specifies a pulse delta start (['ns','us','ms']) for the
 'Single Joined' card mode
-d_coef = 1 specifies an additional coefficient for adjusting pulse amplitudes
+amplitude = 100 specifies an additional coefficient for adjusting pulse amplitudes
 n = 1 specifies a special coefficient for WURST and SECH/TANH pulse determining the steepness
 of the amplitude function
 b = 0.02 specifies a parameter for SECH/TANH pulse determining the truncation parameter in 1/ns
@@ -164,14 +164,14 @@ Example: awg_pulse(name = 'P0', channel = 'CH0', func = 'SINE', frequency ='200 
     phase = pi/2, length = '40 ns') sets the 40 ns length 200 MHz sine pulse with pi/2 phase.
 ```
 This function sets a pulse with specified parameters for 'Single', 'Multi', and 'Single Joined' card mode. The AWG card buffer will be filled according to key arguments of the awg_pulse() function. The default argument is the following: 
-name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = 0, length = '16 ns', sigma = '0 ns', length_increment = '0 ns', start = '0 ns', delta_start = '0 ns', d_coef = 1, n = 1, phase_list = []. A channel should be one of the following ['CH0', 'CH1']. The frequency should be in MHz, the minimum value is 0 MHz, maximum is 280 MHz. For WURST and SECH/TANH pulse the frequency argument should be a tuple ('center_freq MHz', 'sweep_range MHz'), i.e. ('0 MHz', '100 MHz'). The scaling factor for length and sigma key arguments should be one of the following ['ns','us','ms']. The minimum available length and sigma of the pulse is 0 ns. The maximum available length and sigma of the pulse is 1900 ns. The available functions are ['SINE','GAUSS','SINC','BLANK','WURST','SECH/TANH']. For 'SINE', 'BLANK', 'WURST', and SECH/TANH function parameter sigma has no meaning. For 'GAUSS' function parameter sigma is a sigma of Gaussian. For 'SINC' function a combination of parameters length and sigma specifies the width of the SINC pulse, i.e. length = '40 ns' and sigma = '10 ns' means that SINC pulse will be from -4pi to +4pi. Function 'BLANK' is an empty pulse. Function 'WURST' is a wideband, uniform rate, smooth truncation pulse. Function 'SECH/TANH' is a wideband sech/tanh pulse. The length_increment keyword affects both the length and sigma of the pulse. The scaling factor for start and delta_start key arguments should be one of the following ['ns','us','ms']. The [amplitudes](#awg_amplitudeamplitude) of the AWG card channels will be divided by the value of the d_coef parameter, which ultimately determines the final amplitude of each pulse. The d_coef parameter should be more or equal to 1. The n parameter determines the steepness of the amplitude function of the WURST and SECH/TANH pulses. For other functions it has no meaning. The b parameter (in 1/ns) determines the truncation parameter of the SECH/TANH pulse. For other functions it has no meaning.<br/>
+name = 'P0', channel = 'CH0', func = 'SINE', frequency = '200 MHz', phase = 0, delta_phase = 0, length = '16 ns', sigma = '0 ns', length_increment = '0 ns', start = '0 ns', delta_start = '0 ns', amplitude = 100, n = 1, phase_list = []. A channel should be one of the following ['CH0', 'CH1']. The frequency should be in MHz, the minimum value is 0 MHz, maximum is 280 MHz. For WURST and SECH/TANH pulse the frequency argument should be a tuple ('center_freq MHz', 'sweep_range MHz'), i.e. ('0 MHz', '100 MHz'). The scaling factor for length and sigma key arguments should be one of the following ['ns','us','ms']. The minimum available length and sigma of the pulse is 0 ns. The maximum available length and sigma of the pulse is 1900 ns. The available functions are ['SINE','GAUSS','SINC','BLANK','WURST','SECH/TANH']. For 'SINE', 'BLANK', 'WURST', and SECH/TANH function parameter sigma has no meaning. For 'GAUSS' function parameter sigma is a sigma of Gaussian. For 'SINC' function a combination of parameters length and sigma specifies the width of the SINC pulse, i.e. length = '40 ns' and sigma = '10 ns' means that SINC pulse will be from -4pi to +4pi. Function 'BLANK' is an empty pulse. Function 'WURST' is a wideband, uniform rate, smooth truncation pulse. Function 'SECH/TANH' is a wideband sech/tanh pulse. The length_increment keyword affects both the length and sigma of the pulse. The scaling factor for start and delta_start key arguments should be one of the following ['ns','us','ms']. The [amplitudes](#awg_amplitudeamplitude) of the AWG card channels will be set according to the value of the amplitude keyword argument. The amplitude keyword argument should be less than or equal to 100% and should indicate the amplitude as a percentage of the maximum available level. The n parameter determines the steepness of the amplitude function of the WURST and SECH/TANH pulses. For other functions it has no meaning. The b parameter (in 1/ns) determines the truncation parameter of the SECH/TANH pulse. For other functions it has no meaning.<br/>
 It is recommended to first define all pulses and then define the settings of the AWG card. To write the settings [awg_setup()](#awg_setup) function should be called. To run specified pulses the [awg_update()](#awg_update) function should be called.<br/>
 Key argument delta_phase define a pulse phase shift and has no meaning for 'Single Joined' card mode, since the phase of the pulse will be calculated automatically. Key arguments start and delta_start define a pulse position for 'Single Joined' card mode and has no meaning for 'Single' or 'Multi' card mode.<br/>
 Pulse settings for Insys FM214x3GDA corresponds to 'Single' card mode. In addition for this device arguments 'start', 'length', 'delta_start', and 'length_increment' will be rounded to a multiple of 3.2 and for all AWG pulses there should be a corresponding trigger pulse, generated by [pulser_pulse()](/atomize_docs/pages/functions/pulse_programmer#pulser_pulse) function.<br>
 
 ---
 
-### awg_pulse_sequence(**kargs)
+### awg_pulse_sequence(\*\*kargs)
 ```python
 awg_pulse_sequence(**kagrs) -> none
 ```
@@ -206,7 +206,7 @@ This function is not available for Insys FM214x3GDA.<br>
 
 ---
 
-### awg_shift(*pulses)
+### awg_shift(\*pulses)
 ```python
 awg_shift() -> none
 awg_shift(pulses: ['P0', 'P1', etc.]) -> none
@@ -221,7 +221,7 @@ For the 'Sequence' card mode, the function has no meaning. Calling this function
 
 ---
 
-### awg_increment(*pulses)
+### awg_increment(\*pulses)
 ```python
 awg_increment() -> none
 awg_increment(pulses: ['P0', 'P1', etc.]) -> none
@@ -247,7 +247,7 @@ This function switches all pulses to the next phase. The phase sequence is decla
 
 ---
 
-### awg_redefine_delta_phase(*, name, delta_phase)
+### awg_redefine_delta_phase(\*, name, delta_phase)
 ```python
 awg_redefine_delta_phase(name: ['P0', 'P1', etc.], delta_phase: float) -> none
 ```
@@ -259,7 +259,7 @@ This function should be called with two keyword arguments, namely name and delta
 
 ---
 
-### awg_redefine_phase(*, name, phase)
+### awg_redefine_phase(\*, name, phase)
 ```python
 awg_redefine_phase(*, name, phase)
 awg_redefine_phase(name: ['P0', 'P1', etc.], phase: float) -> none
@@ -272,7 +272,7 @@ This function should be called with two keyword arguments, namely name and phase
 
 ---
 
-### awg_redefine_frequency(*, name, freq)
+### awg_redefine_frequency(\*, name, freq)
 ```python
 awg_redefine_frequency(name: ['P0', 'P1', etc.], freq: float + [' MHz']) -> none
 ```
@@ -284,7 +284,7 @@ This function should be called with two keyword arguments, namely name and frequ
 
 ---
 
-### awg_redefine_delta_start(*, name, delta_start)
+### awg_redefine_delta_start(\*, name, delta_start)
 ```python
 awg_redefine_delta_start(
     name: ['P0', 'P1', etc.], delta_start: int/float + [' ns',' us',' ms']) -> none
@@ -297,7 +297,7 @@ This function should be called with two keyword arguments, namely name and delta
 
 ---
 
-### awg_redefine_length_increment(*, name, length_increment)
+### awg_redefine_length_increment(\*, name, length_increment)
 ```python
 awg_redefine_length_increment(
     name: ['P0', 'P1', etc.], length_increment: int/float + [' ns',' us',' ms']) -> none
@@ -310,7 +310,7 @@ This function should be called with two keyword arguments, namely name and lengt
 
 ---
 
-### awg_add_phase(*, name, add_phase)
+### awg_add_phase(\*, name, add_phase)
 ```python
 awg_add_phase(name: ['P0', 'P1', etc.], add_phase: float) -> none
 ```
@@ -333,7 +333,7 @@ This function is not available for Insys FM214x3GDA. The function [awg_pulse_res
 
 ---
 
-### awg_pulse_reset(*pulses)
+### awg_pulse_reset(\*pulses)
 ```python
 awg_pulse_reset() -> none
 awg_pulse_reset(pulses: ['P0', 'P1', etc.]) -> none
@@ -345,7 +345,7 @@ This function switches the AWG card back to the initial state in which it was in
 
 ---
 
-### awg_number_of_segments(*segments)
+### awg_number_of_segments(\*segments)
 ```python
 awg_number_of_segments(segments: int) -> none
 awg_number_of_segments() -> int
@@ -359,7 +359,7 @@ This function is not available for Insys FM214x3GDA.<br>
 
 ---
 
-### awg_channel(*channel)
+### awg_channel(\*channel)
 ```python
 awg_channel(channel: ['CH0','CH1']) -> none
 awg_channel() -> str
@@ -373,7 +373,7 @@ This function is not available for Insys FM214x3GDA, only two channels are avail
 
 ---
 
-### awg_sample_rate(*s_rate)
+### awg_sample_rate(\*s_rate)
 ```python
 awg_sample_rate(s_rate: int) -> none
 awg_sample_rate() -> int
@@ -387,7 +387,7 @@ This function is not available for Insys FM214x3GDA, the default sample rate is 
 
 ---
 
-### awg_clock_mode(*mode)
+### awg_clock_mode(\*mode)
 ```python
 awg_clock_mode(mode: ['Internal','External']) -> none
 awg_clock_mode() -> str
@@ -401,7 +401,7 @@ This function is not available for Insys FM214x3GDA.<br>
 
 ---
 
-### awg_reference_clock(*ref_clock)
+### awg_reference_clock(\*ref_clock)
 ```python
 awg_reference_clock(ref_clock: int) -> none
 awg_reference_clock() -> int
@@ -415,7 +415,7 @@ This function is not available for Insys FM214x3GDA.<br>
 
 ---
 
-### awg_card_mode(*mode)
+### awg_card_mode(\*mode)
 ```python
 awg_card_mode(mode: ['Single','Multi','Single Joined','Sequence']) -> none
 awg_card_mode() -> str
@@ -429,7 +429,7 @@ This function is not available for Insys FM214x3GDA, it operates in the mode clo
 
 ---
 
-### awg_trigger_channel(*channel)
+### awg_trigger_channel(\*channel)
 ```python
 awg_trigger_channel(channel: ['Software','External']) -> none
 awg_trigger_channel() -> str
@@ -443,7 +443,7 @@ This function is not available for Insys FM214x3GDA.<br>
 
 ---
 
-### awg_trigger_mode(*mode)
+### awg_trigger_mode(\*mode)
 ```python
 awg_trigger_mode(mode: ['Positive','Negative','High','Low']) -> none
 awg_trigger_mode() -> str
@@ -457,7 +457,7 @@ This function is not available for Insys FM214x3GDA.<br>
 
 ---
 
-### awg_loop(*loop)
+### awg_loop(\*loop)
 ```python
 awg_loop(loop: int) -> none
 awg_loop() -> int
@@ -471,7 +471,7 @@ This function is not available for Insys FM214x3GDA.<br>
 
 ---
 
-### awg_trigger_delay(*delay)
+### awg_trigger_delay(\*delay)
 ```python
 awg_trigger_delay(delay: float + [' ms',' us',' ns'])
 awg_trigger_delay() -> str
@@ -485,7 +485,7 @@ This function is not available for Insys FM214x3GDA.<br>
 
 ---
 
-### awg_amplitude(*amplitude)
+### awg_amplitude(\*amplitude)
 ```python
 awg_amplitude(channel1: ['CH0','CH1'], value1: float) -> none
 awg_amplitude(channel1: str, value1: float, channel2: str, value2: float) -> none

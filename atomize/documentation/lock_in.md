@@ -7,28 +7,28 @@ parent: Documentation
 ---
 
 ### Devices
-- Stanford Research Lock-In Amplifier (GPIB, RS-232)
+- Stanford Research Lock-In Amplifier (GPIB: linux-gpib, RS-232)
 **SR-810**; **SR-830**; **SR-850**; Tested 02/2021 **SR-844**; Untested
-- Stanford Research Lock-In Amplifier (GPIB, RS-232, Ethernet)
+- Stanford Research Lock-In Amplifier (GPIB: linux-gpib, RS-232, Ethernet)
 **SR-860**; **SR-865a**; Tested 01/2021
 
 ---
 
 ### Functions
 - [lock_in_name()](#lock_in_name)<br/>
-- [lock_in_ref_frequency(*frequency)](#lock_in_ref_frequencyfrequency)<br/>
-- [lock_in_phase(*degree)](#lock_in_phasedegree)<br/>
+- [lock_in_ref_frequency(\*frequency)](#lock_in_ref_frequencyfrequency)<br/>
+- [lock_in_phase(\*degree)](#lock_in_phasedegree)<br/>
 - [lock_in_auto_phase()](#lock_in_auto_phase)<br/>
-- [lock_in_time_constant(*timeconstant)](#lock_in_time_constanttimeconstant)<br/>
-- [lock_in_ref_amplitude(*amplitude)](#lock_in_ref_amplitudeamplitude)<br/>
-- [lock_in_get_data(*channel)](#lock_in_get_datachannel)<br/>
-- [lock_in_sensitivity(*sensitivity)](#lock_in_sensitivitysensitivity)<br/>
+- [lock_in_time_constant(\*timeconstant)](#lock_in_time_constanttimeconstant)<br/>
+- [lock_in_ref_amplitude(\*amplitude)](#lock_in_ref_amplitudeamplitude)<br/>
+- [lock_in_get_data(\*channel)](#lock_in_get_datachannel)<br/>
+- [lock_in_sensitivity(\*sensitivity)](#lock_in_sensitivitysensitivity)<br/>
 - [lock_in_auto_sensitivity()](#lock_in_auto_sensitivity)<br/>
-- [lock_in_ref_mode(*mode)](#lock_in_ref_modemode)<br/>
-- [lock_in_ref_slope(*mode)](#lock_in_ref_slopemode)<br/>
-- [lock_in_sync_filter(*mode)](#lock_in_sync_filtermode)<br/>
-- [lock_in_lp_filter(*mode)](#lock_in_lp_filtermode)<br/>
-- [lock_in_harmonic(*harmonic)](#lock_in_harmonicharmonic)<br/>
+- [lock_in_ref_mode(\*mode)](#lock_in_ref_modemode)<br/>
+- [lock_in_ref_slope(\*mode)](#lock_in_ref_slopemode)<br/>
+- [lock_in_sync_filter(\*mode)](#lock_in_sync_filtermode)<br/>
+- [lock_in_lp_filter(\*mode)](#lock_in_lp_filtermode)<br/>
+- [lock_in_harmonic(\*harmonic)](#lock_in_harmonicharmonic)<br/>
 - [lock_in_command(command)](#lock_in_commandcommand)<br/>
 - [lock_in_query(command)](#lock_in_querycommand)<br/>
 
@@ -42,7 +42,7 @@ This function returns device name.<br/>
 
 ---
 
-### lock_in_ref_frequency(*frequency)
+### lock_in_ref_frequency(\*frequency)
 ```python
 lock_in_ref_frequency(frequency: float + [' MHz',' kHz',' Hz',' mHz']) -> none
 lock_in_ref_frequency() -> str
@@ -55,7 +55,7 @@ For SR-860, 865a the query command, [lock_in_ref_frequency()](#lock_in_ref_frequ
 
 ---
 
-### lock_in_phase(*degree)
+### lock_in_phase(\*degree)
 ```python
 lock_in_phase(degree: float) -> none
 lock_in_phase() -> str
@@ -79,7 +79,7 @@ time. This function is only available for SR-844, SR-860, SR-865.<br/>
 
 ---
 
-### lock_in_time_constant(*timeconstant)
+### lock_in_time_constant(\*timeconstant)
 ```python
 lock_in_time_constant(timeconstant: int + [' s',' ms', ' us', ' ns']) -> none
 lock_in_time_constant() -> str
@@ -97,7 +97,7 @@ If there is no time constant setting fitting the argument the nearest available 
 
 ---
 
-### lock_in_ref_amplitude(*amplitude)
+### lock_in_ref_amplitude(\*amplitude)
 ```python
 lock_in_ref_amplitude(amplitude: float + [' V',' mV']) -> none
 lock_in_ref_amplitude() -> str
@@ -110,7 +110,7 @@ This function is not available for SR-844.<br/>
 
 ---
 
-### lock_in_get_data(*channel)
+### lock_in_get_data(\*channel)
 ```python
 lock_in_get_data(channel1: int) -> float
 lock_in_get_data(channel1: int, channel2: int) -> float, float
@@ -126,7 +126,7 @@ SR-810, 830, 850, 860, 865a:<br/>
 
 ---
 
-### lock_in_sensitivity(*sensitivity)
+### lock_in_sensitivity(\*sensitivity)
 ```python
 lock_in_sensitivity(sensitivity: int + [' nV',' uV',' mV',' V']) -> none
 lock_in_sensitivity() -> str
@@ -155,7 +155,7 @@ This function automatically sets the sensitivity of the instrument. The measured
 
 ---
 
-### lock_in_ref_mode(*mode)
+### lock_in_ref_mode(\*mode)
 ```python
 lock_in_ref_mode(mode: ['Internal','External','Dual','Chop']) -> none
 lock_in_ref_mode() -> str
@@ -169,7 +169,7 @@ SR-860, 865a: ['Internal', 'External', 'Dual', 'Chop'].<br/>
 
 ---
 
-### lock_in_ref_slope(*mode)
+### lock_in_ref_slope(\*mode)
 ```python
 lock_in_ref_slope(mode: ['Sine','PosTTL','NegTTL']) -> none
 lock_in_ref_slope() -> str
@@ -183,7 +183,7 @@ This function is not available for SR-844.<br/>
 
 ---
 
-### lock_in_sync_filter(*mode)
+### lock_in_sync_filter(\*mode)
 ```python
 lock_in_sync_filter(mode: ['Off','On']) -> none
 lock_in_sync_filter() -> str
@@ -197,7 +197,7 @@ This function is not available for SR-844.<br/>
 
 ---
 
-### lock_in_lp_filter(*mode)
+### lock_in_lp_filter(\*mode)
 ```python
 lock_in_lp_filter(mode: ['No','6 dB','12 dB','18 dB','24 dB']) -> none
 lock_in_lp_filter() -> str
@@ -211,7 +211,7 @@ For SR-844 'No' can also be used, which means No Filter mode.<br/>
 
 ---
 
-### lock_in_harmonic(*harmonic)
+### lock_in_harmonic(\*harmonic)
 ```python
 lock_in_harmonic(harmonic: int) -> none
 lock_in_harmonic() -> int

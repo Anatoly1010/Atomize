@@ -7,7 +7,7 @@ parent: Plotting Funtions
 grand_parent: Documentation
 ---
 <br/>
-To call plotting functions one should import general function module inside a script.
+To call plotting functions one should import general function module inside a script:
 
 ```python
 import atomize.general_modules.general_functions as general
@@ -18,8 +18,9 @@ import atomize.general_modules.general_functions as general
 ## 1D plotting
 ```python	
 plot_1d('name', Xdata, Ydata, label = 'label', xname = 'NameXaxis', 
-xscale = 'XaxisDimension', yname = 'NameYaxis', yscale = 'YaxisDimension', scatter = 'False', 
-timeaxis = 'False', vline = 'False', pr = 'None', text = '')
+		xscale = 'XaxisDimension', yname = 'NameYaxis', yscale = 'YaxisDimension', 
+		scatter = 'False', timeaxis = 'False', vline = 'False', 
+		pr = 'None', text = '')
 ```
 
 ```
@@ -27,15 +28,14 @@ Xdata, Ydata are numpy arrays or python lists of data;
 name is a string of the plot name;
 label is a string of the curve name;
 text is a label of the plot (for multithreading only);
-scatter is 'False' (default) or 'True'. Enables scatter plot;
-timeaxis is 'False' (default) or 'True'. Enables time axis;
-vline is 'False' (default) or a tuple (vline1, vline2). Shows up to two vertical lines;
+scatter is ['False', 'True']. Enables scatter plot;
+timeaxis is ['False', 'True']. Enables time axis;
+vline is 'False' or a tuple (vline1, vline2). Shows up to two vertical lines;
 pr is a name of process for plotting in another thread;
 ```
 
 Other arguments are optional and used for automatic scaling (i.e. V to mV, etc.). Please, note
-that it is impossible to redraw a line with scatters if they have the same name. Currently, up 
-to five curves can be plotted under the same name and different labels. 
+that it is impossible to redraw a line with scatters if they have the same name.
 There is a possibility to draw data in parallel with the main script. To do this, a keyargumnet 'pr'
 should be used. In this mode, the function returns the thread that starts the drawing, and check on
 the next call whether the process has completed or not. A minimal working example for parallel
@@ -47,9 +47,9 @@ process = 'None'
 for i in range(10):
 	
 	# draw one curve (x_axis, data_x) with a vertical line and a dynamic label "text"
-	process = general.plot_1d('NAME_1', x_axis, data_1, xname = 'Delay', xscale = 'ns',
-		yname = 'Area', yscale = 'V*s', label = 'curve', vline = (i, ),
-		pr = process, text = str(i))
+	process = general.plot_1d('NAME_1', x_axis, data_1, xname = 'Delay', 
+		xscale = 'ns', yname = 'Area', yscale = 'V*s', label = 'curve', 
+		vline = (i, ), pr = process, text = str(i))
 
 	# draw two curves (x_axis, data_x) and (x_axis, data_y) simultaneously
 	process = general.plot_1d('NAME_2', x_axis, (data_1, data_2), label = 'curve', 
@@ -58,8 +58,7 @@ for i in range(10):
 ```
 
 A tuple (data_1, data_2) can be used as Ydata. In this case two curves will be plot simultaneously (see example above).
-A dynamic label based on the text keyargument works only for parallel drawing. For a standard drawing mode a function
-general.text_label() should be used.
+A dynamic label based on the text keyword argument works only for parallel drawing. For a standard drawing mode a function [general.text_label()](#dynamic-labeling) should be used.
 
 ---
 
@@ -67,10 +66,10 @@ general.text_label() should be used.
 
 ```python		
 plot_2d('name', data, start_step = ((Xstart, Xstep), (Ystart, Ystep)), 
-	xname = 'NameXaxis', xscale = 'XaxisDimension', 
-	yname = 'NameYaxis Field', yscale = 'YaxisDimension', 
-	zname = 'NameZaxis', zscale = 'ZaxisDimension', 
-	pr = 'None', text = '')
+		xname = 'NameXaxis', xscale = 'XaxisDimension', 
+		yname = 'NameYaxis Field', yscale = 'YaxisDimension', 
+		zname = 'NameZaxis', zscale = 'ZaxisDimension', 
+		pr = 'None', text = '')
 ```
 
 ```

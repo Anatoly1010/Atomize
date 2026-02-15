@@ -1,6 +1,6 @@
 ---
 title: Power Supplies
-nav_order: 34
+nav_order: 33
 layout: page
 permlink: /functions/power_suuply/
 parent: Documentation
@@ -11,7 +11,7 @@ parent: Documentation
 Available devices:
 - Rigol **DP800** Series (RS-232, Ethernet); Tested 01/2021
 - Stanford Research **DC205** (RS-232); Untested
-- Stanford Research **PS300** High Voltage Series (RS-232, GPIB); Untested
+- Stanford Research **PS300** High Voltage Series (RS-232, GPIB: linux-gpib); Untested
 
 Please note, that since SR PS310 and PS325 have only GPIB interface, while SR PS350, PS355, PS365, PS370, PS375 have both RS-232 and GPIB, this setting should be specified in the configuration file:
 ```python
@@ -23,16 +23,16 @@ rs232 = yes
 
 ### Functions
 - [power_supply_name()](#power_supply_name)<br/>
-- [power_supply_voltage(*voltage)](#power_supply_voltagevoltage)<br/>
-- [power_supply_current(*current)](#power_supply_currentcurrent)<br/>
-- [power_supply_overvoltage(*voltage)](#power_supply_overvoltagevoltage)<br/>
-- [power_supply_overcurrent(*current)](#power_supply_overcurrentcurrent)<br/>
-- [power_supply_channel_state(*state)](#power_supply_channel_statestate)<br/>
+- [power_supply_voltage(\*voltage)](#power_supply_voltagevoltage)<br/>
+- [power_supply_current(\*current)](#power_supply_currentcurrent)<br/>
+- [power_supply_overvoltage(\*voltage)](#power_supply_overvoltagevoltage)<br/>
+- [power_supply_overcurrent(\*current)](#power_supply_overcurrentcurrent)<br/>
+- [power_supply_channel_state(\*state)](#power_supply_channel_statestate)<br/>
 - [power_supply_measure(channel)](#power_supply_measurechannel)<br/>
 - [power_supply_preset(preset)](#power_supply_presetpreset)<br/>
-- [power_supply_range(*range)](#power_supply_rangerange)<br/>
+- [power_supply_range(\*range)](#power_supply_rangerange)<br/>
 - [power_supply_interlock()](#power_supply_interlock)<br/>
-- [power_supply_rear_mode(*mode)](#power_supply_rear_modemode)<br/>
+- [power_supply_rear_mode(\*mode)](#power_supply_rear_modemode)<br/>
 - [power_supply_command(command)](#power_supply_commandcommand)<br/>
 - [power_supply_query(command)](#power_supply_querycommand)<br/>
 
@@ -46,7 +46,7 @@ This function returns device name.<br/>
 
 ---
 
-### power_supply_voltage(*voltage)
+### power_supply_voltage(\*voltage)
 ```python
 power_supply_voltage(*voltage)
 power_supply_voltage(channel: str, voltage: float + [' kV',' V',' mV']') -> none
@@ -63,7 +63,7 @@ Stanford Research PC300 high voltage supply series has only one channel, however
 
 ---
 
-### power_supply_current(*current)
+### power_supply_current(\*current)
 ```python
 power_supply_current(*current)
 power_supply_current(channel: str, current: float + [' A', ' mA']') -> none
@@ -78,7 +78,7 @@ This function is only supported by Rigol DP800 Series.<br/>
 
 ---
 
-### power_supply_overvoltage(*voltage)
+### power_supply_overvoltage(\*voltage)
 ```python
 power_supply_overvoltage(*voltage)
 power_supply_overvoltage(channel: str, voltage: float + [' kV',' V',' mV']') -> none
@@ -94,7 +94,7 @@ This function is not supported by Stanford Research DC205.<br/>
 
 ---
 
-### power_supply_overcurrent(*current)
+### power_supply_overcurrent(\*current)
 ```python
 power_supply_overcurrent(channel: str, current: float + [' A',' mA',' uA']') -> none
 power_supply_overcurrent(channel: ['CH1','CH2','CH3']) -> str
@@ -109,7 +109,7 @@ This function is not supported by Stanford Research DC205.<br/>
 
 ---
 
-### power_supply_channel_state(*state)
+### power_supply_channel_state(\*state)
 ```python
 power_supply_channel_state(channel: str, state: ['On', 'Off']) -> none
 power_supply_channel_state(channel: ['CH1','CH2','CH3']) -> str
@@ -151,7 +151,7 @@ This function is only supported by Rigol DP800 Series.<br/>
 
 ---
 
-### power_supply_range(*range)
+### power_supply_range(\*range)
 ```python
 power_supply_range(range: ['1 V','10 V','100 V']) -> none
 power_supply_range() -> str
@@ -175,7 +175,7 @@ This function is only supported by Stanford Research DC205 and allows to query t
 
 ---
 
-### power_supply_rear_mode(*mode)
+### power_supply_rear_mode(\*mode)
 ```python
 power_supply_rear_mode(mode: ['Front', 'Rear']) -> none
 power_supply_rear_mode() -> str

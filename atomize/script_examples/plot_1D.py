@@ -2,7 +2,7 @@ import time
 import numpy as np
 from datetime import datetime
 import atomize.general_modules.general_functions as general
-import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+import atomize.general_modules.csv_opener_saver as openfile
 
 file_handler = openfile.Saver_Opener()
 
@@ -33,5 +33,6 @@ for i in range(POINTS):
             xscale = 's', yname = 'Area', yscale = 'V*s', pr = a, text=str(STEP*i))
 
     general.message(str(time.time() - start_time))
-    
-#file_handler.save_1D_dialog( (xs, ys), header = 'TEST' )
+
+#file_data = file_handler.create_file_dialog()
+#file_handler.save_data(file_data, np.c_[x_axis, data_x, data_y], header = 'TEST', mode = 'w')

@@ -40,21 +40,21 @@ magnet_power_supply_sweep('Zero', 'Slow')
 
 ### Functions
 - [magnet_power_supply_name()](#magnet_power_supply_name)<br/>
-- [magnet_power_supply_select_channel(*channel)](#magnet_power_supply_select_channelchannel)<br/>
-- [magnet_power_supply_low_sweep_limit(*limit)](#magnet_power_supply_low_sweep_limitlimit)<br/>
-- [magnet_power_supply_upper_sweep_limit(*limit)](#magnet_power_supply_upper_sweep_limitlimit)<br/>
-- [magnet_power_supply_voltage_limit(*limit)](#magnet_power_supply_voltage_limitlimit)<br/>
-- [magnet_power_supply_sweep_rate(*rate)](#magnet_power_supply_sweep_raterate)<br/>
-- [magnet_power_supply_range(*range)](#magnet_power_supply_rangerange)<br/>
-- [magnet_power_supply_sweep(*sweep)](#magnet_power_supply_sweepsweep)<br/>
-- [magnet_power_supply_units(*units)](#magnet_power_supply_unitsunits)<br/>
-- [magnet_power_supply_persistent_current(*current)](#magnet_power_supply_persistent_currentcurrent)<br/>
+- [magnet_power_supply_select_channel(\*channel)](#magnet_power_supply_select_channelchannel)<br/>
+- [magnet_power_supply_low_sweep_limit(\*limit)](#magnet_power_supply_low_sweep_limitlimit)<br/>
+- [magnet_power_supply_upper_sweep_limit(\*limit)](#magnet_power_supply_upper_sweep_limitlimit)<br/>
+- [magnet_power_supply_voltage_limit(\*limit)](#magnet_power_supply_voltage_limitlimit)<br/>
+- [magnet_power_supply_sweep_rate(\*rate)](#magnet_power_supply_sweep_raterate)<br/>
+- [magnet_power_supply_range(\*range)](#magnet_power_supply_rangerange)<br/>
+- [magnet_power_supply_sweep(\*sweep)](#magnet_power_supply_sweepsweep)<br/>
+- [magnet_power_supply_units(\*units)](#magnet_power_supply_unitsunits)<br/>
+- [magnet_power_supply_persistent_current(\*current)](#magnet_power_supply_persistent_currentcurrent)<br/>
 - [magnet_power_supply_mode()](#magnet_power_supply_mode)<br/>
 - [magnet_power_supply_control_mode(mode)](#magnet_power_supply_modemode)<br/>
 - [magnet_power_supply_current()](#magnet_power_supply_current)<br/>
 - [magnet_power_supply_voltage()](#magnet_power_supply_voltage)<br/>
 - [magnet_power_supply_magnet_voltage()](#magnet_power_supply_magnet_voltage)<br/>
-- [magnet_power_supply_persistent_heater(*state)](#magnet_power_supply_persistent_heaterstate)<br/>
+- [magnet_power_supply_persistent_heater(\*state)](#magnet_power_supply_persistent_heaterstate)<br/>
 - [magnet_power_supply_command(command)](#magnet_power_supply_commandcommand)<br/>
 - [magnet_power_supply_query(command)](#magnet_power_supply_querycommand)<br/>
 
@@ -68,7 +68,7 @@ This function returns device name.<br>
 
 ---
 
-### magnet_power_supply_select_channel(*channel)
+### magnet_power_supply_select_channel(\*channel)
 ```python
 magnet_power_supply_select_channel(channel: ['CH1','CH2']) -> none
 magnet_power_supply_select_channel() -> str
@@ -82,7 +82,7 @@ The argument should be from the following array: ['CH1', 'CH2']. When a second c
 
 ---
 
-### magnet_power_supply_low_sweep_limit(*limit)
+### magnet_power_supply_low_sweep_limit(\*limit)
 ```python
 magnet_power_supply_low_sweep_limit(limit: float) -> none
 magnet_power_supply_low_sweep_limit() -> str
@@ -95,7 +95,7 @@ This function queries (if called without argument) or sets (if called with one a
 
 ---
 
-### magnet_power_supply_upper_sweep_limit(*limit)
+### magnet_power_supply_upper_sweep_limit(\*limit)
 ```python
 magnet_power_supply_upper_sweep_limit(limit: float) -> none
 magnet_power_supply_upper_sweep_limit() -> str
@@ -108,7 +108,7 @@ This function queries (if called without argument) or sets (if called with one a
 
 ---
 
-### magnet_power_supply_voltage_limit(*limit)
+### magnet_power_supply_voltage_limit(\*limit)
 ```python
 magnet_power_supply_voltage_limit(limit: float) -> none
 magnet_power_supply_voltage_limit() -> str
@@ -121,7 +121,7 @@ This function queries (if called without argument) or sets (if called with one a
 
 ---
 
-### magnet_power_supply_sweep_rate(*rate)
+### magnet_power_supply_sweep_rate(\*rate)
 ```python
 magnet_power_supply_sweep_rate(rate1-6: float) -> none
 magnet_power_supply_sweep_rate() -> numpy.array(6)
@@ -134,7 +134,7 @@ This function queries (if called without argument) or sets (if called with six a
 
 ---
 
-### magnet_power_supply_range(*range)
+### magnet_power_supply_range(\*range)
 ```python
 magnet_power_supply_range(range1-4: float) -> none
 magnet_power_supply_range() -> numpy.array(4)
@@ -147,7 +147,7 @@ This function queries (if called without argument) or sets (if called with four 
 
 ---
 
-### magnet_power_supply_sweep(*sweep)
+### magnet_power_supply_sweep(\*sweep)
 ```python
 magnet_power_supply_sweep(sweep: ['Up','Down','Pause','Zero']) -> none
 magnet_power_supply_sweep(sweep: str, speed: ['Fast', 'Slow']) -> none
@@ -161,7 +161,7 @@ This function causes (if called with one argument) the power supply to sweep the
 
 ---
 
-### magnet_power_supply_units(*units)
+### magnet_power_supply_units(\*units)
 ```python
 magnet_power_supply_units(units: ['A','G']) -> none
 magnet_power_supply_units() -> str
@@ -173,7 +173,7 @@ This function queries (if called without argument) or sets (if called with four 
 
 ---
 
-### magnet_power_supply_persistent_current(*current)
+### magnet_power_supply_persistent_current(\*current)
 ```python
 magnet_power_supply_persistent_current(current: float) -> none
 magnet_power_supply_persistent_current() -> str
@@ -248,7 +248,7 @@ This function returns the present magnet voltage as a string, e.g. '3.0V'. Respo
 
 ---
 
-### magnet_power_supply_persistent_heater(*state)
+### magnet_power_supply_persistent_heater(\*state)
 ```python
 magnet_power_supply_persistent_heater(state: ['On','Off']) -> none
 magnet_power_supply_persistent_heater() -> str

@@ -16,10 +16,10 @@ parent: Documentation
 - [laser_power_meter_name()](#laser_power_meter_name)<br/>
 - [laser_power_meter_head_name()](#laser_power_meter_head_name)<br/>
 - [laser_power_meter_get_data()](#laser_power_meter_get_data)<br/>
-- [laser_power_meter_wavelength(*wavelength)](#laser_power_meter_wavelengthwavelength)<br/>
-- [laser_power_meter_zero_offset(*zero_mode)](#laser_power_meter_zero_offsetzero_mode)<br/>
-- [laser_power_meter_analog_output(*analog_output)](#laser_power_meter_analog_outputanalog_output)<br/>
-- [laser_power_meter_energy_mode(*energy_mode)](#laser_power_meter_energy_modeenergy_modey)<br/>
+- [laser_power_meter_wavelength(\*wavelength)](#laser_power_meter_wavelengthwavelength)<br/>
+- [laser_power_meter_zero_offset(\*zero_mode)](#laser_power_meter_zero_offsetzero_mode)<br/>
+- [laser_power_meter_analog_output(\*analog_output)](#laser_power_meter_analog_outputanalog_output)<br/>
+- [laser_power_meter_energy_mode(\*energy_mode)](#laser_power_meter_energy_modeenergy_modey)<br/>
 - [laser_power_meter_scale(scale)](#laser_power_meter_scalescale)<br/>
 - [laser_power_meter_command(command)](#laser_power_meter_commandcommand)<br/>
 - [laser_power_meter_query(command)](#laser_power_meter_querycommand)<br/>
@@ -55,7 +55,7 @@ This function returns the measured value as soon as a new value appears on the d
 
 ---
 
-### laser_power_meter_wavelength(*wavelength)
+### laser_power_meter_wavelength(\*wavelength)
 ```python
 laser_power_meter_wavelength(wavelength: int) -> none
 laser_power_meter_wavelength() -> str
@@ -67,7 +67,7 @@ This function queries or sets the wavelength being used on the detector. If ther
 
 ---
 
-### laser_power_meter_zero_offset(*zero_mode)
+### laser_power_meter_zero_offset(\*zero_mode)
 ```python
 laser_power_meter_zero_offset(zero_mode: ['On','Off','Undo']) -> none
 laser_power_meter_zero_offset() -> str
@@ -79,7 +79,7 @@ This function queries or sets the zero mode being used on the detector. If there
 
 ---
 
-### laser_power_meter_analog_output(*analog_output)
+### laser_power_meter_analog_output(\*analog_output)
 ```python
 laser_power_meter_analog_output(zero_mode: ['On','Off']) -> none
 laser_power_meter_analog_output() -> str
@@ -91,7 +91,7 @@ This function queries or sets the status of the analog output. If there is no ar
 
 ---
 
-### laser_power_meter_energy_mode(*energy_mode)
+### laser_power_meter_energy_mode(\*energy_mode)
 ```python
 laser_power_meter_energy_mode(energy_mode: ['On','Off']) -> none
 laser_power_meter_energy_mode() -> str

@@ -14,33 +14,34 @@ parent: Documentation
 - Tektronix 3000 Series (Ethernet); Tested 09/2022
 - Tektronix 4000 Series (Ethernet); Tested 01/2021
 - Tektronix 5 Series MSO (Ethernet); Tested 12/2023
-- Rigol MSO8000 Series (Ethernet); Untested
+- Rigol MSO8000 Series (Ethernet); Tested 01/2026
 
 ---
 
 ### Functions
 - [oscilloscope_name()](#oscilloscope_name)<br/>
-- [oscilloscope_record_length(*points)](#oscilloscope_record_lengthpoints)<br/>
-- [oscilloscope_acquisition_type(*ac_type)](#oscilloscope_acquisition_typeac_type)<br/>
-- [oscilloscope_number_of_averages(*number_of_averages)](#oscilloscope_number_of_averagesnumber_of_averages)<br/>
-- [oscilloscope_timebase(*timebase)](#oscilloscope_timebasetimebase)<br/>
-- [oscilloscope_define_window(**kargs)](#oscilloscope_define_windowkargs)<br/>
+- [oscilloscope_record_length(\*points)](#oscilloscope_record_lengthpoints)<br/>
+- [oscilloscope_acquisition_type(\*ac_type)](#oscilloscope_acquisition_typeac_type)<br/>
+- [oscilloscope_number_of_averages(\*number_of_averages)](#oscilloscope_number_of_averagesnumber_of_averages)<br/>
+- [oscilloscope_timebase(\*timebase)](#oscilloscope_timebasetimebase)<br/>
+- [oscilloscope_define_window(\*\*kargs)](#oscilloscope_define_windowkargs)<br/>
 - [oscilloscope_time_resolution()](#oscilloscope_time_resolution)<br/>
 - [oscilloscope_start_acquisition()](#oscilloscope_start_acquisition)<br/>
 - [oscilloscope_preamble(channel)](#oscilloscope_preamblechannel)<br/>
 - [oscilloscope_stop()](#oscilloscope_stop)<br/>
 - [oscilloscope_run()](#oscilloscope_run)<br/>
 - [oscilloscope_get_curve(channel)](#oscilloscope_get_curvechannel)<br/>
-- [oscilloscope_get_curve(channel, integral = True)](#oscilloscope_get_curvechannel-integral--true)<br/>
+- [oscilloscope_get_curve(channel, mode = 'Normal')](#oscilloscope_get_curvechannel-mode--normal)<br>
+- [oscilloscope_get_curve(channel, integral = False)](#oscilloscope_get_curvechannel-integral--false)<br/>
 - [oscilloscope_area(channel)](#oscilloscope_areachannel)<br/>
-- [oscilloscope_sensitivity(*channel)](#oscilloscope_sensitivitychannel)<br/>
-- [oscilloscope_offset(*channel)](#oscilloscope_offsetchannel)<br/>
-- [oscilloscope_horizontal_offset(*h_offset)](#oscilloscope_horizontal_offseth_offset)<br/>
-- [oscilloscope_coupling(*coupling)](#oscilloscope_couplingcoupling)<br/>
-- [oscilloscope_impedance(*impedance)](#oscilloscope_impedanceimpedance)<br/>
-- [oscilloscope_trigger_mode(*mode)](#oscilloscope_trigger_modemode)<br/>
-- [oscilloscope_trigger_channel(*channel)](#oscilloscope_trigger_channelchannel)<br/>
-- [oscilloscope_trigger_low_level(*level)](#oscilloscope_trigger_low_levellevel)<br/>
+- [oscilloscope_sensitivity(\*channel)](#oscilloscope_sensitivitychannel)<br/>
+- [oscilloscope_offset(\*channel)](#oscilloscope_offsetchannel)<br/>
+- [oscilloscope_horizontal_offset(\*h_offset)](#oscilloscope_horizontal_offseth_offset)<br/>
+- [oscilloscope_coupling(\*coupling)](#oscilloscope_couplingcoupling)<br/>
+- [oscilloscope_impedance(\*impedance)](#oscilloscope_impedanceimpedance)<br/>
+- [oscilloscope_trigger_mode(\*mode)](#oscilloscope_trigger_modemode)<br/>
+- [oscilloscope_trigger_channel(\*channel)](#oscilloscope_trigger_channelchannel)<br/>
+- [oscilloscope_trigger_low_level(\*level)](#oscilloscope_trigger_low_levellevel)<br/>
 - [oscilloscope_window()](#oscilloscope_window)<br/>
 - [oscilloscope_read_settings()](#oscilloscope_read_settings)<br/>
 - [oscilloscope_command(command)](#oscilloscope_commandcommand)<br/>
@@ -56,7 +57,7 @@ This function returns device name.<br/>
 
 ---
 
-### oscilloscope_record_length(*points)
+### oscilloscope_record_length(\*points)
 ```python
 oscilloscope_record_length(points: int) -> none
 oscilloscope_record_length() -> int
@@ -65,16 +66,15 @@ oscilloscope_record_length() -> int
 Example: oscilloscope_record_length(4000) sets the number of waveform points to 4000.
 ```
 This function queries or sets the number of waveform points to be transferred using [oscilloscope_get_curve()](#oscilloscope_get_curvechannel) function. If there is no number of points setting fitting the argument the nearest available value is used and warning is printed.<br/>
-If one would like to use Keysight oscilloscopes without [averaging](#oscilloscope_acquisition_typeac_type) (in normal, peak or high-resolution mode), the number of points in the waveform is usually [100, 250, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000]. The maximum available number of points depends on the timescale and can be substantially lower than 100000.<br/>
-In the average mode the number of points in the waveform is not the one specified in the programming manual. For Keysight 3000 X-series the correct array is [100, 250, 500, 1000, 2000, 4000, 8000]. For Keysight 2000 X-series: [99, 247, 479, 959, 1919, 3839, 7679]. For Keysight 4000 X-series the number of points for the average mode should be checked.<br/>
-For Rigol MSO8000 Series the number of points in the waveform for normal, peak or high-resolution [mode](#oscilloscope_acquisition_typeac_type) is [1000, 10000, 1e5, 1e6, 1e7, 2.5e7, 5e7, 1e8, 1.25e8]. For the average mode the number of points is [1000, 10000, 1e5, 1e6, 1e7, 2.5e7]. To use this feature effectively, one should disable the Auto ROLL option.<br/>
-To handle this situation more or less correctly, two different arrays (for average and all other modes) of available number of points are used in the modules for Keysight oscilloscopes.<br/>
+If one would like to use Keysight oscilloscopes without [averaging](#oscilloscope_acquisition_typeac_type) (in normal, peak or high-resolution mode), the number of points in the waveform is usually [100, 250, 500, 1000, 2000, 5000, 10000].<br/>
+As stated in the programming manual, the number of points acquired cannot be directly controlled. For Keysight 3000 X-series the number of points are usually from the following array: [100, 250, 500, 1000, 2000, 4000, 8000]. For Keysight 2000 X-series: [99, 247, 479, 959, 1919, 3839, 7679]. For Keysight 4000 X-series the number of points should be checked. There is also a known bug in older firmware versions that causes an incorrect number of points to be returned during the first data collection after changing the data collection settings. Please update the oscilloscope [firmware](#https://www.keysight.com/us/en/assets/9922-03906/release-notes/Keysight-3000T-X-Series-Oscilloscope-Release-Notes-07-56.pdf).<br>
+For Rigol MSO8000 Series the number of points in the waveform for normal, peak or high-resolution [mode](#oscilloscope_acquisition_typeac_type) is [1000, 10000, 1e5, 1e6, 1e7, 2.5e7, 5e7, 1e8, 1.25e8]. For the average [mode](#oscilloscope_acquisition_typeac_type) the number of points is [1000, 10000, 1e5, 1e6, 1e7, 2.5e7]. To use this feature effectively, one should disable the Auto ROLL option.<br/>
 For Tektronix 3000 Series the available number of points is [500, 10000].<br/>
 For Tektronix 4000 Series the available number of points is [1000, 10000, 100000, 1000000, 10000000].<br/>
 
 ---
 
-### oscilloscope_acquisition_type(*ac_type)
+### oscilloscope_acquisition_type(\*ac_type)
 ```python
 oscilloscope_acquisition_type(ac_type: ['Normal','Average','Hres','Peak']) -> none
 oscilloscope_acquisition_type() -> str 
@@ -88,7 +88,7 @@ Fot Tektronix 3000 Series 'Hres' option is not available.<br/>
 
 ---
 
-### oscilloscope_number_of_averages(*number_of_averages)
+### oscilloscope_number_of_averages(\*number_of_averages)
 ```python
 oscilloscope_number_of_averages(number_of_averages: int) -> none
 oscilloscope_number_of_averages() -> int
@@ -103,7 +103,7 @@ For Rigol MSO8000 Series the number of averages should be from 2 to 65536 in pow
 
 ---
 
-### oscilloscope_timebase(*timebase)
+### oscilloscope_timebase(\*timebase)
 ```python
 oscilloscope_timebase(timebase: float + [' s',' ms',' us',' ns']) -> none
 oscilloscope_timebase() -> str
@@ -118,7 +118,7 @@ For Tektronix 4000 X-series (at least for the device used for testing), the hori
 
 ---
 
-### oscilloscope_define_window(**kargs)
+### oscilloscope_define_window(\*\*kargs)
 ```python
 oscilloscope_define_window(start: int, stop: int) -> none
 oscilloscope_define_window() -> int, int
@@ -147,7 +147,9 @@ This function takes no arguments and returns the time resolution per point in th
 ```python
 oscilloscope_start_acquisition() -> none
 ```
-This function starts an acquisition sequence. Previously measured curves are discarded and new data are sampled until the desired number of averages has been reached. This function acquires all the channels currently displayed on the screen of oscilloscopes and should be called before [oscilloscope_get_curve()](#oscilloscope_get_curvechannel) function.<br/>
+This function starts an acquisition sequence.<br/>
+For Keysight and Tektronix oscilloscopes previously measured curves are discarded and new data are sampled until the desired number of averages has been reached. This function acquires all the channels currently displayed on the screen of oscilloscopes and should be called before [oscilloscope_get_curve()](#oscilloscope_get_curvechannel) function.<br>
+For Rigol MSO8000 Series this function clears all the waveforms on the screen and [runs](#oscilloscope_run the oscilloscope. Note also that for Rigol MSO8000 Series, it is not possible to control the number of averages in the waveform for the 'Average' [acquisition type](#oscilloscope_acquisition_typeac_type). More details are given in the [oscilloscope_get_curve()](#oscilloscope_get_curvechannel) function.<br>
 
 ---
 
@@ -185,16 +187,30 @@ This function starts repetitive acquisitions. This is the same as pressing the r
 
 ### oscilloscope_get_curve(channel)
 ```python
-oscilloscope_get_curve(channel: ['CH1','CH2','CH3','CH4']) -> np.array, np.array
+oscilloscope_get_curve(channel: ['CH1','CH2','CH3','CH4']) -> np.array
 ```
 ```
 Example: oscilloscope_get_curve('CH2') returs the data from the channel 2.
 ```
-This function returns a curve (x (in s) and y (in V) axis independently) from specified channel of the oscilloscope. At the moment, it expects one argument, namely the channel from which the data should be transferred. The data from two channels can be transferred sequentially.<br/>
+This function returns a waveform (y-axis values only) from specified channel of the oscilloscope. Values are given in volts. At the moment, it expects one argument, namely the channel from which the data should be transferred. The data from two channels can be transferred sequentially.<br>
+If you need to get both the x- and y-axis, consider using the [oscilloscope_get_curve(integral = False)](#oscilloscope_get_curvechannel-integral--false)) function.<br>
+For Rigol MSO8000 Series, it is not possible to control the number of averages in the waveform for the 'Average' [acquisition type](#oscilloscope_acquisition_typeac_type). This function [returns](#oscilloscope_get_curvechannel-mode--normal) the waveform data on the screen or from the internal memory.<br>
 
 ---
 
-### oscilloscope_get_curve(channel, integral = True)
+### oscilloscope_get_curve(channel, mode = 'Normal')
+```python
+oscilloscope_get_curve(channel: ['CH1','CH2','CH3','CH4'], mode = ['Normal','Raw']) -> np.array
+```
+```
+Example: oscilloscope_get_curve('CH2', mode = 'Normal') returs the data from the channel 2
+currently displayed on the screen.
+```
+For Rigol MSO8000 Series, there is an additional keyword 'mode' = ['Normal', 'Raw'], which is used to specify the data return mode. The default option is 'Normal'. In 'Normal' mode, the oscilloscope returns the waveform data currently displayed on the screen. In 'Raw' mode, the oscilloscpe returns the waveform data from the internal memory.<br>
+
+---
+
+### oscilloscope_get_curve(channel, integral = False)
 ```python
 oscilloscope_get_curve(channel: ['CH1','CH2','CH3','CH4'], integral = [True, False]) -> float
 ```
@@ -203,6 +219,7 @@ Example: oscilloscope_get_curve('CH1', integral = True)
 runs acquisition and returns the integrated data from the channel 1.
 ```
 This function runs acquisition and returns the data, integrated over a window in the oscillogram for the indicated channel. The window can be indicated by the [oscilloscope_window](#oscilloscope_window) function. The integral is returned in volt-seconds. The default option is False.<br>
+For Rigol MSO8000 Series, it is not possible to control the number of averages in the waveform for the 'Average' [acquisition type](#oscilloscope_acquisition_typeac_type). This function returns the waveform data on the screen or from the internal memory. There is an additional keyword 'mode' = ['Normal', 'Raw'], which is used to specify the data return [mode](#oscilloscope_get_curvechannel-mode--normal).<br>
 This function is only available for Keysight 2000, 3000, 4000 X-Series and Rigol MSO8000 Series oscilloscopes.<br>
 
 ---
@@ -218,7 +235,7 @@ This function returns a value of area in volt-seconds between the waveform and t
 
 ---
 
-### oscilloscope_sensitivity(*channel)
+### oscilloscope_sensitivity(\*channel)
 ```python
 oscilloscope_sensitivity(channel: str, sensitivity: int + [' V',' mV']) -> none
 oscilloscope_sensitivity(channel: ['CH1','CH2','CH3','CH4']) -> str
@@ -232,7 +249,7 @@ This function queries (if called with one argument) or sets (if called with two 
 
 ---
 
-### oscilloscope_offset(*channel)
+### oscilloscope_offset(\*channel)
 ```python
 oscilloscope_offset(*channel)
 oscilloscope_offset(channel: str, offset: float + [' V',' mV']) -> none
@@ -246,7 +263,7 @@ This function queries (if called with one argument) or sets (if called with two 
 
 ---
 
-### oscilloscope_horizontal_offset(*h_offset)
+### oscilloscope_horizontal_offset(\*h_offset)
 ```python
 oscilloscope_horizontal_offset(h_offset: float + [' s',' ms',' us',' ns']) -> none
 oscilloscope_horizontal_offset() -> str
@@ -258,7 +275,7 @@ This function queries or sets the horizontal delay time (position). This delay i
 
 ---
 
-### oscilloscope_coupling(*coupling)
+### oscilloscope_coupling(\*coupling)
 ```python
 oscilloscope_coupling(channel: str, coupling: str ['AC','DC']) -> none
 oscilloscope_coupling(channel: ['CH1','CH2','CH3','CH4']) -> str
@@ -267,11 +284,13 @@ oscilloscope_coupling(channel: ['CH1','CH2','CH3','CH4']) -> str
 Examples: oscilloscope_coupling('CH2', 'AC') sets the coupling of the channel 2 to AC.
 oscilloscope_coupling('CH2') returns the current coupling of the channel 2.
 ```
-This function queries (if called with one argument) or sets (if called with two arguments) the coupling of one of the channels of the oscilloscope. If there is a second argument it will be set as a new coupling. If there is no second argument the current coupling for the specified channel is returned.<br/>Possible coupling settings are the following: ['AC', 'DC'].<br/>
+This function queries (if called with one argument) or sets (if called with two arguments) the coupling of one of the channels of the oscilloscope. If there is a second argument it will be set as a new coupling. If there is no second argument the current coupling for the specified channel is returned.<br/>
+Possible coupling settings are the following: ['AC', 'DC'].<br/>
+For Rigol MSO8000 Series 'AC' option is only available for '1 M' [impedance](#oscilloscope_impedanceimpedance) setting.<br/>
 
 ---
 
-### oscilloscope_impedance(*impedance)
+### oscilloscope_impedance(\*impedance)
 ```python
 oscilloscope_impedance(*impedance)
 oscilloscope_impedance(channel: str, impedance: str ['1 M','50']) -> none
@@ -282,11 +301,11 @@ Examples: oscilloscope_impedance('CH2', '1 M') sets the impedance of the channel
 oscilloscope_impedance('CH2') returns the current impedance of the channel 2.
 ```
 This function queries (if called with one argument) or sets (if called with two arguments) the impedance of one of the channels of the oscilloscope. If there is a second argument it will be set as a new impedance. If there is no second argument the current impedance for the specified channel is returned. Possible impedance settings are the following: ['1 M', '50'].<br/>
-For Keysight 2000 X-Series the only available option is 1 MOhm.<br/>
+For Keysight 2000 X-Series the only available option is '1 M'.<br/>
 
 ---
 
-### oscilloscope_trigger_mode(*mode)
+### oscilloscope_trigger_mode(\*mode)
 ```python
 oscilloscope_trigger_mode(mode: ['Auto','Normal']) -> str
 oscilloscope_trigger_mode() -> str
@@ -294,12 +313,12 @@ oscilloscope_trigger_mode() -> str
 ```
 Examples: oscilloscope_trigger_mode('Auto') sets the trigger mode to Auto.
 ```
-This function queries or sets the trigger mode of the oscilloscope. If there is no argument the function will return the current trigger mode. If there is an argument the specified trigger mode will be set.<br/>Possible trigger mode settings are the following: ['Auto', 'Normal']. <br/>
-When 'Auto' sweep mode is selected, a baseline is displayed in the absence of a signal. If a signal is present but the oscilloscope is not triggered, the unsynchronized signal is displayed instead of a baseline. When 'Normal' sweep mode is selected and no trigger is present, the instrument does not sweep, and the data acquired on the previous trigger remains on the screen.<br/>
+This function queries or sets the trigger mode of the oscilloscope. If there is no argument the function will return the current trigger mode. If there is an argument the specified trigger mode will be set.<br/>
+Possible trigger mode settings are the following: ['Auto', 'Normal']. When 'Auto' sweep mode is selected, a baseline is displayed in the absence of a signal. If a signal is present but the oscilloscope is not triggered, the unsynchronized signal is displayed instead of a baseline. When 'Normal' sweep mode is selected and no trigger is present, the instrument does not sweep, and the data acquired on the previous trigger remains on the screen.<br/>
 
 ---
 
-### oscilloscope_trigger_channel(*channel)
+### oscilloscope_trigger_channel(\*channel)
 ```python
 oscilloscope_trigger_channel(channel: ['CH1','CH2','CH3','CH4','Ext','Line','WGen']) -> none
 oscilloscope_trigger_channel() -> str
@@ -316,7 +335,7 @@ For Rigol MSO8000 Series arguments 'WGen' is not available.<br/>
 
 ---
 
-### oscilloscope_trigger_low_level(*level)
+### oscilloscope_trigger_low_level(\*level)
 ```python
 oscilloscope_trigger_low_level(channel: ['CH1','CH2','CH3','CH4'], level: float) -> none
 oscilloscope_trigger_low_level(channel: str) -> str
@@ -351,7 +370,7 @@ oscilloscope_window() -> float
 ```
 Examples: oscilloscope_window() returns the integration window of the oscilloscope.
 ```
-This function returns the integration window of the oscilloscope. The integration window is used in the [oscilloscope_get_curve()](#oscilloscope_get_curvechannel-integral--true) function and is set via a special text file [digitizer.param](https://github.com/Anatoly1010/Atomize_ITC/tree/master/atomize/control_center).<br>
+This function returns the integration window of the oscilloscope. The integration window is used in the [oscilloscope_get_curve()](#oscilloscope_get_curvechannel-integral--false) function and is set via a special text file [digitizer.param](https://github.com/Anatoly1010/Atomize_ITC/tree/master/atomize/control_center).<br>
 This function is only available for Keysight 2000, 3000, 4000 X-Series and Rigol MSO8000 Series oscilloscopes.<br>
 
 ---

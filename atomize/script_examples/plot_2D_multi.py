@@ -1,7 +1,7 @@
 import time
 import numpy as np
 import atomize.general_modules.general_functions as general
-import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+import atomize.general_modules.csv_opener_saver as openfile
 
 file_handler = openfile.Saver_Opener()
 
@@ -30,4 +30,5 @@ while i < 10:
     
     i += 1
 
-#file_handler.save_2D_dialog( data, header = 'TEST' )
+#file_data = file_handler.create_file_dialog()
+#file_handler.save_data(file_data, data, header = 'TEST', mode = 'w')

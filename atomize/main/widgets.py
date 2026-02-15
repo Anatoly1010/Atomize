@@ -8,7 +8,6 @@ from datetime import datetime
 from pathlib import Path
 from pyqtgraph.dockarea import Dock
 from PyQt6 import QtWidgets, QtCore, QtGui
-from PyQt6.QtWidgets import QFileDialog
 import atomize.main.local_config as lconf
 
 pg.setConfigOption('background', (63,63,97))
@@ -655,10 +654,156 @@ class CrosshairDock(CloseableDock):
         """
         A function to open a new window for choosing 1d data
         """
-        filedialog = QFileDialog(self, 'Open File', directory = self.open_dir, filter = "CSV (*.csv)",  options = QtWidgets.QFileDialog.Option.DontUseNativeDialog ) 
-        # options = QtWidgets.QFileDialog.Option.DontUseNativeDialog
+        filedialog = QtWidgets.QFileDialog(self, 'Open File', directory = self.open_dir, filter = "CSV (*.csv)",  options = QtWidgets.QFileDialog.Option.DontUseNativeDialog ) 
+        filedialog.resize(800, 450) 
         # use QFileDialog.Option.DontUseNativeDialog to change directory
-        filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
+        
+        line_edit = filedialog.findChild(QtWidgets.QLineEdit)
+
+        if line_edit:
+            line_edit.setCompleter(None)
+
+        size_grip = filedialog.findChild(QtWidgets.QSizeGrip)
+        if size_grip:
+            size_grip.setVisible(False)
+
+        filedialog.setStyleSheet("""
+            QFileDialog, QDialog { 
+                background-color: rgb(42, 42, 64); 
+                color: rgb(193, 202, 227);
+                font-size: 11px;
+            }
+
+            QFileDialog QListView#sidebar {
+                min-width: 150px; 
+                max-width: 200px;
+                background-color: rgb(35, 35, 55);
+                border-right: 1px solid rgb(63, 63, 97);
+            }
+
+            QTreeView {
+                min-width: 450px; 
+            }
+
+            QFileDialog QFrame#qt_contents, QFileDialog QWidget {
+                background-color: rgb(42, 42, 64);
+            }
+            
+            QFileDialog QToolBar {
+                background-color: rgb(42, 42, 64);
+                border-bottom: 1px solid rgb(63, 63, 97);
+                min-height: 34px; 
+                padding: 2px;
+            }
+
+            QToolButton {
+                background-color: rgb(63, 63, 97);
+                border: 1px solid rgb(83, 83, 117);
+                border-radius: 4px;
+                min-height: 23px; 
+                max-height: 23px;
+                min-width: 23px;
+                qproperty-iconSize: 14px 14px; 
+                margin: 0px 2px;
+                vertical-align: middle;
+            }
+            QToolButton:hover {
+                border: 1px solid rgb(211, 194, 78);
+                background-color: rgb(83, 83, 117);
+            }
+
+            QFileDialog QComboBox#lookInCombo {
+                min-height: 23px;
+                max-height: 23px;
+                margin: 0px;
+                padding: 0px 4px;
+                vertical-align: middle;
+            }
+
+            QLineEdit, QComboBox {
+                background-color: rgb(63, 63, 97);
+                color: rgb(211, 194, 78);
+                border: 1px solid rgb(83, 83, 117);
+                border-radius: 3px;
+                padding: 2px 5px;
+                min-height: 16px; 
+            }
+            
+            QLineEdit:focus, QComboBox:focus {
+                border: 1px solid rgb(211, 194, 78);
+            }
+
+            QFileDialog QDialogButtonBox QPushButton {
+                background-color: rgb(63, 63, 97);
+                color: rgb(193, 202, 227);
+                border: 1px solid rgb(83, 83, 117);
+                border-radius: 4px;
+                font-weight: bold;
+                min-height: 23px;
+                max-height: 23px;
+                min-width: 75px;
+                padding: 0px 12px;
+            }
+
+            QFileDialog QDialogButtonBox QPushButton:hover {
+                background-color: rgb(83, 83, 117);
+                border: 1px solid rgb(211, 194, 78);
+                color: rgb(211, 194, 78);
+            }
+
+            QTreeView {
+                background-color: rgb(35, 35, 55);
+                border: 1px solid rgb(63, 63, 97);
+                color: rgb(193, 202, 227);
+                outline: none;
+            }
+            
+            QHeaderView::section {
+                background-color: rgb(63, 63, 97);
+                color: rgb(193, 202, 227);
+                padding: 4px;
+                border: none;
+                border-right: 1px solid rgb(83, 83, 117);
+            }
+
+            QScrollBar:vertical {
+                border: none; background: rgb(43, 43, 77); 
+                width: 10px; margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgb(193, 202, 227); min-height: 20px; border-radius: 5px;
+            }
+            QScrollBar::handle:vertical:hover { background: rgb(211, 194, 78); }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
+
+            QScrollBar:horizontal {
+                border: none; 
+                background: rgb(43, 43, 77); 
+                height: 10px; 
+                margin: 0px;
+            }
+            QScrollBar::handle:horizontal {
+                background: rgb(193, 202, 227); 
+                min-width: 20px; 
+                border-radius: 5px;
+            }
+            QScrollBar::handle:horizontal:hover { 
+                background: rgb(211, 194, 78); 
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { 
+                width: 0px; 
+            }
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { 
+                background: none; 
+            }
+
+            QFileDialog QDialogButtonBox {
+                background-color: rgb(42, 42, 64);
+                border-top: 1px solid rgb(63, 63, 97);
+                padding: 6px;
+            }
+        """)
         filedialog.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
         filedialog.fileSelected.connect(self.open_file)
         filedialog.show()
@@ -869,8 +1014,156 @@ class CrossSectionDock(CloseableDock):
                   footer = '', comments = '#', encoding = None)
 
     def fileSaveDialog(self):
-        self.fileDialog = QFileDialog(self, 'Save File', options = QtWidgets.QFileDialog.Option.DontUseNativeDialog)
-        self.fileDialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
+        self.fileDialog = QtWidgets.QFileDialog(self, 'Save File', options = QtWidgets.QFileDialog.Option.DontUseNativeDialog)
+        self.fileDialog.resize(800, 450) 
+        # use QFileDialog.Option.DontUseNativeDialog to change directory
+
+        line_edit = self.fileDialog.findChild(QtWidgets.QLineEdit)
+
+        if line_edit:
+            line_edit.setCompleter(None)
+        
+        size_grip = self.fileDialog.findChild(QtWidgets.QSizeGrip)
+        if size_grip:
+            size_grip.setVisible(False)
+
+        self.fileDialog.setStyleSheet("""
+            QFileDialog, QDialog { 
+                background-color: rgb(42, 42, 64); 
+                color: rgb(193, 202, 227);
+                font-size: 11px;
+            }
+
+            QFileDialog QListView#sidebar {
+                min-width: 150px; 
+                max-width: 200px;
+                background-color: rgb(35, 35, 55);
+                border-right: 1px solid rgb(63, 63, 97);
+            }
+
+            QTreeView {
+                min-width: 450px; 
+            }
+
+            QFileDialog QFrame#qt_contents, QFileDialog QWidget {
+                background-color: rgb(42, 42, 64);
+            }
+            
+            QFileDialog QToolBar {
+                background-color: rgb(42, 42, 64);
+                border-bottom: 1px solid rgb(63, 63, 97);
+                min-height: 34px; 
+                padding: 2px;
+            }
+
+            QToolButton {
+                background-color: rgb(63, 63, 97);
+                border: 1px solid rgb(83, 83, 117);
+                border-radius: 4px;
+                min-height: 23px; 
+                max-height: 23px;
+                min-width: 23px;
+                qproperty-iconSize: 14px 14px; 
+                margin: 0px 2px;
+                vertical-align: middle;
+            }
+            QToolButton:hover {
+                border: 1px solid rgb(211, 194, 78);
+                background-color: rgb(83, 83, 117);
+            }
+
+            QFileDialog QComboBox#lookInCombo {
+                min-height: 23px;
+                max-height: 23px;
+                margin: 0px;
+                padding: 0px 4px;
+                vertical-align: middle;
+            }
+
+            QLineEdit, QComboBox {
+                background-color: rgb(63, 63, 97);
+                color: rgb(211, 194, 78);
+                border: 1px solid rgb(83, 83, 117);
+                border-radius: 3px;
+                padding: 2px 5px;
+                min-height: 16px; 
+            }
+            
+            QLineEdit:focus, QComboBox:focus {
+                border: 1px solid rgb(211, 194, 78);
+            }
+
+            QFileDialog QDialogButtonBox QPushButton {
+                background-color: rgb(63, 63, 97);
+                color: rgb(193, 202, 227);
+                border: 1px solid rgb(83, 83, 117);
+                border-radius: 4px;
+                font-weight: bold;
+                min-height: 23px;
+                max-height: 23px;
+                min-width: 75px;
+                padding: 0px 12px;
+            }
+
+            QFileDialog QDialogButtonBox QPushButton:hover {
+                background-color: rgb(83, 83, 117);
+                border: 1px solid rgb(211, 194, 78);
+                color: rgb(211, 194, 78);
+            }
+
+            QTreeView {
+                background-color: rgb(35, 35, 55);
+                border: 1px solid rgb(63, 63, 97);
+                color: rgb(193, 202, 227);
+                outline: none;
+            }
+            
+            QHeaderView::section {
+                background-color: rgb(63, 63, 97);
+                color: rgb(193, 202, 227);
+                padding: 4px;
+                border: none;
+                border-right: 1px solid rgb(83, 83, 117);
+            }
+
+            QScrollBar:vertical {
+                border: none; background: rgb(43, 43, 77); 
+                width: 10px; margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgb(193, 202, 227); min-height: 20px; border-radius: 5px;
+            }
+            QScrollBar::handle:vertical:hover { background: rgb(211, 194, 78); }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
+
+            QScrollBar:horizontal {
+                border: none; 
+                background: rgb(43, 43, 77); 
+                height: 10px; 
+                margin: 0px;
+            }
+            QScrollBar::handle:horizontal {
+                background: rgb(193, 202, 227); 
+                min-width: 20px; 
+                border-radius: 5px;
+            }
+            QScrollBar::handle:horizontal:hover { 
+                background: rgb(211, 194, 78); 
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { 
+                width: 0px; 
+            }
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { 
+                background: none; 
+            }
+
+            QFileDialog QDialogButtonBox {
+                background-color: rgb(42, 42, 64);
+                border-top: 1px solid rgb(63, 63, 97);
+                padding: 6px;
+            }
+        """)
         self.fileDialog.setNameFilters(['*.csv','*.txt','*.dat'])
         self.fileDialog.setAcceptMode(QtWidgets.QFileDialog.AcceptMode.AcceptSave)
         global LastExportDirectory

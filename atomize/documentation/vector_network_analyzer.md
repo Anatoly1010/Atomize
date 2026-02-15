@@ -1,6 +1,6 @@
 ---
 title: Vector Network Analyzers
-nav_order: 38
+nav_order: 37
 layout: page
 permlink: /functions/vector_network_analyzer/
 parent: Documentation
@@ -15,14 +15,14 @@ Planar instruments only work when running [native sofware](https://planarchel.ru
 
 ### Functions
 - [vector_analyzer_name()](#vector_analyzer_name)<br/>
-- [vector_analyzer_source_power(*pwr, source = 1)](#vector_analyzer_source_powerpwr-source--1)<br/>
-- [vector_analyzer_center_frequency(*freq, channel = 1)](#vector_analyzer_center_frequencyfreq-channel--1)<br/>
-- [vector_analyzer_frequency_range(*freq, channel = 1)](#vector_analyzer_frequency_rangefreq-channel--1)<br/>
-- [vector_analyzer_points(*pnt, channel = 1)](#vector_analyzer_pointspnt-channel--1)<br/>
-- [vector_analyzer_trigger_source(*src)](#vector_analyzer_trigger_sourcesrc)<br/>
+- [vector_analyzer_source_power(\*pwr, source = 1)](#vector_analyzer_source_powerpwr-source--1)<br/>
+- [vector_analyzer_center_frequency(\*freq, channel = 1)](#vector_analyzer_center_frequencyfreq-channel--1)<br/>
+- [vector_analyzer_frequency_range(\*freq, channel = 1)](#vector_analyzer_frequency_rangefreq-channel--1)<br/>
+- [vector_analyzer_points(\*pnt, channel = 1)](#vector_analyzer_pointspnt-channel--1)<br/>
+- [vector_analyzer_trigger_source(\*src)](#vector_analyzer_trigger_sourcesrc)<br/>
 - [vector_analyzer_send_trigger()](#vector_analyzer_send_trigger)<br/>
-- [vector_analyzer_intermediate_freqiency_bandwith(*freq, channel = 1)](#vector_analyzer_intermediate_freqiency_bandwithfreq-channel--1)<br/>
-- [vector_analyzer_trigger_mode(*md, channel = 1)](#vector_analyzer_trigger_modemd-channel--1)<br>
+- [vector_analyzer_intermediate_freqiency_bandwith(\*freq, channel = 1)](#vector_analyzer_intermediate_freqiency_bandwithfreq-channel--1)<br/>
+- [vector_analyzer_trigger_mode(\*md, channel = 1)](#vector_analyzer_trigger_modemd-channel--1)<br>
 - [vector_analyzer_get_curve(s = 'S11', type = 'IQ', channel = 1, data_type = 'COR')](#vector_analyzer_get_curves--s11-type--iq-channel--1-data_type--cor)<br>
 - [vector_analyzer_get_frequency_points(channel = 1)](#vector_analyzer_get_frequency_pointschannel--1)<br>
 - [vector_analyzer_measurement_time(channel = 1)](#vector_analyzer_measurement_timechannel--1)<br>
@@ -39,7 +39,7 @@ This function returns device name.<br/>
 
 ---
 
-### vector_analyzer_source_power(*pwr, source = 1)
+### vector_analyzer_source_power(\*pwr, source = 1)
 ```python
 vector_analyzer_source_power(pwr: float + ' dBm', source: int) -> none
 vector_analyzer_source_power(source: int) -> float
@@ -51,7 +51,7 @@ This function queries or sets the power of the specified source. If there is no 
 
 ---
 
-### vector_analyzer_center_frequency(*freq, channel = 1)
+### vector_analyzer_center_frequency(\*freq, channel = 1)
 ```python
 vector_analyzer_center_frequency(freq: float + [' Hz',' kHz',' MHz',' GHz'], channel: int) -> none
 vector_analyzer_center_frequency(channel: int) -> str
@@ -63,7 +63,7 @@ This function queries or sets the center frequency for measurement. If there is 
 
 ---
 
-### vector_analyzer_frequency_range(*freq, channel = 1)
+### vector_analyzer_frequency_range(\*freq, channel = 1)
 ```python
 vector_analyzer_frequency_range(freq: float + [' Hz',' kHz',' MHz',' GHz'], channel: int) -> none
 vector_analyzer_frequency_range(channel: int) -> str
@@ -75,7 +75,7 @@ This function queries or sets the frequency range for measurement. If there is n
 
 ---
 
-### vector_analyzer_points(*pnt, channel = 1)
+### vector_analyzer_points(\*pnt, channel = 1)
 ```python
 vector_analyzer_points(pnt: int, channel: int) -> none
 vector_analyzer_points(channel: int) -> int
@@ -87,7 +87,7 @@ This function queries or sets the number of points for measurement. If there is 
 
 ---
 
-### vector_analyzer_trigger_source(*src)
+### vector_analyzer_trigger_source(\*src)
 ```python
 vector_analyzer_trigger_source(src: ['INT','EXT','MAN','BUS']) -> none
 vector_analyzer_trigger_source() -> str
@@ -110,7 +110,7 @@ This function can only be called without arguments and is used to send a single 
 
 ---
 
-### vector_analyzer_intermediate_freqiency_bandwith(*freq, channel = 1)
+### vector_analyzer_intermediate_freqiency_bandwith(\*freq, channel = 1)
 ```python
 vector_analyzer_intermediate_freqiency_bandwith(freq: float + [' Hz',' kHz',' MHz',' GHz'], 
 				    channel: int) -> none
@@ -126,7 +126,7 @@ If there is no bandwidth setting fitting the argument the nearest available valu
 
 ---
 
-### vector_analyzer_trigger_mode(*md, channel = 1)
+### vector_analyzer_trigger_mode(\*md, channel = 1)
 ```python
 vector_analyzer_trigger_mode(md: ['SINGLE','REP','OFF'], channel: int) -> none
 vector_analyzer_trigger_mode() -> str

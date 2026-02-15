@@ -1,6 +1,6 @@
 ---
 title: Synthetizers
-nav_order: 36
+nav_order: 35
 layout: page
 permlink: /functions/synthetizer/
 parent: Documentation
@@ -15,9 +15,9 @@ Available devices:
 
 ### Functions
 - [synthetizer_name()](#synthetizer_name)<br/>
-- [synthetizer_frequency(*freq)](#synthetizer_frequencyfreq)<br/>
-- [synthetizer_state(*state)](#synthetizer_statestate)<br>
-- [synthetizer_power(*level)](#synthetizer_powerlevel)<br>
+- [synthetizer_frequency(\*freq)](#synthetizer_frequencyfreq)<br/>
+- [synthetizer_state(\*state)](#synthetizer_statestate)<br>
+- [synthetizer_power(\*level)](#synthetizer_powerlevel)<br>
 - [synthetizer_command(command)](#synthetizer_commandcommand)<br/>
 - [synthetizer_query(command)](#synthetizer_querycommand)<br/>
 
@@ -32,7 +32,7 @@ The function returns device name.<br/>
 
 ---
 
-### synthetizer_frequency(*freq)
+### synthetizer_frequency(\*freq)
 ```python
 synthetizer_frequency(freq: int + [' Hz',' kHz',' MHz',' GHz']) -> none
 synthetizer_frequency() -> str
@@ -44,7 +44,7 @@ This function queries or sets the frequency of the synthetizer. If there is no a
 
 ---
 
-### synthetizer_state(*state)
+### synthetizer_state(\*state)
 ```python
 synthetizer_state(state: ['On','Off']) -> none
 synthetizer_state() -> str
@@ -56,7 +56,7 @@ This function queries or sets the state of the power output. If there is no argu
 
 ---
 
-### synthetizer_power(*level)
+### synthetizer_power(\*level)
 ```python
 synthetizer_power(level: int) -> none
 synthetizer_power() -> int

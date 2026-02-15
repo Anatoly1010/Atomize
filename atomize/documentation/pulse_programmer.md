@@ -1,6 +1,6 @@
 ---
 title: Pulse Programmers
-nav_order: 35
+nav_order: 34
 layout: page
 permlink: /functions/pulse_programmer/
 parent: Documentation
@@ -19,18 +19,18 @@ The Insys device is available via ctypes. The original library can be found [her
 
 ### Functions
 - [pulser_name()](#pulser_name)<br/>
-- [pulser_pulse(**kargs)](#pulser_pulsekargs)<br/>
+- [pulser_pulse(\*\*kargs)](#pulser_pulsekargs)<br/>
 - [pulser_update()](#pulser_update)<br/>
 - [pulser_next_phase()](#pulser_next_phase)<br/>
 - [pulser_acquisition_cycle(data1, data2, acq_cycle)](#pulser_acquisition_cycledata1-data2-acq_cycle)<br/>
-- [pulser_repetition_rate(*r_rate)](#pulser_repetition_rater_rate)<br/>
-- [pulser_shift(*pulses)](#pulser_shiftpulses)<br/>
-- [pulser_increment(*pulses)](#pulser_incrementpulses)<br/>
-- [pulser_redefine_start(*, name, start)](#pulser_redefine_start-name-start)<br/>
-- [pulser_redefine_delta_start(*, name, delta_start)](#pulser_redefine_delta_start-name-delta_start)<br/>
-- [pulser_redefine_length_increment(*, name, length_increment)](#pulser_redefine_length_increment-name-length_increment)<br/>
+- [pulser_repetition_rate(\*r_rate)](#pulser_repetition_rater_rate)<br/>
+- [pulser_shift(\*pulses)](#pulser_shiftpulses)<br/>
+- [pulser_increment(\*pulses)](#pulser_incrementpulses)<br/>
+- [pulser_redefine_start(\*, name, start)](#pulser_redefine_start-name-start)<br/>
+- [pulser_redefine_delta_start(\*, name, delta_start)](#pulser_redefine_delta_start-name-delta_start)<br/>
+- [pulser_redefine_length_increment(\*, name, length_increment)](#pulser_redefine_length_increment-name-length_increment)<br/>
 - [pulser_reset()](#pulser_reset)<br/>
-- [pulser_pulse_reset(*pulses)](#pulser_pulse_resetpulses)<br/>
+- [pulser_pulse_reset(\*pulses)](#pulser_pulse_resetpulses)<br/>
 - [pulser_stop()](#pulser_stop)<br/>
 - [pulser_state()](#pulser_state)<br/>
 - [pulser_visualize()](#pulser_visualize)<br/>
@@ -54,9 +54,9 @@ This function returns device name.<br>
 
 ---
 
-### pulser_pulse(**kargs)
+### pulser_pulse(\*\*kargs)
 ```python
-pulser_pulse(**kargs) -> none
+pulser_pulse(\*\*kargs) -> none
 ```
 ```yml
 name = 'P0' specifies a name of the pulse
@@ -137,7 +137,7 @@ Although this function is available for Insys FM214x3GDA, it is better to use a 
 
 ---
 
-### pulser_repetition_rate(*r_rate)
+### pulser_repetition_rate(\*r_rate)
 ```python
 pulser_repetition_rate(rer_rate: float + [' Hz',' kHz',' MHz']) -> none
 pulser_repetition_rate() -> str
@@ -149,7 +149,7 @@ This function queries (if called without argument) or sets (if called with one a
 
 ---
 
-### pulser_shift(*pulses)
+### pulser_shift(\*pulses)
 ```python
 pulser_shift() -> none
 pulser_shift(pulses: ['P0', 'P1', etc.]) -> none
@@ -161,7 +161,7 @@ This function can be called with either no argument or with a list of comma sepa
 
 ---
 
-### pulser_increment(*pulses)
+### pulser_increment(\*pulses)
 ```python
 pulser_increment() -> none
 pulser_increment(pulses: ['P0', 'P1', etc.]) -> none
@@ -174,7 +174,7 @@ This function can be called with either no argument or with a list of comma sepa
 
 ---
 
-### pulser_redefine_start(*, name, start)
+### pulser_redefine_start(\*, name, start)
 ```python
 pulser_redefine_start(
     name: ['P0', 'P1', etc.], start: int/float + [' ns',' us',' ms']) -> none
@@ -188,7 +188,7 @@ In the case of Insys FM214x3GDA start will be rounded to a multiple of 3.2.<br>
 
 ---
 
-### pulser_redefine_delta_start(*, name, delta_start)
+### pulser_redefine_delta_start(\*, name, delta_start)
 ```python
 pulser_redefine_delta_start(
     name: ['P0', 'P1', etc.], delta_start: int/float + [' ns',' us',' ms']) -> none
@@ -202,7 +202,7 @@ In the case of Insys FM214x3GDA delta_start will be rounded to a multiple of 3.2
 
 ---
 
-### pulser_redefine_length_increment(*, name, length_increment)
+### pulser_redefine_length_increment(\*, name, length_increment)
 ```python
 pulser_redefine_length_increment(
     name:['P0', 'P1', etc.], length_increment: int/float + [' ns',' us',' ms']) -> none
@@ -229,7 +229,7 @@ This function is not available for Insys FM214x3GDA. The function [pulser_pulse_
 
 ---
 
-### pulser_pulse_reset(*pulses)
+### pulser_pulse_reset(\*pulses)
 ```python
 pulser_pulse_reset() -> none
 pulser_pulse_reset(pulses: ['P0', 'P1', etc.]) -> none

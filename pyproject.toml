@@ -38,7 +38,6 @@ Documentation = "https://github.com/Anatoly1010/Atomize/tree/master/atomize/docu
 [project.optional-dependencies]
 	serial = ["pyserial>=3.5"]
     modbus = ["minimalmodbus>=1.0"]
-	gui = ["tkinter>=8.6"]
 	bots = ["pyTelegramBotAPI>=4.15"]
     math = ["scipy>=1.15"]
 

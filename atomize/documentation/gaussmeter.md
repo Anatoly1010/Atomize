@@ -15,14 +15,14 @@ parent: Documentation
 ### Functions
 - [gaussmeter_name()](#gaussmeter_name)<br/>
 - [gaussmeter_field()](#gaussmeter_field)<br/>
-- [gaussmeter_units(*units)](#gaussmeter_unitsunits)<br/>
-- [gaussmeter_points(*points)](#gaussmeter_pointspoints)<br/>
-- [gaussmeter_number_of_averages(*number)](#gaussmeter_number_of_averagesnumber)<br/>
+- [gaussmeter_units(\*units)](#gaussmeter_unitsunits)<br/>
+- [gaussmeter_points(\*points)](#gaussmeter_pointspoints)<br/>
+- [gaussmeter_number_of_averages(\*number)](#gaussmeter_number_of_averagesnumber)<br/>
 - [gaussmeter_search(start, end, step)](#gaussmeter_searchstart-end-step)<br/>
-- [gaussmeter_set_field(*B)](#gaussmeter_set_fieldb)<br/>
-- [gaussmeter_gain(*gain)](#gaussmeter_gaingain)<br/>
-- [gaussmeter_pulse_length(*length)](#gaussmeter_pulse_lengthlength)<br/>
-- [gaussmeter_sensor_number(*number)](#gaussmeter_sensor_numbernumber)<br/>
+- [gaussmeter_set_field(\*B)](#gaussmeter_set_fieldb)<br/>
+- [gaussmeter_gain(\*gain)](#gaussmeter_gaingain)<br/>
+- [gaussmeter_pulse_length(\*length)](#gaussmeter_pulse_lengthlength)<br/>
+- [gaussmeter_sensor_number(\*number)](#gaussmeter_sensor_numbernumber)<br/>
 - [gaussmeter_command(command)](#gaussmeter_commandcommand)<br/>
 - [gaussmeter_query(command)](#gaussmeter_querycommand)<br/>
 
@@ -49,7 +49,7 @@ In the case of Sibir 1 Gaussmeter, this function returns (i) numpy.array of the 
 
 ---
 
-### gaussmeter_units(*units)
+### gaussmeter_units(\*units)
 ```python
 gaussmeter_units(units: ['Gauss','Tesla','Oersted','Amp/m']) -> none
 gaussmeter_units() -> str
@@ -63,7 +63,7 @@ This function is not available for Sibir 1 Gaussmeter.<br/>
 
 ---
 
-### gaussmeter_points(*points)
+### gaussmeter_points(\*points)
 ```python
 gaussmeter_points(points: int) -> none
 gaussmeter_points() -> int
@@ -77,7 +77,7 @@ This function is only available for Sibir 1 Gaussmeter.<br/>
 
 ---
 
-### gaussmeter_number_of_averages(*number)
+### gaussmeter_number_of_averages(\*number)
 ```python
 gaussmeter_number_of_averages(number: int) -> none
 gaussmeter_number_of_averages() -> int
@@ -103,7 +103,7 @@ This function is only available for Sibir 1 Gaussmeter.<br/>
 
 ---
 
-### gaussmeter_set_field(*B)
+### gaussmeter_set_field(\*B)
 ```python
 gaussmeter_set_field(B: float) -> none
 gaussmeter_set_field() -> float
@@ -116,7 +116,7 @@ This function is only available for Sibir 1 Gaussmeter.<br/>
 
 ---
 
-### gaussmeter_gain(*gain)
+### gaussmeter_gain(\*gain)
 ```python
 gaussmeter_gain(gain: int) -> none
 gaussmeter_gain() -> int
@@ -130,7 +130,7 @@ This function is only available for Sibir 1 Gaussmeter.<br/>
 
 ---
 
-### gaussmeter_pulse_length(*length)
+### gaussmeter_pulse_length(\*length)
 ```python
 gaussmeter_pulse_length(length: int) -> none
 gaussmeter_pulse_length() -> int
@@ -144,7 +144,7 @@ This function is only available for Sibir 1 Gaussmeter.<br/>
 
 ---
 
-### gaussmeter_sensor_number(*number)
+### gaussmeter_sensor_number(\*number)
 ```python
 gaussmeter_sensor_number(number: int) -> none
 gaussmeter_sensor_number() -> int
