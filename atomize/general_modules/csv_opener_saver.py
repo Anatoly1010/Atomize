@@ -47,14 +47,6 @@ class Saver_Opener():
             self.test_data_2d = np.meshgrid(self.test_data, self.test_data)
             self.test_file_path = os.path.join(self.path_to_main, 'test')
             self.test_file_param_path = os.path.join(self.path_to_main, 'test.param')
-            try:
-                os.remove( self.test_file_path )
-            except FileNotFoundError:
-                pass
-            try:
-                os.remove( self.test_file_param_path )
-            except FileNotFoundError:
-                pass
     
     def open_file_dialog(self, directory = '', fmt = '', multiprocessing = False):
         if self.test_flag != 'test':
@@ -82,18 +74,18 @@ class Saver_Opener():
                 print("create_file_dialog", flush = True)
                 file_path = sys.stdin.readline().strip()
 
-                if file_path:
+                if file_path and file_path != "None":
                     open(file_path, "w").close()
                     return file_path
-                return None
+                return "None"
 
             else:
                 file_path = self.FileDialog(directory = directory, mode = 'Save', fmt = 'csv')
 
-                if file_path:
+                if file_path: 
                     open(file_path, "w").close()
                     return file_path
-                return None
+                return "None"
         
         elif self.test_flag == 'test':
             return self.test_file_path
@@ -133,15 +125,10 @@ class Saver_Opener():
                         comments='# ', 
                         encoding=None
                     )
-            else:
-                try:
-                    os.remove( filename )
-                except (TypeError, FileNotFoundError):
-                    pass
 
         elif self.test_flag == 'test':
-            file_for_save = open(filename, mode)
-            file_for_save.close()
+            with open(filename, mode) as f:
+                pass
             os.remove( filename )
 
     def save_data(self, filename, data, header = '', mode = 'w'):
@@ -177,24 +164,10 @@ class Saver_Opener():
                                 header=header, 
                                 comments='# '
                             )
-            else:
-                try:
-                    os.remove( filename )
-                except (TypeError, FileNotFoundError):
-                    pass
-            
-            try:
-                os.remove( os.path.join(self.path_to_main, 'temp.csv') )
-            except (TypeError, FileNotFoundError):
-                pass
-            try:
-                os.remove( os.path.join(self.path_to_main, 'temp.param') )
-            except (TypeError, FileNotFoundError):
-                pass
-
+        
         elif self.test_flag == 'test':
-            file_for_save = open(filename, mode)
-            file_for_save.close()
+            with open(filename, mode) as f:
+                pass
             os.remove( filename )
 
     def open_1d(self, file_path, header = 0):
@@ -421,7 +394,7 @@ class Saver_Opener():
 
         if self.dialog.exec() == QDialog.DialogCode.Accepted:
             path = self.dialog.selectedFiles()[0]
-            return path
+            return path 
         else:
             return ''
 
