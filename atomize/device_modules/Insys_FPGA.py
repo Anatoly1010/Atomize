@@ -636,7 +636,7 @@ class Insys_FPGA:
 
                 if channel == 'DETECTION':
                     self.adc_window = int( self.adc_window + ceil(p_length / self.timebase_pulser) )
-                    assert( self.adc_window <= 8176 ), 'Maximum DETECTION WINDOW is 3270.4 ns'
+                    assert( self.adc_window <= 3853 ), 'Maximum DETECTION WINDOW is 12329.6 ns'
                     #self.win_right = self.adc_window - 1
                 elif channel == 'TRIGGER_AWG':
                     self.dac_window = int( self.dac_window + ceil(p_length / self.timebase_pulser) )
@@ -2540,6 +2540,23 @@ class Insys_FPGA:
     def digitizer_window_points(self):
         # self.adc_window is in pulser counts => 3.2 ns to 0.4 ns (x8)
         return int( self.adc_window * 8 / self.dec_coef )
+
+    def digitizer_at_exit(self, integral = False):
+        if self.test_flag != 'test':
+            if integral == False:
+                #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
+                return self.data_i_ph.T, self.data_q_ph.T
+            elif integral == True:
+                #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
+                return 1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ), 1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )
+
+        elif self.test_flag == 'test':
+            if integral == False:
+                #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
+                return self.data_i_ph.T, self.data_q_ph.T 
+            elif integral == True:
+                #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
+                return  1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ),  1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )
 
     ####################DAC#######################
     def awg_name(self):
