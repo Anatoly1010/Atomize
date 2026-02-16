@@ -5,7 +5,7 @@ import os
 import sys
 import configparser
 import numpy as np
-from PyQt6.QtWidgets import QFileDialog, QDialog, QApplication, QSizeGrip, QLineEdit
+from PyQt6.QtWidgets import QFileDialog, QDialog, QApplication, QSizeGrip, QLineEdit, QFileIconProvider, QPushButton
 from PyQt6 import QtCore
 from PyQt6.QtCore import QTimer
 import atomize.main.local_config as lconf
@@ -226,13 +226,22 @@ class Saver_Opener():
     def FileDialog(self, directory = '', mode = 'Open', fmt = ''):
 
         self.dialog = QFileDialog( options = QFileDialog.Option.DontUseNativeDialog )
-
+        self.dialog.setIconProvider(QFileIconProvider())
+        
         self.dialog.resize(800, 450) 
         self.dialog.setFileMode(QFileDialog.FileMode.AnyFile)
         # both open and save dialog
         self.dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)\
          if mode == 'Open' else self.dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
 
+        buttons = self.dialog.findChildren(QPushButton)
+        seen_texts = []
+        for btn in buttons:
+            if btn.text() in seen_texts:
+                btn.hide()
+            else:
+                seen_texts.append(btn.text())
+        
         line_edit = self.dialog.findChild(QLineEdit)
 
         if line_edit:
@@ -254,6 +263,7 @@ class Saver_Opener():
                 max-width: 200px;
                 background-color: rgb(35, 35, 55);
                 border-right: 1px solid rgb(63, 63, 97);
+                color: rgb(193, 202, 227);
             }
 
             QTreeView {
@@ -378,8 +388,35 @@ class Saver_Opener():
                 border-top: 1px solid rgb(63, 63, 97);
                 padding: 6px;
             }
-        """)
 
+            QFileDialog QLabel {
+                color: rgb(193, 202, 227);
+            }
+
+            QFileDialog QAbstractItemView {
+                color: rgb(193, 202, 227);
+            }
+
+            QFileDialog QListView {
+                color: rgb(193, 202, 227);
+            }
+
+            QHeaderView {
+                background-color: rgb(63, 63, 97);
+            }
+
+            QFileDialog QListView#sidebar:inactive, 
+            QTreeView:inactive {
+                selection-background-color: rgb(35, 35, 55);
+                selection-color: rgb(211, 194, 78);
+            }
+
+            QTreeView::item:selected:inactive, 
+            QFileDialog QListView#sidebar::item:selected:inactive {
+                selection-background-color: rgb(63, 63, 97);
+                selection-color: rgb(211, 194, 78);
+            }
+        """)
         # set format
         if fmt != '':
             self.dialog.setDefaultSuffix(fmt)

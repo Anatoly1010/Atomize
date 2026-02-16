@@ -657,9 +657,17 @@ class CrosshairDock(CloseableDock):
         filedialog = QtWidgets.QFileDialog(self, 'Open File', directory = self.open_dir, filter = "CSV (*.csv)",  options = QtWidgets.QFileDialog.Option.DontUseNativeDialog ) 
         filedialog.resize(800, 450) 
         # use QFileDialog.Option.DontUseNativeDialog to change directory
-        
+        filedialog.setIconProvider(QtWidgets.QFileIconProvider())
         line_edit = filedialog.findChild(QtWidgets.QLineEdit)
 
+        buttons = filedialog.findChildren(QtWidgets.QPushButton)
+        seen_texts = []
+        for btn in buttons:
+            if btn.text() in seen_texts:
+                btn.hide()
+            else:
+                seen_texts.append(btn.text())
+    
         if line_edit:
             line_edit.setCompleter(None)
 
@@ -679,6 +687,7 @@ class CrosshairDock(CloseableDock):
                 max-width: 200px;
                 background-color: rgb(35, 35, 55);
                 border-right: 1px solid rgb(63, 63, 97);
+                color: rgb(193, 202, 227);
             }
 
             QTreeView {
@@ -803,7 +812,25 @@ class CrosshairDock(CloseableDock):
                 border-top: 1px solid rgb(63, 63, 97);
                 padding: 6px;
             }
+
+            QFileDialog QLabel {
+                color: rgb(193, 202, 227);
+            }
+
+            QFileDialog QAbstractItemView {
+                color: rgb(193, 202, 227);
+            }
+
+            QFileDialog QListView {
+                color: rgb(193, 202, 227);
+            }
+
+            QHeaderView {
+                background-color: rgb(63, 63, 97);
+            }
+
         """)
+
         filedialog.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
         filedialog.fileSelected.connect(self.open_file)
         filedialog.show()
@@ -1017,9 +1044,17 @@ class CrossSectionDock(CloseableDock):
         self.fileDialog = QtWidgets.QFileDialog(self, 'Save File', options = QtWidgets.QFileDialog.Option.DontUseNativeDialog)
         self.fileDialog.resize(800, 450) 
         # use QFileDialog.Option.DontUseNativeDialog to change directory
-
+        self.fileDialog.setIconProvider(QtWidgets.QFileIconProvider())
         line_edit = self.fileDialog.findChild(QtWidgets.QLineEdit)
 
+        buttons = self.fileDialog.findChildren(QtWidgets.QPushButton)
+        seen_texts = []
+        for btn in buttons:
+            if btn.text() in seen_texts:
+                btn.hide()
+            else:
+                seen_texts.append(btn.text())
+    
         if line_edit:
             line_edit.setCompleter(None)
         
@@ -1039,6 +1074,7 @@ class CrossSectionDock(CloseableDock):
                 max-width: 200px;
                 background-color: rgb(35, 35, 55);
                 border-right: 1px solid rgb(63, 63, 97);
+                color: rgb(193, 202, 227);
             }
 
             QTreeView {
@@ -1163,7 +1199,36 @@ class CrossSectionDock(CloseableDock):
                 border-top: 1px solid rgb(63, 63, 97);
                 padding: 6px;
             }
+
+            QFileDialog QLabel {
+                color: rgb(193, 202, 227);
+            }
+
+            QFileDialog QAbstractItemView {
+                color: rgb(193, 202, 227);
+            }
+
+            QFileDialog QListView {
+                color: rgb(193, 202, 227);
+            }
+
+            QHeaderView {
+                background-color: rgb(63, 63, 97);
+            }
+
+            QFileDialog QListView#sidebar:inactive, 
+            QTreeView:inactive {
+                selection-background-color: rgb(35, 35, 55);
+                selection-color: rgb(211, 194, 78);
+            }
+
+            QTreeView::item:selected:inactive, 
+            QFileDialog QListView#sidebar::item:selected:inactive {
+                selection-background-color: rgb(63, 63, 97);
+                selection-color: rgb(211, 194, 78);
+            }
         """)
+
         self.fileDialog.setNameFilters(['*.csv','*.txt','*.dat'])
         self.fileDialog.setAcceptMode(QtWidgets.QFileDialog.AcceptMode.AcceptSave)
         global LastExportDirectory
