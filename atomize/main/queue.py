@@ -51,6 +51,13 @@ class QueueList(QDockWidget):
             QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 background: none;
             }
+            
+            QMenu {
+                background-color: rgb(42, 42, 64);
+                border: 1px solid rgb(63, 63, 97);
+            }
+            QMenu::item { color: rgb(211, 194, 78); } 
+            QMenu::item:selected { background-color: rgb(48, 48, 75); } 
         """)
 
         self.namelist_view.setModel(self.namelist_model)
