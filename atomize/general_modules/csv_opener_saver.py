@@ -9,7 +9,6 @@ from PyQt6.QtWidgets import QFileDialog, QDialog, QApplication, QSizeGrip, QLine
 from PyQt6 import QtCore
 from PyQt6.QtCore import QTimer
 import atomize.main.local_config as lconf
-import atomize.general_modules.general_functions as general
 
 class Saver_Opener():
     def __init__(self):
