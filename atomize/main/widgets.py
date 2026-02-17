@@ -821,13 +821,8 @@ class CrosshairDock(CloseableDock):
                 color: rgb(193, 202, 227);
             }
 
-            QFileDialog QComboBox#lookInCombo QAbstractItemView::item:selected {
-                background-color: rgb(83, 83, 117);
-                color: rgb(211, 194, 78);
-            }
-
             QFileDialog QComboBox#lookInCombo {
-                selection-background-color: rgb(83, 83, 117);
+                selection-background-color: rgb(48, 48, 75);
                 selection-color: rgb(211, 194, 78);
             }
 
@@ -1253,13 +1248,8 @@ class CrossSectionDock(CloseableDock):
                 color: rgb(193, 202, 227);
             }
 
-            QFileDialog QComboBox#lookInCombo QAbstractItemView::item:selected {
-                background-color: rgb(83, 83, 117);
-                color: rgb(211, 194, 78);
-            }
-
             QFileDialog QComboBox#lookInCombo {
-                selection-background-color: rgb(83, 83, 117);
+                selection-background-color: rgb(48, 48, 75);
                 selection-color: rgb(211, 194, 78);
             }
 
