@@ -660,6 +660,13 @@ class CrosshairDock(CloseableDock):
         filedialog.setIconProvider(QtWidgets.QFileIconProvider())
         line_edit = filedialog.findChild(QtWidgets.QLineEdit)
 
+        tree = filedialog.findChild(QtWidgets.QTreeView)
+        header = tree.header()
+        for i in range(header.count()):
+            header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+
+        header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Stretch)
+
         buttons = filedialog.findChildren(QtWidgets.QPushButton)
         seen_texts = []
         for btn in buttons:
@@ -690,7 +697,11 @@ class CrosshairDock(CloseableDock):
             }
 
             QTreeView {
-                min-width: 450px; 
+                min-width: 500px;
+                background-color: rgb(35, 35, 55);
+                border: 1px solid rgb(63, 63, 97);
+                color: rgb(193, 202, 227);
+                outline: none;
             }
 
             QFileDialog QFrame#qt_contents, QFileDialog QWidget {
@@ -733,6 +744,7 @@ class CrosshairDock(CloseableDock):
             QLineEdit:focus, QFileDialog QComboBox:focus {
                 border: 1px solid rgb(211, 194, 78);
                 color: rgb(211, 194, 78);
+                outline: none;
             }
 
             QFileDialog QComboBox#lookInCombo {
@@ -743,6 +755,14 @@ class CrosshairDock(CloseableDock):
                 padding-left: 5px;
                 min-height: 19px;
                 max-height: 19px;
+                selection-background-color: rgb(48, 48, 75);
+                selection-color: rgb(211, 194, 78);
+            }
+
+            QFileDialog QComboBox#lookInCombo QAbstractItemView {
+                outline: none;
+                border: 1px solid rgb(48, 48, 75);
+                background-color: rgb(42, 42, 64);
             }
 
             QFileDialog QDialogButtonBox QPushButton {
@@ -762,13 +782,6 @@ class CrosshairDock(CloseableDock):
                 border: 1px solid rgb(211, 194, 78);
                 color: rgb(211, 194, 78);
             }
-
-            QTreeView {
-                background-color: rgb(35, 35, 55);
-                border: 1px solid rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                outline: none;
-            }
             
             QHeaderView::section {
                 background-color: rgb(63, 63, 97);
@@ -776,7 +789,7 @@ class CrosshairDock(CloseableDock):
                 padding: 4px;
                 border: none;
                 border-right: 1px solid rgb(83, 83, 117);
-                min-height: 14px;
+                min-height: 20px;
             }
 
             QScrollBar:vertical {
@@ -821,11 +834,6 @@ class CrosshairDock(CloseableDock):
                 color: rgb(193, 202, 227);
             }
 
-            QFileDialog QComboBox#lookInCombo {
-                selection-background-color: rgb(48, 48, 75);
-                selection-color: rgb(211, 194, 78);
-            }
-
             QFileDialog QListView::item:hover {
                 background-color: rgb(48, 48, 75);
                 color: rgb(211, 194, 78);
@@ -845,16 +853,14 @@ class CrosshairDock(CloseableDock):
                 background-color: rgb(48, 48, 75);
                 color: rgb(211, 194, 78); 
                 } 
-
-            QFileDialog QListView#sidebar::item {
-                padding-left: 5px; 
-                padding-top: 5px;
-            }
-
             QTreeView::item:selected:inactive, 
             QFileDialog QListView#sidebar::item:selected:inactive {
                 selection-background-color: rgb(63, 63, 97);
                 selection-color: rgb(211, 194, 78);
+            }
+            QFileDialog QListView#sidebar::item {
+                padding-left: 5px; 
+                padding-top: 5px;
             }
 
             QMenu {
@@ -862,7 +868,6 @@ class CrosshairDock(CloseableDock):
                 border: 1px solid rgb(63, 63, 97);
                 padding: 3px;
             }
-
             QMenu::item { color: rgb(211, 194, 78); } 
             QMenu::item:selected { 
                 background-color: rgb(48, 48, 75); 
@@ -870,6 +875,7 @@ class CrosshairDock(CloseableDock):
                 }
 
         """)
+
 
         filedialog.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
         filedialog.fileSelected.connect(self.open_file)
@@ -1087,6 +1093,13 @@ class CrossSectionDock(CloseableDock):
         self.fileDialog.setIconProvider(QtWidgets.QFileIconProvider())
         line_edit = self.fileDialog.findChild(QtWidgets.QLineEdit)
 
+        tree = self.fileDialog.findChild(QtWidgets.QTreeView)
+        header = tree.header()
+        for i in range(header.count()):
+            header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+
+        header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        
         buttons = self.fileDialog.findChildren(QtWidgets.QPushButton)
         seen_texts = []
         for btn in buttons:
@@ -1117,7 +1130,11 @@ class CrossSectionDock(CloseableDock):
             }
 
             QTreeView {
-                min-width: 450px; 
+                min-width: 500px;
+                background-color: rgb(35, 35, 55);
+                border: 1px solid rgb(63, 63, 97);
+                color: rgb(193, 202, 227);
+                outline: none;
             }
 
             QFileDialog QFrame#qt_contents, QFileDialog QWidget {
@@ -1160,6 +1177,7 @@ class CrossSectionDock(CloseableDock):
             QLineEdit:focus, QFileDialog QComboBox:focus {
                 border: 1px solid rgb(211, 194, 78);
                 color: rgb(211, 194, 78);
+                outline: none;
             }
 
             QFileDialog QComboBox#lookInCombo {
@@ -1170,6 +1188,14 @@ class CrossSectionDock(CloseableDock):
                 padding-left: 5px;
                 min-height: 19px;
                 max-height: 19px;
+                selection-background-color: rgb(48, 48, 75);
+                selection-color: rgb(211, 194, 78);
+            }
+
+            QFileDialog QComboBox#lookInCombo QAbstractItemView {
+                outline: none;
+                border: 1px solid rgb(48, 48, 75);
+                background-color: rgb(42, 42, 64);
             }
 
             QFileDialog QDialogButtonBox QPushButton {
@@ -1189,13 +1215,6 @@ class CrossSectionDock(CloseableDock):
                 border: 1px solid rgb(211, 194, 78);
                 color: rgb(211, 194, 78);
             }
-
-            QTreeView {
-                background-color: rgb(35, 35, 55);
-                border: 1px solid rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                outline: none;
-            }
             
             QHeaderView::section {
                 background-color: rgb(63, 63, 97);
@@ -1203,7 +1222,7 @@ class CrossSectionDock(CloseableDock):
                 padding: 4px;
                 border: none;
                 border-right: 1px solid rgb(83, 83, 117);
-                min-height: 14px;
+                min-height: 20px;
             }
 
             QScrollBar:vertical {
@@ -1248,11 +1267,6 @@ class CrossSectionDock(CloseableDock):
                 color: rgb(193, 202, 227);
             }
 
-            QFileDialog QComboBox#lookInCombo {
-                selection-background-color: rgb(48, 48, 75);
-                selection-color: rgb(211, 194, 78);
-            }
-
             QFileDialog QListView::item:hover {
                 background-color: rgb(48, 48, 75);
                 color: rgb(211, 194, 78);
@@ -1272,16 +1286,14 @@ class CrossSectionDock(CloseableDock):
                 background-color: rgb(48, 48, 75);
                 color: rgb(211, 194, 78); 
                 } 
-
-            QFileDialog QListView#sidebar::item {
-                padding-left: 5px; 
-                padding-top: 5px;
-            }
-
             QTreeView::item:selected:inactive, 
             QFileDialog QListView#sidebar::item:selected:inactive {
                 selection-background-color: rgb(63, 63, 97);
                 selection-color: rgb(211, 194, 78);
+            }
+            QFileDialog QListView#sidebar::item {
+                padding-left: 5px; 
+                padding-top: 5px;
             }
 
             QMenu {
@@ -1289,7 +1301,6 @@ class CrossSectionDock(CloseableDock):
                 border: 1px solid rgb(63, 63, 97);
                 padding: 3px;
             }
-
             QMenu::item { color: rgb(211, 194, 78); } 
             QMenu::item:selected { 
                 background-color: rgb(48, 48, 75); 
@@ -1297,6 +1308,7 @@ class CrossSectionDock(CloseableDock):
                 }
 
         """)
+
 
         self.fileDialog.setNameFilters(['*.csv','*.txt','*.dat'])
         self.fileDialog.setAcceptMode(QtWidgets.QFileDialog.AcceptMode.AcceptSave)

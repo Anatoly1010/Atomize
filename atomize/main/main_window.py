@@ -21,7 +21,7 @@ from datetime import datetime
 from pathlib import Path
 from PyQt6.QtCore import QSharedMemory, QSize, QEventLoop
 from PyQt6.QtGui import QColor, QIcon, QStandardItem, QStandardItemModel, QAction
-from PyQt6.QtWidgets import QFileDialog, QMessageBox, QListView, QDockWidget, QVBoxLayout, QWidget, QGridLayout, QTabWidget, QMainWindow, QPlainTextEdit, QHBoxLayout, QApplication, QPushButton, QWidget, QFileDialog, QLabel, QSizePolicy, QSizeGrip, QLineEdit, QFileIconProvider
+from PyQt6.QtWidgets import QFileDialog, QMessageBox, QListView, QDockWidget, QVBoxLayout, QWidget, QGridLayout, QTabWidget, QMainWindow, QPlainTextEdit, QHBoxLayout, QApplication, QPushButton, QWidget, QFileDialog, QLabel, QSizePolicy, QSizeGrip, QLineEdit, QFileIconProvider, QTreeView, QHeaderView
 from PyQt6.QtNetwork import QLocalServer
 from PyQt6 import QtCore, QtGui
 from pyqtgraph.dockarea import DockArea
@@ -640,7 +640,7 @@ class MainWindow(QMainWindow):
     def stop_script(self):
         self.script_queue.clear()
         self.queue = 0
-        self.process_python.close()
+        self.process_python.terminate()
 
     def add_to_queue(self):
         key_number = str( len(self.script_queue.keys()) )
@@ -905,6 +905,13 @@ class MainWindow(QMainWindow):
         filedialog.resize(800, 450) 
         # use QFileDialog.Option.DontUseNativeDialog to change directory
 
+        tree = filedialog.findChild(QTreeView)
+        header = tree.header()
+        for i in range(header.count()):
+            header.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
+
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+
         buttons = filedialog.findChildren(QPushButton)
         seen_texts = []
         for btn in buttons:
@@ -937,7 +944,11 @@ class MainWindow(QMainWindow):
             }
 
             QTreeView {
-                min-width: 450px; 
+                min-width: 500px;
+                background-color: rgb(35, 35, 55);
+                border: 1px solid rgb(63, 63, 97);
+                color: rgb(193, 202, 227);
+                outline: none;
             }
 
             QFileDialog QFrame#qt_contents, QFileDialog QWidget {
@@ -980,6 +991,7 @@ class MainWindow(QMainWindow):
             QLineEdit:focus, QFileDialog QComboBox:focus {
                 border: 1px solid rgb(211, 194, 78);
                 color: rgb(211, 194, 78);
+                outline: none;
             }
 
             QFileDialog QComboBox#lookInCombo {
@@ -990,6 +1002,14 @@ class MainWindow(QMainWindow):
                 padding-left: 5px;
                 min-height: 19px;
                 max-height: 19px;
+                selection-background-color: rgb(48, 48, 75);
+                selection-color: rgb(211, 194, 78);
+            }
+
+            QFileDialog QComboBox#lookInCombo QAbstractItemView {
+                outline: none;
+                border: 1px solid rgb(48, 48, 75);
+                background-color: rgb(42, 42, 64);
             }
 
             QFileDialog QDialogButtonBox QPushButton {
@@ -1009,13 +1029,6 @@ class MainWindow(QMainWindow):
                 border: 1px solid rgb(211, 194, 78);
                 color: rgb(211, 194, 78);
             }
-
-            QTreeView {
-                background-color: rgb(35, 35, 55);
-                border: 1px solid rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                outline: none;
-            }
             
             QHeaderView::section {
                 background-color: rgb(63, 63, 97);
@@ -1023,7 +1036,7 @@ class MainWindow(QMainWindow):
                 padding: 4px;
                 border: none;
                 border-right: 1px solid rgb(83, 83, 117);
-                min-height: 14px;
+                min-height: 20px;
             }
 
             QScrollBar:vertical {
@@ -1068,11 +1081,6 @@ class MainWindow(QMainWindow):
                 color: rgb(193, 202, 227);
             }
 
-            QFileDialog QComboBox#lookInCombo {
-                selection-background-color: rgb(48, 48, 75);
-                selection-color: rgb(211, 194, 78);
-            }
-
             QFileDialog QListView::item:hover {
                 background-color: rgb(48, 48, 75);
                 color: rgb(211, 194, 78);
@@ -1092,16 +1100,14 @@ class MainWindow(QMainWindow):
                 background-color: rgb(48, 48, 75);
                 color: rgb(211, 194, 78); 
                 } 
-
-            QFileDialog QListView#sidebar::item {
-                padding-left: 5px; 
-                padding-top: 5px;
-            }
-
             QTreeView::item:selected:inactive, 
             QFileDialog QListView#sidebar::item:selected:inactive {
                 selection-background-color: rgb(63, 63, 97);
                 selection-color: rgb(211, 194, 78);
+            }
+            QFileDialog QListView#sidebar::item {
+                padding-left: 5px; 
+                padding-top: 5px;
             }
 
             QMenu {
@@ -1109,7 +1115,6 @@ class MainWindow(QMainWindow):
                 border: 1px solid rgb(63, 63, 97);
                 padding: 3px;
             }
-
             QMenu::item { color: rgb(211, 194, 78); } 
             QMenu::item:selected { 
                 background-color: rgb(48, 48, 75); 
@@ -1171,7 +1176,7 @@ class NameList(QDockWidget):
         self.setTitleBarWidget(QWidget(self))
 
         #directories
-        path_to_main = os.path.abspath(os.getcwd())
+        path_to_main = Path(__file__).parent
         # configuration data
         path_config_file = os.path.join(path_to_main, '..', 'config.ini')
         path_config_file_device = os.path.join(path_to_main, '..', 'device_modules/config')
@@ -1347,6 +1352,13 @@ class NameList(QDockWidget):
         filedialog.setIconProvider(QFileIconProvider())
         filedialog.resize(800, 450) 
 
+        tree = filedialog.findChild(QTreeView)
+        header = tree.header()
+        for i in range(header.count()):
+            header.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
+
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+
         buttons = filedialog.findChildren(QPushButton)
         seen_texts = []
         for btn in buttons:
@@ -1379,7 +1391,11 @@ class NameList(QDockWidget):
             }
 
             QTreeView {
-                min-width: 450px; 
+                min-width: 500px;
+                background-color: rgb(35, 35, 55);
+                border: 1px solid rgb(63, 63, 97);
+                color: rgb(193, 202, 227);
+                outline: none;
             }
 
             QFileDialog QFrame#qt_contents, QFileDialog QWidget {
@@ -1422,6 +1438,7 @@ class NameList(QDockWidget):
             QLineEdit:focus, QFileDialog QComboBox:focus {
                 border: 1px solid rgb(211, 194, 78);
                 color: rgb(211, 194, 78);
+                outline: none;
             }
 
             QFileDialog QComboBox#lookInCombo {
@@ -1432,6 +1449,14 @@ class NameList(QDockWidget):
                 padding-left: 5px;
                 min-height: 19px;
                 max-height: 19px;
+                selection-background-color: rgb(48, 48, 75);
+                selection-color: rgb(211, 194, 78);
+            }
+
+            QFileDialog QComboBox#lookInCombo QAbstractItemView {
+                outline: none;
+                border: 1px solid rgb(48, 48, 75);
+                background-color: rgb(42, 42, 64);
             }
 
             QFileDialog QDialogButtonBox QPushButton {
@@ -1451,13 +1476,6 @@ class NameList(QDockWidget):
                 border: 1px solid rgb(211, 194, 78);
                 color: rgb(211, 194, 78);
             }
-
-            QTreeView {
-                background-color: rgb(35, 35, 55);
-                border: 1px solid rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                outline: none;
-            }
             
             QHeaderView::section {
                 background-color: rgb(63, 63, 97);
@@ -1465,7 +1483,7 @@ class NameList(QDockWidget):
                 padding: 4px;
                 border: none;
                 border-right: 1px solid rgb(83, 83, 117);
-                min-height: 14px;
+                min-height: 20px;
             }
 
             QScrollBar:vertical {
@@ -1510,11 +1528,6 @@ class NameList(QDockWidget):
                 color: rgb(193, 202, 227);
             }
 
-            QFileDialog QComboBox#lookInCombo {
-                selection-background-color: rgb(48, 48, 75);
-                selection-color: rgb(211, 194, 78);
-            }
-
             QFileDialog QListView::item:hover {
                 background-color: rgb(48, 48, 75);
                 color: rgb(211, 194, 78);
@@ -1534,16 +1547,14 @@ class NameList(QDockWidget):
                 background-color: rgb(48, 48, 75);
                 color: rgb(211, 194, 78); 
                 } 
-
-            QFileDialog QListView#sidebar::item {
-                padding-left: 5px; 
-                padding-top: 5px;
-            }
-
             QTreeView::item:selected:inactive, 
             QFileDialog QListView#sidebar::item:selected:inactive {
                 selection-background-color: rgb(63, 63, 97);
                 selection-color: rgb(211, 194, 78);
+            }
+            QFileDialog QListView#sidebar::item {
+                padding-left: 5px; 
+                padding-top: 5px;
             }
 
             QMenu {
@@ -1551,7 +1562,6 @@ class NameList(QDockWidget):
                 border: 1px solid rgb(63, 63, 97);
                 padding: 3px;
             }
-
             QMenu::item { color: rgb(211, 194, 78); } 
             QMenu::item:selected { 
                 background-color: rgb(48, 48, 75); 
@@ -1559,6 +1569,7 @@ class NameList(QDockWidget):
                 }
 
         """)
+
 
         filedialog.setFileMode(QFileDialog.FileMode.AnyFile)
         filedialog.fileSelected.connect(self.open_file)
@@ -1587,6 +1598,13 @@ class NameList(QDockWidget):
         filedialog.resize(800, 450) 
         # use QFileDialog.Option.DontUseNativeDialog to change directory
 
+        tree = filedialog.findChild(QTreeView)
+        header = tree.header()
+        for i in range(header.count()):
+            header.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
+
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        
         buttons = filedialog.findChildren(QPushButton)
         seen_texts = []
         for btn in buttons:
@@ -1619,7 +1637,11 @@ class NameList(QDockWidget):
             }
 
             QTreeView {
-                min-width: 450px; 
+                min-width: 500px;
+                background-color: rgb(35, 35, 55);
+                border: 1px solid rgb(63, 63, 97);
+                color: rgb(193, 202, 227);
+                outline: none;
             }
 
             QFileDialog QFrame#qt_contents, QFileDialog QWidget {
@@ -1662,6 +1684,7 @@ class NameList(QDockWidget):
             QLineEdit:focus, QFileDialog QComboBox:focus {
                 border: 1px solid rgb(211, 194, 78);
                 color: rgb(211, 194, 78);
+                outline: none;
             }
 
             QFileDialog QComboBox#lookInCombo {
@@ -1672,6 +1695,14 @@ class NameList(QDockWidget):
                 padding-left: 5px;
                 min-height: 19px;
                 max-height: 19px;
+                selection-background-color: rgb(48, 48, 75);
+                selection-color: rgb(211, 194, 78);
+            }
+
+            QFileDialog QComboBox#lookInCombo QAbstractItemView {
+                outline: none;
+                border: 1px solid rgb(48, 48, 75);
+                background-color: rgb(42, 42, 64);
             }
 
             QFileDialog QDialogButtonBox QPushButton {
@@ -1691,13 +1722,6 @@ class NameList(QDockWidget):
                 border: 1px solid rgb(211, 194, 78);
                 color: rgb(211, 194, 78);
             }
-
-            QTreeView {
-                background-color: rgb(35, 35, 55);
-                border: 1px solid rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                outline: none;
-            }
             
             QHeaderView::section {
                 background-color: rgb(63, 63, 97);
@@ -1705,7 +1729,7 @@ class NameList(QDockWidget):
                 padding: 4px;
                 border: none;
                 border-right: 1px solid rgb(83, 83, 117);
-                min-height: 14px;
+                min-height: 20px;
             }
 
             QScrollBar:vertical {
@@ -1750,11 +1774,6 @@ class NameList(QDockWidget):
                 color: rgb(193, 202, 227);
             }
 
-            QFileDialog QComboBox#lookInCombo {
-                selection-background-color: rgb(48, 48, 75);
-                selection-color: rgb(211, 194, 78);
-            }
-
             QFileDialog QListView::item:hover {
                 background-color: rgb(48, 48, 75);
                 color: rgb(211, 194, 78);
@@ -1774,16 +1793,14 @@ class NameList(QDockWidget):
                 background-color: rgb(48, 48, 75);
                 color: rgb(211, 194, 78); 
                 } 
-
-            QFileDialog QListView#sidebar::item {
-                padding-left: 5px; 
-                padding-top: 5px;
-            }
-
             QTreeView::item:selected:inactive, 
             QFileDialog QListView#sidebar::item:selected:inactive {
                 selection-background-color: rgb(63, 63, 97);
                 selection-color: rgb(211, 194, 78);
+            }
+            QFileDialog QListView#sidebar::item {
+                padding-left: 5px; 
+                padding-top: 5px;
             }
 
             QMenu {
@@ -1791,7 +1808,6 @@ class NameList(QDockWidget):
                 border: 1px solid rgb(63, 63, 97);
                 padding: 3px;
             }
-
             QMenu::item { color: rgb(211, 194, 78); } 
             QMenu::item:selected { 
                 background-color: rgb(48, 48, 75); 
@@ -1799,6 +1815,7 @@ class NameList(QDockWidget):
                 }
 
         """)
+
 
         filedialog.setFileMode(QFileDialog.FileMode.AnyFile)
         filedialog.fileSelected.connect(self.open_file_2d)
