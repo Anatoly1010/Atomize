@@ -19,13 +19,16 @@ def copy_config(src, src2):
     config_file_path = os.path.join(config_dir, "main_config.ini")
 
     # Ensure config directory exists
-    if not os.path.exists(config_dir):
-        os.makedirs(config_dir)
+    if not os.path.exists(config_dir) or not os.listdir(config_dir):
+        os.makedirs(config_dir, exist_ok = True)
         try:
             shutil.copyfile(src, config_file_path)
-            shutil.copytree(src2, config_dir2)
-            os.remove( os.path.join(config_dir2, "__init__.py") )
-            os.remove( os.path.join(config_dir2, "config_utils.py") )
+            shutil.copytree(src2, config_dir2, dirs_exist_ok = True)
+            for file_to_remove in ["__init__.py", "config_utils.py"]:
+                path = os.path.join(config_dir2, file_to_remove)
+                if os.path.exists(path):
+                    os.remove(path)
+
         except PermissionError:
             print("During copying config files an error occures: Permission denied.")
 
@@ -50,9 +53,9 @@ def load_scripts(src):
     config_dir = os.path.join( get_user_documents_dir(), app_name, "default" )
 
     # Ensure config directory exists
-    if not os.path.exists(config_dir):
+    if not os.path.exists(config_dir) or not os.listdir(config_dir):
         try:
-            shutil.copytree(src, config_dir)
+            shutil.copytree(src, config_dir, dirs_exist_ok = True)
         except PermissionError:
             print("During copying configs file the error occures: Permission denied.")
 

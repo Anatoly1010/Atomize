@@ -6082,9 +6082,12 @@ class Insys_FPGA:
         if self.test_flag != 'test':
 
             file_ini = 'exam_adc.ini'
-            file_path =  "/".join(  (*(__file__.split("/")), )[:-3] + ("libs", ) + (file_ini, ) )
+            #file_path =  "/".join(  (*(__file__.split("/")), )[:-3] + ("libs", ) + (file_ini, ) )
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            file_path = os.path.join(current_dir, "..", "..", "libs", file_ini)
+            file_path = os.path.normpath(file_path)
 
-            with fileinput.input(file_path, inplace = True) as file:
+            with fileinput.input(file_path, inplace = True, encoding='utf-8') as file:
                 for line in file:
                     new_line = line.replace(search_text, new_text)
                     print(new_line, end = '')
@@ -6101,9 +6104,12 @@ class Insys_FPGA:
         if self.test_flag != 'test':
 
             #file_ini = 'exam_adc.ini'
-            file_path =  "/".join(  (*(__file__.split("/")), )[:-3] + ("libs", ) + (file_ini, ) )
+            #file_path =  "/".join(  (*(__file__.split("/")), )[:-3] + ("libs", ) + (file_ini, ) )
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            file_path = os.path.join(current_dir, "..", "..", "libs", file_ini)
+            file_path = os.path.normpath(file_path)
 
-            with fileinput.input(file_path, inplace = True) as file:
+            with fileinput.input(file_path, inplace = True, encoding='utf-8') as file:
                 for line in file:
                     new_line = line.replace(search_text, new_text)
                     print(new_line, end = '')
@@ -6116,9 +6122,13 @@ class Insys_FPGA:
         """
         pb.change_two_ini_files('exam_adc.ini', "streamBufSizeKb = 512", "streamBufSizeKb = 1024")
         """
-        file_path =  "/".join(  (*(__file__.split("/")), )[:-3] + ("libs", ) + (file_ini, ) )
-
-        with fileinput.input(file_path, inplace = True) as file:
+        #file_path =  "/".join(  (*(__file__.split("/")), )[:-3] + ("libs", ) + (file_ini, ) )
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(current_dir, "..", "..", "libs", file_ini)
+        file_path = os.path.normpath(file_path)
+        
+        #, encoding='utf-8'
+        with fileinput.input(file_path, inplace = True, encoding='utf-8') as file:
             for line in file:
                 new_line = line.replace(search_text, search_text)
                 if new_line[0:14] == 'BaseClockValue':

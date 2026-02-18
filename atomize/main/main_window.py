@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import json
+import locale
 import ctypes
 import logging
 import signal
@@ -79,6 +80,7 @@ class MainWindow(QMainWindow):
         self.shared_mems = []
         signal.signal(signal.SIGINT, self.close)
         self.system = platform.system()
+        self.system_encoding = locale.getpreferredencoding()
 
         # configuration data
         #path_config_file = os.path.join(path_to_main,'atomize/config.ini')
@@ -133,8 +135,8 @@ class MainWindow(QMainWindow):
         self.file_handler = openfile.Saver_Opener()
 
     def handle_output(self, process):
-        raw_data = process.readAllStandardOutput().data().decode()
-        
+        raw_data = process.readAllStandardOutput().data().decode(self.system_encoding, errors='replace')
+
         lines = raw_data.strip().split('\n')
         
         for line in lines:
@@ -810,8 +812,8 @@ class MainWindow(QMainWindow):
         A function to add the information about errors found during syntax checking
         to a dedicated text box in the main window of the programm.
         """
-        text = process.readAllStandardOutput().data().decode()
-        text_errors_script = process.readAllStandardError().data().decode()
+        text = process.readAllStandardOutput().data().decode(self.system_encoding, errors='replace')
+        text_errors_script = process.readAllStandardError().data().decode(self.system_encoding, errors='replace')
         if text_errors_script == '':
             self.text_errors.appendPlainText("No errors are found")
             self.test_flag = 0
@@ -834,8 +836,8 @@ class MainWindow(QMainWindow):
         #except IndexError:
         #    pass
 
-        text = self.process_python.readAllStandardOutput().data().decode()
-        text_errors_script = self.process_python.readAllStandardError().data().decode()
+        text = self.process_python.readAllStandardOutput().data().decode(self.system_encoding, errors='replace')
+        text_errors_script = self.process_python.readAllStandardError().data().decode(self.system_encoding, errors='replace')
         if text_errors_script == '':
             self.text_errors.appendPlainText(f"The script PID {self.pid} was executed normally")
         elif text_errors_script != '':
