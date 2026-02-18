@@ -1893,9 +1893,9 @@ class Insys_FPGA:
             lines = text.split('\n')
             assert( str( lines[0].split(':  ')[1] ) != 'On' ), "Insys FPGA card is already opened. Please, close it."
 
-            file_to_read = open(self.path_status_file, 'w')
-            file_to_read.write('Status:  On' + '\n')
-            file_to_read.close()
+            #file_to_read = open(self.path_status_file, 'w')
+            #file_to_read.write('Status:  On' + '\n')
+            #file_to_read.close()
 
     def pulser_close(self):
         if self.test_flag != 'test':
@@ -1911,9 +1911,10 @@ class Insys_FPGA:
 
         elif self.test_flag == 'test':
             
-            file_to_read = open(self.path_status_file, 'w')
-            file_to_read.write('Status:  Off' + '\n')
-            file_to_read.close()
+            pass
+            #file_to_read = open(self.path_status_file, 'w')
+            #file_to_read.write('Status:  Off' + '\n')
+            #file_to_read.close()
 
     def pulser_default_synt(self, num):
         """
