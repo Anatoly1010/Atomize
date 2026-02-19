@@ -318,7 +318,13 @@ class Insys_FPGA:
         if self.test_flag != 'test':
             
             file_brdLib = 'libNvsbLib.so'
-            path_brdLib = "/".join(  (*(__file__.split("/")), )[:-3] + ("libs", ) + (file_brdLib, ) )
+            #path_brdLib = "/".join(  (*(__file__.split("/")), )[:-3] + ("libs", ) + (file_brdLib, ) )
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+
+            path_brdLib = os.path.normpath(
+                os.path.join(current_dir, "..", "..", "libs", file_brdLib)
+            )
+            
             brdLib = ctypes.cdll.LoadLibrary(path_brdLib)
             
             #===========================
@@ -4274,7 +4280,7 @@ class Insys_FPGA:
                     sorted_np_array = np.delete(sorted_np_array, index + 1, 0)
 
                     if self.mes == 0:
-                        general.message(f'Overlapping pulses or two pulses with less than {self.min_pulse_length_pulser} ns distance')
+                        general.message_test(f'Overlapping pulses or two pulses with less than {self.min_pulse_length_pulser} ns distance')
                         self.mes = 1
                     
                     index = 0
@@ -4303,7 +4309,7 @@ class Insys_FPGA:
                         sorted_np_array = np.delete(sorted_np_array, index + 1, 0)
 
                         if self.mes == 0:
-                            general.message(f'Overlapping pulses or two pulses with less than {self.min_pulse_length_pulser} ns distance')
+                            general.message_test(f'Overlapping pulses or two pulses with less than {self.min_pulse_length_pulser} ns distance')
                             self.mes = 1
                         
                         index = 0 

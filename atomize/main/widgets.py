@@ -1037,7 +1037,7 @@ class CrossSectionDock(CloseableDock):
 
         self.img_view.setImage(*args, **kwargs )
         self.img_view.getView().vb.enableAutoRange(enable = autorange)
-        self.update_cross_section()
+        #self.update_cross_section()
         self.set_image = 1
 
     def setTitle(self, text):
