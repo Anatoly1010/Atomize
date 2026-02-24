@@ -78,10 +78,11 @@ class CrosshairPlotWidget(pg.PlotWidget):
         self.cross_section_enabled = False
         self.parametric = parametric
         self.search_mode = True
-        self.label = None
+        #self.label = None
         self.label2 = None
         self.image_operation = 0
         self.click_count = 1
+        self.click_count_1d = 0
         self.axis = ['', '']
         self.cross_section = 0
 
@@ -95,6 +96,14 @@ class CrosshairPlotWidget(pg.PlotWidget):
             self.plot_item.ctrl.subtractMeanCheck.toggled.connect( self.hide_cross_hair )
         except Exception:
             pass
+
+        #(63,63,97)
+        self.cursor_label = pg.TextItem(anchor=(0, 1), color='w', fill=(42, 42, 64, 150))
+        self.cursor_label.border = pg.mkPen((255, 255, 255, 255), width=1.5)
+        self.cursor_label.hide()
+        # top-level
+        self.cursor_label.setZValue(100)
+        self.addItem(self.cursor_label)
 
     def on_fft_toggled(self, enabled):
         if enabled:
@@ -112,6 +121,7 @@ class CrosshairPlotWidget(pg.PlotWidget):
             if self.cross_section_enabled:
                 self.hide_cross_hair()
             else:
+                #if memorize the last mode; please comment
                 self.image_operation = 0
                 item = self.getPlotItem()
                 vb = item.getViewBox()
@@ -119,14 +129,42 @@ class CrosshairPlotWidget(pg.PlotWidget):
                 view_x, view_y = view_coords.x(), view_coords.y()
                 self.add_cross_hair(view_x, view_y)
 
-        elif self.cross_section_enabled:
-            self.click_count = (self.click_count + 1 ) % 2
-            if self.click_count == 0:
-                self.image_operation = 0
-            elif self.click_count == 1:
-                self.image_operation = 1
-            if mouse_event.button() == QtCore.Qt.MouseButton.MiddleButton:
+                #label
+                label_text = f"X: {view_x:.4g}\nY: {view_x:.4g}"
+                self.cursor_label.border = pg.mkPen((255, 255, 255, 255), width=1.5)
+                self.cursor_label.setText(label_text)
+                self.cursor_label.setPos(view_x, view_y)
+                self.cursor_label.show()
+
+        elif mouse_event.button() == QtCore.Qt.MouseButton.MiddleButton:
+            if self.cross_section_enabled:
+                self.click_count_1d = (self.click_count_1d + 1 ) % 2
                 self.search_mode = not self.search_mode
+                if self.click_count_1d == 1:
+                    self.cursor_label.border = pg.mkPen((128, 128, 128, 255), width=1.5)
+                else:
+                    pass
+                self.cursor_label.update()
+
+                if self.click_count_1d == 0:
+                    self.image_operation = 0
+                elif self.click_count_1d == 1:
+                    self.image_operation = 1
+
+                mouse_event.accept()
+                return 
+
+        elif self.cross_section_enabled:
+            ## See mousePressEvent
+            #self.click_count = (self.click_count + 1 ) % 2
+            #if self.click_count == 0:
+            #    self.image_operation = 0
+            #elif self.click_count == 1:
+            #    self.image_operation = 1
+            #if mouse_event.button() == QtCore.Qt.MouseButton.MiddleButton:
+            #    self.search_mode = not self.search_mode
+            #    self.cursor_label.border = pg.mkPen((255, 255, 255, 255), width=1.5)
+            #    self.cursor_label.update()
             if self.search_mode:
                 self.handle_mouse_move(mouse_event.scenePos())
 
@@ -136,21 +174,16 @@ class CrosshairPlotWidget(pg.PlotWidget):
             vb = item.getViewBox()
             view_coords = vb.mapSceneToView(mouse_event)
             x_log_mode, y_log_mode = vb.state['logMode'][0], vb.state['logMode'][1]
-            view_x, view_y = view_coords.x(), view_coords.y()
-            if (x_log_mode == True) and (y_log_mode == False):
-                view_x = 10**view_x
-            elif (x_log_mode == False) and (y_log_mode == True):
-                view_y = 10**view_y
-            elif (x_log_mode == True) and (y_log_mode == True):
-                view_x = 10**view_x
-                view_y = 10**view_y
+
+            # mouse coordinates; log-mode - already log values
+            v_x, v_y = view_coords.x(), view_coords.y()
 
             best_guesses = []
             for data_item in item.items:
-                if isinstance(data_item, pg.PlotDataItem) and (data_item.isVisible()):
+                if isinstance(data_item, pg.PlotDataItem) and data_item.isVisible():
                     xdata_0, ydata_0 = data_item.xData, data_item.yData
+                    if xdata_0 is None or len(xdata_0) < 2: continue
 
-                    # handle different options and different version of pyqtgraph
                     try:
                         if data_item.opts['fftMode'] == True:
                             xdata, ydata = self._fourierTransform(xdata_0, ydata_0)
@@ -178,45 +211,102 @@ class CrosshairPlotWidget(pg.PlotWidget):
                         else:
                             xdata, ydata = xdata_0, ydata_0
 
-                    index_distance = lambda i: ((xdata[i] - view_x))**2 + ((ydata[i] - view_y))**2
-                    if self.parametric:
-                        index = min(list(range(len(xdata))), key=index_distance)
+                    # screen coordinates
+                    search_x = np.log10(np.maximum(xdata, 1e-15)) if x_log_mode else xdata
+                    search_y = np.log10(np.maximum(ydata, 1e-15)) if y_log_mode else ydata
+
+                    # normalization
+                    view_range = vb.viewRange() # [[xmin, xmax], [ymin, ymax]]
+                    sx = view_range[0][1] - view_range[0][0]
+                    sy = view_range[1][1] - view_range[1][0]
+                    sx = sx if sx > 0 else 1
+                    sy = sy if sy > 0 else 1
+
+                    dist_sq = ((search_x - v_x) / sx)**2 + ((search_y - v_y) / sy)**2
+                    
+                    if not self.parametric:
+                        real_view_x = 10**v_x if x_log_mode else v_x
+                        idx_near = np.searchsorted(xdata, real_view_x)
+                        idx_near = np.clip(idx_near, 0, len(xdata)-1)
+                        
+                        # only closest 100 points
+                        i_start = max(0, idx_near - 50)
+                        i_end = min(len(xdata), idx_near + 50)
+                        
+                        sub_dist = dist_sq[i_start:i_end]
+                        local_idx = np.argmin(sub_dist)
+                        index = i_start + local_idx
                     else:
-                        index = min(np.searchsorted(xdata, view_x), len(xdata)-1)
-                        if index and xdata[index] - view_x > view_x - xdata[index - 1]:
-                            index -= 1
-                    pt_x, pt_y = xdata[index], ydata[index]
-                    best_guesses.append(((pt_x, pt_y), index_distance(index)))
+                        index = np.argmin(dist_sq)
+
+                    best_guesses.append({
+                        'point': (xdata[index], ydata[index]),
+                        'dist': dist_sq[index],
+                        'item': data_item  # plot
+                    })
 
             if not best_guesses:
+                self.cursor_label.hide()
                 return
 
-            (pt_x, pt_y), _ = min(best_guesses, key=lambda x: x[1])
-            
-            if (x_log_mode == True) and (y_log_mode == False):
-                self.v_line.setPos(math.log10(pt_x))
-                self.h_line.setPos(pt_y)
-            elif (x_log_mode == False) and (y_log_mode == True):
-                self.v_line.setPos(pt_x)
-                self.h_line.setPos(math.log10(pt_y))
-            elif (x_log_mode == True) and (y_log_mode == True):
-                self.v_line.setPos(math.log10(pt_x))
-                self.h_line.setPos(math.log10(pt_y))
-            else:
-                self.v_line.setPos(pt_x)
-                self.h_line.setPos(pt_y)
+            # best point            
+            best_res = min(best_guesses, key=lambda x: x['dist'])
+            (pt_x, pt_y) = best_res['point']
+            target_item = best_res['item']
 
-            self.label.setText("x=%.3e, y=%.3e" % (pt_x, pt_y))
-            self.label2.setText("cur_x=%.4e, cur_y=%.4e" % (view_x, view_y))
+            #border color
+            raw_pen = target_item.opts.get('pen')
+
+            if isinstance(raw_pen, tuple):
+                raw_pen = raw_pen[0]
+
+            if hasattr(raw_pen, 'color'):
+                curve_color = raw_pen.color()
+            else:
+                curve_color = pg.mkColor(raw_pen)
+
+            self.cursor_label.border = pg.mkPen(curve_color, width=1.5)
+            #border color
+
+            label_text = f"X: {pt_x:.4g}\nY: {pt_y:.4g}"
+            self.cursor_label.setText(label_text)
+            
+            # log_mode - log coordinates
+            v_pos = math.log10(max(pt_x, 1e-15)) if x_log_mode else pt_x
+            h_pos = math.log10(max(pt_y, 1e-15)) if y_log_mode else pt_y
+            
+            #label
+            view_range = vb.viewRange()
+            x_min, x_max = view_range[0]
+            y_min, y_max = view_range[1]
+
+            anchor_x = 1 if v_pos > (x_max + x_min) / 2 else 0
+            anchor_y = 0 if h_pos > (y_max + y_min) / 2 else 1
+
+            self.cursor_label.setAnchor((anchor_x, anchor_y))
+            self.cursor_label.setPos(v_pos, h_pos)
+            self.cursor_label.show()
+
+            self.v_line.setPos(v_pos)
+            self.h_line.setPos(h_pos)
+
+            #self.label.setText("x=%.3e, y=%.3e" % (pt_x, pt_y))
+            self.label2.setText("cur_x=%.4e, cur_y=%.4e" % (v_x, v_y))
 
     def add_cross_hair(self, x, y):
-        self.h_line = pg.InfiniteLine(pos=y, angle=0, movable=False)
-        self.v_line = pg.InfiniteLine(pos=x, angle=90, movable=False)
-        self.addItem(self.h_line, ignoreBounds=False)
-        self.addItem(self.v_line, ignoreBounds=False)
-        if self.label is None:
-            self.label = pg.LabelItem(justify="right")
-            self.getPlotItem().layout.addItem(self.label, 4, 1)
+        if hasattr(self, 'v_line'):
+            self.h_line.show()
+            self.v_line.show()
+            self.cursor_label.show()
+        else:
+            self.h_line = pg.InfiniteLine(pos=y,angle=0, movable=False)
+            self.v_line = pg.InfiniteLine(pos=x, angle=90, movable=False)
+            self.addItem(self.h_line, ignoreBounds=False)
+            self.addItem(self.v_line, ignoreBounds=False)
+
+        #if self.label is None:
+        #    self.label = pg.LabelItem(justify="right")
+        #    self.getPlotItem().layout.addItem(self.label, 4, 1)
         if self.label2 is None:
             self.label2 = pg.LabelItem(justify="left")
             self.getPlotItem().layout.addItem(self.label2, 4, 1)
@@ -225,23 +315,35 @@ class CrosshairPlotWidget(pg.PlotWidget):
         self.cross_section_enabled = True
 
         self.search_mode = True
-
+        self.click_count_1d = 0
+        
         # if cross-hair removing / adding again when from cross-section
         if self.cross_section == 1:
-            self.search_mode = True
-            if self.click_count == 0:
-                self.image_operation = 0
-            elif self.click_count == 1:
-                self.image_operation = 1
+            self.image_operation = 0
+            self.click_count_1d = 0
+            self.click_count = 1
+            # keep type:
+            #if self.image_operation == 1:
+            #    self.search_mode = False
+            #    self.click_count_1d = 1
+            #    self.click_count = 1
+            #else:
+            #    self.click_count_1d = 0
+            #    self.click_count = 1
 
     def add_cross_hair_zero(self):
-        self.h_line = pg.InfiniteLine(angle=0, movable=False)
-        self.v_line = pg.InfiniteLine(angle=90, movable=False)
-        self.addItem(self.h_line, ignoreBounds=False)
-        self.addItem(self.v_line, ignoreBounds=False)
-        if self.label is None:
-            self.label = pg.LabelItem(justify="right")
-            self.getPlotItem().layout.addItem(self.label, 4, 1)
+        if hasattr(self, 'v_line'):
+            self.h_line.show()
+            self.v_line.show()
+            self.cursor_label.show()
+        else:
+            self.h_line = pg.InfiniteLine(angle=0, movable=False)
+            self.v_line = pg.InfiniteLine(angle=90, movable=False)
+            self.addItem(self.h_line, ignoreBounds=False)
+            self.addItem(self.v_line, ignoreBounds=False)
+        #if self.label is None:
+        #    self.label = pg.LabelItem(justify="right")
+        #    self.getPlotItem().layout.addItem(self.label, 4, 1)
         if self.label2 is None:
             self.label2 = pg.LabelItem(justify="left")
             self.getPlotItem().layout.addItem(self.label2, 4, 1)
@@ -249,12 +351,20 @@ class CrosshairPlotWidget(pg.PlotWidget):
         self.y_cross_index = 0
         self.cross_section_enabled = True
 
-    def hide_cross_hair(self):
-        self.removeItem(self.h_line)
-        self.removeItem(self.v_line)
+    def hide_cross_hair(self, *enabled):
+        try:
+            self.cursor_label.hide()
+            self.h_line.hide()
+            self.v_line.hide()
+            #self.removeItem(self.h_line)
+            #self.removeItem(self.v_line)
+        except AttributeError:
+            pass
         self.cross_section_enabled = False
         if self.cross_section == 1 and self.search_mode == True:
             self.click_count = (self.click_count + 1 ) % 2
+        if len(enabled) != 0:
+            self.click_count_1d ^= 1
 
     def _fourierTransform(self, x, y):
         # Perform Fourier transform. If x values are not sampled uniformly,
@@ -292,7 +402,6 @@ class CrosshairDock(CloseableDock):
             self.open_dir = lconf.load_scripts(os.path.join(path_to_main, '..', 'tests'))
         #plot_item.scene().contextMenu = None 
 
-
         # for not removing vertical line if the position is the same
         self.ver_line_1 = 0
         self.ver_line_2 = 0
@@ -307,6 +416,9 @@ class CrosshairDock(CloseableDock):
         #self.plot_widget.setBackground(None)
         kwargs['widget'] = self.plot_widget
         super(CrosshairDock, self).__init__(**kwargs)
+
+        #remove cross-hair
+        self.closeClicked.connect(self.hide_cross_hair)
 
         self.menu = self.plot_widget.getMenu()
         self.menu.addSeparator()
@@ -348,6 +460,9 @@ class CrosshairDock(CloseableDock):
 
         self.plot_item = self.plot_widget.getPlotItem()
         self.plot_item.ctrl.fftCheck.toggled.connect(self.on_fft_toggled)
+
+    def hide_cross_hair(self):
+        self.plot_widget.hide_cross_hair()
 
     def on_fft_toggled(self, enabled):
         if enabled:
@@ -532,7 +647,9 @@ class CrosshairDock(CloseableDock):
                 self.add_del_shift_actions(name, del_action_2, shifter_2, shiftAction_2)
 
         item = self.plot_widget.getPlotItem()
-        fft_state = item.items[0].opts['fftMode']
+        plot_data_item = next((i for i in item.items if isinstance(i, pg.PlotDataItem)), None)
+        fft_state = plot_data_item.opts.get('fftMode', False)
+        #fft_state = item.items[0].opts['fftMode']
         self.on_fft_toggled( fft_state )
 
         if not fft_state:
@@ -881,18 +998,6 @@ class CrosshairDock(CloseableDock):
         filedialog.fileSelected.connect(self.open_file)
         filedialog.show()
 
-        # Tkinter Open 1D data
-        #root = tkinter.Tk()
-        #root.withdraw()
-
-        #file_path = filedialog.askopenfilename(**dict(
-        #    initialdir = self.open_dir,
-        #    filetypes = [("CSV", "*.csv"), ("TXT", "*.txt"),\
-        #    ("DAT", "*.dat"), ("all", "*.*")],
-        #    title = 'Select file to open')
-        #    )
-        #return file_path
-
     def clear(self):
         self.plot_widget.clear()
 
@@ -917,6 +1022,7 @@ class CrossSectionDock(CloseableDock):
     def __init__(self, trace_size = 80, **kwargs):
         self.plot_item = view = pg.PlotItem(labels = kwargs.pop('labels', None))
         self.img_view = kwargs['widget'] = pg.ImageView(view = view)
+        self.img_view.scene.sigMouseClicked.connect(self.on_scene_clicked)
 
         # Define positions and corresponding colors
         pos = np.array([0.0, 0.5, 1.0])
@@ -932,6 +1038,7 @@ class CrossSectionDock(CloseableDock):
         #self.plot_item.ctrlMenu.setStyleSheet("QMenu::item:selected {background-color: rgb(40, 40, 40); } QMenu::item { color: rgb(211, 194, 78); } QMenu {background-color: rgb(42, 42, 64); }")
         self.auto_levels = 0
         self.set_image = 0
+        self.click_count = 1
         view.setAspectLocked(lock=False)
         self.ui = self.img_view.ui
         self.imageItem = self.img_view.imageItem
@@ -967,26 +1074,59 @@ class CrossSectionDock(CloseableDock):
         except RuntimeError:
             warnings.warn('Scene not set up, cross section signals not connected')
 
-
         self.y_cross_index = 0
         self.h_cross_section_widget = CrosshairPlotWidget()
+        self.h_cross_section_widget.cross_section = 1
         self.h_cross_section_widget.image_operation = 1
         self.h_cross_dock = CloseableDock(name='X trace', widget=self.h_cross_section_widget, area=self.area)
-        self.h_cross_section_widget.add_cross_hair_zero()
+        # for removing / adding cross-hair again
+        self.h_cross_dock.closeClicked.connect(self.hide_cross_hair_h)
+
+        #self.h_cross_section_widget.add_cross_hair_zero()
         self.h_cross_section_widget.search_mode = False
         self.h_cross_section_widget_data = self.h_cross_section_widget.plot([0,0])
 
         self.x_cross_index = 0
         self.v_cross_section_widget = CrosshairPlotWidget()
+        self.v_cross_section_widget.cross_section = 1
         self.v_cross_section_widget.image_operation = 1
         self.v_cross_dock = CloseableDock(name='Y trace', widget=self.v_cross_section_widget, area=self.area)
-        self.v_cross_section_widget.add_cross_hair_zero()
+        self.v_cross_dock.closeClicked.connect(self.hide_cross_hair_v)
+
+        #self.v_cross_section_widget.add_cross_hair_zero()
         self.v_cross_section_widget.search_mode = False
         self.v_cross_section_widget_data = self.v_cross_section_widget.plot([0,0])
 
-        # for removing / adding cross-hair again
-        self.h_cross_section_widget.cross_section = 1
+        # label
+        self.cursor_label = pg.TextItem(anchor=(0, 1), color='w', fill=(42, 42, 64, 150))
+        self.cursor_label.hide()
+        # top-level
+        self.cursor_label.setZValue(100)
+        self.plot_item.addItem(self.cursor_label)
+
+    def hide_cross_hair_v(self):
         self.v_cross_section_widget.cross_section = 1
+        self.v_cross_section_widget.image_operation = 1
+        self.v_cross_section_widget.click_count_1d = 0
+
+    def hide_cross_hair_h(self):
+        self.h_cross_section_widget.cross_section = 1
+        self.h_cross_section_widget.image_operation = 1
+        self.h_cross_section_widget.click_count_1d = 0
+
+    def close(self):
+        self.setParent(None)
+        self.closed = True
+        if hasattr(self, '_container'):
+            if self._container is not self.area.topContainer:
+                self._container.apoptose()
+
+        self.h_cross_section_widget.image_operation = 1
+        self.v_cross_section_widget.image_operation = 1
+        self.v_cross_section_widget.click_count_1d = 0
+        self.h_cross_section_widget.click_count_1d = 0
+        self.click_count = 1
+        super().close()
 
     def setLabels(self, xlabel = "X", ylabel = "Y", zlabel = "Z"):
         self.plot_item.setLabels(bottom=(xlabel,), left=(ylabel,))
@@ -1334,25 +1474,37 @@ class CrossSectionDock(CloseableDock):
         self.x_cross_index = 0
         self.y_cross_index = 0
         self.cross_section_enabled = True
-        self.text_item = pg.LabelItem(justify="right")
+
+        self.h_cross_section_widget.add_cross_hair_zero()
+        self.v_cross_section_widget.add_cross_hair_zero()
+        #self.text_item = pg.LabelItem(justify="right")
         #self.img_view.ui.gridLayout.addWidget(self.text_item, 2, 1, 1, 2)
         #self.img_view.ui.graphicsView.addItem(self.text_item)#, 2, 1)
-        self.plot_item.layout.addItem(self.text_item, 4, 1)
+        #self.plot_item.layout.addItem(self.text_item, 4, 1)
         #self.cs_layout.addItem(self.label, 2, 1) #TODO: Find a way of displaying this label
         self.search_mode = True
+        self.click_count = 1
 
         self.area.addDock(self.h_cross_dock)
         self.area.addDock(self.v_cross_dock, position='right', relativeTo=self.h_cross_dock)
         self.cross_section_enabled = True
 
+        self.cursor_label.setPos(mid_x, mid_y)
+        self.cursor_label.show()
+
+        self.cursor_label.border = pg.mkPen((255, 255, 0, 255), width=1.5)
+        label_text = f"X: {mid_x:.4g}\nY: {mid_y:.4g}\nZ: {0}"
+        self.cursor_label.setText(label_text)
+
     def hide_cross_section(self):
         if self.cross_section_enabled:
             self.plot_item.removeItem(self.h_line)
             self.plot_item.removeItem(self.v_line)
-            self.img_view.ui.graphicsView.removeItem(self.text_item)
+            #self.img_view.ui.graphicsView.removeItem(self.text_item)
             self.cross_section_enabled = False
             self.h_cross_dock.close()
             self.v_cross_dock.close()
+            self.cursor_label.hide()
 
     def connect_signal(self):
         """This can only be run after the item has been embedded in a scene"""
@@ -1365,12 +1517,38 @@ class CrossSectionDock(CloseableDock):
         self.img_view.timeLine.sigPositionChanged.connect(self.update_cross_section)
         self.signals_connected = True
 
+    def on_scene_clicked(self, ev):
+        if ev.button() == QtCore.Qt.MouseButton.MiddleButton:
+            if self.cross_section_enabled:
+                self.v_cross_section_widget.click_count_1d ^= 1
+                self.h_cross_section_widget.click_count_1d ^= 1
+                self.click_count = (self.click_count + 1) % 2
+                self.search_mode = not self.search_mode
+                
+                color = (255, 255, 0, 255) if self.click_count != 0 else (128, 128, 128, 255)
+                self.cursor_label.border = pg.mkPen(color, width=1.5)
+                self.cursor_label.update()
+                
+                pos = ev.scenePos()
+                self.handle_mouse_move(pos)
+                
+                ev.accept()
+
+        #super().mousePressEvent(ev)
+
     def toggle_search(self, mouse_event):
         if mouse_event.double():
             self.toggle_cross_section()
         elif self.cross_section_enabled:
-            if mouse_event.button() == QtCore.Qt.MouseButton.MiddleButton:
-                self.search_mode = not self.search_mode
+            # See mousePressEvent
+            #if mouse_event.button() == QtCore.Qt.MouseButton.MiddleButton:
+            #    self.click_count = (self.click_count + 1 ) % 2
+            #    self.search_mode = not self.search_mode
+            #    if self.click_count == 0:
+            #        self.cursor_label.border = pg.mkPen((128,128,128,255), width=1.5)
+            #    else:
+            #        self.cursor_label.border = pg.mkPen((255,255,0,255), width=1.5)
+            #    self.cursor_label.update()
             if self.search_mode:
                 self.handle_mouse_move(mouse_event.scenePos())
 
@@ -1390,7 +1568,22 @@ class CrossSectionDock(CloseableDock):
             self.y_cross_index = max(min(int(item_y), max_y-1), 0)
             z_val = self.imageItem.image[self.x_cross_index, self.y_cross_index]
             self.update_cross_section()
-            self.text_item.setText("x=%.3e, y=%.3e, z=%.3e" % (view_x, view_y, z_val))
+            #self.text_item.setText("x=%.3e, y=%.3e, z=%.3e" % (view_x, view_y, z_val))
+
+            #label
+            view_range = self.imageItem.getViewBox().viewRange()
+            x_min, x_max = view_range[0]
+            y_min, y_max = view_range[1]
+
+            anchor_x = 1 if view_x > (x_max + x_min) / 2 else 0
+            anchor_y = 0 if view_y > (y_max + y_min) / 2 else 1
+
+            self.cursor_label.setAnchor((anchor_x, anchor_y))            
+            self.cursor_label.setPos(view_x, view_y)
+            self.cursor_label.show()
+
+            label_text = f"X: {view_x:.4g}\nY: {view_y:.4g}\nZ: {z_val:.4g}"
+            self.cursor_label.setText(label_text)
 
     def update_cross_section(self):
         nx, ny = self.imageItem.image.shape
@@ -1400,11 +1593,135 @@ class CrossSectionDock(CloseableDock):
         zval = self.imageItem.image[self.x_cross_index, self.y_cross_index]
         self.h_cross_section_widget_data.setData(xdata, self.imageItem.image[:, self.y_cross_index])
         self.v_cross_section_widget_data.setData(ydata, self.imageItem.image[self.x_cross_index, :])
-        
-        if self.v_cross_section_widget.image_operation == 1 :
-            self.v_cross_section_widget.v_line.setPos(ydata[self.y_cross_index])
-            self.v_cross_section_widget.h_line.setPos(zval)
+
+        if self.v_cross_section_widget.image_operation == 1:
+            item = self.v_cross_section_widget.getPlotItem()
+            plot_data_item = next((i for i in item.items if isinstance(i, pg.PlotDataItem)), None)
+            vb = item.getViewBox()
+
+            self.v_cross_section_widget.cursor_label.border = pg.mkPen((128, 128, 128, 255), width=1.5)
+
+            try:
+                if plot_data_item.opts['logMode'][0] == True:
+                    y = np.log10( ydata[self.y_cross_index] )
+                    z = zval
+                elif plot_data_item.opts['logMode'][1] == True:
+                    y = ydata[self.y_cross_index]
+                    z = np.log10( zval )
+                elif (plot_data_item.opts['logMode'][0]) == True and (plot_data_item.opts['logMode'][1]) == True:
+                    y = ydata[self.y_cross_index]
+                    z = np.log10( zval )
+                elif (plot_data_item.opts['fftMode'] == True) or (plot_data_item.opts['derivativeMode'] == True) or (plot_data_item.opts['phasemapMode'] == True) or (plot_data_item.opts['subtractMeanMode'] == True):
+                    self.v_cross_section_widget.image_operation = 0
+                    y = ydata[self.y_cross_index]
+                    z = zval
+                    self.v_cross_section_widget.cursor_label.border = pg.mkPen((255, 255, 0, 255), width=1.5)
+                else:
+                    y = ydata[self.y_cross_index]
+                    z = zval
+            except KeyError:
+                if plot_data_item.opts['logMode'][0] == True:
+                    y = np.log10( ydata[self.y_cross_index] )
+                    z = zval
+                elif plot_data_item.opts['logMode'][1] == True:
+                    y = ydata[self.y_cross_index]
+                    z = np.log10( zval )
+                elif (plot_data_item.opts['logMode'][0]) == True and (plot_data_item.opts['logMode'][1]) == True:
+                    y = ydata[self.y_cross_index]
+                    z = np.log10( zval )
+                elif (plot_data_item.opts['fftMode'] == True) or (plot_data_item.opts['derivativeMode'] == True) or (plot_data_item.opts['phasemapMode'] == True):
+                    self.v_cross_section_widget.image_operation = 0
+                    y = ydata[self.y_cross_index]
+                    z = zval
+                    self.v_cross_section_widget.cursor_label.border = pg.mkPen((255, 255, 0, 255), width=1.5)
+                else:
+                    y = ydata[self.y_cross_index]
+                    z = zval
+
+            view_range = vb.viewRange()
+            x_min, x_max = view_range[0]
+            y_min, y_max = view_range[1]
+
+            anchor_x = 1 if y > (x_max + x_min) / 2 else 0
+            anchor_y = 0 if z > (y_max + y_min) / 2 else 1
+
+            self.v_cross_section_widget.cursor_label.setAnchor((anchor_x, anchor_y))
+
+            self.v_cross_section_widget.v_line.setPos(y)
+            self.v_cross_section_widget.h_line.setPos(z)
+
+            self.v_cross_section_widget.cursor_label.setPos(y, z)
+
+            if (self.v_cross_section_widget.v_line.isVisible() == False) or (self.v_cross_section_widget.h_line.isVisible() == False):
+                pass
+            else:
+                self.v_cross_section_widget.cursor_label.show()
+
+            label_text = f"Y: {ydata[self.y_cross_index]:.4g}\nZ: {zval:.4g}"
+            self.v_cross_section_widget.cursor_label.setText(label_text)
 
         if self.h_cross_section_widget.image_operation == 1:
-            self.h_cross_section_widget.v_line.setPos(xdata[self.x_cross_index])
-            self.h_cross_section_widget.h_line.setPos(zval)
+            item = self.h_cross_section_widget.getPlotItem()
+            plot_data_item = next((i for i in item.items if isinstance(i, pg.PlotDataItem)), None)
+            vb = item.getViewBox()
+
+            self.h_cross_section_widget.cursor_label.border = pg.mkPen((128, 128, 128, 255), width=1.5)
+
+            try:
+                if plot_data_item.opts['logMode'][0] == True:
+                    x = np.log10( xdata[self.x_cross_index] )
+                    z = zval
+                elif plot_data_item.opts['logMode'][1] == True:
+                    x = xdata[self.x_cross_index]
+                    z = np.log10( zval )
+                elif (plot_data_item.opts['logMode'][0]) == True and (plot_data_item.opts['logMode'][1]) == True:
+                    x = xdata[self.x_cross_index]
+                    z = np.log10( zval )
+                elif (plot_data_item.opts['fftMode'] == True) or (plot_data_item.opts['derivativeMode'] == True) or (plot_data_item.opts['phasemapMode'] == True) or (plot_data_item.opts['subtractMeanMode'] == True):
+                    self.h_cross_section_widget.image_operation = 0
+                    x = xdata[self.x_cross_index]
+                    z = zval
+                    self.h_cross_section_widget.cursor_label.border = pg.mkPen((255, 255, 0, 255), width=1.5)
+                else:
+                    x = xdata[self.x_cross_index]
+                    z = zval
+            except KeyError:
+                if plot_data_item.opts['logMode'][0] == True:
+                    x = np.log10( xdata[self.x_cross_index] )
+                    z = zval
+                elif plot_data_item.opts['logMode'][1] == True:
+                    x = xdata[self.x_cross_index]
+                    z = np.log10( zval )
+                elif (plot_data_item.opts['logMode'][0]) == True and (plot_data_item.opts['logMode'][1]) == True:
+                    x = xdata[self.x_cross_index]
+                    z = np.log10( zval )
+                elif (plot_data_item.opts['fftMode'] == True) or (plot_data_item.opts['derivativeMode'] == True) or (plot_data_item.opts['phasemapMode'] == True):
+                    self.h_cross_section_widget.image_operation = 0
+                    x = xdata[self.x_cross_index]
+                    z = zval
+                    self.h_cross_section_widget.cursor_label.border = pg.mkPen((255, 255, 0, 255), width=1.5)
+                else:
+                    x = xdata[self.x_cross_index]
+                    z = zval
+
+            view_range = vb.viewRange()
+            x_min, x_max = view_range[0]
+            y_min, y_max = view_range[1]
+
+            anchor_x = 1 if x > (x_max + x_min) / 2 else 0
+            anchor_y = 0 if z > (y_max + y_min) / 2 else 1
+
+            self.h_cross_section_widget.cursor_label.setAnchor((anchor_x, anchor_y))
+            
+            self.h_cross_section_widget.v_line.setPos(x)
+            self.h_cross_section_widget.h_line.setPos(z)
+
+            self.h_cross_section_widget.cursor_label.setPos(x, z)
+
+            if (self.h_cross_section_widget.v_line.isVisible() == False) or (self.h_cross_section_widget.h_line.isVisible() == False):
+                pass
+            else:
+                self.h_cross_section_widget.cursor_label.show()
+
+            label_text = f"X: {xdata[self.x_cross_index]:.4g}\nZ: {zval:.4g}"
+            self.h_cross_section_widget.cursor_label.setText(label_text)
