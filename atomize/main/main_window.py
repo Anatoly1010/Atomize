@@ -185,6 +185,7 @@ class MainWindow(QMainWindow):
 
     def read_from(self, conn, memory):
         logging.debug('reading data')
+
         try:
             self.meta = json.loads(conn.read(320).decode())
         except json.decoder.JSONDecodeError:
@@ -295,14 +296,14 @@ class MainWindow(QMainWindow):
                 (x0, dx), (y0, dy) = start_step
                 pw.setAxisLabels(xname=xnam, xscale =xscal, yname=ynam, yscale =yscal,\
                 zname=znam, zscale =zscal)
-                pw.setImage(arr, pos=(x0, y0), scale=(dx, dy) ) # , axes={'y':0, 'x':1}
+                pw.setImage(arr, pos=(x0, y0), scale=(dx, dy), autoLevels=False ) # , axes={'y':0, 'x':1}
                 # Graph title
                 if tex != '':
                     pw.setTitle(meta['value'])
             else:
                 pw.setAxisLabels(xname=xnam, xscale =xscal, yname=ynam, yscale =yscal,\
                  zname=znam, zscale =zscal)
-                pw.setImage(arr) #, axes={'y':0, 'x':1}
+                pw.setImage(arr, autoLevels=False) #, axes={'y':0, 'x':1}
                 # Graph title
                 if tex != '':
                     pw.setTitle(meta['value'])
@@ -364,10 +365,10 @@ class MainWindow(QMainWindow):
                 (x0, dx), (y0, dy) = start_step
                 pw.setAxisLabels(xname=xnam, xscale =xscal, yname=ynam, yscale =yscal,\
                  zname=znam, zscale =zscal)
-                pw.setImage(image, pos=(x0, y0), scale=(dx, dy), axes={'y':0, 'x':1})
+                pw.setImage(image, pos=(x0, y0), scale=(dx, dy), axes={'y':0, 'x':1}, autoLevels=False)
             else:
                 pw.setAxisLabels(xname=xnam, xscale =xscal, yname=ynam, yscale =yscal)
-                pw.setImage(image, axes={'y':0, 'x':1})
+                pw.setImage(image, axes={'y':0, 'x':1}, autoLevels=False)
 
 
         elif operation == 'label':
@@ -1343,7 +1344,7 @@ class NameList(QDockWidget):
         pw = self.window.add_new_plot(2, name_plot)
         pw.setAxisLabels(xname = 'X', xscale = 'Arb. U.',yname = 'X', yscale = 'Arb. U.',\
             zname = 'X', zscale = 'Arb. U.')
-        pw.setImage(data, axes = {'y': 0, 'x': 1})
+        pw.setImage(data, axes = {'y': 0, 'x': 1}, autoLevels=False)
 
     def file_dialog(self, directory = ''):
         """

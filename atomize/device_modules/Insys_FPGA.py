@@ -724,6 +724,7 @@ class Insys_FPGA:
             else:
                 assert (1 == 2), 'Incorrect channel name'
 
+    #update!
     def pulser_redefine_start(self, *, name, start):
         """
         A function for redefining start of the specified pulse.
@@ -734,52 +735,64 @@ class Insys_FPGA:
         """
 
         if self.test_flag != 'test':
-            i = 0
+            names_list = [name] if isinstance(name, str) else name
+            starts_list = [start] if isinstance(start, str) else start
 
-            while i < len( self.pulse_array_pulser ):
-                if name == self.pulse_array_pulser[i]['name']:
+            for name, d_start in zip(names_list, starts_list):
 
-                    temp_start = start.split(" ")
-                    if temp_start[1] in self.timebase_dict:
-                        coef = self.timebase_dict[temp_start[1]]
-                        p_start_raw = coef*float(temp_start[0])
-                        p_start = self.round_to_closest(p_start_raw, 3.2)
-                        if p_start != p_start_raw:
-                            general.message(f"Pulse Start is not divisible by 3.2. The closest available Pulse Start of {p_start} ns is used")
-                    self.pulse_array_pulser[i]['start'] = str(p_start) + ' ns'
-                    self.shift_count_pulser = 1
-                else:
-                    pass
+                temp_start = d_start.split(" ")
+                if len(temp_start) < 2 or temp_start[1] not in self.timebase_dict:
+                    continue
+                
+                coef = self.timebase_dict[temp_start[1]]
+                p_start_raw = coef * float(temp_start[0])
+                p_start = self.round_to_closest(p_start_raw, 3.2)
+                
+                if p_start != p_start_raw:
+                    general.message(f"Pulse Start of {p_start_raw} is not divisible by 3.2. The closest available {p_start} ns is used")
+                
 
-                i += 1
+                for i, pulse in enumerate(self.pulse_array_pulser):
+                    if pulse['name'] == name:
+                        new_val = f"{p_start} ns"
+                        pulse['start'] = new_val
+                        self.shift_count_pulser = 1
+
+                        if pulse['channel'] == 'TRIGGER_AWG' and i > 0:
+                            self.pulse_array_pulser[i-1]['start'] = new_val
 
         elif self.test_flag == 'test':
-            i = 0
-            assert( name in self.pulse_name_array_pulser ), 'Pulse with the specified name is not defined'
+            
+            names_list = [name] if isinstance(name, str) else name
+            starts_list = [start] if isinstance(start, str) else start
 
-            while i < len( self.pulse_array_pulser ):
-                if name == self.pulse_array_pulser[i]['name']:
+            for name, d_start in zip(names_list, starts_list):
+                assert( name in self.pulse_name_array_pulser ), 'Pulse with the specified name is not defined'
 
-                    # checks
-                    temp_start = start.split(" ")
-                    if temp_start[1] in self.timebase_dict:
-                        coef = self.timebase_dict[temp_start[1]]
-                        p_start_raw = coef*float(temp_start[0])
-                        p_start = self.round_to_closest(p_start_raw, 3.2)
-                        if p_start != p_start_raw:
-                            general.message(f"Pulse Start is not divisible by 3.2. The closest available Pulse Start of {p_start} ns is used")
-                        assert(round(remainder(p_start, 3.2), 2) == 0), 'Pulse start should be divisible by 3.2'
-                        assert(p_start >= 0), 'Pulse start is a negative number'
-                    else:
-                        assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+                temp_start = d_start.split(" ")
+                if len(temp_start) < 2 or temp_start[1] not in self.timebase_dict:
+                    assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+                
+                coef = self.timebase_dict[temp_start[1]]
+                p_start_raw = coef * float(temp_start[0])
+                p_start = self.round_to_closest(p_start_raw, 3.2)
+                
+                if p_start != p_start_raw:
+                    general.message(f"Pulse Start of {p_start_raw} is not divisible by 3.2. The closest available Pulse Start {p_start} ns is used")
+                
+                assert(round(remainder(p_start, 3.2), 2) == 0), 'Pulse Start should be divisible by 3.2'
+                assert(p_start >= 0), 'Pulse Start is a negative number'
 
-                    self.pulse_array_pulser[i]['start'] = str(p_start) + ' ns'
-                    self.shift_count_pulser = 1
-                else:
-                    pass
+                for i, pulse in enumerate(self.pulse_array_pulser):
+                    if pulse['name'] == name:
+                        new_val = f"{p_start} ns"
+                        pulse['start'] = new_val
+                        self.shift_count_pulser = 1
 
-                i += 1
+                        if pulse['channel'] == 'TRIGGER_AWG' and i > 0:
+                            self.pulse_array_pulser[i-1]['start'] = new_val
 
+    #update!
     def pulser_redefine_delta_start(self, *, name, delta_start):
         """
         A function for redefining delta_start of the specified pulse.
@@ -790,53 +803,64 @@ class Insys_FPGA:
         """
 
         if self.test_flag != 'test':
-            i = 0
+            names_list = [name] if isinstance(name, str) else name
+            delta_starts_list = [delta_start] if isinstance(delta_start, str) else delta_start
 
-            while i < len( self.pulse_array_pulser ):
-                if name == self.pulse_array_pulser[i]['name']:
-                    temp_delta_start = delta_start.split(" ")
-                    if temp_delta_start[1] in self.timebase_dict:
-                        coef = self.timebase_dict[temp_delta_start[1]]
-                        p_delta_start_raw = coef*float(temp_delta_start[0])
-                        p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
-                        if p_delta_start != p_delta_start_raw:
-                            general.message(f"Pulse Delta start of {p_delta_start_raw} is not divisible by 3.2. The closest available Pulse Delta start of {p_delta_start} ns is used")
+            for name, d_start in zip(names_list, delta_starts_list):
 
-                    self.pulse_array_pulser[i]['delta_start'] = str(p_delta_start) + ' ns'
-                    self.shift_count_pulser = 1
-                else:
-                    pass
+                temp_delta_start = d_start.split(" ")
+                if len(temp_delta_start) < 2 or temp_delta_start[1] not in self.timebase_dict:
+                    continue
+                
+                coef = self.timebase_dict[temp_delta_start[1]]
+                p_delta_start_raw = coef * float(temp_delta_start[0])
+                p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
+                
+                if p_delta_start != p_delta_start_raw:
+                    general.message(f"Pulse Delta Start of {p_delta_start_raw} is not divisible by 3.2. The closest available Pulse Delta Start {p_delta_start} ns is used")
+                
 
-                i += 1
+                for i, pulse in enumerate(self.pulse_array_pulser):
+                    if pulse['name'] == name:
+                        new_val = f"{p_delta_start} ns"
+                        pulse['delta_start'] = new_val
+                        self.shift_count_pulser = 1
+
+                        if pulse['channel'] == 'TRIGGER_AWG' and i > 0:
+                            self.pulse_array_pulser[i-1]['delta_start'] = new_val
 
         elif self.test_flag == 'test':
-            i = 0
-            assert( name in self.pulse_name_array_pulser ), 'Pulse with the specified name is not defined'
+            
+            names_list = [name] if isinstance(name, str) else name
+            delta_starts_list = [delta_start] if isinstance(delta_start, str) else delta_start
 
-            while i < len( self.pulse_array_pulser ):
-                if name == self.pulse_array_pulser[i]['name']:
+            for name, d_start in zip(names_list, delta_starts_list):
+                assert( name in self.pulse_name_array_pulser ), 'Pulse with the specified name is not defined'
 
-                    # checks
-                    temp_delta_start = delta_start.split(" ")
-                    if temp_delta_start[1] in self.timebase_dict:
-                        coef = self.timebase_dict[temp_delta_start[1]]
-                        p_delta_start_raw = coef*float(temp_delta_start[0])
-                        p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
-                        if p_delta_start != p_delta_start_raw:
-                            general.message(f"Pulse Delta start is not divisible by 3.2. The closest available Pulse Delta start of {p_delta_start} ns is used")
+                temp_delta_start = d_start.split(" ")
+                if len(temp_delta_start) < 2 or temp_delta_start[1] not in self.timebase_dict:
+                    assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+                
+                coef = self.timebase_dict[temp_delta_start[1]]
+                p_delta_start_raw = coef * float(temp_delta_start[0])
+                p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
+                
+                if p_delta_start != p_delta_start_raw:
+                    general.message(f"Pulse Delta Start of {p_delta_start_raw} is not divisible by 3.2. The closest available Pulse Delta Start {p_delta_start} ns is used")
+                
+                assert(round(remainder(p_delta_start, 3.2), 2) == 0), 'Pulse Delta Start should be divisible by 3.2'
+                assert(p_delta_start >= 0), 'Pulse Delta Start is a negative number'
 
-                        assert(round(remainder(p_delta_start, 3.2), 2) == 0), 'Pulse delta start should be divisible by 3.2'
-                        assert(p_delta_start >= 0), 'Pulse delta start is a negative number'
-                    else:
-                        assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+                for i, pulse in enumerate(self.pulse_array_pulser):
+                    if pulse['name'] == name:
+                        new_val = f"{p_delta_start} ns"
+                        pulse['delta_start'] = new_val
+                        self.shift_count_pulser = 1
 
-                    self.pulse_array_pulser[i]['delta_start'] = str(p_delta_start) + ' ns'
-                    self.shift_count_pulser = 1
-                else:
-                    pass
+                        if pulse['channel'] == 'TRIGGER_AWG' and i > 0:
+                            self.pulse_array_pulser[i-1]['delta_start'] = new_val
 
-                i += 1
-
+    #update!
     def pulser_redefine_length_increment(self, *, name, length_increment):
         """
         A function for redefining length_increment of the specified pulse.
@@ -847,53 +871,63 @@ class Insys_FPGA:
         """
 
         if self.test_flag != 'test':
-            i = 0
+            names_list = [name] if isinstance(name, str) else name
+            len_increments_list = [length_increment] if isinstance(length_increment, str) else length_increment
 
-            while i < len( self.pulse_array_pulser ):
-                if name == self.pulse_array_pulser[i]['name']:
-                    temp_length_increment = length_increment.split(" ")
-                    if temp_length_increment[1] in self.timebase_dict:
-                        coef = self.timebase_dict[temp_length_increment[1]]
-                        p_length_increment_raw = coef*float(temp_length_increment[0])
-                        p_length_increment = self.round_to_closest(p_length_increment_raw, 3.2)
-                        if p_length_increment != p_length_increment_raw:
-                            general.message(f"Pulse length increment of {p_length_increment_raw} is not divisible by 3.2. The closest available Pulse length increment of {p_length_increment} ns is used")
+            for name, l_inc in zip(names_list, len_increments_list):
 
-                    self.pulse_array_pulser[i]['length_increment'] = str(length_increment)
-                    self.increment_count_pulser = 1
-                else:
-                    pass
+                temp_length_increment = l_inc.split(" ")
+                if len(temp_length_increment) < 2 or temp_length_increment[1] not in self.timebase_dict:
+                    continue
+                
+                coef = self.timebase_dict[temp_length_increment[1]]
+                p_length_increment_raw = coef * float(temp_length_increment[0])
+                p_length_increment = self.round_to_closest(p_length_increment_raw, 3.2)
+                
+                if p_length_increment != p_length_increment_raw:
+                    general.message(f"Pulse Length Increment of {p_length_increment_raw} is not divisible by 3.2. The closest available Pulse length Increment of {p_length_increment} ns is used")
+                
 
-                i += 1
+                for i, pulse in enumerate(self.pulse_array_pulser):
+                    if pulse['name'] == name:
+                        new_val = f"{p_length_increment} ns"
+                        pulse['length_increment'] = new_val
+                        self.increment_count_pulser = 1
+
+                        if pulse['channel'] == 'TRIGGER_AWG' and i > 0:
+                            self.pulse_array_pulser[i-1]['length_increment'] = new_val
 
         elif self.test_flag == 'test':
-            i = 0
+            
+            names_list = [name] if isinstance(name, str) else name
+            len_increments_list = [length_increment] if isinstance(length_increment, str) else length_increment
 
-            assert( name in self.pulse_name_array_pulser ), 'Pulse with the specified name is not defined'
+            for name, l_inc in zip(names_list, len_increments_list):
+                assert( name in self.pulse_name_array_pulser ), 'Pulse with the specified name is not defined'
 
-            while i < len( self.pulse_array_pulser ):
-                if name == self.pulse_array_pulser[i]['name']:
-                    # checks
-                    temp_length_increment = length_increment.split(" ")
-                    if temp_length_increment[1] in self.timebase_dict:
-                        coef = self.timebase_dict[temp_length_increment[1]]
-                        p_length_increment_raw = coef*float(temp_length_increment[0])
-                        p_length_increment = self.round_to_closest(p_length_increment_raw, 3.2)
-                        if p_length_increment != p_length_increment_raw:
-                            general.message(f"Pulse length increment is not divisible by 3.2. The closest available Pulse length increment of {p_length_increment} ns is used")
-                        
-                        assert(round(remainder(p_length_increment, 3.2), 2) == 0), 'Pulse length increment should be divisible by 3.2'
-                        assert (p_length_increment >= 0 and p_length_increment < self.max_pulse_length_pulser), \
-                        'Pulse length increment is longer than maximum available length or negative'
-                    else:
-                        assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+                temp_length_increment = l_inc.split(" ")
+                if len(temp_length_increment) < 2 or temp_length_increment[1] not in self.timebase_dict:
+                    assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+                
+                coef = self.timebase_dict[temp_length_increment[1]]
+                p_length_increment_raw = coef * float(temp_length_increment[0])
+                p_length_increment = self.round_to_closest(p_length_increment_raw, 3.2)
+                
+                if p_length_increment != p_length_increment_raw:
+                    general.message(f"Pulse Length Increment of {p_length_increment_raw} is not divisible by 3.2. The closest available Pulse length Increment of {p_length_increment} ns is used")
+                
+                assert(round(remainder(p_length_increment, 3.2), 2) == 0), 'Pulse Length Increment should be divisible by 3.2'
+                assert (p_length_increment >= 0 and p_length_increment < self.max_pulse_length_pulser), 'Pulse Length Increment is longer than maximum available length or negative'
+                assert(p_length_increment >= 0), 'Pulse Length Increment is a negative number'
 
-                    self.pulse_array_pulser[i]['length_increment'] = str(p_length_increment) + ' ns'
-                    self.increment_count_pulser = 1
-                else:
-                    pass
+                for i, pulse in enumerate(self.pulse_array_pulser):
+                    if pulse['name'] == name:
+                        new_val = f"{p_length_increment} ns"
+                        pulse['length_increment'] = new_val
+                        self.increment_count_pulser = 1
 
-                i += 1
+                        if pulse['channel'] == 'TRIGGER_AWG' and i > 0:
+                            self.pulse_array_pulser[i-1]['length_increment'] = new_val
 
     def pulser_next_phase(self):
         """
@@ -2087,7 +2121,11 @@ class Insys_FPGA:
                     self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
                     #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = self.detection_phase_list)
                     self.buffer_ready = 0
-                    return 1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ), 1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
+                    scale = 0.4 * self.dec_coef
+                    res_i = np.sum(self.data_i_ph[:, self.win_left:self.win_right], axis=1) * scale
+                    res_q = np.sum(self.data_q_ph[:, self.win_left:self.win_right], axis=1) * scale
+
+                    return  res_i, res_q#, self.buffer_ready + 1
 
             elif self.buffer_ready == 0:
                 if integral == False:
@@ -2149,11 +2187,16 @@ class Insys_FPGA:
                     self.buffer_ready = 0
                     return self.data_i_ph.T, self.data_q_ph.T #, None#, self.buffer_ready + 1
                 elif integral == True:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
                     #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.zeros( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.zeros( ( int(p * ph), int( adc_window * 8 / self.dec_coef ) ) ), p, ph, adc_window, acq_cycle = self.detection_phase_list)
                     #general.message( len(np.sum( ((self.data_i_ph))[:, self.win_left:self.win_right], axis = 1 )) )
+                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
                     self.buffer_ready = 0
-                    return  1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ),  1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
+
+                    scale = 0.4 * self.dec_coef
+                    res_i = np.sum(self.data_i_ph[:, self.win_left:self.win_right], axis=1) * scale
+                    res_q = np.sum(self.data_q_ph[:, self.win_left:self.win_right], axis=1) * scale
+
+                    return  res_i, res_q#, self.buffer_ready + 1
 
             elif self.buffer_ready == 0:
                 if integral == False:
@@ -2299,7 +2342,11 @@ class Insys_FPGA:
                     #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = self.detection_phase_list)
                     self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
                     self.buffer_ready = 0
-                    return 1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ), 1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
+                    scale = 0.4 * self.dec_coef
+                    res_i = np.sum(self.data_i_ph[:, self.win_left:self.win_right], axis=1) * scale
+                    res_q = np.sum(self.data_q_ph[:, self.win_left:self.win_right], axis=1) * scale
+
+                    return  res_i, res_q, self.buffer_ready + 1
 
             elif self.buffer_ready == 0:
                 if integral == False:
@@ -2366,7 +2413,11 @@ class Insys_FPGA:
                     #general.message( len(np.sum( ((self.data_i_ph))[:, self.win_left:self.win_right], axis = 1 )) )
                     self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
                     self.buffer_ready = 0
-                    return  1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ),  1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )#, self.buffer_ready + 1
+                    scale = 0.4 * self.dec_coef
+                    res_i = np.sum(self.data_i_ph[:, self.win_left:self.win_right], axis=1) * scale
+                    res_q = np.sum(self.data_q_ph[:, self.win_left:self.win_right], axis=1) * scale
+
+                    return  res_i, res_q#, self.buffer_ready + 1
 
             elif self.buffer_ready == 0:
                 if integral == False:
@@ -2979,6 +3030,7 @@ class Insys_FPGA:
 
             self.awg_update()
 
+    #update!
     def awg_redefine_delta_start(self, *, name, delta_start):
         """
         A function for redefining delta_start of the specified pulse for Single Joined mode.
@@ -2989,54 +3041,58 @@ class Insys_FPGA:
         """
 
         if self.test_flag != 'test':
-            i = 0
+            names_list = [name] if isinstance(name, str) else name
+            delta_starts_list = [delta_start] if isinstance(delta_start, str) else delta_start
 
-            while i < len( self.pulse_array_awg ):
-                if name == self.pulse_array_awg[i]['name']:
-                    # checks
-                    temp_delta_start = delta_start.split(" ")
-                    if temp_delta_start[1] in self.timebase_dict:
-                        coef = self.timebase_dict[temp_delta_start[1]]
-                        p_delta_start_raw = coef*float(temp_delta_start[0])
-                        p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
+            for name, d_start in zip(names_list, delta_starts_list):
 
-                        if p_delta_start != p_delta_start_raw:
-                            general.message(f"Pulse delta start is not divisible by 3.2. The closest available Pulse delta start of {p_delta_start} ns is used")
-                    
-                    self.pulse_array_awg[i]['delta_start'] = str(p_delta_start) + ' ns'
-                    self.shift_count_awg = 1
-                else:
-                    pass
+                temp_delta_start = d_start.split(" ")
+                if len(temp_delta_start) < 2 or temp_delta_start[1] not in self.timebase_dict:
+                    continue
+                
+                coef = self.timebase_dict[temp_delta_start[1]]
+                p_delta_start_raw = coef * float(temp_delta_start[0])
+                p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
+                
+                if p_delta_start != p_delta_start_raw:
+                    general.message(f"Pulse Delta Start of {p_delta_start_raw} is not divisible by 3.2. The closest available Pulse Delta Start {p_delta_start} ns is used")
+                
 
-                i += 1
+                for i, pulse in enumerate(self.pulse_array_awg):
+                    if pulse['name'] == name:
+                        new_val = f"{p_delta_start} ns"
+                        pulse['delta_start'] = new_val
+                        self.shift_count_awg = 1
 
         elif self.test_flag == 'test':
-            i = 0
-            assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
+            
+            names_list = [name] if isinstance(name, str) else name
+            delta_starts_list = [delta_start] if isinstance(delta_start, str) else delta_start
 
-            while i < len( self.pulse_array_awg ):
-                if name == self.pulse_array_awg[i]['name']:
-                    # checks
-                    temp_delta_start = delta_start.split(" ")
-                    if temp_delta_start[1] in self.timebase_dict:
-                        coef = self.timebase_dict[temp_delta_start[1]]
-                        
-                        p_delta_start_raw = coef*float(temp_delta_start[0])
-                        p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
-                        if p_delta_start != p_delta_start_raw:
-                            general.message(f"Pulse delta start is not divisible by 3.2. The closest available Pulse delta start of {p_delta_start} ns is used")
-                        assert( round(remainder(p_delta_start, 3.2), 2) == 0), 'Pulse delta start should be divisible by 3.2'
-                        assert(p_delta_start >= 0), 'Pulse delta start is a negative number'
-                    else:
-                        assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+            for name, d_start in zip(names_list, delta_starts_list):
+                assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
 
-                    self.pulse_array_awg[i]['delta_start'] = str(p_delta_start) + ' ns'
-                    self.shift_count_awg = 1
-                else:
-                    pass
+                temp_delta_start = d_start.split(" ")
+                if len(temp_delta_start) < 2 or temp_delta_start[1] not in self.timebase_dict:
+                    assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+                
+                coef = self.timebase_dict[temp_delta_start[1]]
+                p_delta_start_raw = coef * float(temp_delta_start[0])
+                p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
+                
+                if p_delta_start != p_delta_start_raw:
+                    general.message(f"Pulse Delta Start of {p_delta_start_raw} is not divisible by 3.2. The closest available Pulse Delta Start {p_delta_start} ns is used")
+                
+                assert(round(remainder(p_delta_start, 3.2), 2) == 0), 'Pulse Delta Start should be divisible by 3.2'
+                assert(p_delta_start >= 0), 'Pulse Delta Start is a negative number'
 
-                i += 1
+                for i, pulse in enumerate(self.pulse_array_awg):
+                    if pulse['name'] == name:
+                        new_val = f"{p_delta_start} ns"
+                        pulse['delta_start'] = new_val
+                        self.shift_count_awg = 1
 
+    #update!
     def awg_redefine_frequency(self, *, name, freq):
         """
         A function for redefining frequency of the specified pulse.
@@ -3046,50 +3102,48 @@ class Insys_FPGA:
         """
 
         if self.test_flag != 'test':
-            i = 0
+            names_list = [name] if isinstance(name, str) else name
+            freq_list = [freq] if isinstance(freq, str) else freq
 
-            while i < len( self.pulse_array_awg ):
-                if name == self.pulse_array_awg[i]['name']:
-                    self.pulse_array_awg[i]['frequency'] = freq
-                    self.shift_count_awg = 1
-                else:
-                    pass
+            for name, fr in zip(names_list, freq_list):
+            
+                for i, pulse in enumerate(self.pulse_array_awg):                     
 
-                i += 1
+                    if pulse['name'] == name:
+                        pulse['frequency'] = fr
+                        self.shift_count_awg = 1
 
         elif self.test_flag == 'test':
-            i = 0
-            assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
+            names_list = [name] if isinstance(name, str) else name
+            freq_list = [freq] if isinstance(freq, str) else freq
 
-            while i < len( self.pulse_array_awg ):
-                if name == self.pulse_array_awg[i]['name']:
-                    # checks
-
-                    if self.pulse_array_awg[i]['function'] != 'WURST' and self.pulse_array_awg[i]['function'] != 'SECH/TANH':
-                        temp_freq = freq.split(" ")
+            for name, fr in zip(names_list, freq_list):
+                assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
+            
+                for i, pulse in enumerate(self.pulse_array_awg):
+                    if pulse['function'] != 'WURST' and pulse['function'] != 'SECH/TANH':
+                        temp_freq = fr.split(" ")
                         coef = temp_freq[1]
                         p_freq = float(temp_freq[0])
                         assert (coef == 'MHz'), 'Incorrect frequency dimension. Only MHz is possible'
                         assert(p_freq >= self.min_freq_awg), 'Frequency is lower than minimum available (' + str(self.min_freq_awg) +' MHz)'
                         assert(p_freq < self.max_freq_awg), 'Frequency is longer than minimum available (' + str(self.max_freq_awg) +' MHz)'
                     else:
-                        temp_freq_st = frequency[0].split(" ")
-                        temp_freq_end = frequency[1].split(" ")
+                        temp_freq_st = fr[0].split(" ")
+                        temp_freq_end = fr[1].split(" ")
                         coef_st = temp_freq_st[1]
                         coef_end = temp_freq_end[1]
                         p_freq_st = float(temp_freq_st[0])
                         p_freq_end = float(temp_freq_end[0])
                         assert (coef_st == 'MHz' and coef_end == 'MHz'), 'Incorrect frequency dimension. Only MHz is possible'
                         assert(p_freq_st >= self.min_freq_awg and p_freq_end >= self.min_freq_awg), 'Frequency is lower than minimum available (' + str(self.min_freq_awg) +' MHz)'
-                        assert(p_freq_st < self.max_freq_awg and p_freq_end < self.max_freq_awg), 'Frequency is longer than minimum available (' + str(self.max_freq_awg) +' MHz)'
+                        assert(p_freq_st < self.max_freq_awg and p_freq_end < self.max_freq_awg), 'Frequency is longer than minimum available (' + str(self.max_freq_awg) +' MHz)'                        
 
-                    self.pulse_array_awg[i]['frequency'] = freq
-                    self.shift_count_awg = 1
-                else:
-                    pass
+                    if pulse['name'] == name:
+                        pulse['frequency'] = fr
+                        self.shift_count_awg = 1
 
-                i += 1
-
+    #update!
     def awg_redefine_phase(self, *, name, phase):
         """
         A function for redefining phase of the specified pulse.
@@ -3100,30 +3154,29 @@ class Insys_FPGA:
         """
 
         if self.test_flag != 'test':
-            i = 0
+            names_list = [name] if isinstance(name, str) else name
+            phase_list = [phase] if isinstance(phase, str) else phase
 
-            while i < len( self.pulse_array_awg ):
-                if name == self.pulse_array_awg[i]['name']:
-                    self.pulse_array_awg[i]['phase'] = float(phase)
-                    self.shift_count_awg = 1
-                else:
-                    pass
+            for name, ph in zip(names_list, phase_list):
 
-                i += 1
+                for i, pulse in enumerate(self.pulse_array_awg):
+                    if pulse['name'] == name:
+                        pulse['phase'] = float(ph)
+                        self.shift_count_awg = 1
 
         elif self.test_flag == 'test':
-            i = 0
-            assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
+            names_list = [name] if isinstance(name, str) else name
+            phase_list = [phase] if isinstance(phase, str) else phase
 
-            while i < len( self.pulse_array_awg ):
-                if name == self.pulse_array_awg[i]['name']:
-                    self.pulse_array_awg[i]['phase'] = float(phase)
-                    self.shift_count_awg = 1
-                else:
-                    pass
+            for name, ph in zip(names_list, phase_list):
+                assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
+            
+                for i, pulse in enumerate(self.pulse_array_awg):
+                    if pulse['name'] == name:
+                        pulse['phase'] = float(ph)
+                        self.shift_count_awg = 1
 
-                i += 1
-
+    #update!
     def awg_redefine_delta_phase(self, *, name, delta_phase):
         """
         A function for redefining delta_phase of the specified pulse.
@@ -3132,32 +3185,30 @@ class Insys_FPGA:
 
         def func(*, name1, name2): defines a function without default values of key arguments
         """
-
         if self.test_flag != 'test':
-            i = 0
+            names_list = [name] if isinstance(name, str) else name
+            dphase_list = [delta_phase] if isinstance(delta_phase, str) else delta_phase
 
-            while i < len( self.pulse_array_awg ):
-                if name == self.pulse_array_awg[i]['name']:
-                    self.pulse_array_awg[i]['delta_phase'] = float(delta_phase)
-                    self.shift_count_awg = 1
-                else:
-                    pass
+            for name, d_ph in zip(names_list, dphase_list):
 
-                i += 1
+                for i, pulse in enumerate(self.pulse_array_awg):
+                    if pulse['name'] == name:
+                        pulse['delta_phase'] = float(d_ph)
+                        self.shift_count_awg = 1
 
         elif self.test_flag == 'test':
-            i = 0
-            assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
+            names_list = [name] if isinstance(name, str) else name
+            dphase_list = [delta_phase] if isinstance(delta_phase, str) else delta_phase
 
-            while i < len( self.pulse_array_awg ):
-                if name == self.pulse_array_awg[i]['name']:
-                    self.pulse_array_awg[i]['delta_phase'] = float(delta_phase)
-                    self.shift_count_awg = 1
-                else:
-                    pass
+            for name, d_ph in zip(names_list, dphase_list):
+                assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
+            
+                for i, pulse in enumerate(self.pulse_array_awg):
+                    if pulse['name'] == name:
+                        pulse['delta_phase'] = float(d_ph)
+                        self.shift_count_awg = 1
 
-                i += 1
-
+    #update!
     def awg_add_phase(self, *, name, add_phase):
         """
         A function for adding a constant phase to the specified pulse.
@@ -3167,38 +3218,31 @@ class Insys_FPGA:
 
         def func(*, name1, name2): defines a function without default values of key arguments
         """
-
+        
         if self.test_flag != 'test':
-            i = 0
+            names_list = [name] if isinstance(name, str) else name
+            phase_list = [add_phase] if isinstance(add_phase, str) else add_phase
 
-            while i < len( self.pulse_array_awg ):
-                if name == self.pulse_array_awg[i]['name']:
-                    self.pulse_array_awg[i]['phase'] = self.pulse_array_awg[i]['phase'] + float(add_phase)
-                    self.shift_count_awg = 1
-                else:
-                    pass
+            for name, ph in zip(names_list, phase_list):
 
-                i += 1
-
-            # it is bad idea to update it here, since the phase of only one pulse
-            # can be changed in one call of this function
-            #self.awg_update_test()
+                for i, pulse in enumerate(self.pulse_array_awg):
+                    if pulse['name'] == name:
+                        pulse['phase'] += float(ph)
+                        self.shift_count_awg = 1
 
         elif self.test_flag == 'test':
-            i = 0
-            assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
+            names_list = [name] if isinstance(name, str) else name
+            phase_list = [add_phase] if isinstance(add_phase, str) else add_phase
 
-            while i < len( self.pulse_array_awg ):
-                if name == self.pulse_array_awg[i]['name']:
-                    self.pulse_array_awg[i]['phase'] = self.pulse_array_awg[i]['phase'] + float(add_phase)
-                    self.shift_count_awg = 1
-                else:
-                    pass
+            for name, ph in zip(names_list, phase_list):
+                assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
+            
+                for i, pulse in enumerate(self.pulse_array_awg):
+                    if pulse['name'] == name:
+                        pulse['phase'] += float(ph)
+                        self.shift_count_awg = 1
 
-                i += 1
-
-            #self.awg_update_test()
-
+    #update!
     def awg_redefine_length_increment(self, *, name, length_increment):
         """
         A function for redefining length increment of the specified pulse.
@@ -3209,51 +3253,57 @@ class Insys_FPGA:
         """
 
         if self.test_flag != 'test':
-            i = 0
+            names_list = [name] if isinstance(name, str) else name
+            len_increments_list = [length_increment] if isinstance(length_increment, str) else length_increment
 
-            while i < len( self.pulse_array_awg ):
-                if name == self.pulse_array_awg[i]['name']:
+            for name, l_inc in zip(names_list, len_increments_list):
 
-                    temp_increment = length_increment.split(" ")
-                    if temp_increment[1] in self.timebase_dict:
-                        coef = self.timebase_dict[temp_increment[1]]
-                        p_increment_raw = coef*float(temp_increment[0])
-                        p_increment = self.round_to_closest(p_increment_raw, 3.2)
-                        if p_increment != p_increment_raw:
-                            general.message(f"Pulse increment is not divisible by 3.2. The closest available Pulse increment of {p_increment} ns is used")
-                    self.pulse_array_awg[i]['length_increment'] = str(p_increment) + ' ns'
-                    self.increment_count_awg = 1
-                else:
-                    pass
+                temp_length_increment = l_inc.split(" ")
+                if len(temp_length_increment) < 2 or temp_length_increment[1] not in self.timebase_dict:
+                    continue
+                
+                coef = self.timebase_dict[temp_length_increment[1]]
+                p_length_increment_raw = coef * float(temp_length_increment[0])
+                p_length_increment = self.round_to_closest(p_length_increment_raw, 3.2)
+                
+                if p_length_increment != p_length_increment_raw:
+                    general.message(f"Pulse Length Increment of {p_length_increment_raw} is not divisible by 3.2. The closest available Pulse length Increment of {p_length_increment} ns is used")
+                
 
-                i += 1
+                for i, pulse in enumerate(self.pulse_array_awg):
+                    if pulse['name'] == name:
+                        new_val = f"{p_length_increment} ns"
+                        pulse['length_increment'] = new_val
+                        self.increment_count_awg = 1
 
         elif self.test_flag == 'test':
-            i = 0
-            assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
+            
+            names_list = [name] if isinstance(name, str) else name
+            len_increments_list = [length_increment] if isinstance(length_increment, str) else length_increment
 
-            while i < len( self.pulse_array_awg ):
-                if name == self.pulse_array_awg[i]['name']:
-                    # checks
-                    temp_increment = length_increment.split(" ")
-                    if temp_increment[1] in self.timebase_dict:
-                        coef = self.timebase_dict[temp_increment[1]]
-                        p_increment_raw = coef*float(temp_increment[0])
-                        p_increment = self.round_to_closest(p_increment_raw, 3.2)
-                        if p_increment != p_increment_raw:
-                            general.message(f"Pulse increment is not divisible by 3.2. The closest available Pulse increment of {p_increment} ns is used")
-                        assert( round(remainder(p_increment, 3.2), 2) == 0), 'Pulse increment should be divisible by 3.2'
-                        assert (p_increment >= 0 and p_increment < self.max_pulse_length_awg), \
-                        'Length and sigma increment is longer than maximum available length or negative'
-                    else:
-                        assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
+            for name, l_inc in zip(names_list, len_increments_list):
+                assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
 
-                    self.pulse_array_awg[i]['length_increment'] = str(p_increment) + ' ns'
-                    self.increment_count_awg = 1
-                else:
-                    pass
+                temp_length_increment = l_inc.split(" ")
+                if len(temp_length_increment) < 2 or temp_length_increment[1] not in self.timebase_dict:
+                    assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
+                
+                coef = self.timebase_dict[temp_length_increment[1]]
+                p_length_increment_raw = coef * float(temp_length_increment[0])
+                p_length_increment = self.round_to_closest(p_length_increment_raw, 3.2)
+                
+                if p_length_increment != p_length_increment_raw:
+                    general.message(f"Pulse Length Increment of {p_length_increment_raw} is not divisible by 3.2. The closest available Pulse length Increment of {p_length_increment} ns is used")
+                
+                assert(round(remainder(p_length_increment, 3.2), 2) == 0), 'Pulse Length Increment should be divisible by 3.2'
+                assert (p_length_increment >= 0 and p_length_increment < self.max_pulse_length_awg), 'Pulse Length Increment is longer than maximum available length or negative'
+                assert(p_length_increment >= 0), 'Pulse Length Increment is a negative number'
 
-                i += 1
+                for i, pulse in enumerate(self.pulse_array_awg):
+                    if pulse['name'] == name:
+                        new_val = f"{p_length_increment} ns"
+                        pulse['length_increment'] = new_val
+                        self.increment_count_awg = 1
 
     def awg_shift(self, *pulses):
         """
@@ -3725,7 +3775,6 @@ class Insys_FPGA:
         self.low_level_awg = low_level
         self.limit_awg = limit
 
-    # UNDOCUMENTED
     def awg_clear(self):
         """
         A special function for AWG Control module
@@ -3747,7 +3796,6 @@ class Insys_FPGA:
         self.state_awg = 0
         self.current_phase_index_awg = 0
 
-    # UNDOCUMENTED
     def awg_clear_pulses(self):
         """
         A special function for clearing pulses and flags
@@ -4996,40 +5044,18 @@ class Insys_FPGA:
 
         It is used inside convert_to_bit_pulse_pulser()
         """
-        if self.test_flag != 'test':
-            final_pulse_array = []
+        if len(np_array) == 0:
+            return []
 
-            # Create an array that is 1 where a is 0, and pad each end with an extra 0.
-            iszero = np.concatenate(([0], np_array, [0]))
-            absdiff = np.abs(np.diff(iszero))
-
-            # creating a mask to split bit array
-            ranges = np.where(absdiff != 0)[0]
-            # using a mask
-            pulse_array_pulser = np.split(np_array, ranges)
-            pulse_info = np.concatenate(([0], ranges))
-
-            # return back self.timebase_pulser; convert to instructions
-            for index, element in enumerate(pulse_info[:-1]):
-                final_pulse_array.append( [pulse_array_pulser[index][0], 1*pulse_info[index], 1*(pulse_info[index + 1] - pulse_info[index])] )
-
-            return final_pulse_array
-
-        elif self.test_flag == 'test':
-            final_pulse_array = []
-
-            # Create an array that is 1 where a is 0, and pad each end with an extra 0.
-            iszero = np.concatenate(([0], np_array, [0]))
-            absdiff = np.abs(np.diff(iszero))
-            
-            ranges = np.where(absdiff != 0)[0]
-            pulse_array_pulser = np.split(np_array, ranges)
-            pulse_info = np.concatenate(([0], ranges))
-
-            for index, element in enumerate(pulse_info[:-1]):
-                final_pulse_array.append( [pulse_array_pulser[index][0], 1*pulse_info[index], 1*(pulse_info[index + 1] - pulse_info[index])] )
-
-            return final_pulse_array
+        changes = np.where(np_array[:-1] != np_array[1:])[0] + 1
+        
+        boundaries = np.concatenate(([0], changes, [len(np_array)]))
+        
+        values = np_array[boundaries[:-1]]
+        starts = boundaries[:-1]
+        durations = np.diff(boundaries)
+        
+        return np.column_stack((values, starts, durations)).tolist()
 
     def add_amp_on_pulses_pulser(self, p_list):
         """
@@ -5426,8 +5452,7 @@ class Insys_FPGA:
 
             i += 1
 
-        final_array = np.concatenate( (np.zeros(index_first_one[0], dtype = np.int64), short_array, \
-            np.zeros( array_len - index_last_one[0] - 1, dtype = np.int64)), axis = None)
+        final_array = np.concatenate( (np.zeros(index_first_one[0], dtype = np.int64), short_array, np.zeros( array_len - index_last_one[0] - 1, dtype = np.int64)), axis = None)
 
         return final_array
 
@@ -5826,40 +5851,67 @@ class Insys_FPGA:
 
         norm_c = self.maxCAD_awg / self.amplitude_max_awg  # 32767 - 260 mV MAX
 
+        total_samples = np.sum(pulse_length_smp)
+        channel_1 = np.zeros(total_samples, dtype=np.int16)
+        channel_2 = np.zeros(total_samples, dtype=np.int16)
+        current_pos = 0
+
+        ###ends = pulse_start_smp + pulse_length_smp
+        ###overlaps = ends[:-1] > pulse_start_smp[1:]
+        ###general.message_test(np.where(overlaps)[0])
+
         #general.message( pulse_length_smp % 4 )
         for index, element in enumerate(arguments_array[0]):
+            
+            if element == 0:  # 'SINE'
+                length = int(pulse_length_smp[index])
+                n = np.arange(length)
+                phase_arg = 2 * np.pi * n * pulse_frequency[index] / self.sample_rate_awg
+                
+                y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index] * 
+                      np.sin(phase_arg + pulse_phase_np[index]))
+                y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index] * 
+                      np.sin(phase_arg + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg))
 
-            if element == 0: # 'SINE'
-                #start, end = self.list_start_end[index]
-                x = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] ) * pulse_frequency[index] / self.sample_rate_awg
-                # 32767 - 260 mV MAX
-                y1 = norm_c * self.amplitude_0_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] )
-                y2 = norm_c * self.amplitude_1_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg)
-                channel_1 = np.concatenate( (channel_1, y1.astype(int) ), axis = 0)
-                channel_2 = np.concatenate( (channel_2, y2.astype(int) ), axis = 0)
-
+                channel_1[current_pos : current_pos + length] = np.round(y1).astype(np.int16)
+                channel_2[current_pos : current_pos + length] = np.round(y2).astype(np.int16)
+            
             elif element == 1: # GAUSS
-                x_mean = int( pulse_length_smp[index] / 2 )
-                sigma  = pulse_sigma_smp[index] 
-                x = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] ) * pulse_frequency[index] / self.sample_rate_awg
-                xg = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] )
-
-                y1 = norm_c * self.amplitude_0_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] ) * np.exp(-(( xg  - x_mean)**2)*(1 / (2*sigma**2)))
-                y2 = norm_c * self.amplitude_1_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg) * np.exp(- ( (xg - x_mean) / sigma )** 2 / 2)
-                channel_1 = np.concatenate( (channel_1, y1.astype(int) ), axis = 0)
-                channel_2 = np.concatenate( (channel_2, y2.astype(int) ), axis = 0)
-
+                length = int(pulse_length_smp[index])
+                sigma = pulse_sigma_smp[index]
+                x_mean = length / 2
+                n = np.arange(length)
+                
+                phase_arg = 2 * np.pi * n * pulse_frequency[index] / self.sample_rate_awg
+                envelope = np.exp(-0.5 * ((n - x_mean) / sigma)**2)
+                
+                y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index] * 
+                      np.sin(phase_arg + pulse_phase_np[index]) * envelope)
+                y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index] * 
+                      np.sin(phase_arg + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg) * envelope)
+                
+                channel_1[current_pos : current_pos + length] = np.round(y1).astype(np.int16)
+                channel_2[current_pos : current_pos + length] = np.round(y2).astype(np.int16)
+                
             elif element == 2: # SINC
-                x_mean = int( pulse_length_smp[index] / 2 )
-                sigma  = pulse_sigma_smp[index] 
-                x = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] ) * pulse_frequency[index] / self.sample_rate_awg
-                xs = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] )
+                length = int(pulse_length_smp[index])
+                sigma = pulse_sigma_smp[index]
+                x_mean = length / 2
+                
+                n = np.arange(length)
+                
+                phase_arg = 2 * np.pi * n * pulse_frequency[index] / self.sample_rate_awg
+                envelope = np.sinc(2 * (n - x_mean) / sigma)
 
-                y1 = norm_c * self.amplitude_0_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] ) * np.sinc(- ( 2 * ( xs  - x_mean)) / sigma)
-                y2 = norm_c * self.amplitude_1_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg) * np.sinc(- ( 2 * ( xs  - x_mean)) / sigma)
-                channel_1 = np.concatenate( (channel_1, y1.astype(int) ), axis = 0)
-                channel_2 = np.concatenate( (channel_2, y2.astype(int) ), axis = 0)
+                amp_scale_0 = norm_c * self.amplitude_0_awg / pulse_amp[index]
+                amp_scale_1 = norm_c * self.amplitude_1_awg / pulse_amp[index]
 
+                y1 = amp_scale_0 * np.sin(phase_arg + pulse_phase_np[index]) * envelope
+                y2 = amp_scale_1 * np.sin(phase_arg + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg) * envelope
+                
+                channel_1[current_pos : current_pos + length] = np.round(y1).astype(np.int16)
+                channel_2[current_pos : current_pos + length] = np.round(y2).astype(np.int16)
+                
             elif element == 3: # BLANK
                 pass
 
@@ -5867,14 +5919,19 @@ class Insys_FPGA:
                 # at = A*( 1 - abs( sin(pi*(t-tp/2)/tp) )^n )
                 # ph = 2*pi*(Fstr*t + 0.5*( Ffin - Fstr )*t^2/tp )
                 # WURST = at*sin(ph + phase_0)
-                x_mean = int( pulse_length_smp[index] / 2 )
-                 ###############################################
+                length = int(pulse_length_smp[index])
+                n_wurst = pulse_n_wurst[index]
+                f_start = pulse_frequency[index][0]
+                f_end = pulse_frequency[index][1]
+
+                x_mean = length / 2
+                ###############################################
                 # resonator profile correction test
                 freq_sweep = pulse_frequency[index][1] - pulse_frequency[index][0]
                 m_p = ( x_mean - pulse_start_smp[index] )
                 
                 ###LO - RF; high frequency first; flip order
-                t_axis = np.flip( np.arange(0, 0 + pulse_length_smp[index] ) - m_p )
+                t_axis = np.flip( np.arange(0, 0 + length ) - m_p )
 
                 # 300 is wurst sweep
                 # md4
@@ -5887,9 +5944,7 @@ class Insys_FPGA:
                 #                                                                            420.717, -35.8879, 34.4214, \
                 #                                                                            9893.97,  12.4056, 150.304)
                 
-                c = 1 / self.triple_lorentzian(t_axis * freq_sweep / pulse_length_smp[index], self.bl_awg, self.a1_awg, self.x1_awg, self.w1_awg, \
-                                                                                              self.a2_awg, self.x2_awg, self.w2_awg, \
-                                                                                              self.a3_awg, self.x3_awg, self.w3_awg)
+                c = 1 / self.triple_lorentzian(t_axis * freq_sweep / pulse_length_smp[index], self.bl_awg, self.a1_awg, self.x1_awg, self.w1_awg, self.a2_awg, self.x2_awg, self.w2_awg, self.a3_awg, self.x3_awg, self.w3_awg)
 
                 c = c / c[0]
                 # limit minimum B1
@@ -5940,22 +5995,31 @@ class Insys_FPGA:
 
                 ###############################################
                 #x = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] ) * pulse_frequency[index] / self.sample_rate_awg
-                xs = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] )
-                y1 = norm_c * self.amplitude_0_awg / pulse_amp[index] * (1 - np.abs( np.sin( np.pi * ( xs - x_mean) / pulse_length_smp[index] )) ** pulse_n_wurst[index] ) * \
-                        np.sin( 2*np.pi * ( xs * pulse_frequency[index][0] / self.sample_rate + 0.5 * (pulse_frequency[index][1] - \
-                        pulse_frequency[index][0]) * xs**2 / self.sample_rate / pulse_length_smp[index] ) + pulse_phase_np[index] + ph_cor)
-                y2 = norm_c * self.amplitude_1_awg / pulse_amp[index] * (1 - np.abs( np.sin( np.pi * ( xs - x_mean)  / pulse_length_smp[index] )) ** pulse_n_wurst[index] ) * \
-                        np.sin( 2*np.pi * ( xs * pulse_frequency[index][0] / self.sample_rate + 0.5 * (pulse_frequency[index][1] - \
-                        pulse_frequency[index][0]) * xs**2 / self.sample_rate / pulse_length_smp[index] ) + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg + ph_cor)
-                channel_1 = np.concatenate( (channel_1, y1.astype(int) ), axis = 0)
-                channel_2 = np.concatenate( (channel_2, y2.astype(int) ), axis = 0)
+                n = np.arange(length)
+                envelope = 1 - np.abs(np.sin(np.pi * (n - length/2) / length))**n_wurst
+                
+                t = n / self.sample_rate_awg
+                T_p = length / self.sample_rate_awg
+                
+                phase_chirp = 2 * np.pi * (f_start * t + 0.5 * (f_end - f_start) / T_p * t**2)
+                
+                common_phase = phase_chirp + pulse_phase_np[index] + ph_cor
+                
+                y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index] * 
+                      envelope * np.sin(common_phase))
+                y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index] * 
+                      envelope * np.sin(common_phase + self.phase_shift_ch1_seq_mode_awg))
+
+                channel_1[current_pos : current_pos + length] = np.round(y1).astype(np.int16)
+                channel_2[current_pos : current_pos + length] = np.round(y2).astype(np.int16)
             
             elif element == 5: # 'SECH/TANH'
                 # mid_point for GAUSS and SINC and WURST and SECH/TANH
                 # at = A*Sech[b*tp*2^(n - 1) ((t - tp/2)/tp)^n]
                 # ph = 2*Pi*bw/b*Log[Cosh[b*(t - tp/2)]]/2/Tanh[b*tp/2]
                 # SECH = at*sin(ph + phase_0)
-                x_mean = int( pulse_length_smp[index] / 2 )
+                length = int(pulse_length_smp[index])
+                x_mean = int( length / 2 )
 
                 #########################################################
                 # resonator profile correction test
@@ -5966,9 +6030,7 @@ class Insys_FPGA:
                 t_axis = np.flip( np.arange(0, 0 + pulse_length_smp[index] ) - m_p )
                 
                 # 300 is wurst sweep
-                c = 1 / self.triple_lorentzian(t_axis * freq_sweep / pulse_length_smp[index], self.bl_awg, self.a1_awg, self.x1_awg, self.w1_awg, \
-                                                                                              self.a2_awg, self.x2_awg, self.w2_awg, \
-                                                                                              self.a3_awg, self.x3_awg, self.w3_awg)
+                c = 1 / self.triple_lorentzian(t_axis * freq_sweep / pulse_length_smp[index], self.bl_awg, self.a1_awg, self.x1_awg, self.w1_awg, self.a2_awg, self.x2_awg, self.w2_awg, self.a3_awg, self.x3_awg, self.w3_awg)
 
                 c = c / c[0]
                 # limit minimum B1
@@ -5992,19 +6054,24 @@ class Insys_FPGA:
                         c = 1
 
                 #general.plot_1d( 'C', np.arange(0, 0 + pulse_length_smp[index] ), c )
-                freq_cen = ( pulse_frequency[index][1] + pulse_frequency[index][0] ) / 2
+                b = pulse_b_sech[index]
+                n = pulse_n_wurst[index]
+                bw = (pulse_frequency[index][1] - pulse_frequency[index][0]) / self.sample_rate_awg
+    
+                xs = np.arange(length)
+                dx = xs - x_mean
+                
+                env_arg = (b * x_mean * 2**(n - 1)) * (np.abs(dx) / length)**n
+                envelope = 1.0 / np.cosh(env_arg)
+                
+                norm_factor = 2 * np.tanh(b * x_mean)
+                phase_arg = (bw / b) * np.log(np.cosh(b * dx)) / norm_factor
+                total_phase = 2 * np.pi * phase_arg + pulse_phase_np[index] + ph_cor
+                
+                y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index]) * envelope * np.sin(total_phase)
+                y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index]) * envelope * np.sin(total_phase + self.phase_shift_ch1_seq_mode_awg)
 
-                bw = (pulse_frequency[index][1] - pulse_frequency[index][0]) / self.sample_rate
-                #pulse_b_sech[index]
-                xs = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] )
-                y1 = norm_c * self.amplitude_0_awg / pulse_amp[index] * ( 1 / np.cosh( (pulse_b_sech[index] * x_mean * 2 ** (pulse_n_wurst[index] - 1)) * ((xs - x_mean) / pulse_length_smp[index]) ** pulse_n_wurst[index]) ) * \
-                        np.sin( 2*np.pi * ( bw / pulse_b_sech[index] * np.log( np.cosh( pulse_b_sech[index] * ( xs - x_mean ) ) ) / 2 / np.tanh(  pulse_b_sech[index] *x_mean ) ) \
-                        + pulse_phase_np[index] + ph_cor + 0 * 2*np.pi*freq_cen / self.sample_rate * xs )
-                y2 = norm_c * self.amplitude_1_awg / pulse_amp[index] * ( 1 / np.cosh( (pulse_b_sech[index] * x_mean * 2 ** (pulse_n_wurst[index] - 1)) * ((xs - x_mean) / pulse_length_smp[index]) ** pulse_n_wurst[index]) ) * \
-                        np.sin( 2*np.pi * ( bw / pulse_b_sech[index] * np.log( np.cosh( pulse_b_sech[index] * ( xs - x_mean ) ) ) / 2 / np.tanh(  pulse_b_sech[index] *x_mean ) ) \
-                        + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg + ph_cor + 0 * 2*np.pi*freq_cen / self.sample_rate * xs )
-                channel_1 = np.concatenate( (channel_1, y1.astype(int) ), axis = 0)
-                channel_2 = np.concatenate( (channel_2, y2.astype(int) ), axis = 0)
+            current_pos += length
 
         return channel_1 , channel_2
     
@@ -6145,6 +6212,230 @@ class Insys_FPGA:
 
     def count_ip(self, ph):
         return np.sum( self.count_nip.reshape( len( self.count_nip ) // ph, ph, order = 'C' ), axis = 1 )
+
+    def define_buffer_single_joined_awg_unoptimized(self):
+        """
+        Define and fill the buffer in 'Single Joined' mode;
+        
+        Every even index is a new data sample for CH0,
+        Every odd index is a new data sample for CH1.
+
+        Second channel will be filled automatically
+        """
+        # pulses are in a form [channel_number, function, frequency, phase, length, sigma, start, delta_start, amp, n_wurst, b_sech] 
+        #                      [0,              1,        2,         3,      4,     5,      6,    7,           8,   9,       10    ]
+        pulses = self.preparing_buffer_single_awg() # 0.2-0.3 ms
+        # only ch0 pulses are analyzed
+        # ch1 will be generated automatically with shifted phase
+        arguments_array = [[], [], [], [], [], [], [], [], [], []]
+        for element in pulses[0]:
+            # collect arguments in special array for further handling
+            arguments_array[0].append(int(element[1]))     #   0    type; 0 is SINE; 1 is GAUSS; 2 is SINC; 3 is BLANK, 4 is WURST, 5 is SECH/TANH
+            arguments_array[1].append(element[6])          #   1    start
+            arguments_array[2].append(element[7])          #   2    delta_start
+            arguments_array[3].append(element[4])          #   3    length
+            arguments_array[4].append(element[3])          #   4    phase
+            arguments_array[5].append(element[5])          #   5    sigma
+            arguments_array[6].append(element[2])          #   6    frequency
+            arguments_array[7].append(element[8])          #   8    amp coefficient
+            arguments_array[8].append(element[9])          #   9    n
+            arguments_array[9].append(element[10])         #   10   b
+
+        # convert everything in samples 
+        pulse_phase_np        = np.asarray(arguments_array[4])
+        pulse_start_smp       = (np.asarray(arguments_array[1])).astype('int64')
+        pulse_delta_start_smp = (np.asarray(arguments_array[2])).astype('int64')
+        pulse_length_smp      = (np.asarray(arguments_array[3])).astype('int64')
+        pulse_sigma_smp       = np.asarray(arguments_array[5])
+        pulse_frequency       = np.asarray(arguments_array[6], dtype=object)
+        pulse_amp             = np.asarray(arguments_array[7])
+        pulse_n_wurst         = np.asarray(arguments_array[8])
+        pulse_b_sech          = np.asarray(arguments_array[9])
+
+        #_start = pulse_start_smp
+        #_end   = pulse_start_smp + pulse_length_smp 
+        #self.list_start_end = np.array([_start, _end]).T
+
+        last_pulse_length = pulse_length_smp[-1]
+        last_start = pulse_start_smp[-1]
+
+        # define buffer differently for only one or two channels enabled
+        # for ch1 phase is automatically shifted by self.phase_shift_ch1_seq_mode_awg
+        channel_1 = np.array([], dtype = np.int16)
+        channel_2 = np.array([], dtype = np.int16)
+
+        norm_c = self.maxCAD_awg / self.amplitude_max_awg  # 32767 - 260 mV MAX
+
+        #general.message( pulse_length_smp % 4 )
+        for index, element in enumerate(arguments_array[0]):
+
+            if element == 0: # 'SINE'
+                #start, end = self.list_start_end[index]
+                x = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] ) * pulse_frequency[index] / self.sample_rate_awg
+                # 32767 - 260 mV MAX
+                y1 = norm_c * self.amplitude_0_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] )
+                y2 = norm_c * self.amplitude_1_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg)
+                channel_1 = np.concatenate( (channel_1, y1.astype(int) ), axis = 0)
+                channel_2 = np.concatenate( (channel_2, y2.astype(int) ), axis = 0)
+
+            elif element == 1: # GAUSS
+                x_mean = int( pulse_length_smp[index] / 2 )
+                sigma  = pulse_sigma_smp[index] 
+                x = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] ) * pulse_frequency[index] / self.sample_rate_awg
+                xg = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] )
+
+                y1 = norm_c * self.amplitude_0_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] ) * np.exp(-(( xg  - x_mean)**2)*(1 / (2*sigma**2)))
+                y2 = norm_c * self.amplitude_1_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg) * np.exp(- ( (xg - x_mean) / sigma )** 2 / 2)
+                channel_1 = np.concatenate( (channel_1, y1.astype(int) ), axis = 0)
+                channel_2 = np.concatenate( (channel_2, y2.astype(int) ), axis = 0)
+
+            elif element == 2: # SINC
+                x_mean = int( pulse_length_smp[index] / 2 )
+                sigma  = pulse_sigma_smp[index] 
+                x = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] ) * pulse_frequency[index] / self.sample_rate_awg
+                xs = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] )
+
+                y1 = norm_c * self.amplitude_0_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] ) * np.sinc(- ( 2 * ( xs  - x_mean)) / sigma)
+                y2 = norm_c * self.amplitude_1_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg) * np.sinc(- ( 2 * ( xs  - x_mean)) / sigma)
+                channel_1 = np.concatenate( (channel_1, y1.astype(int) ), axis = 0)
+                channel_2 = np.concatenate( (channel_2, y2.astype(int) ), axis = 0)
+
+            elif element == 3: # BLANK
+                pass
+
+            elif element == 4: # WURST
+                # at = A*( 1 - abs( sin(pi*(t-tp/2)/tp) )^n )
+                # ph = 2*pi*(Fstr*t + 0.5*( Ffin - Fstr )*t^2/tp )
+                # WURST = at*sin(ph + phase_0)
+                x_mean = int( pulse_length_smp[index] / 2 )
+                 ###############################################
+                # resonator profile correction test
+                freq_sweep = pulse_frequency[index][1] - pulse_frequency[index][0]
+                m_p = ( x_mean - pulse_start_smp[index] )
+                
+                ###LO - RF; high frequency first; flip order
+                t_axis = np.flip( np.arange(0, 0 + pulse_length_smp[index] ) - m_p )
+
+                # 300 is wurst sweep
+                # md4
+                #c = 1 / self.triple_gauss(t_axis * 300 / pulse_length_smp[index], 0.570786, 0.383363, 12.2448, 1241.89, \
+                #                                                                            0.191815, -43.478, 1913.96, \
+                #                                                                            0.06655,  77.3173, 614.985)
+
+                # md3
+                #c = 1 / self.triple_lorentzian(t_axis * 300 / pulse_length_smp[index], 5.92087, 412.868, -124.647, 62.0069, \
+                #                                                                            420.717, -35.8879, 34.4214, \
+                #                                                                            9893.97,  12.4056, 150.304)
+                
+                c = 1 / self.triple_lorentzian(t_axis * freq_sweep / pulse_length_smp[index], self.bl_awg, self.a1_awg, self.x1_awg, self.w1_awg, self.a2_awg, self.x2_awg, self.w2_awg, self.a3_awg, self.x3_awg, self.w3_awg)
+
+                c = c / c[0]
+                # limit minimum B1
+                # 16 MHz is the value for MD3 at +-150 MHz around the center
+                # 23 MHz is an arbitrary limit; around 210 MHz width
+                c[c > self.low_level_awg / self.limit_awg] = self.low_level_awg / self.limit_awg
+                
+                c = c / c[0]
+                ph_cor = 0
+
+                if freq_sweep >= 0:
+                    pass
+                else:
+                    np.flip( c )
+
+                # only pi/2 correction
+                if self.pi2flag_awg == 1:
+                    if int( pulse_amp[index] ) > 1:
+                        pass
+                    else:
+                        c = 1
+
+                #general.plot_1d( 'C', np.arange(0, 0 + pulse_length_smp[index] ), c )
+                
+                #phase and amplitude from ideal resonator with f0 and Q
+                ##Q = 88
+                ##f0 = 9700
+
+                ##length = pulse_length_smp[index]
+                ##end_freq = pulse_frequency[index][1]
+                ##st_freq = pulse_frequency[index][0]
+                ##sweep = end_freq - st_freq
+
+                #LO - RF; high frequency first; flip order
+                ##t_axis = np.flip( np.arange( st_freq + f0, end_freq + f0, sweep / length ) )
+
+                ##ideal_res = 1 / ( 1 + 1j * Q * ( t_axis / f0 - f0 / t_axis ) )
+                ##ph_cor = np.arctan2( ideal_res.imag, ideal_res.real ) 
+                # only pi/2 correction
+                ##if int( pulse_amp[index] ) > 1:
+                ##    amp_cor = 1 / np.abs( ideal_res )
+                ##    c = amp_cor / amp_cor[0]
+                ##else:
+                ##    c = 1
+
+                #general.plot_1d( 'C', np.arange(0, 0 + pulse_length_smp[index] ), ph_cor * 180 / np.pi )
+                #general.plot_1d( 'C', np.arange(0, 0 + pulse_length_smp[index] ), c )
+
+                ###############################################
+                #x = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] ) * pulse_frequency[index] / self.sample_rate_awg
+                xs = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] )
+                y1 = norm_c * self.amplitude_0_awg / pulse_amp[index] * (1 - np.abs( np.sin( np.pi * ( xs - x_mean) / pulse_length_smp[index] )) ** pulse_n_wurst[index] ) * np.sin( 2*np.pi * ( xs * pulse_frequency[index][0] / self.sample_rate_awg + 0.5 * (pulse_frequency[index][1] -  pulse_frequency[index][0]) * xs**2 / self.sample_rate_awg / pulse_length_smp[index] ) + pulse_phase_np[index] + ph_cor)
+                y2 = norm_c * self.amplitude_1_awg / pulse_amp[index] * (1 - np.abs( np.sin( np.pi * ( xs - x_mean)  / pulse_length_smp[index] )) ** pulse_n_wurst[index] ) * np.sin( 2*np.pi * ( xs * pulse_frequency[index][0] / self.sample_rate_awg + 0.5 * (pulse_frequency[index][1] - pulse_frequency[index][0]) * xs**2 / self.sample_rate_awg / pulse_length_smp[index] ) + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg + ph_cor)
+                channel_1 = np.concatenate( (channel_1, y1.astype(int) ), axis = 0)
+                channel_2 = np.concatenate( (channel_2, y2.astype(int) ), axis = 0)
+            
+            elif element == 5: # 'SECH/TANH'
+                # mid_point for GAUSS and SINC and WURST and SECH/TANH
+                # at = A*Sech[b*tp*2^(n - 1) ((t - tp/2)/tp)^n]
+                # ph = 2*Pi*bw/b*Log[Cosh[b*(t - tp/2)]]/2/Tanh[b*tp/2]
+                # SECH = at*sin(ph + phase_0)
+                x_mean = int( pulse_length_smp[index] / 2 )
+
+                #########################################################
+                # resonator profile correction test
+                m_p = ( x_mean - pulse_start_smp[index] )
+                freq_sweep = pulse_frequency[index][1] - pulse_frequency[index][0]
+
+                ###LO - RF; high frequency first; flip order
+                t_axis = np.flip( np.arange(0, 0 + pulse_length_smp[index] ) - m_p )
+                
+                # 300 is wurst sweep
+                c = 1 / self.triple_lorentzian(t_axis * freq_sweep / pulse_length_smp[index], self.bl_awg, self.a1_awg, self.x1_awg, self.w1_awg, self.a2_awg, self.x2_awg, self.w2_awg, self.a3_awg, self.x3_awg, self.w3_awg)
+
+                c = c / c[0]
+                # limit minimum B1
+                # 16 MHz is the value for MD3 at +-150 MHz around the center
+                # 23 MHz is an arbitrary limit; around 210 MHz width
+                c[c > self.low_level_awg/self.limit_awg] = self.low_level_awg/self.limit_awg
+                
+                c = c / c[0]
+                ph_cor = 0
+
+                if freq_sweep >= 0:
+                    pass
+                else:
+                    np.flip( c )
+
+                # only pi/2 correction
+                if self.pi2flag_awg == 1:
+                    if int( pulse_amp[index] ) > 1:
+                        pass
+                    else:
+                        c = 1
+
+                #general.plot_1d( 'C', np.arange(0, 0 + pulse_length_smp[index] ), c )
+                freq_cen = ( pulse_frequency[index][1] + pulse_frequency[index][0] ) / 2
+
+                bw = (pulse_frequency[index][1] - pulse_frequency[index][0]) / self.sample_rate_awg
+                #pulse_b_sech[index]
+                xs = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] )
+                y1 = norm_c * self.amplitude_0_awg / pulse_amp[index] * ( 1 / np.cosh( (pulse_b_sech[index] * x_mean * 2 ** (pulse_n_wurst[index] - 1)) * ((xs - x_mean) / pulse_length_smp[index]) ** pulse_n_wurst[index]) ) * np.sin( 2*np.pi * ( bw / pulse_b_sech[index] * np.log( np.cosh( pulse_b_sech[index] * ( xs - x_mean ) ) ) / 2 / np.tanh(  pulse_b_sech[index] *x_mean ) ) + pulse_phase_np[index] + ph_cor + 0 * 2*np.pi*freq_cen / self.sample_rate_awg * xs )
+                y2 = norm_c * self.amplitude_1_awg / pulse_amp[index] * ( 1 / np.cosh( (pulse_b_sech[index] * x_mean * 2 ** (pulse_n_wurst[index] - 1)) * ((xs - x_mean) / pulse_length_smp[index]) ** pulse_n_wurst[index]) ) * np.sin( 2*np.pi * ( bw / pulse_b_sech[index] * np.log( np.cosh( pulse_b_sech[index] * ( xs - x_mean ) ) ) / 2 / np.tanh(  pulse_b_sech[index] *x_mean ) ) + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg + ph_cor + 0 * 2*np.pi*freq_cen / self.sample_rate_awg * xs )
+                channel_1 = np.concatenate( (channel_1, y1.astype(int) ), axis = 0)
+                channel_2 = np.concatenate( (channel_2, y2.astype(int) ), axis = 0)
+
+        return channel_1 , channel_2
+    
 
 def main():
     pass

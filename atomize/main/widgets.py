@@ -105,6 +105,8 @@ class CrosshairPlotWidget(pg.PlotWidget):
         self.cursor_label.setZValue(100)
         self.addItem(self.cursor_label)
 
+        self.getViewBox().setLimits(maxYRange=1e30, minYRange=1e-30)
+
     def on_fft_toggled(self, enabled):
         if enabled:
             self.hide_cross_hair()
@@ -271,10 +273,9 @@ class CrosshairPlotWidget(pg.PlotWidget):
             label_text = f"X: {pt_x:.4g}\nY: {pt_y:.4g}"
             self.cursor_label.setText(label_text)
             
-            # log_mode - log coordinates
             v_pos = math.log10(max(pt_x, 1e-15)) if x_log_mode else pt_x
             h_pos = math.log10(max(pt_y, 1e-15)) if y_log_mode else pt_y
-            
+
             #label
             view_range = vb.viewRange()
             x_min, x_max = view_range[0]
@@ -1591,8 +1592,11 @@ class CrossSectionDock(CloseableDock):
         xdata = np.linspace(x0, x0+(xscale*(nx-1)), nx)
         ydata = np.linspace(y0, y0+(yscale*(ny-1)), ny)
         zval = self.imageItem.image[self.x_cross_index, self.y_cross_index]
-        self.h_cross_section_widget_data.setData(xdata, self.imageItem.image[:, self.y_cross_index])
-        self.v_cross_section_widget_data.setData(ydata, self.imageItem.image[self.x_cross_index, :])
+        v_xdata = self.imageItem.image[:, self.y_cross_index]
+        v_ydata = self.imageItem.image[self.x_cross_index, :]
+
+        self.h_cross_section_widget_data.setData(xdata, v_xdata)
+        self.v_cross_section_widget_data.setData(ydata, v_ydata)
 
         if self.v_cross_section_widget.image_operation == 1:
             item = self.v_cross_section_widget.getPlotItem()

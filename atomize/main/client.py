@@ -4,9 +4,7 @@ import uuid
 import warnings
 import numpy as np
 import logging
-import platform
-import time
-from PyQt6.QtNetwork import QLocalSocket
+from PyQt6.QtNetwork import QLocalSocket, QAbstractSocket
 from PyQt6.QtCore import QCoreApplication, QSharedMemory
 
 logging.root.setLevel(logging.WARNING)
@@ -22,7 +20,7 @@ class LivePlotClient(object):
 
         self.sock = QLocalSocket()
         self.sock.connectToServer("LivePlot")
-        self.system = platform.system()
+        #self.system = platform.system()
 
         if not self.sock.waitForConnected():
             raise EnvironmentError("Couldn't find LivePlotter instance")
@@ -48,39 +46,45 @@ class LivePlotClient(object):
     def send_to_plotter(self, meta, arr=None):
         if not self.is_connected:
             return
-        if meta["name"] is None:
+            
+        if meta.get("name") is None:
             meta["name"] = "*"
+            
         if arr is not None:
             arrbytes = arr.tobytes()
             arrsize = len(arrbytes)
             if arrsize > self.shared_mem.size():
                 raise ValueError("Array too big %s > %s" % (arrsize, self.shared_mem.size()))
+            
             meta['arrsize'] = arrsize
             meta['dtype'] = str(arr.dtype)
             meta['shape'] = arr.shape
-        else:
-            meta['arrsize'] = 0
-        meta_bytes = json.dumps(meta).ljust(320)
-        if len(meta_bytes) > 320:
-            raise ValueError("meta object is too large (> 320 char)")
-        
-        if arr is None:
-            self.sock.write(meta_bytes.encode())
-        else:
-            if not self.sock.bytesAvailable():
-                # should be clarified
-                self.sock.waitForReadyRead(2000)
-            self.sock.read(2)
+            
             if self.shared_mem.lock():
                 try:
-                    # Get the pointer and cast to a writable memoryview
                     ptr = self.shared_mem.data()
                     region = memoryview(ptr).cast('B') 
-                    region[:len(arrbytes)] = arrbytes
+                    region[:arrsize] = arrbytes
                 finally:
                     self.shared_mem.unlock()
+        else:
+            meta['arrsize'] = 0
 
-                self.sock.write(meta_bytes.encode())
+        meta_json = json.dumps(meta).encode('utf-8')
+        if len(meta_json) > 320:
+            raise ValueError("meta object is too large (> 320 char)")
+
+        meta_bytes = meta_json.ljust(320, b' ') 
+
+        self.sock.write(meta_bytes)
+        self.sock.flush()
+
+        if not self.sock.waitForReadyRead(2000):
+            logging.warning("Timeout: Receiver did not send 'ok' for 2 seconds")
+        else:
+            self.sock.readAll()
+            
+        self.sock.waitForBytesWritten(1000)
 
     def plot_y(self, name, arr, extent=None, start_step=(0, 1), label=''):
         arr = np.array(arr)
@@ -98,14 +102,10 @@ class LivePlotClient(object):
             'label': label,
         }
         self.send_to_plotter(meta, arr.astype('float64'))
-        if self.system == 'Windows':
-            #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
-            pass
-        else:
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([np.nan]))
+        #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def plot_z(self, name, arr, extent=None, start_step=None, xname='X axis',\
-     xscale='arb. u.', yname='Y axis', yscale='arb. u.', zname='Y axis', zscale='arb. u.', text=''):
+     xscale='arb. u.', yname='Y axis', yscale='arb. u.', zname='Z axis', zscale='arb. u.', text=''):
         '''
         extent is ((initial x, final x), (initial y, final y))
         start_step is ((initial x, delta x), (initial_y, final_y))
@@ -131,11 +131,7 @@ class LivePlotClient(object):
             'value': text,
         }
         self.send_to_plotter(meta, arr.astype('float64'))
-        if self.system == 'Windows':
-            #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
-            pass
-        else:
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([np.nan]))
+        #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def plot_xy(self, name, xs, ys, label='', xname='X axis', xscale='arb. u.',\
      yname='Y axis', yscale='arb. u.', scatter='False', timeaxis='False', vline='False', text=''):
@@ -158,19 +154,11 @@ class LivePlotClient(object):
 
         if len( np.shape( ys ) ) == 1:
             self.send_to_plotter(meta, np.array([xs, ys]).astype('float64'))
-            if self.system == 'Windows':
-                #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
-                pass
-            else:
-                self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([np.nan]))        
+            #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))        
         elif len( np.shape( ys ) ) == 2:
             # simultaneous plot of two curves
             self.send_to_plotter(meta, np.array([[xs, xs], ys]).astype('float64'))
-            if self.system == 'Windows':
-                #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
-                pass
-            else:
-                self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([np.nan]))
+            #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def append_y(self, name, point, start_step=(0, 1), label='', xname='X axis',\
      xscale='arb. u.', yname='Y axis', yscale='arb. u.',scatter='False', timeaxis='False', vline='False'):
@@ -189,12 +177,7 @@ class LivePlotClient(object):
             'TimeAxis': timeaxis,
             'Vline': vline
         })
-
-        if self.system == 'Windows':
-            #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
-            pass
-        else:
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([np.nan]))
+        #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def append_xy(self, name, x, y, label=''):
         self.send_to_plotter({
@@ -204,12 +187,7 @@ class LivePlotClient(object):
             'rank': 1,
             'label': label,
         })
-
-        if self.system == 'Windows':
-            #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
-            pass
-        else:
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([np.nan]))
+        #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def append_z(self, name, arr, start_step=None, xname='X axis',\
      xscale='arb. u.', yname='Y axis', yscale='arb. u.', zname='Y axis', zscale='arb. u.'):
@@ -227,12 +205,7 @@ class LivePlotClient(object):
             'Zname': zname,
             }
         self.send_to_plotter(meta, arr.astype('float64'))
-
-        if self.system == 'Windows':
-            #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
-            pass
-        else:
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([np.nan]))
+        #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def label(self, name, text):
         self.send_to_plotter({
@@ -240,12 +213,7 @@ class LivePlotClient(object):
             'operation': 'label',
             'value': text
         })
-
-        if self.system == 'Windows':
-            #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
-            pass
-        else:
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([np.nan]))
+        #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def clear(self, name=None):
         self.send_to_plotter({
@@ -264,12 +232,8 @@ class LivePlotClient(object):
             'name': name,
             'operation': 'remove'
         })
-
-        if self.system == 'Windows':
-            #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([]))
-            pass
-        else:
-            self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([np.nan]))
+        
+        #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
         
     def disconnect_received(self):
         self.is_connected = False
