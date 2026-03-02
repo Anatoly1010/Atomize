@@ -21,7 +21,18 @@ else:
 def message(*text):
     if test_flag != 'test':
         if len(text) == 1:
-            print(f'print {text[0]}', flush=True)
+            if isinstance(text[0], np.ndarray):
+                content = np.array2string(
+                    text[0], 
+                    separator=',', 
+                    threshold=np.inf, 
+                    max_line_width=np.inf
+                )
+                content = content.replace('\n', '')
+                print(f'print {content}', flush=True)
+            else:
+                content = str(text[0]).replace('\n', '')
+                print(f'print {content}', flush=True)
         else:
             print(f'print {text}', flush=True)
     elif test_flag == 'test':
@@ -32,7 +43,18 @@ def message_test(*text):
         pass
     elif test_flag == 'test':
         if len(text) == 1:
-            print(f'print {text[0]}', flush=True)
+            if isinstance(text[0], np.ndarray):
+                content = np.array2string(
+                    text[0], 
+                    separator=',', 
+                    threshold=np.inf, 
+                    max_line_width=np.inf
+                )
+                content = content.replace('\n', '')
+                print(f'print {content}', flush=True)
+            else:
+                content = str(text[0]).replace('\n', '')
+                print(f'print {content}', flush=True)
         else:
             print(f'print {text}', flush=True)
 

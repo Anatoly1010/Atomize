@@ -1178,7 +1178,7 @@ class CrossSectionDock(CloseableDock):
 
         self.img_view.setImage(*args, **kwargs )
         self.img_view.getView().vb.enableAutoRange(enable = autorange)
-        #self.update_cross_section()
+        self.update_cross_section_set_data()
         self.set_image = 1
 
     def setTitle(self, text):
@@ -1497,6 +1497,15 @@ class CrossSectionDock(CloseableDock):
         label_text = f"X: {mid_x:.4g}\nY: {mid_y:.4g}\nZ: {0}"
         self.cursor_label.setText(label_text)
 
+        self.v_cross_section_widget.image_operation = 1
+        self.v_cross_section_widget.click_count_1d = 0
+        self.v_cross_section_widget.search_mode = False
+
+        self.h_cross_section_widget.image_operation = 1
+        self.h_cross_section_widget.click_count_1d = 0
+        self.h_cross_section_widget.search_mode = False
+
+
     def hide_cross_section(self):
         if self.cross_section_enabled:
             self.plot_item.removeItem(self.h_line)
@@ -1505,6 +1514,7 @@ class CrossSectionDock(CloseableDock):
             self.cross_section_enabled = False
             self.h_cross_dock.close()
             self.v_cross_dock.close()
+
             self.cursor_label.hide()
 
     def connect_signal(self):
@@ -1583,8 +1593,20 @@ class CrossSectionDock(CloseableDock):
             self.cursor_label.setPos(view_x, view_y)
             self.cursor_label.show()
 
-            label_text = f"X: {view_x:.4g}\nY: {view_y:.4g}\nZ: {z_val:.4g}"
+            label_text = f"X: {view_x:.4g} ({(self.y_cross_index+1):.0f})\nY: {view_y:.4g} ({(self.x_cross_index+1):.0f})\nZ: {z_val:.4g}"
             self.cursor_label.setText(label_text)
+
+    def update_cross_section_set_data(self):
+        nx, ny = self.imageItem.image.shape
+        x0, y0, xscale, yscale = self._x0, self._y0, self._xscale, self._yscale
+        xdata = np.linspace(x0, x0+(xscale*(nx-1)), nx)
+        ydata = np.linspace(y0, y0+(yscale*(ny-1)), ny)
+        zval = self.imageItem.image[self.x_cross_index, self.y_cross_index]
+        v_xdata = self.imageItem.image[:, self.y_cross_index]
+        v_ydata = self.imageItem.image[self.x_cross_index, :]
+
+        self.h_cross_section_widget_data.setData(xdata, v_xdata)
+        self.v_cross_section_widget_data.setData(ydata, v_ydata)
 
     def update_cross_section(self):
         nx, ny = self.imageItem.image.shape
@@ -1661,7 +1683,9 @@ class CrossSectionDock(CloseableDock):
             else:
                 self.v_cross_section_widget.cursor_label.show()
 
-            label_text = f"Y: {ydata[self.y_cross_index]:.4g}\nZ: {zval:.4g}"
+            label_text = f"X: {xdata[self.x_cross_index]:.4g} ({(self.y_cross_index+1):.0f})\nY: {ydata[self.y_cross_index]:.4g} ({(self.x_cross_index+1):.0f})\nZ: {zval:.4g}"
+            #label_text = f"Y: {ydata[self.y_cross_index]:.4g}\nZ: {zval:.4g}\nPoint: {(self.x_cross_index+1):.0f}"
+            
             self.v_cross_section_widget.cursor_label.setText(label_text)
 
         if self.h_cross_section_widget.image_operation == 1:
@@ -1727,5 +1751,7 @@ class CrossSectionDock(CloseableDock):
             else:
                 self.h_cross_section_widget.cursor_label.show()
 
-            label_text = f"X: {xdata[self.x_cross_index]:.4g}\nZ: {zval:.4g}"
+            label_text = f"X: {xdata[self.x_cross_index]:.4g} ({(self.y_cross_index+1):.0f})\nY: {ydata[self.y_cross_index]:.4g} ({(self.x_cross_index+1):.0f})\nZ: {zval:.4g}"
+            #f"X: {xdata[self.x_cross_index]:.4g}\nZ: {zval:.4g}\nPoint: {(self.y_cross_index+1):.0f}"
+
             self.h_cross_section_widget.cursor_label.setText(label_text)
