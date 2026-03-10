@@ -7,7 +7,7 @@ import math
 from datetime import datetime
 from pathlib import Path
 from pyqtgraph.dockarea import Dock
-from PyQt6 import QtWidgets, QtCore, QtGui
+from PyQt6 import QtWidgets, QtCore, QtGui, sip
 import atomize.main.local_config as lconf
 
 pg.setConfigOption('background', (63,63,97))
@@ -96,6 +96,14 @@ class CrosshairPlotWidget(pg.PlotWidget):
             self.plot_item.ctrl.subtractMeanCheck.toggled.connect( self.hide_cross_hair )
         except Exception:
             pass
+        
+        #self.plot_item.showGrid(x=True, y=True, alpha=0.1)
+
+        self.hide_action = QtGui.QAction('Hide Label', self)
+        self.hide_action.setCheckable(True)
+        self.hide_action.setChecked(False)
+        self.hide_action.triggered.connect(self.update_label_visibility)
+        self.plot_item.vb.menu.addAction(self.hide_action)
 
         #(63,63,97)
         self.cursor_label = pg.TextItem(anchor=(0, 1), color='w', fill=(42, 42, 64, 150))
@@ -111,10 +119,12 @@ class CrosshairPlotWidget(pg.PlotWidget):
         if enabled:
             self.hide_cross_hair()
             self.plot_item.setLabel('bottom', 'Frequency', units = 'Hz')
+            self.x_units = 'Hz'
         else:
             try:
                 self.hide_cross_hair()
                 self.plot_item.setLabel('bottom', self.axis[0], units = self.axis[1])
+                self.x_units = self.axis[1]
             except AttributeError:
                 pass
 
@@ -131,12 +141,22 @@ class CrosshairPlotWidget(pg.PlotWidget):
                 view_x, view_y = view_coords.x(), view_coords.y()
                 self.add_cross_hair(view_x, view_y)
 
+                if not hasattr(self, 'y_units'):
+                    self.y_units = self.getPlotItem().getAxis('left').labelUnits
+                if not hasattr(self, 'x_units'):
+                    self.x_units = self.getPlotItem().getAxis('bottom').labelUnits
+
+                y_parsed = pg.siFormat(view_x, suffix=self.y_units, precision = 5)
+                x_parsed = pg.siFormat(view_y, suffix=self.x_units, precision = 5)
+
                 #label
-                label_text = f"X: {view_x:.4g}\nY: {view_x:.4g}"
+                label_text = f"X: {x_parsed}\nY: {y_parsed}"
+                #label_text = f"X: {view_x:.4g}\nY: {view_x:.4g}"
                 self.cursor_label.border = pg.mkPen((255, 255, 255, 255), width=1.5)
                 self.cursor_label.setText(label_text)
                 self.cursor_label.setPos(view_x, view_y)
-                self.cursor_label.show()
+                #self.cursor_label.show()
+                self.update_label_visibility()
 
         elif mouse_event.button() == QtCore.Qt.MouseButton.MiddleButton:
             if self.cross_section_enabled:
@@ -177,6 +197,11 @@ class CrosshairPlotWidget(pg.PlotWidget):
             view_coords = vb.mapSceneToView(mouse_event)
             x_log_mode, y_log_mode = vb.state['logMode'][0], vb.state['logMode'][1]
 
+            if not hasattr(self, 'y_units'):
+                self.y_units = item.getAxis('left').labelUnits
+            if not hasattr(self, 'x_units'):
+                self.x_units = item.getAxis('bottom').labelUnits
+
             # mouse coordinates; log-mode - already log values
             v_x, v_y = view_coords.x(), view_coords.y()
 
@@ -184,6 +209,15 @@ class CrosshairPlotWidget(pg.PlotWidget):
             for data_item in item.items:
                 if isinstance(data_item, pg.PlotDataItem) and data_item.isVisible():
                     xdata_0, ydata_0 = data_item.xData, data_item.yData
+
+                    # for shift and scale
+                    offset = data_item.pos()
+                    scale_y = data_item.transform().m22()
+                    
+                    local_v_x = v_x - offset.x()
+                    local_v_y = (v_y - offset.y()) / scale_y
+                    # for shift and scale
+
                     if xdata_0 is None or len(xdata_0) < 2: continue
 
                     try:
@@ -224,7 +258,8 @@ class CrosshairPlotWidget(pg.PlotWidget):
                     sx = sx if sx > 0 else 1
                     sy = sy if sy > 0 else 1
 
-                    dist_sq = ((search_x - v_x) / sx)**2 + ((search_y - v_y) / sy)**2
+                    # v_x -> local_v_x
+                    dist_sq = ((search_x - local_v_x) / sx)**2 + ((search_y - local_v_y) / sy)**2
                     
                     if not self.parametric:
                         real_view_x = 10**v_x if x_log_mode else v_x
@@ -241,20 +276,30 @@ class CrosshairPlotWidget(pg.PlotWidget):
                     else:
                         index = np.argmin(dist_sq)
 
+                    vis_x = xdata[index] + offset.x()
+                    vis_y = (ydata[index] * scale_y) + offset.y()
+
                     best_guesses.append({
-                        'point': (xdata[index], ydata[index]),
+                        'point': (vis_x, vis_y),
+                        'raw_point': (xdata[index], ydata[index]),
                         'dist': dist_sq[index],
-                        'item': data_item  # plot
+                        'item': data_item
                     })
 
             if not best_guesses:
                 self.cursor_label.hide()
                 return
 
-            # best point            
+            # best point
             best_res = min(best_guesses, key=lambda x: x['dist'])
-            (pt_x, pt_y) = best_res['point']
+            (v_pos, h_pos) = best_res['point']
+            (raw_x, raw_y) = best_res['raw_point']
             target_item = best_res['item']
+
+            #for log-scale
+            offset = target_item.pos()
+            scale_y = target_item.transform().m22()
+            #for log-scale
 
             #border color
             raw_pen = target_item.opts.get('pen')
@@ -270,11 +315,24 @@ class CrosshairPlotWidget(pg.PlotWidget):
             self.cursor_label.border = pg.mkPen(curve_color, width=1.5)
             #border color
 
-            label_text = f"X: {pt_x:.4g}\nY: {pt_y:.4g}"
+
+            y_parsed = pg.siFormat(h_pos, suffix=self.y_units, precision=5)
+            x_parsed = pg.siFormat(v_pos, suffix=self.x_units, precision=5)
+
+            label_text = f"X: {x_parsed}\nY: {y_parsed}"
             self.cursor_label.setText(label_text)
             
-            v_pos = math.log10(max(pt_x, 1e-15)) if x_log_mode else pt_x
-            h_pos = math.log10(max(pt_y, 1e-15)) if y_log_mode else pt_y
+            #for shift ans scale
+            if x_log_mode:
+                v_pos = math.log10(max(raw_x, 1e-15)) + offset.x()
+            else:
+                v_pos = raw_x + offset.x()
+
+            if y_log_mode:
+                h_pos = (math.log10(max(raw_y, 1e-15)) * scale_y) + offset.y()
+            else:
+                h_pos = (raw_y * scale_y) + offset.y()
+            #for shift ans scale
 
             #label
             view_range = vb.viewRange()
@@ -286,7 +344,8 @@ class CrosshairPlotWidget(pg.PlotWidget):
 
             self.cursor_label.setAnchor((anchor_x, anchor_y))
             self.cursor_label.setPos(v_pos, h_pos)
-            self.cursor_label.show()
+            #self.cursor_label.show()
+            self.update_label_visibility()
 
             self.v_line.setPos(v_pos)
             self.h_line.setPos(h_pos)
@@ -298,7 +357,8 @@ class CrosshairPlotWidget(pg.PlotWidget):
         if hasattr(self, 'v_line'):
             self.h_line.show()
             self.v_line.show()
-            self.cursor_label.show()
+            #self.cursor_label.show()
+            self.update_label_visibility()
         else:
             self.h_line = pg.InfiniteLine(pos=y,angle=0, movable=False)
             self.v_line = pg.InfiniteLine(pos=x, angle=90, movable=False)
@@ -336,7 +396,8 @@ class CrosshairPlotWidget(pg.PlotWidget):
         if hasattr(self, 'v_line'):
             self.h_line.show()
             self.v_line.show()
-            self.cursor_label.show()
+            #self.cursor_label.show()
+            self.update_label_visibility()
         else:
             self.h_line = pg.InfiniteLine(angle=0, movable=False)
             self.v_line = pg.InfiniteLine(angle=90, movable=False)
@@ -385,6 +446,10 @@ class CrosshairPlotWidget(pg.PlotWidget):
         y = np.abs(f)
         return x, y
 
+    def update_label_visibility(self):
+        if self.cross_section_enabled:
+            self.cursor_label.setVisible(not self.hide_action.isChecked())
+
 class CrosshairDock(CloseableDock):
     def __init__(self, **kwargs):
         # open directory
@@ -417,24 +482,14 @@ class CrosshairDock(CloseableDock):
         #self.plot_widget.setBackground(None)
         kwargs['widget'] = self.plot_widget
         super(CrosshairDock, self).__init__(**kwargs)
-
+        
         #remove cross-hair
         self.closeClicked.connect(self.hide_cross_hair)
 
-        self.menu = self.plot_widget.getMenu()
-        self.menu.addSeparator()
-        #self.del_menu = QtGui.QMenu()
-        self.del_menu = QtWidgets.QMenu()
-        self.del_menu.setTitle('Delete Plot')
-        self.menu.addMenu(self.del_menu)
-
-        self.shift_menu = QtWidgets.QMenu()
-        self.shift_menu.setTitle('Shift Plot')
-        self.menu.addMenu(self.shift_menu)
-
+        plot_item = self.plot_widget.getPlotItem()
         open_action = QtGui.QAction('Open 1D Data', self)
         open_action.triggered.connect(self.file_dialog)
-        self.menu.addAction(open_action)
+        plot_item.vb.menu.addAction(open_action)
 
         self.avail_colors = [pg.mkPen(color=(47,79,79),width=1), pg.mkPen(color=(255,153,0),width=1), pg.mkPen(color=(255,0,255),width=1), pg.mkPen(color=(0,0,255),width=1), pg.mkPen(color=(0,0,0),width=1), pg.mkPen(color=(255,0,0),width=1), pg.mkPen(color=(95,158,160),width=1), pg.mkPen(color=(0,128,0),width=1), pg.mkPen(color=(255,255,0),width=1), pg.mkPen(color=(255,255,255),width=1)]
         self.avail_symbols= ['x','p','star','s','o','+']
@@ -449,15 +504,6 @@ class CrosshairDock(CloseableDock):
         self.used_symbols = {}
         self.used_brush = {}
         self.curves = {}
-        self.del_dict = {}
-        self.name_dict = {}
-        self.shifter_dict = {}
-        self.shifter_action_dict = {}
-        self.index_shift = 0
-        self.adaptive_scale = 1
-        self.value_prev = 0
-        # for delete and shift q_action
-        self.qaction_added = 0
 
         self.plot_item = self.plot_widget.getPlotItem()
         self.plot_item.ctrl.fftCheck.toggled.connect(self.on_fft_toggled)
@@ -475,6 +521,11 @@ class CrosshairDock(CloseableDock):
                 pass
 
     def plot(self, *args, **kwargs):
+        if not hasattr(self.plot_widget, 'y_units'):
+            self.plot_widget.y_units = kwargs.get('yscale', '')
+        if not hasattr(self.plot_widget, 'x_units'):
+            self.plot_widget.x_units = kwargs.get('xscale', '')
+        
         self.plot_widget.parametric = kwargs.pop('parametric', False)
         vline_arg = kwargs.get('vline', '')
 
@@ -524,17 +575,29 @@ class CrosshairDock(CloseableDock):
                                 except IndexError:
                                     kwargs['pen'] = self.used_colors[name] = self.white_pen
                                 args_mod = (args[0][i], args[1][i])
-                                self.curves[name] = self.plot_widget.plot(*args_mod, **kwargs)
+
+                                curve = self.plot_widget.plot(*args_mod, **kwargs)
+
+                                legend = self.plot_widget.getPlotItem().legend
+                                if legend is not None:
+                                    last_sample, last_label = legend.items[-1]
+                                    
+                                    last_label.setAcceptHoverEvents(True)
+
+                                    last_label.mouseClickEvent = lambda ev, c=curve: self.activate_by_legend(c, ev)
+                                    last_label.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+
+                                curve_item = curve.curve 
+                                curve_item.setClickable(True)#, width=10)
+                                
+                                curve_item.mouseDragEvent = lambda ev, c=curve: self.handle_drag(c, ev)
+                                curve_item.mousePressEvent = lambda ev, c=curve: self.handle_press(c, ev)
+                                self.curves[name] = curve
+
                                 # Text label above the graph
                                 temp = kwargs.get('text', '')
                                 if temp != '':
                                     self.setTitle( temp )
-
-                                # 05-01-2022; shift and delete graphs
-                                del_action = QtGui.QAction(str(name), self)
-                                shifter = QtWidgets.QDoubleSpinBox()
-                                shiftAction = QtWidgets.QWidgetAction(self)
-                                self.add_del_shift_actions(name, del_action, shifter, shiftAction)
 
                 else:
                     kwargs['pen'] = self.used_colors[name]
@@ -580,19 +643,30 @@ class CrosshairDock(CloseableDock):
                             except IndexError:
                                 kwargs['pen'] = self.used_colors[name] = self.white_pen
                             args_mod = (args[0][i], args[1][i])
-                            self.curves[name] = self.plot_widget.plot(*args_mod, **kwargs)
+                            curve = self.plot_widget.plot(*args_mod, **kwargs)
+
+                            legend = self.plot_widget.getPlotItem().legend
+                            if legend is not None:
+                                last_sample, last_label = legend.items[-1]
+                                
+                                last_label.setAcceptHoverEvents(True)
+
+                                last_label.mouseClickEvent = lambda ev, c=curve: self.activate_by_legend(c, ev)
+                                last_label.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+
+                            curve_item = curve.curve 
+                            curve_item.setClickable(True)#, width=10)
+                            
+                            curve_item.mouseDragEvent = lambda ev, c=curve: self.handle_drag(c, ev)
+                            curve_item.mousePressEvent = lambda ev, c=curve: self.handle_press(c, ev)
+                            self.curves[name] = curve
+
                         else:
                             kwargs['pen'] = self.used_colors[name]
                             args_mod = (args[0][0], args[1][0])
 
                             # the first curve is already plotted
                             self.curves[name].setData(*args_mod, **kwargs)
-
-                            # 05-01-2022; shift and delete graphs
-                            del_action = QtGui.QAction(str(name), self)
-                            shifter = QtWidgets.QDoubleSpinBox()
-                            shiftAction = QtWidgets.QWidgetAction(self)
-                            self.add_del_shift_actions(name, del_action, shifter, shiftAction)
 
                             name = name + '_' + str(i)
                             
@@ -616,7 +690,24 @@ class CrosshairDock(CloseableDock):
                                     kwargs['pen'] = self.used_colors[name] = self.yellow_pen
                                 args_mod = (args[0][i], args[1][i])
                                 # the second curve is a new one
-                                self.curves[name] = self.plot_widget.plot(*args_mod, **kwargs)
+                                #self.curves[name] = self.plot_widget.plot(*args_mod, **kwargs)
+                                curve = self.plot_widget.plot(*args_mod, **kwargs)
+
+                                legend = self.plot_widget.getPlotItem().legend
+                                if legend is not None:
+                                    last_sample, last_label = legend.items[-1]
+                                    
+                                    last_label.setAcceptHoverEvents(True)
+
+                                    last_label.mouseClickEvent = lambda ev, c=curve: self.activate_by_legend(c, ev)
+                                    last_label.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+
+                                curve_item = curve.curve 
+                                curve_item.setClickable(True)#, width=10)
+                                curve_item.mouseDragEvent = lambda ev, c=curve: self.handle_drag(c, ev)
+                                curve_item.mousePressEvent = lambda ev, c=curve: self.handle_press(c, ev)
+                                self.curves[name] = curve
+
                                 # Text label above the graph
                                 temp = kwargs.get('text', '')
                                 if temp != '':
@@ -627,7 +718,23 @@ class CrosshairDock(CloseableDock):
                         kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
                     except IndexError:
                         kwargs['pen'] = self.used_colors[name] = self.white_pen
-                    self.curves[name] = self.plot_widget.plot(*args, **kwargs)
+                        curve = self.plot_widget.plot(*args_mod, **kwargs)
+
+                        legend = self.plot_widget.getPlotItem().legend
+                        if legend is not None:
+                            last_sample, last_label = legend.items[-1]
+                            
+                            last_label.setAcceptHoverEvents(True)
+
+                            last_label.mouseClickEvent = lambda ev, c=curve: self.activate_by_legend(c, ev)
+                            last_label.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+
+                        curve_item = curve.curve 
+                        curve_item.setClickable(True)#, width=10)
+                        curve_item.mouseDragEvent = lambda ev, c=curve: self.handle_drag(c, ev)
+                        curve_item.mousePressEvent = lambda ev, c=curve: self.handle_press(c, ev)
+                        self.curves[name] = curve
+
                     # Text label above the graph
                     temp = kwargs.get('text', '')
                     if temp != '':
@@ -640,12 +747,6 @@ class CrosshairDock(CloseableDock):
                         self.vl2 = self.plot_widget.addLine( x = float(vline_arg[1]) )
                     except IndexError:
                         pass
-            
-            if self.qaction_added == 0:
-                del_action_2 = QtGui.QAction(str(name), self)
-                shifter_2 = QtWidgets.QDoubleSpinBox()
-                shiftAction_2 = QtWidgets.QWidgetAction(self)
-                self.add_del_shift_actions(name, del_action_2, shifter_2, shiftAction_2)
 
         item = self.plot_widget.getPlotItem()
         plot_data_item = next((i for i in item.items if isinstance(i, pg.PlotDataItem)), None)
@@ -657,73 +758,96 @@ class CrosshairDock(CloseableDock):
             self.bottom_axis_text = self.plot_widget.getAxis('bottom').labelText
             self.bottom_axis_units = self.plot_widget.getAxis('bottom').labelUnits
 
-    def add_del_shift_actions(self, gr_name, del_act, shiftspinbox, shift_act):
-        """
-        05-01-2021
-        Auxiliary function for Delete and Shift QActions
-        """
-        self.del_dict[del_act] = self.plot_widget.listDataItems()[-1]
-        self.name_dict[del_act] = gr_name
-        del_act.triggered.connect(lambda: self.del_item(self.del_dict[del_act]))
-        self.del_menu.addAction(del_act)
+    def activate_by_legend(self, curve, ev):
+        if ev.button() == QtCore.Qt.MouseButton.LeftButton:
+            ev.accept()
+            
+            for c in self.curves.values():
+                c.setZValue(0)
 
-        shiftspinbox.setDecimals(3)
-        shiftspinbox.setRange(-10, 10)
-        shiftspinbox.setSingleStep(0.001)
-        shiftspinbox.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        shiftspinbox.setPrefix( f"{gr_name}: " )
-        shiftspinbox.setKeyboardTracking(0)
-        self.shifter_dict[shiftspinbox] = self.plot_widget.listDataItems()[-1]
-        #shifter.valueChanged.connect( self.shift_curve )
-        shiftspinbox.valueChanged.connect( lambda: self.shift_curve(self.shifter_dict[shiftspinbox]) )
-        shift_act.setDefaultWidget(shiftspinbox)
-        self.shift_menu.addAction(shift_act)
-        self.shifter_action_dict[shift_act] = self.plot_widget.listDataItems()[-1]
-        self.index_shift = 0
+            curve.setZValue(1000)
+            curve.setOpacity(1.0)
 
-    def shift_curve(self, item):
+            self.flash_curve(curve)
 
-        qboxname = list(self.shifter_dict.keys())[list(self.shifter_dict.values()).index(item)]
-        key_name = list(self.curves.keys())[list(self.curves.values()).index(item)]
+        elif ev.button() == QtCore.Qt.MouseButton.MiddleButton:
+            ev.accept()
+            self.del_item(curve)
 
-        value = float( qboxname.value() )
-        data = self.get_data( key_name )
+    def handle_press(self, curve, ev):
+        modifiers = QtGui.QGuiApplication.keyboardModifiers()
+        
+        if (ev.button() == QtCore.Qt.MouseButton.LeftButton and 
+            modifiers == QtCore.Qt.KeyboardModifier.AltModifier):
+            ev.accept()
+            
+            curve.setTransform(QtGui.QTransform()) 
+            curve.setPos(0, 0)
 
-        # percentage shifting:
-        if self.index_shift == 0:
-            self.adaptive_scale = np.sum( data[1][0:4] ) / 5
-            self.index_shift = 1
-            self.plot( data[0], data[1] + abs( value ) * self.adaptive_scale, \
-                name = str( key_name ), scatter = 'False', xname = 'X', xscale = 'arb. u.', yname = 'Y', yscale = 'arb. u.' )
+            self.flash_curve(curve)
+
         else:
-            if value > self.value_prev:
-                if value > 0:
-                    self.plot( data[0], data[1] + abs( value ) * self.adaptive_scale, \
-                        name = str( key_name ), scatter = 'False', xname = 'X', xscale = 'arb. u.', yname = 'Y', yscale = 'arb. u.' )
-                else:
-                    self.plot( data[0], data[1] + abs( value - 0.001 ) * self.adaptive_scale, \
-                        name = str( key_name ), scatter = 'False', xname = 'X', xscale = 'arb. u.', yname = 'Y', yscale = 'arb. u.' )
-            else:
-                if value < 0:
-                    self.plot( data[0], data[1] - abs( value ) * self.adaptive_scale, \
-                        name = str( key_name ), scatter = 'False', xname = 'X', xscale = 'arb. u.', yname = 'Y', yscale = 'arb. u.' )
-                else:
-                    self.plot( data[0], data[1] - ( abs( value ) + 0.001 ) * self.adaptive_scale, \
-                        name = str( key_name ), scatter = 'False', xname = 'X', xscale = 'arb. u.', yname = 'Y', yscale = 'arb. u.' )
+            ev.ignore()
 
-        self.value_prev = value
+    def flash_curve(self, curve, duration=100, width=2):
+        if sip.isdeleted(curve):
+            return
+                
+        p = pg.mkPen(curve.opts['pen'])
+        old_w = p.width()
+        
+        p.setWidth(width)
+        curve.setPen(p)
+        
+        def safe_restore():
+            if not sip.isdeleted(curve):
+                p.setWidth(old_w)
+                curve.setPen(p)
+                
+        QtCore.QTimer.singleShot(duration, safe_restore)
+
+    def handle_drag(self, curve, ev):
+        modifiers = QtGui.QGuiApplication.keyboardModifiers()
+        
+        if ev.button() == QtCore.Qt.MouseButton.LeftButton:
+            ev.accept()
+
+            if ev.isStart():
+                self.flash_curve(curve)
+
+            delta_scene = ev.scenePos() - ev.lastScenePos()
+            
+            if modifiers == QtCore.Qt.KeyboardModifier.ControlModifier:
+                factor = 1.04 if delta_scene.y() < 0 else 0.96
+                
+                current_sy = curve.transform().m22() 
+                new_sy = current_sy * factor
+                curve.setTransform(QtGui.QTransform().scale(1.0, new_sy))
+
+            elif modifiers == QtCore.Qt.KeyboardModifier.NoModifier:
+                p1 = curve.mapToParent(ev.pos())
+                p2 = curve.mapToParent(ev.lastPos())
+                diff = p1 - p2
+                
+                new_pos = curve.pos() + diff
+                curve.setPos(new_pos.x(), new_pos.y())
+                #new_y = curve.pos().y() + delta_scene.y()
+                # curve.setPos(0, new_y)
+
+            if ev.isFinish():
+                p = pg.mkPen(curve.opts['pen'])
+                p.setWidth(1) 
+                curve.setPen(p)
+                curve.setZValue(0)
+
+        else:
+            ev.ignore()
 
     def del_item(self, item):
         self.plot_widget.removeItem(item)
-        key_action = list(self.del_dict.keys())[list(self.del_dict.values()).index(item)]
         key_name = list(self.curves.keys())[list(self.curves.values()).index(item)]
-        qbox_action_name = list(self.shifter_action_dict.keys())[list(self.shifter_action_dict.values()).index(item)]
-        self.del_dict.pop(key_action, None)
-        self.del_menu.removeAction(key_action)
         self.curves.pop(key_name, None)
-        self.shifter_dict.pop(key_name, None)
-        self.shift_menu.removeAction(qbox_action_name)
-        self.avail_colors.append(self.used_colors[self.name_dict[key_action]])
+        self.avail_colors.append(self.used_colors[key_name])
         #TO DO the same for scatter plot
 
     def open_file(self, filename):
@@ -1025,6 +1149,20 @@ class CrossSectionDock(CloseableDock):
         self.img_view = kwargs['widget'] = pg.ImageView(view = view)
         self.img_view.scene.sigMouseClicked.connect(self.on_scene_clicked)
 
+        #self.plot_item.showGrid(x=True, y=True, alpha=0.1)
+
+        time_plot = self.img_view.ui.roiPlot
+        self.vb_time = time_plot.getViewBox()
+        time_plot.hideButtons()
+        self.vb_time.mouseClickEvent = self.on_time_click
+
+        axis = time_plot.getAxis('bottom')
+        axis.setTickSpacing(major=1, minor=1)
+
+        self.line = self.img_view.timeLine
+        self.line.setPen(pg.mkPen('y', width=3))
+        self.line.setHoverPen(pg.mkPen('w', width=3))
+
         # Define positions and corresponding colors
         pos = np.array([0.0, 0.5, 1.0])
         color = np.array([
@@ -1050,24 +1188,31 @@ class CrossSectionDock(CloseableDock):
         self.signals_connected = False
         self.set_histogram(False)
 
-        save_action = QtGui.QAction('Save Data', self)
-        save_action.triggered.connect(self.fileSaveDialog)
-        self.img_view.scene.contextMenu.append(save_action)
+        self.hide_action = QtGui.QAction('Hide Label', self)
+        self.hide_action.setCheckable(True)
+        self.hide_action.setChecked(False)
+        self.hide_action.triggered.connect(self.update_label_visibility)
+        self.plot_item.vb.menu.addAction(self.hide_action)
 
         histogram_action = QtGui.QAction('Histogram', self)
         histogram_action.setCheckable(True)
         histogram_action.triggered.connect(self.set_histogram)
-        self.img_view.scene.contextMenu.append(histogram_action)
-        
-        self.autolevels_action = QtGui.QAction('Autoscale Levels', self)
-        self.autolevels_action.setCheckable(True)
-        self.autolevels_action.setChecked(True)
-        self.autolevels_action.triggered.connect(self.redraw)
-        self.ui.histogram.item.sigLevelChangeFinished.connect(lambda: self.autolevels_action.setChecked(False))
-        self.img_view.scene.contextMenu.append(self.autolevels_action)
-        self.clear_action = QtGui.QAction('Clear Contents', self)
-        self.clear_action.triggered.connect(self.clear)
-        self.img_view.scene.contextMenu.append(self.clear_action)
+        self.plot_item.vb.menu.addAction(histogram_action)
+
+        save_action = QtGui.QAction('Save Data', self)
+        save_action.triggered.connect(self.fileSaveDialog)
+        self.plot_item.vb.menu.addAction(save_action)
+
+        #self.autolevels_action = QtGui.QAction('Autoscale Levels', self)
+        #self.autolevels_action.setCheckable(True)
+        #self.autolevels_action.setChecked(True)
+        #self.autolevels_action.triggered.connect(self.redraw)
+
+        #self.ui.histogram.item.sigLevelChangeFinished.connect(lambda: self.autolevels_action.setChecked(False))
+        #self.img_view.scene.contextMenu.append(self.autolevels_action)
+        #self.clear_action = QtGui.QAction('Clear Contents', self)
+        #self.clear_action.triggered.connect(self.clear)
+        #self.img_view.scene.contextMenu.append(self.clear_action)
         self.ui.histogram.gradient.setColorMap(cmap) #loadPreset('bipolar')
 
         try:
@@ -1105,6 +1250,36 @@ class CrossSectionDock(CloseableDock):
         self.cursor_label.setZValue(100)
         self.plot_item.addItem(self.cursor_label)
 
+        self.first_render = True
+
+    def on_time_click(self, ev):
+        if ev.button() == QtCore.Qt.MouseButton.LeftButton:
+            pos = self.vb_time.mapSceneToView(ev.scenePos())
+            new_x = pos.x()
+            
+            self.img_view.timeLine.setValue(new_x)
+            self.make_line_discrete() 
+            
+            ev.accept()
+        else:
+            ev.ignore()
+
+    def make_line_discrete(self):
+        current_val = self.line.value()
+        t_data = self.time_array 
+        
+        idx = (np.abs(t_data - current_val)).argmin()
+        snap_val = t_data[idx]
+        
+        self.line.blockSignals(True)
+        self.line.setValue(snap_val)
+        self.line.blockSignals(False)
+        self.img_view.setCurrentIndex(idx)
+
+    def update_label_visibility(self):
+        if self.cross_section_enabled:
+            self.cursor_label.setVisible(not self.hide_action.isChecked())
+
     def hide_cross_hair_v(self):
         self.v_cross_section_widget.cross_section = 1
         self.v_cross_section_widget.image_operation = 1
@@ -1136,18 +1311,33 @@ class CrossSectionDock(CloseableDock):
         self.ui.histogram.item.axis.setLabel(text=zlabel)
 
     def setAxisLabels(self, *args, **kwargs):
-        self.plot_item.setLabel(axis='bottom', text=kwargs.get('xname', ''), units=kwargs.get('xscale', ''))
-        self.plot_item.setLabel(axis='left', text=kwargs.get('yname', ''), units=kwargs.get('yscale', ''))
-        self.v_cross_section_widget.plotItem.setLabel(axis='left', text=kwargs.get('zname', ''), units=kwargs.get('zscale', ''))
-        self.h_cross_section_widget.plotItem.setLabel(axis='bottom', text=kwargs.get('xname', ''), units=kwargs.get('xscale', ''))
-        self.v_cross_section_widget.plotItem.setLabel(axis='bottom', text=kwargs.get('yname', ''), units=kwargs.get('yscale', ''))
-        self.h_cross_section_widget.plotItem.setLabel(axis='left', text=kwargs.get('zname', ''), units=kwargs.get('zscale', ''))
+        if not hasattr(self, 'label_z'):
+            self.label_z = kwargs.get('zscale', '')
+        if not hasattr(self, 'label_y'): 
+            self.label_y = kwargs.get('yscale', '')
+        if not hasattr(self, 'label_x'):
+            self.label_x = kwargs.get('xscale', '')
+
+        self.plot_item.setLabel(axis='bottom', text=kwargs.get('xname', ''), units=self.label_x)
+        self.plot_item.setLabel(axis='left', text=kwargs.get('yname', ''), units=self.label_y)
+        self.v_cross_section_widget.plotItem.setLabel(axis='left', text=kwargs.get('zname', ''), units=self.label_z)
+        self.h_cross_section_widget.plotItem.setLabel(axis='bottom', text=kwargs.get('xname', ''), units=self.label_x)
+        self.v_cross_section_widget.plotItem.setLabel(axis='bottom', text=kwargs.get('yname', ''), units=self.label_y)
+        self.h_cross_section_widget.plotItem.setLabel(axis='left', text=kwargs.get('zname', ''), units=self.label_z)
 
         self.h_cross_section_widget.axis = [kwargs.get('xname', ''), kwargs.get('xscale', '')] 
         self.v_cross_section_widget.axis = [kwargs.get('yname', ''), kwargs.get('yscale', '')] 
 
     def setImage(self, *args, **kwargs):
         item = self.plot_item.getViewBox()
+
+        if self.first_render:
+            kwargs['autoRange'] = True
+            self.first_render = False
+        else:
+            kwargs['autoRange'] = False
+            item.disableAutoRange(pg.ViewBox.XYAxes)
+
         item.invertY(False)        
         if 'pos' in kwargs:
             self._x0, self._y0 = kwargs['pos']
@@ -1167,8 +1357,8 @@ class CrossSectionDock(CloseableDock):
         self._xscale_prev = self._xscale
         self._yscale_prev = self._yscale
 
-        autorange = self.img_view.getView().vb.autoRangeEnabled()[0]
-        kwargs['autoRange'] = autorange
+        #autorange = self.img_view.getView().vb.autoRangeEnabled()[0]
+        #kwargs['autoRange'] = autorange
 
         if self.auto_levels == 0:
             kwargs['autoLevels'] = True
@@ -1177,7 +1367,14 @@ class CrossSectionDock(CloseableDock):
         self.auto_levels = 0
 
         self.img_view.setImage(*args, **kwargs )
-        self.img_view.getView().vb.enableAutoRange(enable = autorange)
+        if self.set_image == 0:
+            item.autoRange(padding = 0.05 )
+            if hasattr(self.img_view, 'tVals') and self.img_view.tVals is not None and len(self.img_view.tVals) > 0:
+                self.time_array = self.img_view.tVals
+                t_min, t_max = self.time_array[0], self.time_array[-1]
+                self.line.setBounds([t_min, t_max])
+
+        #self.img_view.getView().vb.enableAutoRange(enable = autorange)
         self.update_cross_section_set_data()
         self.set_image = 1
 
@@ -1491,10 +1688,15 @@ class CrossSectionDock(CloseableDock):
         self.cross_section_enabled = True
 
         self.cursor_label.setPos(mid_x, mid_y)
-        self.cursor_label.show()
+        self.cursor_label.setVisible(not self.hide_action.isChecked())
+        #self.cursor_label.show()
+
+        mid_y_parsed = pg.siFormat(mid_y, suffix=self.label_y, precision = 5)
+        mid_x_parsed = pg.siFormat(mid_x, suffix=self.label_x, precision = 5)
+        mid_z_parsed = pg.siFormat(0, suffix=self.label_z, precision = 5)
 
         self.cursor_label.border = pg.mkPen((255, 255, 0, 255), width=1.5)
-        label_text = f"X: {mid_x:.4g}\nY: {mid_y:.4g}\nZ: {0}"
+        label_text = f"X: {mid_x_parsed}\nY: {mid_y_parsed}\nZ: {mid_z_parsed}"
         self.cursor_label.setText(label_text)
 
         self.v_cross_section_widget.image_operation = 1
@@ -1504,7 +1706,6 @@ class CrossSectionDock(CloseableDock):
         self.h_cross_section_widget.image_operation = 1
         self.h_cross_section_widget.click_count_1d = 0
         self.h_cross_section_widget.search_mode = False
-
 
     def hide_cross_section(self):
         if self.cross_section_enabled:
@@ -1525,7 +1726,7 @@ class CrossSectionDock(CloseableDock):
             raise RuntimeError('Signal can only be connected after it has been embedded in a scene.')
         self.imageItem.scene().sigMouseClicked.connect(self.toggle_search)
         self.imageItem.scene().sigMouseMoved.connect(self.handle_mouse_move)
-        self.img_view.timeLine.sigPositionChanged.connect(self.update_cross_section)
+        #self.img_view.timeLine.sigPositionChanged.connect(self.update_cross_section)
         self.signals_connected = True
 
     def on_scene_clicked(self, ev):
@@ -1591,9 +1792,15 @@ class CrossSectionDock(CloseableDock):
 
             self.cursor_label.setAnchor((anchor_x, anchor_y))            
             self.cursor_label.setPos(view_x, view_y)
-            self.cursor_label.show()
+            self.cursor_label.setVisible(not self.hide_action.isChecked())
 
-            label_text = f"X: {view_x:.4g} ({(self.y_cross_index+1):.0f})\nY: {view_y:.4g} ({(self.x_cross_index+1):.0f})\nZ: {z_val:.4g}"
+            #self.cursor_label.show()
+
+            y_parsed = pg.siFormat(view_y, suffix=self.label_y, precision = 5)
+            x_parsed = pg.siFormat(view_x, suffix=self.label_x, precision = 5)
+            z_parsed = pg.siFormat(z_val, suffix=self.label_z, precision = 5)
+
+            label_text = f"X: {x_parsed} ({(self.y_cross_index+1):.0f})\nY: {y_parsed} ({(self.x_cross_index+1):.0f})\nZ: {z_parsed}"
             self.cursor_label.setText(label_text)
 
     def update_cross_section_set_data(self):
@@ -1681,9 +1888,14 @@ class CrossSectionDock(CloseableDock):
             if (self.v_cross_section_widget.v_line.isVisible() == False) or (self.v_cross_section_widget.h_line.isVisible() == False):
                 pass
             else:
-                self.v_cross_section_widget.cursor_label.show()
+                #self.v_cross_section_widget.cursor_label.show()
+                self.v_cross_section_widget.update_label_visibility()
 
-            label_text = f"X: {xdata[self.x_cross_index]:.4g} ({(self.y_cross_index+1):.0f})\nY: {ydata[self.y_cross_index]:.4g} ({(self.x_cross_index+1):.0f})\nZ: {zval:.4g}"
+            y_parsed = pg.siFormat(ydata[self.y_cross_index], suffix=self.label_y, precision = 5)
+            x_parsed = pg.siFormat(xdata[self.x_cross_index], suffix=self.label_x, precision = 5)
+            z_parsed = pg.siFormat(zval, suffix=self.label_z, precision = 5)
+
+            label_text = f"X: {x_parsed} ({(self.y_cross_index+1):.0f})\nY: {y_parsed} ({(self.x_cross_index+1):.0f})\nZ: {z_parsed}"
             #label_text = f"Y: {ydata[self.y_cross_index]:.4g}\nZ: {zval:.4g}\nPoint: {(self.x_cross_index+1):.0f}"
             
             self.v_cross_section_widget.cursor_label.setText(label_text)
@@ -1749,9 +1961,14 @@ class CrossSectionDock(CloseableDock):
             if (self.h_cross_section_widget.v_line.isVisible() == False) or (self.h_cross_section_widget.h_line.isVisible() == False):
                 pass
             else:
-                self.h_cross_section_widget.cursor_label.show()
+                #self.h_cross_section_widget.cursor_label.show()
+                self.h_cross_section_widget.update_label_visibility()
 
-            label_text = f"X: {xdata[self.x_cross_index]:.4g} ({(self.y_cross_index+1):.0f})\nY: {ydata[self.y_cross_index]:.4g} ({(self.x_cross_index+1):.0f})\nZ: {zval:.4g}"
+            y_parsed = pg.siFormat(ydata[self.y_cross_index], suffix=self.label_y, precision = 5)
+            x_parsed = pg.siFormat(xdata[self.x_cross_index], suffix=self.label_x, precision = 5)
+            z_parsed = pg.siFormat(zval, suffix=self.label_z, precision = 5)
+
+            label_text = f"X: {x_parsed} ({(self.y_cross_index+1):.0f})\nY: {y_parsed} ({(self.x_cross_index+1):.0f})\nZ: {z_parsed}"
             #f"X: {xdata[self.x_cross_index]:.4g}\nZ: {zval:.4g}\nPoint: {(self.y_cross_index+1):.0f}"
 
             self.h_cross_section_widget.cursor_label.setText(label_text)

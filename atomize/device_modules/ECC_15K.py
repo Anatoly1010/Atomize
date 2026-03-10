@@ -63,6 +63,10 @@ class ECC_15K:
                         general.message(f"No connection {self.__class__.__name__}")
                         sys.exit()
 
+            ans = self.device_query(f'SYST:ERR?')
+            general.message(ans)
+            self.device_write(f'*RST')
+
         # Test run parameters
         # These values are returned by the modules in the test run 
         elif self.test_flag == 'test':
@@ -81,6 +85,9 @@ class ECC_15K:
         if self.status_flag == 1:
             command = str(command)
             self.device.write(command)
+            general.wait('300 ms')
+            res = self.device_query(f"*OPC?")
+            #general.message(res)
         else:
             self.status_flag = 0
             general.message(f"No connection {self.__class__.__name__}")
@@ -89,7 +96,7 @@ class ECC_15K:
     def device_query(self, command):
         if self.status_flag == 1:
             command = str(command)
-            answer = self.device.query(command)
+            answer = self.device.query(command, delay=0.5)
             return answer
         else:
             self.status_flag = 0
@@ -116,12 +123,10 @@ class ECC_15K:
             if len(freq) == 1:
                 freq = str( freq[0] )
                 self.device_write(f':FREQ {freq}')
-                general.wait('50 ms')
                 self.freq = freq
 
             elif len(freq) == 0:
-                raw_answer = int( self.device_query(':FREQ?') )
-                general.wait('50 ms')
+                raw_answer = float( self.device_query(':FREQ?') )
                 answer = pg.siFormat( raw_answer, suffix = 'Hz', precision = 9, allowUnicode = False)
                 return answer
 
@@ -146,13 +151,11 @@ class ECC_15K:
         if self.test_flag != 'test':
             if len(state) == 1:
                 state = str( state[0] )
-                self.device_write(f'OUTPut {state}')
-                general.wait('50 ms')
+                self.device_write(f'OUTP {state}')
                 self.state = state
 
             elif len(state) == 0:
                 raw_answer = int( self.device_query('OUTP?') )
-                general.wait('50 ms')
                 if raw_answer == 1:
                     return 'On'
                 elif raw_answer == 0:
@@ -178,12 +181,10 @@ class ECC_15K:
                 level = int( level[0] )
                 if level <= self.max_power_level and level >= self.min_power_level:
                     self.device_write(f':POW {level}')
-                    general.wait('50 ms')
                     self.power_level = level
 
             elif len(level) == 0:
                 answer = int( float( self.device_query(':POW?') ) )
-                general.wait('50 ms')
                 return answer
 
         elif self.test_flag == 'test':

@@ -129,6 +129,8 @@ class Insys_FPGA:
 
         self.trigger_awg_shift = 160
         self.internal_pause_pulser = '0 us'
+        self.synt2_shift = 0
+        self.synt2_ext = 32
 
         # interval that shift the first pulse in the sequence
         # start times of other pulses can be calculated from this time.
@@ -160,8 +162,6 @@ class Insys_FPGA:
             self.iterator_of_updates_pulser = 0
             # Default synt for AWG channel
             self.synt_number = 2
-            self.synt2_shift = 15
-            self.synt2_ext = 4
 
         elif self.test_flag == 'test':
             self.test_rep_rate_pulser = '200 Hz'
@@ -182,8 +182,6 @@ class Insys_FPGA:
             self.instr_from_file_pulser = 0
             # Default synt for AWG channel
             self.synt_number = 2
-            self.synt2_shift = 15
-            self.synt2_ext = 4
 
         #### Inizialization
         # setting path to *.ini file
@@ -539,11 +537,14 @@ class Insys_FPGA:
     def pulser_pulse(self, name = 'P0', channel = 'DETECTION', start = '0 ns', length = '100 ns', \
         delta_start = '0 ns', length_increment = '0 ns', phase_list = []):
         """
+        , default_source = 0
         A function that added a new pulse at specified channel. The possible arguments:
         NAME, CHANNEL, START, LENGTH, DELTA_START, LENGTH_INCREMENT, PHASE_SEQUENCE
         """
         if self.test_flag != 'test':
             pulse = {'name': name, 'channel': channel, 'start': start, 'length': length, 'delta_start' : delta_start, 'length_increment': length_increment, 'phase_list': phase_list}
+            #mod
+            #, 'default_source': default_source
 
             temp_length = length.split(" ")
             if temp_length[1] in self.timebase_dict:
@@ -565,6 +566,10 @@ class Insys_FPGA:
                     pulse_awg = {'name': name + 'AWG', 'channel': 'AWG', 'start': start, 'length': length, 'delta_start' : delta_start, 'length_increment': length_increment, 'phase_list': phase_list}
                     self.pulse_array_pulser.append( pulse_awg )
                     self.pulse_name_array_pulser.append( pulse['name'] )
+                    #mod
+                    #if default_source == 0:
+                    #    pulse_synt2 = {'name': name + 'SYNT2', 'channel': 'SYNT2', 'start': start, 'length': str(self.round_to_closest(p_length + self.synt2_ext, 3.2)) + ' ns', 'delta_start' : delta_start, 'length_increment': length_increment, 'phase_list': phase_list}
+                    #    self.pulse_array_pulser.append( pulse_synt2 )
 
             temp_start = start.split(" ")
             if temp_start[1] in self.timebase_dict:
@@ -616,6 +621,8 @@ class Insys_FPGA:
 
             pulse = {'name': name, 'channel': channel, 'start': start, \
                 'length': length, 'delta_start' : delta_start, 'length_increment': length_increment, 'phase_list': phase_list}
+            #mod
+            #, 'default_source': default_source
             
             # phase_list's length
             if channel == 'MW':
@@ -659,6 +666,10 @@ class Insys_FPGA:
                             'length_increment': length_increment, 'phase_list': phase_list}
                     self.pulse_array_pulser.append( pulse_awg )
                     self.pulse_name_array_pulser.append( pulse['name'] )
+                    #mod
+                    #if default_source == 0:
+                    #    pulse_synt2 = {'name': name + 'SYNT2', 'channel': 'SYNT2', 'start': start, 'length': length, 'delta_start' : delta_start, 'length_increment': length_increment, 'phase_list': phase_list}
+                    #    self.pulse_array_pulser.append( pulse_synt2 )
 
                 if channel not in ('DETECTION', 'LASER', 'SYNT2'):
                     assert(p_length >= self.min_pulse_length_pulser), 'Pulse is shorter than minimum available length (' + str(self.min_pulse_length_pulser) +' ns)'
@@ -741,7 +752,7 @@ class Insys_FPGA:
             else:
                 assert (1 == 2), 'Incorrect channel name'
 
-    #update!
+    #add synt2
     def pulser_redefine_start(self, *, name, start):
         """
         A function for redefining start of the specified pulse.
@@ -809,7 +820,6 @@ class Insys_FPGA:
                         if pulse['channel'] == 'TRIGGER_AWG' and i > 0:
                             self.pulse_array_pulser[i-1]['start'] = new_val
 
-    #update!
     def pulser_redefine_delta_start(self, *, name, delta_start):
         """
         A function for redefining delta_start of the specified pulse.
@@ -877,7 +887,6 @@ class Insys_FPGA:
                         if pulse['channel'] == 'TRIGGER_AWG' and i > 0:
                             self.pulse_array_pulser[i-1]['delta_start'] = new_val
 
-    #update!
     def pulser_redefine_length_increment(self, *, name, length_increment):
         """
         A function for redefining length_increment of the specified pulse.
@@ -1182,6 +1191,7 @@ class Insys_FPGA:
                 
                 to_spinapi2 = np.array(to_spinapi, dtype = np.int64)
                 if self.awg_pulses_pulser == 1:
+                    #mod; two lines:
                     to_spinapi3 = to_spinapi2 + np.array( [512, 0, 0] )
                     to_spinapi3[-1, 0] = 0
                     self.gen_GIM_words( to_spinapi3 ) # Создает главный буфер 
@@ -1258,6 +1268,7 @@ class Insys_FPGA:
                 to_spinapi2 = np.array(to_spinapi, dtype = np.int64)
 
                 if self.awg_pulses_pulser == 1:
+                    #mod; two lines:
                     to_spinapi3 = to_spinapi2 + np.array( [512, 0, 0] )
                     to_spinapi3[-1, 0] = 0
                     self.gen_GIM_words( to_spinapi3 ) # Создает главный буфер
@@ -1367,7 +1378,7 @@ class Insys_FPGA:
                         else:
                             pass
                                 
-                        self.pulse_array_pulser[i]['start'] = str( st + d_start ) + ' ns'
+                        self.pulse_array_pulser[i]['start'] = str( self.round_to_closest(st + d_start, 3.2) ) + ' ns'
  
                     i += 1
 
@@ -1398,7 +1409,7 @@ class Insys_FPGA:
                             else:
                                 pass
                                     
-                            self.pulse_array_pulser[pulse_index]['start'] = str( st + d_start ) + ' ns'
+                            self.pulse_array_pulser[pulse_index]['start'] = str( self.round_to_closest(st + d_start, 3.2) ) + ' ns'
 
                         self.shift_count_pulser = 1
                         self.current_phase_index_pulser = 0
@@ -1425,7 +1436,7 @@ class Insys_FPGA:
                         else:
                             assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
                                 
-                        self.pulse_array_pulser[i]['start'] = str( st + d_start ) + ' ns'
+                        self.pulse_array_pulser[i]['start'] = str( self.round_to_closest(st + d_start, 3.2) ) + ' ns'
 
                     i += 1
 
@@ -1457,7 +1468,7 @@ class Insys_FPGA:
                             else:
                                 assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
                                     
-                            self.pulse_array_pulser[pulse_index]['start'] = str( st + d_start ) + ' ns'
+                            self.pulse_array_pulser[pulse_index]['start'] = str( self.round_to_closest(st + d_start, 3.2) ) + ' ns'
 
                         self.shift_count_pulser = 1
                         self.current_phase_index_pulser = 0
@@ -3047,7 +3058,6 @@ class Insys_FPGA:
                 self.current_phase_index_awg += 1
             self.awg_update()
 
-    #update!
     def awg_redefine_delta_start(self, *, name, delta_start):
         """
         A function for redefining delta_start of the specified pulse for Single Joined mode.
@@ -3109,7 +3119,6 @@ class Insys_FPGA:
                         pulse['delta_start'] = new_val
                         self.shift_count_awg = 1
 
-    #update!
     def awg_redefine_frequency(self, *, name, freq):
         """
         A function for redefining frequency of the specified pulse.
@@ -3160,7 +3169,6 @@ class Insys_FPGA:
                         pulse['frequency'] = fr
                         self.shift_count_awg = 1
 
-    #update!
     def awg_redefine_phase(self, *, name, phase):
         """
         A function for redefining phase of the specified pulse.
@@ -3193,7 +3201,6 @@ class Insys_FPGA:
                         pulse['phase'] = float(ph)
                         self.shift_count_awg = 1
 
-    #update!
     def awg_redefine_delta_phase(self, *, name, delta_phase):
         """
         A function for redefining delta_phase of the specified pulse.
@@ -3225,7 +3232,6 @@ class Insys_FPGA:
                         pulse['delta_phase'] = float(d_ph)
                         self.shift_count_awg = 1
 
-    #update!
     def awg_add_phase(self, *, name, add_phase):
         """
         A function for adding a constant phase to the specified pulse.
@@ -3259,7 +3265,6 @@ class Insys_FPGA:
                         pulse['phase'] += float(ph)
                         self.shift_count_awg = 1
 
-    #update!
     def awg_redefine_length_increment(self, *, name, length_increment):
         """
         A function for redefining length increment of the specified pulse.
@@ -4123,7 +4128,8 @@ class Insys_FPGA:
                     ch_num = self.channel_dict_pulser[ch]
 
                 # get start
-                if ch != 'AWG':
+                #mod
+                if (ch != 'AWG'):# and (ch != 'SYNT2'):
                     st = p_array[i]['start']
                 else:
                     # shift AWG pulse to get RECT_AWG
@@ -4140,7 +4146,8 @@ class Insys_FPGA:
                     st_time = int( ceil(round( float(st[:-3]) * 1000000000 / self.timebase_pulser, 1) ) )
                 
                 # get length
-                if ch != 'AWG':
+                #mod
+                if (ch != 'AWG'):# and (ch != 'SYNT2'):
                     leng = p_array[i]['length']
                 else:
                     # shift AWG pulse to get RECT_AWG
@@ -4190,6 +4197,7 @@ class Insys_FPGA:
 
         elif self.test_flag == 'test':
             i = 0
+
             pulse_temp_array = []
             num_pulses = len( p_array )
 
@@ -4200,7 +4208,8 @@ class Insys_FPGA:
                     ch_num = self.channel_dict_pulser[ch]
 
                 # get start
-                if ch != 'AWG':
+                #mod
+                if (ch != 'AWG'):# and (ch != 'SYNT2'):
                     st = p_array[i]['start']
                 else:
                     st = self.change_pulse_settings_pulser(p_array[i]['start'], -self.rect_awg_switch_delay_pulser)
@@ -4216,7 +4225,8 @@ class Insys_FPGA:
                     st_time = int( ceil(round( float(st[:-3]) * 1000000000 / self.timebase_pulser, 1) ) )
 
                 # get length
-                if ch != 'AWG':
+                #mod
+                if (ch != 'AWG'):# and (ch != 'SYNT2'):
                     leng = p_array[i]['length']
                 else:
                     # shift AWG pulse to get RECT_AWG
@@ -4265,7 +4275,6 @@ class Insys_FPGA:
             # should be sorted according to channel number for corecct splitting into subarrays
             return np.asarray(sorted(pulse_temp_array, key = lambda x: int(x[0])), dtype = np.int64)
 
-    #changed
     def splitting_acc_to_channel_pulser(self, np_array):
         """
         A function that splits pulse array into
@@ -4333,10 +4342,10 @@ class Insys_FPGA:
                     pass
 
                 new_ans = self.process_and_merge_rect_awg(answer, target_channel=128, gap_threshold=71)
+
                 return new_ans
 
-    #for test
-    def process_and_merge_rect_awg(self, data_list, target_channel =128, gap_threshold=70):
+    def process_and_merge_rect_awg(self, data_list, target_channel=128, gap_threshold=70):
         if not data_list:
             return np.array([])
         
@@ -4886,6 +4895,7 @@ class Insys_FPGA:
             else:
                 assert(1 == 2), 'Pulse sequence is longer than one period of the repetition rate'             
 
+    #need to check
     def convert_to_bit_pulse_pulser(self, np_array):
         """
         A function to calculate in which time interval
@@ -4901,6 +4911,22 @@ class Insys_FPGA:
         """
 
         if self.test_flag != 'test':
+
+            pulses = np_array
+
+            max_pulse = pulses[:, 2].max()
+            min_pulse = pulses[:, 1].min() - self.add_shift_pulser
+            
+            bit_array = np.zeros(max_pulse - min_pulse, dtype=np.int64)
+            
+            for bit_val, start, end in pulses:
+                s = start - min_pulse
+                e = end - min_pulse
+                bit_array[s:e] |= bit_val
+            
+            return bit_array, min_pulse
+
+            """
             #pulses = self.preparing_to_bit_pulse_pulser(np_array)
             pulses = np_array
             max_pulse = np.amax(pulses[:,2])
@@ -4935,8 +4961,26 @@ class Insys_FPGA:
                 i += 1
 
             return bit_array, min_pulse
+            """
 
         elif self.test_flag == 'test':
+
+            pulses = np_array
+
+            max_pulse = pulses[:, 2].max()
+            min_pulse = pulses[:, 1].min() - self.add_shift_pulser
+            
+            bit_array = np.zeros(max_pulse - min_pulse, dtype=np.int64)
+            
+            for bit_val, start, end in pulses:
+                s = start - min_pulse
+                e = end - min_pulse
+                bit_array[s:e] |= bit_val
+            
+            return bit_array, min_pulse
+
+
+            """
             #pulses = self.preparing_to_bit_pulse_pulser(np_array)
             pulses = np_array
 
@@ -4968,6 +5012,7 @@ class Insys_FPGA:
                 i += 1
 
             return bit_array, min_pulse
+            """
 
     def convert_to_bit_pulse_visualizer_pulser(self, np_array):
         """
@@ -5023,6 +5068,7 @@ class Insys_FPGA:
 
         elif self.test_flag == 'test':
             pulses = self.preparing_to_bit_pulse_pulser(np_array)
+
             #pulses = np_array
             #for index, element in enumerate(pulses):
             #    element[2] = element[1] + element[2]  
@@ -5569,7 +5615,7 @@ class Insys_FPGA:
             if temp[1] in self.timebase_dict:
                 flag = self.timebase_dict[temp[1]]
                 par_st = int(float((temp[0]))*flag + delay)
-                new_parameter = str( par_st ) + ' ns'
+                new_parameter = str( self.round_to_closest(par_st, 3.2) ) + ' ns'
 
             return new_parameter
 
@@ -5578,7 +5624,7 @@ class Insys_FPGA:
             if temp[1] in self.timebase_dict:
                 flag = self.timebase_dict[temp[1]]
                 par_st = int(float((temp[0]))*flag + delay)
-                new_parameter = str( par_st ) + ' ns'
+                new_parameter = str( self.round_to_closest(par_st, 3.2) ) + ' ns'
             else:
                 assert(1 == 2), 'Incorrect time dimension (ns, us, ms, s)'
 

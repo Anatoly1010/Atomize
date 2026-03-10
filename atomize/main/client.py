@@ -39,7 +39,6 @@ class LivePlotClient(object):
         
         atexit.register(self.close)
 
-
     def close(self):
         self.shared_mem.detach()
 
