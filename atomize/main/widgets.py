@@ -718,22 +718,23 @@ class CrosshairDock(CloseableDock):
                         kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
                     except IndexError:
                         kwargs['pen'] = self.used_colors[name] = self.white_pen
-                        curve = self.plot_widget.plot(*args_mod, **kwargs)
 
-                        legend = self.plot_widget.getPlotItem().legend
-                        if legend is not None:
-                            last_sample, last_label = legend.items[-1]
-                            
-                            last_label.setAcceptHoverEvents(True)
+                    curve = self.plot_widget.plot(*args, **kwargs)
 
-                            last_label.mouseClickEvent = lambda ev, c=curve: self.activate_by_legend(c, ev)
-                            last_label.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+                    legend = self.plot_widget.getPlotItem().legend
+                    if legend is not None:
+                        last_sample, last_label = legend.items[-1]
+                        
+                        last_label.setAcceptHoverEvents(True)
 
-                        curve_item = curve.curve 
-                        curve_item.setClickable(True)#, width=10)
-                        curve_item.mouseDragEvent = lambda ev, c=curve: self.handle_drag(c, ev)
-                        curve_item.mousePressEvent = lambda ev, c=curve: self.handle_press(c, ev)
-                        self.curves[name] = curve
+                        last_label.mouseClickEvent = lambda ev, c=curve: self.activate_by_legend(c, ev)
+                        last_label.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+
+                    curve_item = curve.curve 
+                    curve_item.setClickable(True)#, width=10)
+                    curve_item.mouseDragEvent = lambda ev, c=curve: self.handle_drag(c, ev)
+                    curve_item.mousePressEvent = lambda ev, c=curve: self.handle_press(c, ev)
+                    self.curves[name] = curve
 
                     # Text label above the graph
                     temp = kwargs.get('text', '')
