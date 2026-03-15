@@ -314,25 +314,26 @@ class CrosshairPlotWidget(pg.PlotWidget):
 
             self.cursor_label.border = pg.mkPen(curve_color, width=1.5)
             #border color
-
-
-            y_parsed = pg.siFormat(h_pos, suffix=self.y_units, precision=5)
-            x_parsed = pg.siFormat(v_pos, suffix=self.x_units, precision=5)
-
-            label_text = f"X: {x_parsed}\nY: {y_parsed}"
-            self.cursor_label.setText(label_text)
             
             #for shift ans scale
             if x_log_mode:
                 v_pos = math.log10(max(raw_x, 1e-15)) + offset.x()
+                x_parsed = pg.siFormat(10**v_pos, suffix=self.x_units, precision=5)
             else:
+                x_parsed = pg.siFormat(v_pos, suffix=self.x_units, precision=5)
                 v_pos = raw_x + offset.x()
 
             if y_log_mode:
                 h_pos = (math.log10(max(raw_y, 1e-15)) * scale_y) + offset.y()
+                y_parsed = pg.siFormat(10**h_pos, suffix=self.y_units, precision=5)
             else:
+                y_parsed = pg.siFormat(h_pos, suffix=self.y_units, precision=5)
                 h_pos = (raw_y * scale_y) + offset.y()
             #for shift ans scale
+
+
+            label_text = f"X: {x_parsed}\nY: {y_parsed}"
+            self.cursor_label.setText(label_text)
 
             #label
             view_range = vb.viewRange()

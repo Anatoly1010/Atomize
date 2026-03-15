@@ -8,6 +8,7 @@ file_handler = openfile.Saver_Opener()
 data = np.zeros( (4, 10000, 10) )
 step = 10
 i = 0
+process = 'None'
 
 ## 2D Plot
 while i < 10:
@@ -23,8 +24,9 @@ while i < 10:
     start_time = time.time()
 
     # Plot_2d
-    general.plot_2d('2D Multi', data,  xname='Time', start_step=( (0, 1), (0.3, 0.001) ),\
-        xscale='s', yname='Magnetic Field', yscale='T', zname='Intensity', zscale='V')
+    process = general.plot_2d('2D Multi', data,  xname='Time', start_step=( (0, 1), (0.3, 0.001) ),\
+        xscale='s', yname='Magnetic Field', yscale='T', zname='Intensity', zscale='V', pr=process)
+    general.wait('100 ms')
     
     general.message(str(time.time() - start_time))
     
