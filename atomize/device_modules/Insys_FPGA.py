@@ -6597,6 +6597,39 @@ class Insys_FPGA:
 
         return channel_1 , channel_2
     
+    #new
+    def digitizer_iq(self, arr_i, arr_q, freq, ph, integral = False):
+
+        if np.isnan(arr_i).any() or np.isnan(arr_q).any():
+            return None, None
+
+        #phi_rad = np.radians(ph)
+
+        signal = arr_i + 1j * arr_q
+        timeaxis = signal.shape[0]
+        
+        fs = 2.5e9 / self.dec_coef
+        t = np.arange(timeaxis) / fs
+        f_offset = freq * 1e6
+        correction = np.exp(-1j * (2 * np.pi * f_offset * t + ph) )
+
+        new_shape = (timeaxis,) + (1,) * (signal.ndim - 1)
+        corrected_signal = signal * correction.reshape(new_shape)
+
+        if not integral:
+            return corrected_signal.real, corrected_signal.imag
+        elif (integral) and len(signal.shape) == 2:
+
+            scale = 0.4 * self.dec_coef
+            window = corrected_signal[self.win_left : self.win_right, :]
+
+            res_i = np.sum(window.real, axis=0) * scale
+            res_q = np.sum(window.imag, axis=0) * scale
+
+            return res_i, res_q
+
+        else:
+            raise ValueError("Incorrect dimension of the array")
 
 def main():
     pass
