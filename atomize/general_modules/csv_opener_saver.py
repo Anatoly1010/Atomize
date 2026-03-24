@@ -228,7 +228,7 @@ class Saver_Opener():
         self.dialog = QFileDialog( options = QFileDialog.Option.DontUseNativeDialog )
         self.dialog.setIconProvider(QFileIconProvider())
         
-        self.dialog.resize(800, 450) 
+        self.dialog.resize(800, 450)
         self.dialog.setFileMode(QFileDialog.FileMode.AnyFile)
         # both open and save dialog
         self.dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)\

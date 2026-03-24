@@ -16,6 +16,12 @@ class Fast_Fourier():
 
     def ph_correction(self, freq, data_i, data_q, cor1, cor2, cor3):
         if self.test_flag != 'test':
+            if np.isnan(data_i).any() or np.isnan(data_q).any():
+                if len(data_i.shape) > 1:
+                    out_shape = (2, *data_i.shape[::-1])
+                else:
+                    out_shape = (2, *data_i.shape)
+
             data = data_i + 1j*data_q
             data = data*np.exp( 1j*cor1 + 1j*cor2*freq + 1j*cor3*freq*freq )
             if len( data_i.shape ) == 1:
@@ -24,6 +30,12 @@ class Fast_Fourier():
                 return np.array( (np.transpose( np.real(data) ), np.transpose( np.imag(data) )) )
 
         elif self.test_flag == 'test':
+            if np.isnan(data_i).any() or np.isnan(data_q).any():
+                if len(data_i.shape) > 1:
+                    out_shape = (2, *data_i.shape[::-1])
+                else:
+                    out_shape = (2, *data_i.shape)
+
             data = data_i + 1j*data_q
             data = data*np.exp( 1j*cor1 + 1j*cor2*freq + 1j*cor3*freq*freq )
             if len( data_i.shape ) == 1:
@@ -34,6 +46,11 @@ class Fast_Fourier():
     def fft(self, x_axis, data_i, data_q, sample_spacing, re = 'False'):
         if self.test_flag != 'test':
             if re == 'False':
+
+                if np.isnan(data_i).any() or np.isnan(data_q).any():
+                    nan_array = np.full_like(data_i, np.nan, dtype=float)
+                    return nan_array, nan_array
+
                 data = data_i + 1j*data_q
                 sp = np.fft.fft( data )
 
@@ -43,6 +60,11 @@ class Fast_Fourier():
                 return freq[i], np.abs( sp[i] )
 
             elif re == 'True':
+
+                if np.isnan(data_i).any() or np.isnan(data_q).any():
+                    nan_array = np.full_like(data_i, np.nan, dtype=float)
+                    return nan_array, nan_array, nan_array
+
                 data = data_i + 1j*data_q
 
                 if len( data_i.shape ) == 1:
@@ -67,6 +89,11 @@ class Fast_Fourier():
 
         elif self.test_flag == 'test':
             if re == 'False':
+                
+                if np.isnan(data_i).any() or np.isnan(data_q).any():
+                    nan_array = np.full_like(data_i, np.nan, dtype=float)
+                    return nan_array, nan_array
+
                 data = data_i + 1j*data_q
                 sp = np.fft.fft( data )
 
@@ -76,6 +103,11 @@ class Fast_Fourier():
                 return freq[i], np.abs( sp[i] )
 
             elif re == 'True':
+                
+                if np.isnan(data_i).any() or np.isnan(data_q).any():
+                    nan_array = np.full_like(data_i, np.nan, dtype=float)
+                    return nan_array, nan_array, nan_array
+
                 data = data_i + 1j*data_q
 
                 if len( data_i.shape ) == 1:
