@@ -478,6 +478,7 @@ class Insys_FPGA:
             self.awg_start                         = 0
 
             self.mes                               = 0
+            self.l_mode                            = 0
 
         elif self.test_flag == 'test':
 
@@ -527,6 +528,7 @@ class Insys_FPGA:
             self.awg_start                         = 0
 
             self.mes                               = 0
+            self.l_mode                            = 0
 
     # Module functions
     ####################GIM#################
@@ -1801,27 +1803,42 @@ class Insys_FPGA:
             if (j == int( sh_points - phases)) and (i != 0 ):
                 j = sh_points
 
+            #31/03/2026
+            if self.l_mode == 1:
+                i = 0 
+                j = len(self.count_nip)
+                #print(self.count_nip)
+
             counts_adc = int( adc_window * 8 / self.dec_coef )
             counts_adc_full = int( adc_window * 16 )
             points_to_cycle = int( j - i)
             points_to_cycle_ph = int( points_to_cycle//phases)
 
-            data_for_cycling = self.data_raw[int(i*counts_adc_full):int(j*counts_adc_full)]
+            # can be decimation error
+            #ValueError: cannot reshape array of size 10667 into shape (2,5333)
+            #adc_window * 8 / self.dec_coef is float
 
+            data_for_cycling = self.data_raw[int(i*counts_adc_full):int(j*counts_adc_full)]
             data_i =  self.adc_sens * (data_for_cycling[0::(2*self.dec_coef)]).reshape( points_to_cycle, counts_adc, order = 'C'  ) / self.count_nip[i:j,None] / self.gimSum_brd / phases
             data_q =  self.adc_sens * (data_for_cycling[1::(2*self.dec_coef)]).reshape( points_to_cycle, counts_adc, order = 'C'  ) / self.count_nip[i:j,None] / self.gimSum_brd / phases
+
 
             #SCANS:
             if (i == 0) and (k == 0):
                 self.n_scans += 1
 
-            if self.flag_phase_cycle == 0:
+            #31/03/2026
+            if self.l_mode == 1:
+                self.n_scans = 1
 
+            if self.flag_phase_cycle == 0:
                 self.answer = np.zeros( ( int( sh_points / phases), counts_adc ), dtype = np.complex64 )
-                self.flag_phase_cycle = 1
+                #31/03/2026
+                if self.l_mode == 0:
+                    self.flag_phase_cycle = 1
 
             #SCANS
-            if self.n_scans > 1:
+            if (self.n_scans > 1):
                 self.answer[(i//phases):(j//phases),:] = np.zeros( ( points_to_cycle_ph, counts_adc ), dtype = np.complex64 )
 
 
@@ -2004,6 +2021,7 @@ class Insys_FPGA:
         p - points
         ph - phases
         """
+        self.l_mode = live_mode
         if self.test_flag != 'test':
 
             total_points = int(p * ph)
@@ -2242,6 +2260,7 @@ class Insys_FPGA:
         p - points
         ph - phases
         """
+        self.l_mode = live_mode
         if self.test_flag != 'test':
             adc_window = self.adc_window
             total_points = int(p * ph)
@@ -2516,6 +2535,7 @@ class Insys_FPGA:
         """
         return ( self.win_right - self.win_left ) * 1000 / self.sample_rate
 
+    #mod
     def digitizer_decimation(self, *dec):
         """
         Special function for decimation
@@ -2528,7 +2548,7 @@ class Insys_FPGA:
 
         elif self.test_flag == 'test':
             if  len(dec) == 1:
-                assert ( (int(dec[0]) > 0) and ( int(dec[0]) <= 4 ) ), "Incorrect decimation coefficient. Should be 1-4"
+                assert ( (int(dec[0]) == 1) or (int(dec[0]) == 2) or (int(dec[0]) == 4) ), "Incorrect decimation coefficient. The available coefficients are [1, 2, 4]"
                 self.dec_coef = int(dec[0])
             elif len(dec) == 0:
                 return self.dec_coef
@@ -6606,7 +6626,7 @@ class Insys_FPGA:
         return channel_1 , channel_2
     
     #new
-    def digitizer_iq(self, arr_i, arr_q, freq, ph, integral = False):
+    def digitizer_iq(self, arr_i, arr_q, freq, ph, ph1, ph2, integral = False):
 
         if np.isnan(arr_i).any() or np.isnan(arr_q).any():
             return arr_i, arr_q
@@ -6619,7 +6639,11 @@ class Insys_FPGA:
         fs = 2.5e9 / self.dec_coef
         t = np.arange(timeaxis) / fs
         f_offset = freq * 1e6
-        correction = np.exp(-1j * (2 * np.pi * f_offset * t + ph) )
+
+        if (ph1 != 0.0) or (ph2 != 0.0):
+            correction = np.exp(-1j * (2 * np.pi * f_offset * t + ph + ph1 * t + ph2 * t**2) )
+        else:
+            correction = np.exp(-1j * (2 * np.pi * f_offset * t + ph) )
 
         new_shape = (timeaxis,) + (1,) * (signal.ndim - 1)
         corrected_signal = signal * correction.reshape(new_shape)
@@ -6638,6 +6662,79 @@ class Insys_FPGA:
 
         else:
             raise ValueError("Incorrect dimension of the array")
+
+    #new
+    def digitizer_expand_phase_cycling(self, p_input, *pulse_args):
+        phases = ['+x', '+y', '-x', '-y']
+        norm = {'x':0, 'y':1, '-x':2, '-y':3, '+':0, '-':2, 'i':1, '-i':3, '0':0}
+
+        def parse_to_indices(s):
+            if not s: return [0]
+            if isinstance(s, list):
+                return [phases.index(p.strip()) if p.strip() in phases else norm.get(p.strip().lower().replace(' ', ''), 0) for p in s]
+            
+            s_clean = s.replace(' ', '')
+            if ',' in s_clean:
+                parts = [p for p in s_clean.split(',') if p]
+                return [phases.index(p) if p in phases else norm.get(p.lower(), 0) for p in parts]
+               
+            def get_recursive(st):
+                st = st.replace('D', '').lower().replace(' ', '')
+                if not st: return [0]
+                if '[' not in st and '(' not in st:
+                    return [norm.get(st.strip(), 0)]
+                is_quad = st.startswith('[')
+                inner = get_recursive(st[1:-1])
+                steps, shift = (4, 1) if is_quad else (2, 2)
+                return [(p_idx + step * shift) % 4 for step in range(steps) for p_idx in inner]
+            
+            return get_recursive(s_clean)
+
+        raw_sequences = [parse_to_indices(arg) for arg in pulse_args]
+        
+        target_len = 1
+        for i, seq in enumerate(raw_sequences):
+            arg = pulse_args[i]
+            if isinstance(arg, str) and ('(' in arg or '[' in arg):
+                if len(seq) > 1: target_len *= len(seq)
+        
+        if target_len == 1:
+            for seq in raw_sequences:
+                if len(seq) > 1:
+                    target_len = abs(target_len * len(seq)) // math.gcd(target_len, len(seq))
+        
+        if target_len < 2: target_len = 2
+
+        pulses_final = []
+        current_repeat = 1
+        for i, seq in enumerate(raw_sequences):
+            arg = pulse_args[i]
+            if isinstance(arg, str) and ('(' in arg or '[' in arg):
+                expanded = [p for p in seq for _ in range(current_repeat)]
+                final = (expanded * (target_len // len(expanded) + 1))[:target_len]
+                current_repeat *= len(seq)
+            else:
+                final = (seq * (target_len // len(seq) + 1))[:target_len]
+            pulses_final.append(final)
+
+
+        if isinstance(p_input, (list, str)) and not any(ph in str(p_input).lower() for ph in ['x','y']):
+            if isinstance(p_input, str):
+                coeffs = [float(x) for x in re.findall(r'-?\d+\.?\d*', p_input)]
+            else:
+                coeffs = p_input
+                
+            receiver_indices = []
+            for step in range(target_len):
+                rec_sum = sum(coeffs[i] * pulses_final[i][step] 
+                              for i in range(min(len(coeffs), len(pulses_final))))
+                receiver_indices.append(int(round(rec_sum)) % 4)
+        else:
+            det_indices = parse_to_indices(p_input)
+            receiver_indices = (det_indices * (target_len // len(det_indices) + 1))[:target_len]
+
+        to_str = lambda indices: [phases[i] for i in indices]
+        return {"pulses": [to_str(p) for p in pulses_final], "receiver": to_str(receiver_indices)}
 
 def main():
     pass
