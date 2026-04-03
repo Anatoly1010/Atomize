@@ -1322,12 +1322,20 @@ class Insys_FPGA:
                     elif (self.adc_window > 511) and (self.adc_window <= 1022):
                         self.change_ini_file("streamBufSizeKb = 1024", "streamBufSizeKb = 512")
                 elif rep_time <= 20408163:
-                    self.change_ini_file("streamBufSizeKb = 128", "streamBufSizeKb = 1024")
-                    #self.change_ini_file("streamBufSizeKb = 256", "streamBufSizeKb = 1024")
-                    self.change_ini_file("streamBufSizeKb = 512", "streamBufSizeKb = 1024")
-                    
+                    if (self.adc_window < 1000):
+                        print(f'wind {self.adc_window}')
+                        self.change_ini_file("streamBufSizeKb = 128", "streamBufSizeKb = 1024")
+                        self.change_ini_file("streamBufSizeKb = 256", "streamBufSizeKb = 1024")
+                        self.change_ini_file("streamBufSizeKb = 512", "streamBufSizeKb = 1024")
+                        self.change_ini_file("streamBufSizeKb = 2048", "streamBufSizeKb = 1024")
+                        self.change_ini_file("streamBufSizeKb = 4096", "streamBufSizeKb = 1024")
+                    else:
+                        print('3')
+                        self.change_ini_file("streamBufSizeKb = 1024", "streamBufSizeKb = 4096")
+
 
                 self.rep_rate_count_pulser = 1
+
             elif len(r_rate) == 0:
                 return self.rep_rate_pulser[0]
 
@@ -1808,7 +1816,7 @@ class Insys_FPGA:
                 i = 0 
                 j = len(self.count_nip)
                 #print(self.count_nip)
-
+                
             counts_adc = int( adc_window * 8 / self.dec_coef )
             counts_adc_full = int( adc_window * 16 )
             points_to_cycle = int( j - i)
@@ -1964,7 +1972,8 @@ class Insys_FPGA:
                                                     #1
             setSync_GIMRet         = self.setSync_GIM( self.ext_trigger )   #;print("setSync_GIM:"    ,setSync_GIMRet        ) # Функция выставляет синхронный режим ГИМ (старт ГИМ от сетки стартов, старт ввода/вывода  от ГИМ).
             self.nDacChanNum_brd   = self.getDAC_ChanNum() #;print("getDAC_ChanNum:" ,self.nDacChanNum_brd  ) # Функция возвращает количество используемых каналов ЦАП (задается в exam_edac.ini)
-            self.nStrmBufSizeb_brd = self.getStrmBufSizeb()#;print("getStrmBufSizeb:",self.nStrmBufSizeb_brd) # Функция возвращает размер буфера стрима в байтах.
+            self.nStrmBufSizeb_brd = self.getStrmBufSizeb()
+            #print("getStrmBufSizeb:",self.nStrmBufSizeb_brd) # Функция возвращает размер буфера стрима в байтах.
             #general.message( self.nStrmBufSizeb_brd )
             self.brdDataBuf_brd    = (ctypes.c_int * self.nStrmBufSizeb_brd)()
             self.strmBufNum_brd    = self.getStreamBufNum()
@@ -1978,6 +1987,16 @@ class Insys_FPGA:
             text = open( self.path_status_file ).read()
             lines = text.split('\n')
             assert( str( lines[0].split(':  ')[1] ) != 'On' ), "Insys FPGA card is already opened. Please, close it."
+
+
+            file_ini = 'exam_adc.ini'
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            file_path = os.path.join(current_dir, "..", "..", "libs", file_ini)
+            file_path = os.path.normpath(file_path)
+            
+            text = open( file_path ).read()
+            lines = text.split('\n')
+            self.nStrmBufSizeb_brd = int((lines[1][-4:])) * 2**10
 
             #file_to_read = open(self.path_status_file, 'w')
             #file_to_read.write('Status:  On' + '\n')
@@ -2022,6 +2041,7 @@ class Insys_FPGA:
         ph - phases
         """
         self.l_mode = live_mode
+
         if self.test_flag != 'test':
 
             total_points = int(p * ph)
@@ -2032,7 +2052,7 @@ class Insys_FPGA:
                 self.count_nip = np.zeros( ( total_points ), dtype = np.int32 ) + 1
                 self.flag_adc_buffer = 1
 
-            elif (live_mode == 1):
+            elif live_mode == 1:
                 self.data_raw = np.zeros( ( int(p * ph * adc_window * 16) ), dtype = np.int32 )
                 self.count_nip = np.zeros( ( total_points ), dtype = np.int32 ) + 1
                 #self.flag_adc_buffer = 1
@@ -6625,6 +6645,9 @@ class Insys_FPGA:
 
         return channel_1 , channel_2
     
+    def number_adc_window_in_buffer(self):
+        return int( self.nStrmBufSizeb_brd / ( self.adc_window * 64 + 32 ) )
+
     #new
     def digitizer_iq(self, arr_i, arr_q, freq, ph, ph1, ph2, integral = False):
 
