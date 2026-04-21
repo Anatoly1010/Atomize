@@ -1238,6 +1238,27 @@ class NameList(QDockWidget):
             QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
                 background: none;
             }
+            QScrollBar:horizontal {
+                border: none;
+                background: rgb(43, 43, 77); 
+                height: 10px; /* Здесь теперь высота */
+                margin: 0px;
+            }
+            QScrollBar::handle:horizontal {
+                background: rgb(193, 202, 227); 
+                min-width: 20px; /* Здесь min-width вместо min-height */
+                border-radius: 5px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background: rgb(211, 194, 78); 
+            }
+            
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                width: 0px; /* Убираем стрелочки по бокам */
+            }
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+                background: none;
+            }
         """)
         
         self.namelist_view.setModel(self.namelist_model)
@@ -1283,39 +1304,41 @@ class NameList(QDockWidget):
         data = np.transpose(temp)
 
         # universal name
-        name_plot = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+        #name_plot = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+        name_plot = os.path.splitext(os.path.basename(file_path))[0]
+
         pw = self.window.add_new_plot(1, name_plot)
         # opening of a simple CSV file with a maximum of 4 columns. 
         # this is usually related to internal pyqtgraph export.
         # in this case, there is an extra comma that creates an empty column, which should be taken into account
         # the data may have a different number of columns.
         if len(data) == 2:
-            pw.plot(data[0], data[1], parametric = True, name = file_path, xname = 'X', 
+            pw.plot(data[0], data[1], parametric = True, name = name_plot, xname = 'X', 
                 xscale = 'Arb. U.',yname = 'Y', yscale = 'Arb. U.', 
                 label = 'Data_1', scatter = 'False')
         elif len(data) == 3 and np.isnan(data[2][0]) != True:
-            pw.plot(data[0], data[1], parametric = True, name = file_path + '_1', xname = 'X',
+            pw.plot(data[0], data[1], parametric = True, name = name_plot + '_1', xname = 'X',
                 xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', 
                 label = 'Data_1', scatter = 'False')
-            pw.plot(data[0], data[2], parametric = True, name = file_path + '_2', xname = 'X', 
+            pw.plot(data[0], data[2], parametric = True, name = name_plot + '_2', xname = 'X', 
                 xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', 
                 label = 'Data_2', scatter = 'False')
         elif len(data) == 3 and np.isnan(data[2][0]) == True:
-            pw.plot(data[0], data[1], parametric = True, name = file_path, xname = 'X', 
+            pw.plot(data[0], data[1], parametric = True, name = name_plot, xname = 'X', 
                 xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', 
                 label = 'Data_1', scatter = 'False')
         elif len(data) == 4 and np.isnan(data[3][0]) == True:
-            pw.plot(data[0], data[1], parametric = True, name = file_path + '_1', xname = 'X', 
+            pw.plot(data[0], data[1], parametric = True, name = name_plot + '_1', xname = 'X', 
                 xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', 
                 label = 'Data_1', scatter = 'False')
-            pw.plot(data[0], data[2], parametric = True, name = file_path + '_2', xname = 'X', 
+            pw.plot(data[0], data[2], parametric = True, name = name_plot + '_2', xname = 'X', 
                 xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', 
                 label = 'Data_2', scatter = 'False')
         elif len(data) == 5 and np.isnan(data[4][0]) == True:
-            pw.plot(data[0], data[1], parametric = True, name = file_path + '_1', xname = 'X', 
+            pw.plot(data[0], data[1], parametric = True, name = name_plot + '_1', xname = 'X', 
                 xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', 
                 label = 'Data_1', scatter = 'False')
-            pw.plot(data[0], data[3], parametric = True, name = file_path + '_2', xname = 'X', 
+            pw.plot(data[0], data[3], parametric = True, name = name_plot + '_2', xname = 'X', 
                 xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', 
                 label = 'Data_2', scatter = 'False')
 
@@ -1340,7 +1363,9 @@ class NameList(QDockWidget):
         temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 0) 
         data = temp
 
-        name_plot = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+        #name_plot = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+        name_plot = os.path.splitext(os.path.basename(file_path))[0]
+
         pw = self.window.add_new_plot(2, name_plot)
         pw.setAxisLabels(xname = 'X', xscale = 'Arb. U.',yname = 'X', yscale = 'Arb. U.',\
             zname = 'X', zscale = 'Arb. U.')

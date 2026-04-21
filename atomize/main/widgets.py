@@ -820,11 +820,18 @@ class CrosshairDock(CloseableDock):
             delta_scene = ev.scenePos() - ev.lastScenePos()
             
             if modifiers == QtCore.Qt.KeyboardModifier.ControlModifier:
-                factor = 1.04 if delta_scene.y() < 0 else 0.96
-                
-                current_sy = curve.transform().m22() 
-                new_sy = current_sy * factor
-                curve.setTransform(QtGui.QTransform().scale(1.0, new_sy))
+                x_data, y_data = curve.getData()
+                if len(y_data) > 0:
+                    first_y_before = y_data[-1] * curve.transform().m22() + curve.y()
+
+                    factor = 1.04 if delta_scene.y() < 0 else 0.96
+                    
+                    new_sy = curve.transform().m22() * factor
+                    curve.setTransform(QtGui.QTransform().scale(1.0, new_sy))
+
+                    first_y_after = y_data[-1] * new_sy + curve.y()
+                    diff_y = first_y_before - first_y_after
+                    curve.setY(curve.y() + diff_y)
 
             elif modifiers == QtCore.Qt.KeyboardModifier.NoModifier:
                 p1 = curve.mapToParent(ev.pos())
@@ -871,28 +878,21 @@ class CrosshairDock(CloseableDock):
 
         temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 1, comments = '#') 
         data = np.transpose(temp)
+        name_plot = os.path.splitext(os.path.basename(file_path))[0]
 
         if len(data) == 2:
-            self.plot(data[0], data[1], parametric = True, name = file_path, xname = 'X', xscale = 'Arb. U.',\
-                yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+            self.plot(data[0], data[1], parametric = True, name = name_plot, xname = 'X', xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
         elif len(data) == 3 and np.isnan(data[2][0]) != True:
-            self.plot(data[0], data[1], parametric = True, name = file_path + '_1', xname = 'X', xscale = 'Arb. U.',\
-                yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
-            self.plot(data[0], data[2], parametric = True, name = file_path + '_2', xname = 'X', xscale = 'Arb. U.',\
-                yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
+            self.plot(data[0], data[1], parametric = True, name = name_plot + '_1', xname = 'X', xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+            self.plot(data[0], data[2], parametric = True, name = name_plot + '_2', xname = 'X', xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
         elif len(data) == 3 and np.isnan(data[2][0]) == True:
-            self.plot(data[0], data[1], parametric = True, name = file_path, xname = 'X', xscale = 'Arb. U.',\
-                yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+            self.plot(data[0], data[1], parametric = True, name = name_plot, xname = 'X', xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
         elif len(data) == 4 and np.isnan(data[3][0]) == True:
-            self.plot(data[0], data[1], parametric = True, name = file_path + '_1', xname = 'X', xscale = 'Arb. U.',\
-                yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
-            self.plot(data[0], data[2], parametric = True, name = file_path + '_2', xname = 'X', xscale = 'Arb. U.',\
-                yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
+            self.plot(data[0], data[1], parametric = True, name = name_plot + '_1', xname = 'X', xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+            self.plot(data[0], data[2], parametric = True, name = name_plot + '_2', xname = 'X', xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
         elif len(data) == 5 and np.isnan(data[4][0]) == True:
-            self.plot(data[0], data[1], parametric = True, name = file_path + '_1', xname = 'X', xscale = 'Arb. U.',\
-                yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
-            self.plot(data[0], data[3], parametric = True, name = file_path + '_2', xname = 'X', xscale = 'Arb. U.',\
-                yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
+            self.plot(data[0], data[1], parametric = True, name = name_plot + '_1', xname = 'X', xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', label = 'Data_1', scatter = 'False')
+            self.plot(data[0], data[3], parametric = True, name = name_plot + '_2', xname = 'X', xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', label = 'Data_2', scatter = 'False')
 
     def file_dialog(self, directory = ''):
         """
@@ -1375,6 +1375,8 @@ class CrossSectionDock(CloseableDock):
                 self.time_array = self.img_view.tVals
                 t_min, t_max = self.time_array[0], self.time_array[-1]
                 self.line.setBounds([t_min, t_max])
+
+        ##full_stack = self.img_view.image 
 
         #self.img_view.getView().vb.enableAutoRange(enable = autorange)
         self.update_cross_section_set_data()

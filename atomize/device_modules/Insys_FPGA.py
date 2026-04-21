@@ -1323,14 +1323,12 @@ class Insys_FPGA:
                         self.change_ini_file("streamBufSizeKb = 1024", "streamBufSizeKb = 512")
                 elif rep_time <= 20408163:
                     if (self.adc_window < 1000):
-                        print(f'wind {self.adc_window}')
                         self.change_ini_file("streamBufSizeKb = 128", "streamBufSizeKb = 1024")
                         self.change_ini_file("streamBufSizeKb = 256", "streamBufSizeKb = 1024")
                         self.change_ini_file("streamBufSizeKb = 512", "streamBufSizeKb = 1024")
                         self.change_ini_file("streamBufSizeKb = 2048", "streamBufSizeKb = 1024")
                         self.change_ini_file("streamBufSizeKb = 4096", "streamBufSizeKb = 1024")
                     else:
-                        print('3')
                         self.change_ini_file("streamBufSizeKb = 1024", "streamBufSizeKb = 4096")
 
 
@@ -2756,9 +2754,9 @@ class Insys_FPGA:
 
         Buffer according to arguments will be filled after
         """
-        d_coef = 100 / amplitude
-
         if self.test_flag != 'test':
+            d_coef = 100 / amplitude
+
             pulse = {'name': name, 'channel': channel, 'function': func, 'frequency': frequency, 'phase' : phase, 'delta_phase': delta_phase, 'length': length, 'sigma': sigma, 'length_increment': length_increment, 'start': start, 'delta_start': delta_start, 'amp': d_coef, 'phase_list': phase_list, 'n': n, 'b': b }
 
             # length
@@ -2782,6 +2780,9 @@ class Insys_FPGA:
                 p_sigma = self.round_to_closest(p_sigma_raw, 3.2)
                 if p_sigma != p_sigma_raw:
                     general.message(f"Pulse sigma is not divisible by 3.2. The closest available Pulse sigma of {p_sigma} is used")
+
+                if (p_sigma == 0) and (func == 'GAUSS'):
+                    general.message(f"GAUSS pulse {temp_name} with sigma = 0.0 ns is used")
 
                 pulse['sigma'] = str(p_sigma) + ' ns'
 
@@ -2834,6 +2835,10 @@ class Insys_FPGA:
                 self.phase_array_length_0_awg.append(len(list(phase_list)))
             
         elif self.test_flag == 'test':
+            assert( amplitude > 0 ), 'Amplitude should be higher than 0%'
+
+            d_coef = 100 / amplitude
+
             pulse = {'name': name, 'channel': channel, 'function': func, 'frequency': frequency, 'phase' : phase, 'delta_phase' : delta_phase, 'length': length, 'sigma': sigma, 'length_increment': length_increment, 'start': start, 'delta_start': delta_start, 'amp': d_coef, 'phase_list': phase_list, 'n': n, 'b': b }
 
             if channel == 'CH0':
@@ -2915,6 +2920,9 @@ class Insys_FPGA:
                 if p_sigma != p_sigma_raw:
                     general.message(f"Pulse sigma is not divisible by 3.2. The closest available Pulse sigma of {p_sigma} is used")
 
+                if (p_sigma == 0) and (temp_func == 'GAUSS'):
+                    general.message_test(f"GAUSS pulse {temp_name} with sigma = 0.0 ns is used")
+
                 pulse['sigma'] = str(p_sigma) + ' ns'
 
                 assert( round(remainder(p_sigma, 3.2), 2) == 0), 'Pulse sigma should be divisible by 3.2'
@@ -2979,7 +2987,7 @@ class Insys_FPGA:
             # d_coef
             temp_amp = float( d_coef )
             #assert(temp_amp != 0), 'Amplification coefficient should not be zero'
-            assert(temp_amp >= 1), 'Amplification coefficient should be more or equal to 1'
+            assert(temp_amp >= 1), 'Amplitude should be less or equal to 100%'
 
             # b
             temp_b = float( b )
@@ -3208,6 +3216,41 @@ class Insys_FPGA:
                     if pulse['name'] == name:
                         pulse['frequency'] = fr
                         self.shift_count_awg = 1
+
+    #new
+    def awg_redefine_amplitude(self, *, name, amplitude):
+        """
+        A function for redefining amplitude of the specified pulse.
+        awg_redefine_phase(name = 'P0', amplitude = 50) changes amplitude of the 'P0' pulse to 50%.
+
+        def func(*, name1, name2): defines a function without default values of key arguments
+        """
+        if self.test_flag != 'test':
+            names_list = [name] if isinstance(name, str) else name
+            amplitude_list = [amplitude] if isinstance(amplitude, str) else amplitude
+
+            for name, ampl in zip(names_list, amplitude_list):
+
+                for i, pulse in enumerate(self.pulse_array_awg):
+                    if pulse['name'] == name:
+                        pulse['amp'] = 100 / float(ampl)
+                        self.shift_count_awg = 1
+                        self.current_phase_index_awg = 0
+
+        elif self.test_flag == 'test':
+            names_list = [name] if isinstance(name, str) else name
+            amplitude_list = [amplitude] if isinstance(amplitude, str) else amplitude
+
+            for name, ampl in zip(names_list, amplitude_list):
+                assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
+            
+                for i, pulse in enumerate(self.pulse_array_awg):
+                    if pulse['name'] == name:
+                        assert( ( float(ampl) > 0 ) and (float(ampl) <= 100 ) ), 'Pulse amplitude should be in the range of 0-100%'
+
+                        pulse['amp'] = 100 / float(ampl)
+                        self.shift_count_awg = 1
+                        self.current_phase_index_awg = 0
 
     def awg_redefine_phase(self, *, name, phase):
         """
@@ -4361,8 +4404,9 @@ class Insys_FPGA:
                 except UnboundLocalError:
                     pass
 
-                new_ans = self.process_and_merge_rect_awg(answer, target_channel=128, gap_threshold=71)
-                return new_ans
+
+                #new_ans = self.process_and_merge_rect_awg(answer, target_channel=128, gap_threshold=75)
+                return answer
 
         elif self.test_flag == 'test':
             # according to 0 element (channel number)
@@ -4389,48 +4433,57 @@ class Insys_FPGA:
                 except UnboundLocalError:
                     pass
 
-                new_ans = self.process_and_merge_rect_awg(answer, target_channel=128, gap_threshold=71)
+                #new_ans = self.process_and_merge_rect_awg(answer, target_channel=128, gap_threshold=75)
 
-                return new_ans
+                return answer
 
+    #mod
     def process_and_merge_rect_awg(self, data_list, target_channel=128, gap_threshold=70):
-        if not data_list:
-            return np.array([])
+        if data_list is None or len(data_list) == 0:
+            return []
         
-        all_data = np.vstack(data_list)
+        all_data = np.array(data_list)
         
         target_mask = all_data[:, 0] == target_channel
         target_rows = all_data[target_mask]
         other_rows = all_data[~target_mask]
         
         if len(target_rows) == 0:
-            return all_data
+            #return np.split(all_data, np.where(np.diff(all_data[:, 0]))[0] + 1)
+            return all_data[all_data[:, 0].argsort()]
 
         target_rows = target_rows[target_rows[:, 1].argsort()]
         
         merged_target = []
-        if len(target_rows) > 0:
-            current = target_rows[0].copy()
+        current = target_rows[0].copy()
+        
+        for i in range(1, len(target_rows)):
+            next_row = target_rows[i]
             
-            for i in range(1, len(target_rows)):
-                next_row = target_rows[i]
-                
-                gap = next_row[1] - current[2]
-                
-                if gap < gap_threshold:
-                    current[2] = max(current[2], next_row[2])
-                else:
-                    merged_target.append(current)
-                    current = next_row.copy()
+            gap = next_row[1] - current[2]
             
-            merged_target.append(current)
-
+            if gap < gap_threshold:
+                current[2] = max(current[2], next_row[2])
+            else:
+                merged_target.append(current.copy())
+                current = next_row.copy()
+        
+        merged_target.append(current.copy())
         merged_target_arr = np.array(merged_target)
-        final_result = np.vstack([other_rows, merged_target_arr])
-        final_result = final_result[final_result[:, 0].argsort()]
-        res_list = np.split(final_result, np.where(np.diff(final_result[:, 0]))[0] + 1)
 
-        return res_list
+        if len(other_rows) == 0:
+            final_result = merged_target_arr
+        else:
+            final_result = np.vstack([other_rows, merged_target_arr])
+
+        final_result = final_result[final_result[:, 0].argsort()]
+        #sort
+        #final_result = final_result[np.lexsort((final_result[:, 1], final_result[:, 0]))]
+        
+        #diff_indices = np.where(np.diff(final_result[:, 0].astype(float)))[0] + 1
+        #res_list = np.split(final_result, diff_indices)
+
+        return final_result
 
     def extending_rect_awg_pulser(self, np_array):
         """
@@ -4575,6 +4628,7 @@ class Insys_FPGA:
             no_duplicate_array = np.unique(np_array, axis = 0)
             return no_duplicate_array
 
+    #mod
     def preparing_to_bit_pulse_pulser(self, np_array):
         """
         For pulses at each channel we check whether there is overlapping pulses using 
@@ -4664,12 +4718,10 @@ class Insys_FPGA:
                             cor_pulses_amp_final = cor_pulses_amp
                         elif cor_pulses_amp[0][0] == 0:
                             # nothing to concatenate
-                            amp_on_pulses = self.convert_to_bit_pulse_amp_lna_pulser(prob_pulses_amp, \
-                                self.channel_dict_pulser['AMP_ON'])
+                            amp_on_pulses = self.convert_to_bit_pulse_amp_lna_pulser(prob_pulses_amp, self.channel_dict_pulser['AMP_ON'])
                             cor_pulses_amp_final = self.instruction_pulse_short_lna_amp_pulser(amp_on_pulses)
                         else:
-                            amp_on_pulses = self.convert_to_bit_pulse_amp_lna_pulser(prob_pulses_amp, \
-                                self.channel_dict_pulser['AMP_ON'])
+                            amp_on_pulses = self.convert_to_bit_pulse_amp_lna_pulser(prob_pulses_amp, self.channel_dict_pulser['AMP_ON'])
                             try:
                                 #cor_pulses_amp_final = cor_pulses_amp, self.instruction_pulse_short_lna_amp_pulser(amp_on_pulses)
                                 cor_pulses_amp_final = np.concatenate((cor_pulses_amp, self.instruction_pulse_short_lna_amp_pulser(amp_on_pulses)), axis = 0)
@@ -4702,10 +4754,9 @@ class Insys_FPGA:
                 # combine all pulses
                 #np.concatenate( (self.convertion_to_numpy_pulser( self.pulse_array_pulser ), cor_pulses_amp_final, cor_pulses_lna_final), axis = None)
                 try:
-                    #return np.row_stack( (self.convertion_to_numpy_pulser( self.pulse_array_pulser ), cor_pulses_amp_final, cor_pulses_lna_final))
-                    # self.extending_rect_awg_pulser( self.pulse_array_pulser ) is for extendind RECT_AWG pulses
-                    # see self.extending_rect_awg_pulser()
-                    return np.row_stack( (self.extending_rect_awg_pulser( self.pulse_array_pulser ), cor_pulses_amp_final, cor_pulses_lna_final))
+                    raw = np.row_stack( (self.extending_rect_awg_pulser( self.pulse_array_pulser ), cor_pulses_amp_final, cor_pulses_lna_final))
+                    answer = self.process_and_merge_rect_awg(raw, target_channel=128, gap_threshold=75)
+                    return answer
 
                 # when we do not MW pulses at all
                 except UnboundLocalError:
@@ -4814,7 +4865,10 @@ class Insys_FPGA:
                 # combine all pulses
                 #np.concatenate( (self.convertion_to_numpy_pulser( self.pulse_array_pulser ), cor_pulses_amp_final, cor_pulses_lna_final), axis = None) 
                 try:
-                    return np.row_stack( (self.extending_rect_awg_pulser( self.pulse_array_pulser ), cor_pulses_amp_final, cor_pulses_lna_final))
+                    raw = np.row_stack( (self.extending_rect_awg_pulser( self.pulse_array_pulser ), cor_pulses_amp_final, cor_pulses_lna_final))
+                    answer = self.process_and_merge_rect_awg(raw, target_channel=128, gap_threshold=75)
+                    return answer
+
                 except UnboundLocalError:
                     return self.extending_rect_awg_pulser( self.pulse_array_pulser )
 
