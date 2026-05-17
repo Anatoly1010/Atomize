@@ -614,11 +614,11 @@ class CrosshairDock(CloseableDock):
                         if self.ver_line_1 != float(vline_arg[0]):
                             self.plot_widget.removeItem(self.vl1)
                             self.ver_line_1 = float(vline_arg[0])
-                            self.vl1 = self.plot_widget.addLine( x = self.ver_line_1 )
+                            self.vl1 = self.plot_widget.addLine( x = self.ver_line_1, pen='g' )
                         if self.ver_line_2 != float(vline_arg[1]):
                             self.plot_widget.removeItem(self.vl2)
                             self.ver_line_2 = float(vline_arg[1])
-                            self.vl2 = self.plot_widget.addLine( x = self.ver_line_2 )
+                            self.vl2 = self.plot_widget.addLine( x = self.ver_line_2, pen='g' )
                     except IndexError:
                         pass
         else:
@@ -745,8 +745,8 @@ class CrosshairDock(CloseableDock):
                 # vertical lines
                 if vline_arg != 'False':
                     try:
-                        self.vl1 = self.plot_widget.addLine( x = float(vline_arg[0]) )
-                        self.vl2 = self.plot_widget.addLine( x = float(vline_arg[1]) )
+                        self.vl1 = self.plot_widget.addLine( x = float(vline_arg[0]), pen='g' )
+                        self.vl2 = self.plot_widget.addLine( x = float(vline_arg[1]), pen='g' )
                     except IndexError:
                         pass
 
@@ -809,39 +809,41 @@ class CrosshairDock(CloseableDock):
         QtCore.QTimer.singleShot(duration, safe_restore)
 
     def handle_drag(self, curve, ev):
-        modifiers = QtGui.QGuiApplication.keyboardModifiers()
-        
-        if ev.button() == QtCore.Qt.MouseButton.LeftButton:
+        is_left_click = ev.button() == QtCore.Qt.MouseButton.LeftButton or (ev.buttons() & QtCore.Qt.MouseButton.LeftButton)
+
+        if is_left_click:
             ev.accept()
 
             if ev.isStart():
                 self.flash_curve(curve)
 
-            delta_scene = ev.scenePos() - ev.lastScenePos()
-            
-            if modifiers == QtCore.Qt.KeyboardModifier.ControlModifier:
-                x_data, y_data = curve.getData()
-                if len(y_data) > 0:
-                    first_y_before = y_data[-1] * curve.transform().m22() + curve.y()
-
-                    factor = 1.04 if delta_scene.y() < 0 else 0.96
-                    
-                    new_sy = curve.transform().m22() * factor
-                    curve.setTransform(QtGui.QTransform().scale(1.0, new_sy))
-
-                    first_y_after = y_data[-1] * new_sy + curve.y()
-                    diff_y = first_y_before - first_y_after
-                    curve.setY(curve.y() + diff_y)
-
-            elif modifiers == QtCore.Qt.KeyboardModifier.NoModifier:
-                p1 = curve.mapToParent(ev.pos())
-                p2 = curve.mapToParent(ev.lastPos())
-                diff = p1 - p2
+            if not ev.isFinish():
+                modifiers = QtGui.QGuiApplication.keyboardModifiers()
+                delta_scene = ev.scenePos() - ev.lastScenePos()
                 
-                new_pos = curve.pos() + diff
-                curve.setPos(new_pos.x(), new_pos.y())
-                #new_y = curve.pos().y() + delta_scene.y()
-                # curve.setPos(0, new_y)
+                if modifiers == QtCore.Qt.KeyboardModifier.ControlModifier:
+                    x_data, y_data = curve.getData()
+                    if len(y_data) > 0:
+                        first_y_before = y_data[-1] * curve.transform().m22() + curve.y()
+
+                        sensitivity = 0.005
+                        factor = 1.0 - (delta_scene.y() * sensitivity)
+                        factor = max(0.1, min(factor, 10.0))
+                        
+                        new_sy = curve.transform().m22() * factor
+                        curve.setTransform(QtGui.QTransform().scale(1.0, new_sy))
+
+                        first_y_after = y_data[-1] * new_sy + curve.y()
+                        diff_y = first_y_before - first_y_after
+                        curve.setY(curve.y() + diff_y)
+
+                elif modifiers == QtCore.Qt.KeyboardModifier.NoModifier:
+                    p1 = curve.mapToParent(ev.pos())
+                    p2 = curve.mapToParent(ev.lastPos())
+                    diff = p1 - p2
+                    
+                    new_pos = curve.pos() + diff
+                    curve.setPos(new_pos.x(), new_pos.y())
 
             if ev.isFinish():
                 p = pg.mkPen(curve.opts['pen'])
@@ -1416,17 +1418,20 @@ class CrossSectionDock(CloseableDock):
         LastExportDirectory = os.path.split(fileName)[0]
 
         data = self.img_view.getProcessedImage()
-        try:
-            np.savetxt(fileName,\
-             data, fmt = '%.4e', delimiter = ',', newline = '\n',\
-             header = str(datetime.now().strftime("%d-%m-%Y_%H-%M-%S")),\
-              footer = '', comments = '#', encoding = None)
-        except ValueError:
-            for i in range( len(data) ):
-                np.savetxt(fileName + str(i),\
-                 data[i], fmt = '%.4e', delimiter = ',', newline = '\n',\
-                 header = str(datetime.now().strftime("%d-%m-%Y_%H-%M-%S")),\
-                  footer = '', comments = '#', encoding = None)
+        current_header = str(datetime.now().strftime("%d-%m-%Y_%H-%M-%S"))
+
+        base_name, ext = os.path.splitext(fileName)
+        ext = '.csv'
+
+        if data.ndim <= 2:
+            full_path = f"{base_name}{ext}"
+            np.savetxt(full_path, data, fmt='%.4e', delimiter=',', newline='\n',
+                       header=current_header, footer='', comments='#', encoding=None)
+        else:
+            for i in range(len(data)):
+                full_path = f"{base_name}_{i}{ext}"
+                np.savetxt(full_path, data[i], fmt='%.4e', delimiter=',', newline='\n',
+                           header=current_header, footer='', comments='#', encoding=None)
 
     def fileSaveDialog(self):
         self.fileDialog = QtWidgets.QFileDialog(self, 'Save File', options = QtWidgets.QFileDialog.Option.DontUseNativeDialog)

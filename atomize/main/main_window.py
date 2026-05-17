@@ -115,11 +115,15 @@ class MainWindow(QMainWindow):
             lambda: self.handle_output(self.process_python) 
             )
 
+        self.process_test = QtCore.QProcess(self)
+        self.process_test.readyReadStandardOutput.connect( lambda: self.handle_output(self.process_test) )
+
         self.pid = 0
 
         if self.system == 'Windows':
             self.process_text_editor.setProgram(str(config['DEFAULT']['editorW']))
             self.process_python.setProgram('python.exe')
+            self.process_test.setProgram('python.exe')
             print('EDITOR: ' + str(config['DEFAULT']['editorW']))
         elif self.system == 'Linux':
             self.editor = str(config['DEFAULT']['editor'])
@@ -130,9 +134,15 @@ class MainWindow(QMainWindow):
                 self.process_text_editor.setProgram(str(config['DEFAULT']['editor']))
                 print('EDITOR: ' + str(config['DEFAULT']['editor']))
             self.process_python.setProgram('python3')
+            self.process_test.setProgram('python3')
 
         self.process_python.finished.connect(self.on_finished_script)
         self.file_handler = openfile.Saver_Opener()
+
+        self.loop = QEventLoop()
+        self.process_test.finished.connect(lambda exit_code, exit_status: self.on_finished_checking(exit_code, exit_status, self.loop, self.process_test))
+        self.checked = 0
+        self.cached_stamp2 = 0
 
     def handle_output(self, process):
         raw_data = process.readAllStandardOutput().data().decode(self.system_encoding, errors='replace')
@@ -624,7 +634,7 @@ class MainWindow(QMainWindow):
 
         # Liveplot tab setting
         self.dockarea = DockArea()
-        self.namelist = NameList(self)
+        self.namelist = self.create_namelist()
 
         self.gridLayout_tab_liveplot.setColumnMinimumWidth(0, 200)
         self.gridLayout_tab_liveplot.setColumnStretch(1, 2000)
@@ -640,13 +650,18 @@ class MainWindow(QMainWindow):
             "QMenu::item:selected {background-color: rgb(48, 48, 75);}"
         )
 
+    def create_namelist(self):
+        return NameList(self)
+
     def stop_script(self):
         self.script_queue.clear()
         self.queue = 0
+        self.process_test.terminate()
         self.process_python.terminate()
 
     def add_to_queue(self):
         key_number = str( len(self.script_queue.keys()) )
+        self.checked = 0
         self.test(self.script)
         exec_code = self.success
         if self.test_flag == 0 and exec_code == True:
@@ -760,20 +775,16 @@ class MainWindow(QMainWindow):
         QApplication.processEvents()
 
         self.success = False
-        process = QtCore.QProcess(self)
-        process.readyReadStandardOutput.connect( lambda: self.handle_output(process) )
-
-        if self.system == 'Windows':
-            process.setProgram('python.exe')
-        elif self.system == 'Linux':
-            process.setProgram('python3')
-
 
         if name != '':
             stamp = os.stat(name).st_mtime
         else:
             self.text_errors.appendPlainText('No experimental script is opened')
             return
+        
+        if self.cached_stamp2 != stamp:
+            self.checked = 0
+        self.cached_stamp2 = stamp
 
         if stamp != self.cached_stamp and self.flag_opened_script_changed == 1 and self.queue == 0:
             self.cached_stamp = stamp
@@ -787,15 +798,17 @@ class MainWindow(QMainWindow):
             message.buttonClicked.connect(self.message_box_clicked)
             return
 
-        loop = QEventLoop()
-        process.finished.connect(lambda exit_code, exit_status: self.on_finished_checking(exit_code, exit_status, loop, process))
-
         #self.text_errors.appendPlainText("Testing... Please, wait!")
         #self.process.setArguments(['--errors-only', self.script])
-        process.setArguments([name, 'test'])
-        process.start()
+        if self.checked == 0:
+            self.process_test.setArguments([name, 'test'])
+            self.process_test.start()
 
-        loop.exec()
+            self.loop.exec()
+        else:
+            self.text_errors.appendPlainText("Script has been already tested. No errors are found")
+            self.button_test.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97); border-style: outset; color: rgb(193, 202, 227); font-weight: bold; } ")
+            self.success = True
 
     def reload(self):
         """
@@ -818,8 +831,10 @@ class MainWindow(QMainWindow):
         if text_errors_script == '':
             self.text_errors.appendPlainText("No errors are found")
             self.test_flag = 0
+            self.checked = 1
         elif text_errors_script != '':
             self.test_flag = 1
+            self.checked = 0
             self.text_errors.appendPlainText(text_errors_script)
 
         self.button_test.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97); border-style: outset; color: rgb(193, 202, 227); font-weight: bold; } ")
@@ -1288,16 +1303,17 @@ class NameList(QDockWidget):
         """
         file_path = filename
 
-        header_array = []
-        header = 0
+        header_lines = []
 
-        # detecting the file header for further skipping
-        file_to_read = open(filename, 'r')
-        for i, line in enumerate(file_to_read):
-            if i is header: break
-            temp = line.split("#")
-            header_array.append(temp)
-        file_to_read.close()
+        with open(file_path, 'r') as file_to_read:
+            for line in file_to_read:
+                if line.startswith('#'):
+                    header_lines.append(line)
+                else:
+                    break
+
+        header_count = len(header_lines)
+        header_text = "".join(header_lines)
 
         # read data
         temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 1, comments = '#') 
@@ -1349,26 +1365,27 @@ class NameList(QDockWidget):
         """
         file_path = filename
 
-        header_array = []
-        header = 0
+        header_lines = []
 
-        header_array = []
-        file_to_read = open(file_path, 'r')
-        for i, line in enumerate(file_to_read):
-            if i is header: break
-            temp = line.split("#")
-            header_array.append(temp)
-        file_to_read.close()
+        with open(file_path, 'r') as file_to_read:
+            for line in file_to_read:
+                if line.startswith('#'):
+                    header_lines.append(line)
+                else:
+                    break
 
-        temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 0) 
+        header_count = len(header_lines)
+        header_text = "".join(header_lines)
+
+        temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = header_count) 
         data = temp
 
         #name_plot = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
         name_plot = os.path.splitext(os.path.basename(file_path))[0]
 
         pw = self.window.add_new_plot(2, name_plot)
-        pw.setAxisLabels(xname = 'X', xscale = 'Arb. U.',yname = 'X', yscale = 'Arb. U.',\
-            zname = 'X', zscale = 'Arb. U.')
+        pw.setAxisLabels(xname = 'X', xscale = 'Arb. U.',yname = 'Y', yscale = 'Arb. U.',
+                zname = 'Z', zscale = 'Arb. U.')
         pw.setImage(data, axes = {'y': 0, 'x': 1}, autoLevels=False)
 
     def file_dialog(self, directory = ''):
@@ -1616,7 +1633,7 @@ class NameList(QDockWidget):
         #    )
         #return file_path
 
-    def file_dialog_2d(self, directory = ''):
+    def file_dialog_2d(self, directory = '', is_2d = False):
         """
         A function to open a new window for choosing 2D data
         """
@@ -1844,9 +1861,13 @@ class NameList(QDockWidget):
 
         """)
 
-
         filedialog.setFileMode(QFileDialog.FileMode.AnyFile)
-        filedialog.fileSelected.connect(self.open_file_2d)
+
+        if is_2d:
+            filedialog.fileSelected.connect(self.open_file_tr)
+        else:
+            filedialog.fileSelected.connect(self.open_file_2d)
+
         filedialog.show()
 
     def activate_item(self, index):

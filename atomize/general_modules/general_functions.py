@@ -14,6 +14,7 @@ from atomize.main.client import LivePlotClient
 # Test run parameters
 if len(sys.argv) > 1:
     test_flag = sys.argv[1]
+    plotter = LivePlotClient()
 else:
     test_flag = 'None'
     plotter = LivePlotClient()
@@ -137,6 +138,42 @@ def plot_1d(strname, xd, yd, label='label', xname='X',
     elif test_flag == 'test':
         pass
 
+def plot_1d_test(strname, xd, yd, label='label', xname='X', 
+        xscale='arb. u.', yname='Y', yscale='arb. u.', scatter='False', 
+        timeaxis='False', vline='False', pr = 'None', text=''):
+
+    if test_flag != 'test':
+        pass
+
+    elif test_flag == 'test':
+
+        if pr == 'None':
+            try:
+                if not np.isnan(np.take(yd, 0)):
+                    plotter.plot_xy(strname, xd, yd, label=label, xname=xname,
+                                    xscale=xscale, yname=yname, yscale=yscale, 
+                                    scatter=scatter, timeaxis=timeaxis, vline=vline, 
+                                    text=text)
+            except (IndexError, TypeError):
+                pass
+        else:
+            try:
+                pr.join()
+            except (AttributeError, NameError, TypeError):
+                pass
+
+            try:
+                if not np.isnan(np.take(yd, 0)):
+                    p1 = Thread(target=plotter.plot_xy, args=(strname, xd, yd, ), 
+                        kwargs={'label': label, 'xname': xname, 
+                        'xscale': xscale, 'yname': yname, 'yscale': yscale, 
+                        'scatter': scatter, 'timeaxis': timeaxis, 
+                        'vline': vline, 'text': text, } )
+                    p1.start()
+                    return p1
+            except (IndexError, TypeError):
+                pass
+
 def append_1d(strname, value, start_step=(0, 1), label='label', xname='X',
     xscale='arb. u.', yname='Y', yscale='arb. u.', scatter='False', 
     timeaxis='False', vline='False'):
@@ -148,6 +185,44 @@ def append_1d(strname, value, start_step=(0, 1), label='label', xname='X',
 
     elif test_flag == 'test':
         pass
+
+def plot_2d_test(strname, data, start_step=None,
+    xname='X', xscale='arb. u.', yname='Y', yscale='arb. u.', zname='Z', 
+    zscale='arb. u.', pr='None', text=''):
+    
+    if test_flag != 'test':
+        pass
+    elif test_flag == 'test':
+        if pr == 'None':
+            try:
+                if not np.isnan(data.flat[0]):
+                    plotter.plot_z(strname, data, start_step=start_step,
+                            xname=xname, xscale=xscale, yname=yname, yscale=yscale, 
+                            zname=zname, zscale=zscale, text=text)
+                else:
+                    pass
+            except (IndexError, TypeError):
+                pass
+        
+        else:
+            try:
+                pr.join()
+            except ( AttributeError, NameError, TypeError ):
+                pass
+            
+            try:
+                if not np.isnan(data.flat[0]):
+                    p1 = Thread(target=plotter.plot_z, args=(strname, data, ), 
+                        kwargs={'start_step': start_step, 'xname': xname, 
+                        'xscale': xscale, 'yname': yname, 'yscale': yscale, 
+                        'zname': zname, 'zscale': zscale, 'text': text, } )
+                    p1.start()
+                    return p1
+                else:
+                    pass
+
+            except (IndexError, TypeError):
+                pass
 
 def plot_2d(strname, data, start_step=None,
     xname='X', xscale='arb. u.', yname='Y', yscale='arb. u.', zname='Z', 

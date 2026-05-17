@@ -17,7 +17,6 @@ import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
-
 class Insys_FPGA:
     def __init__(self):
         #### Inizialization
@@ -479,6 +478,7 @@ class Insys_FPGA:
 
             self.mes                               = 0
             self.l_mode                            = 0
+            self.overlap_flag                      = True
 
         elif self.test_flag == 'test':
 
@@ -529,6 +529,7 @@ class Insys_FPGA:
 
             self.mes                               = 0
             self.l_mode                            = 0
+            self.overlap_flag                      = True
 
     # Module functions
     ####################GIM#################
@@ -1189,7 +1190,7 @@ class Insys_FPGA:
                 #temp, visualizer = self.convert_to_bit_pulse( self.pulse_array_pulser )
                 
                 #to_spinapi = self.instruction_pulse( temp, rep_time )
-                to_spinapi = self.split_into_parts_pulser( self.pulse_array_pulser, rep_time )            
+                to_spinapi = self.split_into_parts_pulser( self.pulse_array_pulser, rep_time )
                 
                 to_spinapi2 = np.array(to_spinapi, dtype = np.int64)
                 if self.awg_pulses_pulser == 1:
@@ -1266,7 +1267,6 @@ class Insys_FPGA:
                 # using a special functions for convertion to instructions
                 #to_spinapi = self.instruction_pulse( self.convert_to_bit_pulse( self.pulse_array_pulser ) )
                 to_spinapi = self.split_into_parts_pulser( self.pulse_array_pulser, rep_time )
-
                 to_spinapi2 = np.array(to_spinapi, dtype = np.int64)
 
                 if self.awg_pulses_pulser == 1:
@@ -3416,7 +3416,11 @@ class Insys_FPGA:
         Or the start of the pulses for Single Joined mode.
         The function directly affects the pulse_array.
         """
-        self.is_first_phase_cycle = 0
+        if self.overlap_flag == False:
+            self.is_first_phase_cycle = 0
+        else:
+            self.is_first_phase_cycle = 1
+
         if self.test_flag != 'test':
             self.shift_count_awg = 1
             self.current_phase_index_awg = 0
@@ -4513,6 +4517,7 @@ class Insys_FPGA:
                         
             return np.asarray(list(chain(*answer)))
 
+    #mod3
     def check_problem_pulses_pulser(self, np_array):
         """
         A function for checking whether there is a two
@@ -4535,7 +4540,8 @@ class Insys_FPGA:
 
                 if next_element[1] - element[2] < self.min_pulse_length_pulser:
 
-                    sorted_np_array[index][2] = next_element[2]
+                    #sorted_np_array[index][2] = next_element[2]
+                    sorted_np_array[index][2] = max(element[2], next_element[2])
                     sorted_np_array = np.delete(sorted_np_array, index + 1, 0)
 
                     if self.mes == 0:
@@ -4551,7 +4557,6 @@ class Insys_FPGA:
 
         elif self.test_flag == 'test':
             sorted_np_array = np.asarray(sorted(np_array, key = lambda x: int(x[1])), dtype = np.int64)
-            
             index = 0
             data_to_check = sorted_np_array[:-1] 
 
@@ -4560,15 +4565,20 @@ class Insys_FPGA:
                 next_element = sorted_np_array[index + 1]
 
                 if next_element[1] - element[2] < self.min_pulse_length_pulser:
-                    if element[0] == 2**self.channel_dict_pulser['TRIGGER_AWG']:
-                        assert False, 'Overlapping AWG pulses'
-                    else:
+                    ####if element[0] == 2**self.channel_dict_pulser['TRIGGER_AWG']:
+                    ####    assert False, 'Overlapping AWG pulses'
+                    ####else:
 
-                        sorted_np_array[index][2] = next_element[2]
+                        #sorted_np_array[index][2] = next_element[2]
+                        sorted_np_array[index][2] = max(element[2], next_element[2])
                         sorted_np_array = np.delete(sorted_np_array, index + 1, 0)
 
                         if self.mes == 0:
-                            general.message_test(f'Overlapping pulses or two pulses with less than {self.min_pulse_length_pulser} ns distance')
+                            if element[0] == 2**self.channel_dict_pulser['TRIGGER_AWG']:
+                                general.message_test(f'Overlapping AWG pulses')
+                            else:
+                                #general.message_test(f'Overlapping pulses or two pulses with less than {self.min_pulse_length_pulser} ns distance')
+                                pass
                             self.mes = 1
                         
                         index = 0 
@@ -4628,7 +4638,7 @@ class Insys_FPGA:
             no_duplicate_array = np.unique(np_array, axis = 0)
             return no_duplicate_array
 
-    #mod
+    #mod2
     def preparing_to_bit_pulse_pulser(self, np_array):
         """
         For pulses at each channel we check whether there is overlapping pulses using 
@@ -4719,14 +4729,14 @@ class Insys_FPGA:
                         elif cor_pulses_amp[0][0] == 0:
                             # nothing to concatenate
                             amp_on_pulses = self.convert_to_bit_pulse_amp_lna_pulser(prob_pulses_amp, self.channel_dict_pulser['AMP_ON'])
-                            cor_pulses_amp_final = self.instruction_pulse_short_lna_amp_pulser(amp_on_pulses)
+                            cor_pulses_amp_final = amp_on_pulses
                         else:
                             amp_on_pulses = self.convert_to_bit_pulse_amp_lna_pulser(prob_pulses_amp, self.channel_dict_pulser['AMP_ON'])
                             try:
                                 #cor_pulses_amp_final = cor_pulses_amp, self.instruction_pulse_short_lna_amp_pulser(amp_on_pulses)
-                                cor_pulses_amp_final = np.concatenate((cor_pulses_amp, self.instruction_pulse_short_lna_amp_pulser(amp_on_pulses)), axis = 0)
+                                cor_pulses_amp_final = np.concatenate((cor_pulses_amp, amp_on_pulses), axis = 0)
                             except ValueError:
-                                cor_pulses_amp_final = np.concatenate((cor_pulses_amp, self.instruction_pulse_short_lna_amp_pulser(amp_on_pulses)), axis = 0)
+                                cor_pulses_amp_final = np.concatenate((cor_pulses_amp, amp_on_pulses), axis = 0)
 
                         # combining short distance LNA_PROTECT pulses
                         if prob_pulses_lna[0][0] == 0:
@@ -4734,10 +4744,10 @@ class Insys_FPGA:
                         elif cor_pulses_lna[0][0] == 0:
                             # nothing to concatenate
                             lna_pulses = self.convert_to_bit_pulse_amp_lna_pulser(prob_pulses_lna, self.channel_dict_pulser['LNA_PROTECT'])
-                            cor_pulses_lna_final = self.instruction_pulse_short_lna_amp_pulser(lna_pulses)
+                            cor_pulses_lna_final = lna_pulses
                         else:
                             lna_pulses = self.convert_to_bit_pulse_amp_lna_pulser(prob_pulses_lna, self.channel_dict_pulser['LNA_PROTECT'])
-                            cor_pulses_lna_final =  np.concatenate((cor_pulses_lna, self.instruction_pulse_short_lna_amp_pulser(lna_pulses)), axis = 0)
+                            cor_pulses_lna_final =  np.concatenate((cor_pulses_lna, lna_pulses), axis = 0)
 
 
                     elif element[0, 0] == 2**self.channel_dict_pulser['-X'] or element[0, 0] == 2**self.channel_dict_pulser['+Y']:
@@ -4781,7 +4791,7 @@ class Insys_FPGA:
                 shifted_back_awg_pulses = []
 
                 split_pulse_array = self.splitting_acc_to_channel_pulser( self.convertion_to_numpy_pulser( np_array ) )
-
+                
                 for index, element in enumerate(split_pulse_array):
                     if element[0, 0] == 2**self.channel_dict_pulser['MW'] or element[0, 0] == 2**self.channel_dict_pulser['AWG']:
 
@@ -4830,19 +4840,22 @@ class Insys_FPGA:
                         cor_pulses_amp, prob_pulses_amp = self.check_problem_pulses_amp_lna_pulser(amp_on_pulses)
                         cor_pulses_lna, prob_pulses_lna = self.check_problem_pulses_amp_lna_pulser(lna_pulses)
 
+
                         # combining short distance AMP_ON pulses
                         if prob_pulses_amp[0][0] == 0:
                             cor_pulses_amp_final = cor_pulses_amp
                         elif cor_pulses_amp[0][0] == 0:
                             # nothing to concatenate
                             amp_on_pulses = self.convert_to_bit_pulse_amp_lna_pulser(prob_pulses_amp, self.channel_dict_pulser['AMP_ON'])
-                            cor_pulses_amp_final = self.instruction_pulse_short_lna_amp_pulser(amp_on_pulses)
+                            cor_pulses_amp_final = amp_on_pulses
                         else:
                             amp_on_pulses = self.convert_to_bit_pulse_amp_lna_pulser(prob_pulses_amp, self.channel_dict_pulser['AMP_ON'])
                             try:
-                                cor_pulses_amp_final = np.concatenate((cor_pulses_amp, self.instruction_pulse_short_lna_amp_pulser(amp_on_pulses)), axis = 0)
+                                cor_pulses_amp_final = np.concatenate((cor_pulses_amp, amp_on_pulses), axis = 0)
                             except ValueError:
-                                cor_pulses_amp_final = np.concatenate((cor_pulses_amp, self.instruction_pulse_short_lna_amp_pulser(amp_on_pulses)), axis = 0)
+                                #self.instruction_pulse_short_lna_amp_pulser(amp_on_pulses)
+                                cor_pulses_amp_final = np.concatenate((cor_pulses_amp, amp_on_pulses), axis = 0)
+
 
                         # combining short distance LNA_PROTECT pulses
                         if prob_pulses_lna[0][0] == 0:
@@ -4850,10 +4863,13 @@ class Insys_FPGA:
                         elif cor_pulses_lna[0][0] == 0:
                             # nothing to concatenate
                             lna_pulses = self.convert_to_bit_pulse_amp_lna_pulser(prob_pulses_lna, self.channel_dict_pulser['LNA_PROTECT'])
-                            cor_pulses_lna_final =  self.instruction_pulse_short_lna_amp_pulser(lna_pulses)
+                            cor_pulses_lna_final =  lna_pulses
+
                         else:
                             lna_pulses = self.convert_to_bit_pulse_amp_lna_pulser(prob_pulses_lna, self.channel_dict_pulser['LNA_PROTECT'])
-                            cor_pulses_lna_final =  np.concatenate((cor_pulses_lna, self.instruction_pulse_short_lna_amp_pulser(lna_pulses)), axis = 0)
+                            cor_pulses_lna_final =  np.concatenate((cor_pulses_lna, lna_pulses), axis = 0)
+
+
 
                     elif element[0, 0] == 2**self.channel_dict_pulser['-X'] or element[0, 0] == 2**self.channel_dict_pulser['+Y']:
                         # for phases pulses just check 10 ns distance
@@ -4948,8 +4964,8 @@ class Insys_FPGA:
         elif self.test_flag == 'test':
             answer = []
             min_list = []
+
             pulses = self.preparing_to_bit_pulse_pulser(np_array)
-            
 
             sorted_pulses_start = np.asarray(sorted(pulses, key = lambda x: int(x[1])), dtype = np.int64)
             # self.max_pulse_length_pulser is 2000 ns now
@@ -5470,6 +5486,7 @@ class Insys_FPGA:
                 else:
                     return self.delete_duplicates_pulser(np.asarray(no_problem_list)), self.delete_duplicates_pulser(np.asarray(problem_list))
 
+    #mod2
     def convert_to_bit_pulse_amp_lna_pulser(self, p_list, channel):
         """
         A function to calculate in which time interval
@@ -5488,79 +5505,41 @@ class Insys_FPGA:
         Generally, this function is close to convert_to_bit_pulse_pulser() and other convertion
         functions
         """
-        if self.test_flag != 'test':
-            if self.auto_defense_pulser == 'False':
-                pass
-            elif self.auto_defense_pulser == 'True':
-                max_pulse = np.amax(p_list[:,2])
-                bit_array = np.zeros(max_pulse, dtype = np.int64)
-                #bit_array2 = np.zeros(max_pulse, dtype = np.int64)
-                # two types of pulses: AMP_ON and SHAPER; LNA_PROTECT and VIDEO_PROTECT
-                #first_channel = p_list[1, 0]
-                i = 0
-                while i < len(p_list):
-                    # convert each pulse in an array of 0 and 1,
-                    # 1 corresponds to the time interval, where the channel is on
-                    translation_array = np.concatenate( (np.zeros(p_list[i, 1], dtype = np.int64), \
-                            np.ones(p_list[i, 2] - p_list[i, 1], dtype = np.int64), \
-                            np.zeros(max_pulse - p_list[i, 2], dtype = np.int64)), axis = None)
+        if self.auto_defense_pulser == 'False':
+            pass
+        elif self.auto_defense_pulser == 'True':
+            return self.process_pulses(p_list, channel)
 
-                    bit_array = bit_array | translation_array
+    def process_pulses(self, p_list, channel):
+        if len(p_list) == 0:
+            return np.empty((0, 3), dtype=np.int64)
 
-                    #if p_list[i, 0] == first_channel:
-                    #    bit_array = bit_array | translation_array
-                    #else:
-                    #    second_channel = p_list[i, 0]
-                    #    bit_array2 = bit_array2 | translation_array
+        threshold = (
+            self.min_pulse_length_pulser + self.minimal_distance_amp_lna_pulser
+        )
 
-                    i += 1
+        sort_idx = p_list[:, 1].argsort()
+        p_sorted = p_list[sort_idx]
 
-                bit_array = 2**(channel)*self.check_short_pulses_pulser(bit_array, channel)
-                #bit_array = (first_channel)*self.check_short_pulses_pulser(bit_array, first_channel)
-                #try:
-                #    bit_array2 = (second_channel)*self.check_short_pulses_pulser(bit_array2, second_channel)
-                #except UnboundLocalError:
-                #    return bit_array, bit_array2
+        starts = p_sorted[:, 1]
+        stops = p_sorted[:, 2]
 
-                return bit_array#, bit_array2
+        max_stops = np.maximum.accumulate(stops)
 
-        elif self.test_flag == 'test':
-            if self.auto_defense_pulser == 'False':
-                pass
-            elif self.auto_defense_pulser == 'True':            
-                max_pulse = np.amax(p_list[:,2])
-                bit_array = np.zeros(max_pulse, dtype = np.int64)
-                #bit_array2 = np.zeros(max_pulse, dtype = np.int64)
-                # two types of pulses: AMP_ON and SHAPER; LNA_PROTECT and VIDEO_PROTECT
-                #first_channel = p_list[1, 0]
-                i = 0
-                while i < len(p_list):
-                    # convert each pulse in an array of 0 and 1,
-                    # 1 corresponds to the time interval, where the channel is on
-                    translation_array = np.concatenate( (np.zeros(p_list[i, 1], dtype = np.int64), \
-                            np.ones(p_list[i, 2] - p_list[i, 1], dtype = np.int64), \
-                            np.zeros(max_pulse - p_list[i, 2], dtype = np.int64)), axis = None)
+        gaps = starts[1:] > (max_stops[:-1] + threshold)
 
-                    bit_array = bit_array | translation_array
+        group_starts = np.concatenate(([True], gaps))
+        group_ends = np.concatenate((gaps, [True]))
 
-                    #if p_list[i, 0] == first_channel:
-                    #    bit_array = bit_array | translation_array
-                    #else:
-                    #    second_channel = p_list[i, 0]
-                    #    bit_array2 = bit_array2 | translation_array
+        final_starts = starts[group_starts]
+        final_stops = max_stops[group_ends]
 
-                    i += 1
+        channel_power_of_two = 1 << channel
+        final_channels = np.full_like(final_starts, channel_power_of_two)
 
-                bit_array = 2**(channel)*self.check_short_pulses_pulser(bit_array, channel)
+        return np.column_stack((final_channels, final_starts, final_stops))
 
-                #bit_array = (first_channel)*self.check_short_pulses_pulser(bit_array, first_channel)
-                #try:
-                #    bit_array2 = (second_channel)*self.check_short_pulses_pulser(bit_array2, second_channel)
-                #except UnboundLocalError:
-                #    return bit_array, bit_array2
-
-                return bit_array#, bit_array2
-
+    #unused
     def instruction_pulse_short_lna_amp_pulser(self, np_array):
         """
         Final convertion to the pulse blaster instruction pulses
@@ -5618,6 +5597,7 @@ class Insys_FPGA:
 
                 return final_pulse_array
 
+    #unused
     def check_short_pulses_pulser(self, np_array, channel):
         """
         A function for checking whether there is two pulses with
@@ -5666,7 +5646,8 @@ class Insys_FPGA:
                 else:
                     final_array = self.joining_pulses_pulser(np_array)
                     return final_array
-    
+
+    #unused
     def joining_pulses_pulser(self, np_array):
         """
         A function that joing two short pulses in one
@@ -6052,6 +6033,17 @@ class Insys_FPGA:
             pulses = self.splitting_acc_to_channel_awg( self.convertion_to_numpy_awg(self.pulse_array_awg) )
             return pulses
 
+    def has_overlap(self, intervals):
+        if len(intervals) <= 1:
+            return False
+            
+        intervals = np.asarray(intervals)
+        
+        starts = intervals[intervals[:, 1].argsort(), 1]
+        ends = intervals[intervals[:, 1].argsort(), 2]
+        
+        return np.any(starts[1:] < ends[:-1])
+
     def define_buffer_single_joined_awg(self):
         """
         Define and fill the buffer in 'Single Joined' mode;
@@ -6063,7 +6055,17 @@ class Insys_FPGA:
         """
         # pulses are in a form [channel_number, function, frequency, phase, length, sigma, start, delta_start, amp, n_wurst, b_sech] 
         #                      [0,              1,        2,         3,      4,     5,      6,    7,           8,   9,       10    ]
-        if self.is_first_phase_cycle == 1:
+        
+        split_pulse_array = self.splitting_acc_to_channel_pulser( self.convertion_to_numpy_pulser( self.pulse_array_pulser ) )
+        tr_awg_array = split_pulse_array[0]
+        tr_awg_array[:,1:3] -= int( self.constant_shift_pulser - self.trigger_awg_shift / self.timebase_pulser )
+        tr_awg_array[:,1:3] *= 4
+        self.overlap_flag = self.has_overlap(tr_awg_array)
+
+        #general.message_test(tr_awg_array)
+        # TRIGGER_AWG pulses: [[   1,   0, 400], [   1, 400, 456], [   1, 680, 700], [   1,2760,2816]]
+
+        if (self.is_first_phase_cycle == 1) or (self.overlap_flag == True):
 
             pulses = self.preparing_buffer_single_awg() # 0.2-0.3 ms
             # only ch0 pulses are analyzed
@@ -6102,8 +6104,8 @@ class Insys_FPGA:
 
             # define buffer differently for only one or two channels enabled
             # for ch1 phase is automatically shifted by self.phase_shift_ch1_seq_mode_awg
-            channel_1 = np.array([], dtype = np.int16)
-            channel_2 = np.array([], dtype = np.int16)
+            #channel_1 = np.array([], dtype = np.int16)
+            #channel_2 = np.array([], dtype = np.int16)
 
             norm_c = self.maxCAD_awg / self.amplitude_max_awg  # 32767 - 260 mV MAX
 
@@ -6111,10 +6113,6 @@ class Insys_FPGA:
             channel_1 = np.zeros(total_samples, dtype=np.int16)
             channel_2 = np.zeros(total_samples, dtype=np.int16)
             current_pos = 0
-
-            ###ends = pulse_start_smp + pulse_length_smp
-            ###overlaps = ends[:-1] > pulse_start_smp[1:]
-            ###general.message_test(np.where(overlaps)[0])
 
             #general.message( pulse_length_smp % 4 )
 
@@ -6330,13 +6328,79 @@ class Insys_FPGA:
 
                 current_pos += length
 
-            self.dac_buffer_memorized_i.append(channel_1)
-            self.dac_buffer_memorized_q.append(channel_2)
+            if self.overlap_flag == True:
 
-            return channel_1, channel_2
+                chmod1, chmod2 = self.post_process_overlap(channel_1, channel_2, tr_awg_array)
+                self.dac_window = int( len(chmod1) / 4 )
+                #xs = ( round( 1000 / self.sample_rate_awg, 1 ) ) * np.arange(len(chmod1))
+                #general.plot_1d_test('DAC bufferOVER', xs, (chmod1, chmod2), label = 'ch')
+
+                return chmod1, chmod2
+
+            else:
+                self.dac_buffer_memorized_i.append(channel_1)
+                self.dac_buffer_memorized_q.append(channel_2)
+                self.dac_window = int( len(channel_1) / 4 )
+
+                #xs = ( round( 1000 / self.sample_rate_awg, 1 ) ) * np.arange(len(channel_1))
+                #general.plot_1d_test('DAC buffer', xs, (channel_1, channel_2), label = 'ch')
+
+                return channel_1, channel_2
 
         else:
+            #xs = ( round( 1000 / self.sample_rate_awg, 1 ) ) * np.arange(len(self.dac_buffer_memorized_i[self.current_phase_index_awg - 1]))
+            #general.plot_1d_test('DAC bufferMEM', xs, (self.dac_buffer_memorized_i[self.current_phase_index_awg - 1], self.dac_buffer_memorized_q[self.current_phase_index_awg - 1]), label = 'ch')
+
             return self.dac_buffer_memorized_i[self.current_phase_index_awg - 1], self.dac_buffer_memorized_q[self.current_phase_index_awg - 1]
+
+    #new
+    def post_process_overlap(self, channel_1, channel_2, intervals):
+        if len(intervals) == 0:
+            return channel_1, channel_2
+
+        intervals = intervals[intervals[:, 1].argsort()]
+        starts = intervals[:, 1]
+        ends = intervals[:, 2]
+
+        has_gap = starts[1:] > ends[:-1]
+        start_indices = np.append([True], has_gap)
+        end_indices = np.append(has_gap, [True])
+
+        final_starts = starts[start_indices]
+        cumulative_max_ends = np.maximum.accumulate(ends)
+        final_ends = cumulative_max_ends[end_indices]
+        
+        merged_lengths = final_ends - final_starts
+        total_samples = np.sum(merged_lengths)
+
+        master_1 = np.zeros(total_samples, dtype=np.float32)
+        master_2 = np.zeros(total_samples, dtype=np.float32)
+
+        current_src_pos = 0
+        for row in intervals:
+            start_dst = int(row[1])
+            end_dst = int(row[2])
+            length = end_dst - start_dst
+
+            chunk_1 = channel_1[current_src_pos : current_src_pos + length]
+            chunk_2 = channel_2[current_src_pos : current_src_pos + length]
+
+            group_idx = np.searchsorted(final_starts, start_dst, side='right') - 1
+            
+            offset_in_group = start_dst - final_starts[group_idx]
+            group_global_start = np.sum(merged_lengths[:group_idx]) if group_idx > 0 else 0
+            
+            dst_pos = group_global_start + offset_in_group
+
+            master_1[dst_pos : dst_pos + length] += chunk_1
+            master_2[dst_pos : dst_pos + length] += chunk_2
+
+            current_src_pos += length
+
+        final_1 = np.clip(np.round(master_1), -32768, 32767).astype(np.int16)
+        final_2 = np.clip(np.round(master_2), -32768, 32767).astype(np.int16)
+
+        return final_1, final_2
 
     def double_gauss(self, x, bl, a1, x1, w1, a2, x2, w2):
         return bl + a1 * np.exp( -(x - x1)**2 / w1  ) + a2 * np.exp( -(x - x2)**2 / w2  )
