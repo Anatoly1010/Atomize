@@ -17,6 +17,24 @@ import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
+
+# Streaming-parser constants used by the v4 buffer-handling path
+# (gen_2d_array_from_buffer / pulser_acquisition_cycle / digitizer_get_curve).
+# The header signature 0xAA5500FF is re-interpreted as a signed int32.
+_HEADER_SIG = np.int32(-1437269761)
+
+# Max time to wait for the GIM "switch complete" status before raising.
+_GIM_SWCOMP_TIMEOUT_S = 5.0
+_GIM_SWCOMP_POLL_S = 0.0001
+
+_PHASE_SIGN = {
+    '+x': 1,  '+': 1,
+    '-x': -1, '-': -1,
+    '+y': 1j, '+i': 1j,
+    '-y': -1j, '-i': -1j,
+}
+
+
 class Insys_FPGA:
     def __init__(self):
         #### Inizialization
@@ -440,6 +458,7 @@ class Insys_FPGA:
             
             self.data_buf_IP_GIM_brd               = []
             self.flag_sum_brd                      = 1 # 1 - average mode; 0 - single mode
+            self._rep_time_cache                   = None
 
             self.data_raw                          = np.zeros(10, dtype = np.int32 )
             self.count_nip                         = np.zeros(10, dtype = np.int32 )
@@ -480,6 +499,14 @@ class Insys_FPGA:
             self.l_mode                            = 0
             self.overlap_flag                      = True
 
+            # v4 streaming-parser state. tail_carry holds the partial
+            # packet (header + start of payload) cut at a buffer boundary,
+            # to be reassembled with the next buffer's leading bytes.
+            # _last_processed_nid carries across buffers for the optional
+            # skip_redundant=True dedup path.
+            self.tail_carry                        = np.empty(0, dtype=np.int32)
+            self._last_processed_nid               = -1
+
         elif self.test_flag == 'test':
 
             self.nIP_No_brd                        = 0
@@ -490,6 +517,7 @@ class Insys_FPGA:
             
             self.data_buf_IP_GIM_brd               = []
             self.flag_sum_brd                      = 1
+            self._rep_time_cache                   = None
 
             self.data_raw                          = np.zeros(10, dtype = np.int32 )
             self.count_nip                         = np.zeros(10, dtype = np.int32 )
@@ -530,6 +558,10 @@ class Insys_FPGA:
             self.mes                               = 0
             self.l_mode                            = 0
             self.overlap_flag                      = True
+
+            # v4 streaming-parser state (mirrored from the non-test branch).
+            self.tail_carry                        = np.empty(0, dtype=np.int32)
+            self._last_processed_nid               = -1
 
     # Module functions
     ####################GIM#################
@@ -976,11 +1008,10 @@ class Insys_FPGA:
         if self.test_flag != 'test':
             # deleting old phase switch pulses from self.pulse_array_pulser
             # before adding new ones
-            for i in range(self.phase_pulses_pulser):
-                for index, element in enumerate(self.pulse_array_pulser):
-                    if element['channel'] == '-X' or element['channel'] == '+Y':
-                        del self.pulse_array_pulser[index]
-                        break
+            self.pulse_array_pulser = [
+                p for p in self.pulse_array_pulser
+                if p['channel'] not in ('-X', '+Y')
+            ]
 
             self.phase_pulses_pulser = 0
             # adding phase switch pulses
@@ -1051,19 +1082,6 @@ class Insys_FPGA:
             else:
                 self.current_phase_index_pulser += 1
 
-
-            # update pulses
-            # get repetition rate
-            rep_rate_pulser = self.rep_rate_pulser[0]
-            if rep_rate_pulser[-3:] == ' Hz':
-                rep_time = int(1000000000/float(rep_rate_pulser[:-3]))
-            elif rep_rate_pulser[-3:] == 'kHz':
-                rep_time = int(1000000/float(rep_rate_pulser[:-4]))
-            elif rep_rate_pulser[-3:] == 'MHz':
-                rep_time = int(1000/float(rep_rate_pulser[:-4]))
-
-            rep_time = self.round_to_closest(rep_time, 3.2)
-
             self.pulser_update()
 
         elif self.test_flag == 'test':
@@ -1073,11 +1091,10 @@ class Insys_FPGA:
             if (next(gr, True) and not next(gr, False)) == False:
                 assert(1 == 2), 'Phase sequence does not have equal length'
 
-            for i in range(self.phase_pulses_pulser):
-                for index, element in enumerate(self.pulse_array_pulser):
-                    if element['channel'] == '-X' or element['channel'] == '+Y':
-                        del self.pulse_array_pulser[index]
-                        break
+            self.pulse_array_pulser = [
+                p for p in self.pulse_array_pulser
+                if p['channel'] not in ('-X', '+Y')
+            ]
 
             self.phase_pulses_pulser = 0
             for index, element in enumerate(self.pulse_array_pulser):
@@ -1151,149 +1168,103 @@ class Insys_FPGA:
                 pass
             else:
                 self.current_phase_index_pulser += 1
-            
-            # update pulses
-            # get repetition rate
-            rep_rate_pulser = self.rep_rate_pulser[0]
-            if rep_rate_pulser[-3:] == ' Hz':
-                rep_time = int(1000000000/float(rep_rate_pulser[:-3]))
-            elif rep_rate_pulser[-3:] == 'kHz':
-                rep_time = int(1000000/float(rep_rate_pulser[:-4]))
-            elif rep_rate_pulser[-3:] == 'MHz':
-                rep_time = int(1000/float(rep_rate_pulser[:-4]))
-
-            rep_time = self.round_to_closest(rep_time, 3.2)
 
             self.pulser_update()
 
+    def _rep_time_ns(self):
+        """
+        Parse self.rep_rate_pulser[0] into ns and round to 3.2 ns grid.
+        Cached; invalidated whenever pulser_repetition_rate sets a new rate.
+        """
+        if self._rep_time_cache is not None:
+            return self._rep_time_cache
+        s = self.rep_rate_pulser[0]
+        suffix = s[-3:]
+        if suffix == ' Hz':
+            rep_time = int(1000000000 / float(s[:-3]))
+        elif suffix == 'kHz':
+            rep_time = int(1000000 / float(s[:-4]))
+        elif suffix == 'MHz':
+            rep_time = int(1000 / float(s[:-4]))
+        else:
+            assert(1 == 2), "Incorrect repetition rate dimension (Hz, kHz, MHz)"
+        rep_time = self.round_to_closest(rep_time, 3.2)
+        self._rep_time_cache = rep_time
+        return rep_time
+
     def pulser_update(self):
         """
-        A function that write instructions to PB. 
+        A function that write instructions to PB.
         Repetition rate is taking into account by adding a last pulse with delay.
         Currently, all pulses are cycled using BRANCH.
         """
         if self.test_flag != 'test':
-            # get repetition rate
-            rep_rate_pulser = self.rep_rate_pulser[0]
-            if rep_rate_pulser[-3:] == ' Hz':
-                rep_time = int(1000000000/float(rep_rate_pulser[:-3]))
-            elif rep_rate_pulser[-3:] == 'kHz':
-                rep_time = int(1000000/float(rep_rate_pulser[:-4]))
-            elif rep_rate_pulser[-3:] == 'MHz':
-                rep_time = int(1000/float(rep_rate_pulser[:-4]))
+            if not (self.reset_count_pulser == 0 or self.shift_count_pulser == 1
+                    or self.increment_count_pulser == 1 or self.rep_rate_count_pulser == 1):
+                return
 
-            rep_time = self.round_to_closest(rep_time, 3.2)
+            rep_time = self._rep_time_ns()
 
-            if self.reset_count_pulser == 0 or self.shift_count_pulser == 1 or self.increment_count_pulser == 1 or self.rep_rate_count_pulser == 1:
-                # using a special functions for convertion to instructions
-                # we get two return arrays because of pulser_visualizer. It is not the case for test flag.
-                #temp, visualizer = self.convert_to_bit_pulse( self.pulse_array_pulser )
-                
-                #to_spinapi = self.instruction_pulse( temp, rep_time )
-                to_spinapi = self.split_into_parts_pulser( self.pulse_array_pulser, rep_time )
-                
-                to_spinapi2 = np.array(to_spinapi, dtype = np.int64)
+            to_spinapi = self.split_into_parts_pulser(self.pulse_array_pulser, rep_time)
+            to_spinapi2 = np.array(to_spinapi, dtype=np.int64)
+            if self.awg_pulses_pulser == 1:
+                # mod; offset all but the last instruction by 512 on column 0
+                to_spinapi2[:-1, 0] += 512
+            self.gen_GIM_words(to_spinapi2)  # Создает главный буфер
+
+            if self.nIP_NoKeeper_brd != self.nIP_No_brd:
                 if self.awg_pulses_pulser == 1:
-                    #mod; two lines:
-                    to_spinapi3 = to_spinapi2 + np.array( [512, 0, 0] )
-                    to_spinapi3[-1, 0] = 0
-                    self.gen_GIM_words( to_spinapi3 ) # Создает главный буфер 
-                else:
-                    self.gen_GIM_words( to_spinapi2 ) # Создает главный буфер 
-                #general.message( to_spinapi3 )
-                #self.gen_GIM_words( np.array(to_spinapi, dtype = np.int64) ) # Создает главный буфер 
-                
-                if (self.nIP_NoKeeper_brd != self.nIP_No_brd):
+                    self.write_data_DAC(self.nIP_No_brd)
+                self.write_data_GIM_brd()
+                self.nIP_NoKeeper_brd = self.nIP_No_brd
 
-                    if self.awg_pulses_pulser == 1:
-                        self.write_data_DAC(self.nIP_No_brd)
-                    
-                    self.write_data_GIM_brd()
-
-                    self.nIP_NoKeeper_brd = self.nIP_No_brd
-
-                #general.message(f"N_IP: {self.nIP_No_brd}")
-
-                # Run GIM at the begining of the experiment
-                if self.nIP_No_brd == 0:
-                    if self.start == 0:
-                        self.nIP_No_brd += 1
-                        self.start_brd()
-                        self.start = 1
-                    else:
-                        # SCANS
-                        while True:
-                            if( 1 == self.getGIM_swComp_GIM_status() ):
-                                self.nIP_No_brd += 1
-                                break
-                            else:
-                                pass
-                    #if( 1 == self.getGIM_swComp_GIM_status() ):
-                    #    self.nIP_No_brd = self.nIP_No_brd + 1
-                else:
-                    while True:
-                        if( 1 == self.getGIM_swComp_GIM_status() ):
-                            self.nIP_No_brd += 1
-                            break
-                        else:
-                            pass
-
-                #general.message( f'PU: {self.nIP_No_brd}' )
-                self.reset_count_pulser = 1
-                self.shift_count_pulser = 0
-                self.increment_count_pulser = 0
-                self.rep_rate_count_pulser = 0
-
-                self.iterator_of_updates_pulser += 1
+            # Run GIM at the begining of the experiment
+            if self.nIP_No_brd == 0 and self.start == 0:
+                self.nIP_No_brd += 1
+                self.start_brd()
+                self.start = 1
             else:
-                pass
+                # wait for the switch-complete bit with a timeout
+                deadline = time.monotonic() + _GIM_SWCOMP_TIMEOUT_S
+                while self.getGIM_swComp_GIM_status() != 1:
+                    if time.monotonic() > deadline:
+                        raise TimeoutError(
+                            f"GIM switch did not complete within {_GIM_SWCOMP_TIMEOUT_S}s "
+                            f"(nIP_No_brd={self.nIP_No_brd})"
+                        )
+                    time.sleep(_GIM_SWCOMP_POLL_S)
+                self.nIP_No_brd += 1
+
+            self.reset_count_pulser = 1
+            self.shift_count_pulser = 0
+            self.increment_count_pulser = 0
+            self.rep_rate_count_pulser = 0
+
+            self.iterator_of_updates_pulser += 1
 
         elif self.test_flag == 'test':
-            # get repetition rate
-            rep_rate_pulser = self.rep_rate_pulser[0]
-            if rep_rate_pulser[-3:] == ' Hz':
-                rep_time = int(1000000000/float(rep_rate_pulser[:-3]))
-            elif rep_rate_pulser[-3:] == 'kHz':
-                rep_time = int(1000000/float(rep_rate_pulser[:-4]))
-            elif rep_rate_pulser[-3:] == 'MHz':
-                rep_time = int(1000/float(rep_rate_pulser[:-4]))
-            else:
-                assert(1 == 2), "Incorrect repetition rate dimension (Hz, kHz, MHz)"
+            if not (self.reset_count_pulser == 0 or self.shift_count_pulser == 1
+                    or self.increment_count_pulser == 1 or self.rep_rate_count_pulser == 1):
+                return
 
-            rep_time = self.round_to_closest(rep_time, 3.2)
-            #assert( float(self.rep_rate_pulser[0].split(" ")[0]) < 12000 ), f'Repetition rate cannot exceed {12} kHz'
+            rep_time = self._rep_time_ns()
 
-            if self.reset_count_pulser == 0 or self.shift_count_pulser == 1 or self.increment_count_pulser == 1:
-                # using a special functions for convertion to instructions
-                #to_spinapi = self.instruction_pulse( self.convert_to_bit_pulse( self.pulse_array_pulser ) )
-                to_spinapi = self.split_into_parts_pulser( self.pulse_array_pulser, rep_time )
-                to_spinapi2 = np.array(to_spinapi, dtype = np.int64)
+            to_spinapi = self.split_into_parts_pulser(self.pulse_array_pulser, rep_time)
+            to_spinapi2 = np.array(to_spinapi, dtype=np.int64)
 
-                if self.awg_pulses_pulser == 1:
-                    #mod; two lines:
-                    to_spinapi3 = to_spinapi2 + np.array( [512, 0, 0] )
-                    to_spinapi3[-1, 0] = 0
-                    self.gen_GIM_words( to_spinapi3 ) # Создает главный буфер
-                else:
-                    self.gen_GIM_words( to_spinapi2 ) # Создает главный буфер 
+            if self.awg_pulses_pulser == 1:
+                # mod; offset all but the last instruction by 512 on column 0
+                to_spinapi2[:-1, 0] += 512
+            self.gen_GIM_words(to_spinapi2)  # Создает главный буфер
 
-                #self.gen_GIM_words( np.array(to_spinapi, dtype = np.int64) ) # Создает главный буфер 
+            if self.awg_pulses_pulser == 1:
+                self.awg_update()
+                self.write_data_DAC(0)
 
-                if self.awg_pulses_pulser == 1:
-                    self.awg_update()
-                    self.write_data_DAC(0)
-
-                #general.message(to_spinapi)
-                #self.spinapi = to_spinapi
-                #self.gen_GIM_words( np.array(to_spinapi, dtype = np.int64) ) # Создает главный буфер 
-
-                self.reset_count_pulser = 1
-                self.shift_count_pulser = 0
-                self.increment_count_pulser = 0
-                self.rep_rate_count_pulser = 0
-
-            else:
-                pass
+            self.reset_count_pulser = 1
+            self.shift_count_pulser = 0
+            self.increment_count_pulser = 0
+            self.rep_rate_count_pulser = 0
 
     def pulser_repetition_rate(self, *r_rate):
         """
@@ -1303,16 +1274,9 @@ class Insys_FPGA:
         if self.test_flag != 'test':
             if  len(r_rate) == 1:
                 self.rep_rate_pulser = r_rate
+                self._rep_time_cache = None
 
-                rep_rate_pulser = self.rep_rate_pulser[0]
-                if rep_rate_pulser[-3:] == ' Hz':
-                    rep_time = int(1000000000/float(rep_rate_pulser[:-3]))
-                elif rep_rate_pulser[-3:] == 'kHz':
-                    rep_time = int(1000000/float(rep_rate_pulser[:-4]))
-                elif rep_rate_pulser[-3:] == 'MHz':
-                    rep_time = int(1000/float(rep_rate_pulser[:-4]))
-
-                rep_time = self.round_to_closest(rep_time, 3.2)
+                rep_time = self._rep_time_ns()
 
                 if rep_time > 20408163:
                     if self.adc_window <= 256:
@@ -1340,15 +1304,8 @@ class Insys_FPGA:
         elif self.test_flag == 'test':
             if  len(r_rate) == 1:
                 self.rep_rate_pulser = r_rate
-                rep_rate_pulser = self.rep_rate_pulser[0]
-                if rep_rate_pulser[-3:] == ' Hz':
-                    rep_time = int(1000000000/float(rep_rate_pulser[:-3]))
-                elif rep_rate_pulser[-3:] == 'kHz':
-                    rep_time = int(1000000/float(rep_rate_pulser[:-4]))
-                elif rep_rate_pulser[-3:] == 'MHz':
-                    rep_time = int(1000/float(rep_rate_pulser[:-4]))
-
-                rep_time = self.round_to_closest(rep_time, 3.2)
+                self._rep_time_cache = None
+                rep_time = self._rep_time_ns()
 
                 if rep_time > 20408163:
                     self.change_ini_file("streamBufSizeKb = 1024", "streamBufSizeKb = 128")
@@ -1770,145 +1727,69 @@ class Insys_FPGA:
         """
         self.test_flag = flag
 
-    def pulser_acquisition_cycle(self, data1, data2, points, phases, adc_window, acq_cycle = ['+x']):
+    def pulser_acquisition_cycle(self, data1, data2, points, phases, adc_window,
+                                 acq_cycle=['+x'], lo=None, hi=None):
+        """
+        v4 slice-only phase-combine. Recomputes the answer for the point-range
+        whose nids span [lo, hi] (inclusive). Direct ASSIGN to
+        self.answer[i_pt:j_pt] — no accumulation across calls, no zeroing pass
+        for multi-scan: the running data_raw[nid] / count_nip[nid] already
+        encodes every scan so far.
+
+        Legacy `data1` / `data2` arguments are accepted (so any external
+        caller using v1's signature still works) but ignored; the inputs come
+        from self.data_raw / self.count_nip.
+
+        If lo is None the caller (digitizer_get_curve) signals that no buffer
+        was processed this call; return (None, None) so the caller skips
+        replot. External callers wanting a full recompute should pass
+        lo=0, hi=points*phases-1 explicitly.
+        """
         if self.test_flag != 'test':
-            
-            #self.nid_pc_prev                             - start
-            #self.nid_prev - (self.nid_prev % phases)     - last completed
 
-            k = 0
-            l = 0
+            counts_adc = int(adc_window * 8 / self.dec_coef)
+            counts_adc_full = int(adc_window * 16)
+            total_points = int(points * phases)
 
-            #general.message(f'i / j / nores: {self.nid_pc_prev } / {self.nid_prev - (self.nid_prev % phases) } / {self.nid_pc_prev_no_reset}')
+            # (Re-)allocate the answer array if its shape / dtype changes.
+            if (not hasattr(self, 'answer')
+                    or self.answer.shape != (points, counts_adc)
+                    or self.answer.dtype != np.complex64):
+                self.answer = np.zeros((points, counts_adc), dtype=np.complex64)
 
-            i = self.nid_pc_prev 
-            j = self.nid_prev - (self.nid_prev % phases)
+            # No new data signal: return None so the caller skips replot
+            # (uniform "no new data -> no action" contract with
+            # digitizer_get_curve).
+            if lo is None:
+                return None, None
 
-            # LAST POINT:
-            sh_points = int(points * phases)
+            # Expand the nid range to phase-cycle boundaries so the answer
+            # slice is a whole number of points.
+            i_nid = (lo // phases) * phases
+            j_nid = min(((hi // phases) + 1) * phases, total_points)
+            i_pt = i_nid // phases
+            j_pt = j_nid // phases
+            n_nid = j_nid - i_nid
 
-            if (( int( j - i ) < 0 ) or ( self.nid_pc_prev_no_reset == int( sh_points - phases) )) and (i != 0):
-                #general.message(i, j, self.nid_pc_prev_no_reset)
-                i = 0
-                j = sh_points
-                k = 1
+            counts = self.count_nip[i_nid:j_nid]
+            safe_counts = np.where(counts > 0, counts, 1)
+            data_2d = self.data_raw[
+                i_nid * counts_adc_full:j_nid * counts_adc_full
+            ].reshape(n_nid, counts_adc_full)
 
-                if ( self.n_scans == 2) and (len(self.count_nip[self.nid_pc_prev_no_reset:sh_points] > phases)):
-                    self.correction = int( self.ind_test[-1] + 1)
-                    #general.message(f'E2: {self.count_nip[self.nid_pc_prev_no_reset:sh_points]}')
-                    #general.message(self.ind_test)
-                    self.m = 1
+            norm = self.adc_sens / (self.gimSum_brd * phases)
+            data_i = (data_2d[:, 0::2 * self.dec_coef].astype(np.float64)
+                      * norm / safe_counts[:, None])
+            data_q = (data_2d[:, 1::2 * self.dec_coef].astype(np.float64)
+                      * norm / safe_counts[:, None])
 
-            if (( self.n_scans == 3 ) or ( ( self.n_scans == 2 ) and (j == int( sh_points - phases)) and (i != 0 ) )) and ( self.m == 1 ):
-                for index, element in enumerate(self.count_nip[self.correction:sh_points]):
-                    if element > 1:
-                        self.count_nip[int(index + self.correction)] -= 1
-                #general.message(f'E3: {self.count_nip[self.nid_pc_prev_no_reset:sh_points]}')
-                self.m = 0
+            new_slice = np.zeros((j_pt - i_pt, counts_adc), dtype=np.complex64)
+            for phase_idx, label in enumerate(acq_cycle):
+                s = _PHASE_SIGN[label]
+                new_slice += s * (data_i[phase_idx::phases]
+                                  + 1j * data_q[phase_idx::phases])
 
-            if (j == int( sh_points - phases)) and (i != 0 ):
-                j = sh_points
-
-            #31/03/2026
-            if self.l_mode == 1:
-                i = 0 
-                j = len(self.count_nip)
-                #print(self.count_nip)
-                
-            counts_adc = int( adc_window * 8 / self.dec_coef )
-            counts_adc_full = int( adc_window * 16 )
-            points_to_cycle = int( j - i)
-            points_to_cycle_ph = int( points_to_cycle//phases)
-
-            # can be decimation error
-            #ValueError: cannot reshape array of size 10667 into shape (2,5333)
-            #adc_window * 8 / self.dec_coef is float
-
-            data_for_cycling = self.data_raw[int(i*counts_adc_full):int(j*counts_adc_full)]
-            data_i =  self.adc_sens * (data_for_cycling[0::(2*self.dec_coef)]).reshape( points_to_cycle, counts_adc, order = 'C'  ) / self.count_nip[i:j,None] / self.gimSum_brd / phases
-            data_q =  self.adc_sens * (data_for_cycling[1::(2*self.dec_coef)]).reshape( points_to_cycle, counts_adc, order = 'C'  ) / self.count_nip[i:j,None] / self.gimSum_brd / phases
-
-
-            #SCANS:
-            if (i == 0) and (k == 0):
-                self.n_scans += 1
-
-            #31/03/2026
-            if self.l_mode == 1:
-                self.n_scans = 1
-
-            if self.flag_phase_cycle == 0:
-                self.answer = np.zeros( ( int( sh_points / phases), counts_adc ), dtype = np.complex64 )
-                #31/03/2026
-                if self.l_mode == 0:
-                    self.flag_phase_cycle = 1
-
-            #SCANS
-            if (self.n_scans > 1):
-                self.answer[(i//phases):(j//phases),:] = np.zeros( ( points_to_cycle_ph, counts_adc ), dtype = np.complex64 )
-
-
-            for index, element in enumerate(acq_cycle):
-                if element == '+' or element == '+x':
-                    self.answer[(i//phases):(j//phases),:] += (data_i)[index::phases] + 1j*(data_q)[index::phases]
-                elif element == '-' or element == '-x':
-                    self.answer[(i//phases):(j//phases),:] += -(data_i)[index::phases] - 1j*(data_q)[index::phases]
-                elif element == '+i' or element == '+y':
-                    self.answer[(i//phases):(j//phases),:] += 1j*(data_i)[index::phases] - (data_q)[index::phases]
-                elif element == '-i' or element == '-y':
-                    self.answer[(i//phases):(j//phases),:] += -1j*(data_i)[index::phases] + (data_q)[index::phases]
-
-            ## NO LAST POINT IN SCANS
-            if (i == 0) and (self.n_scans > 1) and (k == 0):
-                i = self.nid_pc_prev_no_reset
-                j = sh_points
-                points_to_cycle = int( j - i)
-                points_to_cycle_ph = int( points_to_cycle//phases)
-
-                if (self.n_scans == 2):
-                    #general.message(f'B: {self.count_nip[i:j]}')
-
-                    for index, element in enumerate(self.count_nip[i:j]):
-                        if element > 1:
-                            
-                            if self.count_nip[i] != 1:
-                                l = 1
-                            
-                            self.count_nip[int(index + i)] -= 1
-                            self.ind_test.append(int(index + i))
-                            
-                            ###
-                            if l == 1:
-                                if (self.count_nip[int(index + i)] == 1):# and (index) != 0:
-                                    self.count_nip[int(index + i)] += 1
-                            l = 0
-                            ###
-
-                    #general.message(f'A: {self.count_nip[i:j]}')
-
-                data_for_cycling = self.data_raw[int(i*counts_adc_full):int(j*counts_adc_full)]
-                data_i =  self.adc_sens * (data_for_cycling[0::(2*self.dec_coef)]).reshape( points_to_cycle, counts_adc, order = 'C' ) / self.count_nip[i:j,None] / self.gimSum_brd / phases
-                data_q =  self.adc_sens * (data_for_cycling[1::(2*self.dec_coef)]).reshape( points_to_cycle, counts_adc, order = 'C' ) / self.count_nip[i:j,None] / self.gimSum_brd / phases
-            
-                if (self.n_scans - 1 ) > 1:
-                    self.answer[(i//phases):(j//phases),:] = np.zeros( ( points_to_cycle_ph, counts_adc ), dtype = np.complex64 )
-
-                for index, element in enumerate(acq_cycle):
-                    if element == '+' or element == '+x':
-                        self.answer[(i//phases):(j//phases),:] += (data_i)[index::phases] + 1j*(data_q)[index::phases]
-                    elif element == '-' or element == '-x':
-                        self.answer[(i//phases):(j//phases),:] += -(data_i)[index::phases] - 1j*(data_q)[index::phases]
-                    elif element == '+i' or element == '+y':
-                        self.answer[(i//phases):(j//phases),:] += 1j*(data_i)[index::phases] - (data_q)[index::phases]
-                    elif element == '-i' or element == '-y':
-                        self.answer[(i//phases):(j//phases),:] += -1j*(data_i)[index::phases] + (data_q)[index::phases]
-
-
-            self.nid_pc_prev_no_reset = self.nid_prev - (self.nid_prev % phases)
-            self.nid_pc_prev = self.nid_prev - (self.nid_prev % phases)
-
-            k = 0
-
+            self.answer[i_pt:j_pt] = new_slice
             return self.answer.real, self.answer.imag
 
         elif self.test_flag == 'test':
@@ -2033,10 +1914,26 @@ class Insys_FPGA:
         answer = 'Insys 2.5 GHz 14 bit ADC'
         return answer
 
-    def digitizer_get_curve(self, p, ph, live_mode = 0, integral = False, current_scan = 1, total_scan = 1):
+    def digitizer_get_curve(self, p, ph, live_mode=0, integral=False,
+                            current_scan=1, total_scan=1,
+                            skip_redundant=False):
         """
         p - points
         ph - phases
+
+        v4 streaming parser. Drains ready driver buffers via the in-place
+        gen_2d_array_from_buffer, then recomputes the answer for whichever
+        point range was touched this call.
+
+        In live mode (live_mode=1), self.data_raw / self.count_nip /
+        self.tail_carry are reset on entry so the call returns a snapshot
+        of just the buffers that arrived since the previous call.
+
+        skip_redundant=False (default): every parsed packet is summed into
+            the running average — correct on-board-averaging semantics.
+        skip_redundant=True: matches the old digitizer_get_curve2
+            behaviour — only the first packet of each consecutive
+            same-nid run contributes.
         """
         self.l_mode = live_mode
 
@@ -2044,164 +1941,78 @@ class Insys_FPGA:
 
             total_points = int(p * ph)
             adc_window = self.adc_window
-            
-            if (self.flag_adc_buffer == 0) and (live_mode == 0):
-                self.data_raw = np.zeros( ( int(p * ph * adc_window * 16) ), dtype = np.int32 )
-                self.count_nip = np.zeros( ( total_points ), dtype = np.int32 ) + 1
-                self.flag_adc_buffer = 1
 
-            elif live_mode == 1:
-                self.data_raw = np.zeros( ( int(p * ph * adc_window * 16) ), dtype = np.int32 )
-                self.count_nip = np.zeros( ( total_points ), dtype = np.int32 ) + 1
-                #self.flag_adc_buffer = 1
+            # Lazy allocate on first non-test call (or every live-mode call).
+            if (self.flag_adc_buffer == 0 and live_mode == 0) or live_mode == 1:
+                self.data_raw = np.zeros(int(total_points * adc_window * 16),
+                                         dtype=np.int32)
+                self.count_nip = np.zeros(total_points, dtype=np.int32)
+                self.tail_carry = np.empty(0, dtype=np.int32)
+                self._last_processed_nid = -1
+                # Force re-allocation of self.answer in pulser_acquisition_cycle.
+                if hasattr(self, 'answer'):
+                    del self.answer
+                if live_mode == 0:
+                    self.flag_adc_buffer = 1
 
-            #Функция проверки готовности буферов. Функция возвращает номер последнего записанного блока. Исходя из этого номера можно посчитать сколько блоков необходимо “забрать” 
-            #strmBufNum = self.getStreamBufNum()
-            #general.message(f"ADC Buffer Number: {strmBufNum}")
+            is_drain = (self.nIP_No_brd == total_points
+                        and current_scan == total_scan
+                        and live_mode == 0)
 
+            lo, hi = None, None
+            any_processed = False
 
-            if (self.nIP_No_brd != total_points) or ( (self.nIP_No_brd == total_points) and (current_scan != total_scan) ):
-
+            while True:
                 BufCnt = self.AdcStreamGetBufState()
-                self.nBufToClcNum_brd = BufCnt - self.nStrmBufTotalCnt_brd
-                self.nBufToClcNum_brd = self.overflow_check(self.strmBufNum_brd, self.nBufToClcNum_brd, BufCnt, self.nStrmBufTotalCnt_brd)
+                new_bufs = BufCnt - self.nStrmBufTotalCnt_brd
+                new_bufs = self.overflow_check(self.strmBufNum_brd, new_bufs,
+                                               BufCnt,
+                                               self.nStrmBufTotalCnt_brd)
 
-                if (self.nBufToClcNum_brd > 0):
-                    #general.message(f'BF_CNT: {self.nBufToClcNum_brd}')
-
-                    for kk in range( self.nBufToClcNum_brd ):
-
-                        self.AdcStreamGetBuf_buf( self.brdDataBuf_brd )
+                if new_bufs > 0:
+                    for _ in range(new_bufs):
+                        self.AdcStreamGetBuf_buf(self.brdDataBuf_brd)
                         if self.flag_sum_brd == 1:
-
-                            # в режиме с усреднениями 4 байта на отсчет
-                            # 1.4 ms for 301 points, 2 phases, 20 averages, 400 Hz
-                            data_raw, count_nip = self.gen_2d_array_from_buffer( np.frombuffer(self.brdDataBuf_brd, dtype = np.int32), adc_window, p, ph, live_mode)
-
-                            i = self.nid_pc_prev
-                            j = self.nid_prev - (self.nid_prev % ph)
-                            
-                            #general.message(f'GC i / j: {i} / {j}')
-
-                            #self.data_raw = self.data_raw + data_raw
-                            #self.count_nip = self.count_nip + count_nip
-                            # 0.8 ms for 301 points, 2 phases, 20 averages, 400 Hz
-                            #st_time = time.time()
-                            if ( i == 0 ) or ( i > int( (p - 5) * ph) ):
-                                #general.message(f'GC i / j: {i} / {j}')
-                                self.data_raw += data_raw
-                                self.count_nip += count_nip
-                            elif j < int( (p - 5) * ph):
-                                self.data_raw[int((i - ph) * adc_window * 16):int((j + ph) * adc_window * 16)] += data_raw[int((i - ph) * adc_window * 16):int((j + ph) * adc_window * 16)]
-                                self.count_nip[int((i - ph)):int((j + ph))] += count_nip[int((i - ph)):int((j + ph))]
-                            else:
-                                self.data_raw += data_raw
-                                self.count_nip += count_nip
-
-                            #general.message(f'TIME: {round( 1000*(time.time() - st_time), 1)} ms')
-                            
-                            #general.message( np.nonzero(data_raw)[-1] )
-                            #general.message( f'I: {int((i - ph) * adc_window * 16)}' )
-                            #general.message( f'J: {int((j + ph) * adc_window * 16)}' )
-                            
-                            ###self.data_raw += data_raw
-                            ###self.count_nip += count_nip
-
+                            buf_lo, buf_hi = self.gen_2d_array_from_buffer(
+                                np.frombuffer(self.brdDataBuf_brd,
+                                              dtype=np.int32),
+                                adc_window, p, ph, live_mode,
+                                skip_redundant=skip_redundant)
+                            if buf_lo is not None:
+                                lo = (buf_lo if lo is None
+                                      else min(lo, buf_lo))
+                                hi = (buf_hi if hi is None
+                                      else max(hi, buf_hi))
+                                any_processed = True
                     self.nStrmBufTotalCnt_brd = BufCnt
 
-            elif (self.nIP_No_brd == total_points) and (live_mode == 0) and (current_scan == total_scan):
-                #general.message(f'LAST: {self.nStrmBufTotalCnt_brd}')
-                #general.message(f'LAST_IP: {self.N_IP}')
-                while True:
+                if not is_drain:
+                    break
+                # Drain exit: any packet of the last nid has been observed.
+                if (self.count_nip[-1] >= 1
+                        and self.N_IP == total_points - 1):
+                    break
 
-                    BufCnt = self.AdcStreamGetBufState()
-                    self.nBufToClcNum_brd = BufCnt - self.nStrmBufTotalCnt_brd
-                    self.nBufToClcNum_brd = self.overflow_check(self.strmBufNum_brd, self.nBufToClcNum_brd, BufCnt, self.nStrmBufTotalCnt_brd)
+            if not any_processed:
+                return None, None
 
-                    if (self.nBufToClcNum_brd > 0):
-                        for kk in range(self.nBufToClcNum_brd):
-                            #general.message(f'BF_CNT: {self.nBufToClcNum_brd}')
+            di, dq = self.pulser_acquisition_cycle(
+                None, None, p, ph, adc_window,
+                acq_cycle=self.detection_phase_list, lo=lo, hi=hi)
 
-                            self.AdcStreamGetBuf_buf( self.brdDataBuf_brd )
-                            if self.flag_sum_brd == 1:
-                                # в режиме с усреднениями 4 байта на отсчет
-                                data_raw, count_nip = self.gen_2d_array_from_buffer( np.frombuffer(self.brdDataBuf_brd, dtype = np.int32), adc_window, p, ph, live_mode)
+            # digitizer_at_exit() and any downstream caller reading the
+            # last-computed answer expect these attributes.
+            self.data_i_ph = di
+            self.data_q_ph = dq
 
-                                #self.data_raw = self.data_raw + data_raw
-                                #self.count_nip = self.count_nip + count_nip
-                                self.data_raw += data_raw
-                                self.count_nip += count_nip
-
-                        self.nStrmBufTotalCnt_brd = BufCnt
-                    
-                    # the case of 1 repetition of the last ID
-                    if ((self.nIP_No_brd - 1) == self.N_IP) and (self.count_nip[-1] > 0):
-                        #general.message(f'STOP: {self.nStrmBufTotalCnt_brd}')
-                        #self.pulser_stop()
-                        break
-
-                        #elif (self.count_nip[-1] <= 0):
-                        #    self.count_nip[-1] = 1
-
-            elif (self.nIP_No_brd == total_points) and (live_mode == 1):
-                #general.message(f'LAST: {self.nStrmBufTotalCnt_brd}')
-                #general.message(f'LAST_IP: {self.N_IP}')
-
-                BufCnt = self.AdcStreamGetBufState()
-                self.nBufToClcNum_brd = BufCnt - self.nStrmBufTotalCnt_brd
-                self.nBufToClcNum_brd = self.overflow_check(self.strmBufNum_brd, self.nBufToClcNum_brd, BufCnt, self.nStrmBufTotalCnt_brd)
-
-                if (self.nBufToClcNum_brd > 0):
-                    for kk in range(self.nBufToClcNum_brd):
-                        #general.message(f'BF_CNT: {self.nBufToClcNum_brd}')
-
-                        self.AdcStreamGetBuf_buf( self.brdDataBuf_brd )
-                        if self.flag_sum_brd == 1:
-                            # в режиме с усреднениями 4 байта на отсчет
-                            data_raw, count_nip = self.gen_2d_array_from_buffer( np.frombuffer(self.brdDataBuf_brd, dtype = np.int32), adc_window, p, ph, live_mode)
-
-                            #self.data_raw = self.data_raw + data_raw
-                            #self.count_nip = self.count_nip + count_nip
-                            self.data_raw += data_raw
-                            self.count_nip += count_nip
-
-                    self.nStrmBufTotalCnt_brd = BufCnt
-
-            #data_i = self.adc_sens * self.data_raw[0::(2*self.dec_coef)]
-            #data_q = self.adc_sens * self.data_raw[1::(2*self.dec_coef)]
-
-            if self.buffer_ready == 1:
-                #general.message(self.count_nip)
-                #data_i = self.adc_sens * self.data_raw[0::(2*self.dec_coef)]
-                #data_q = self.adc_sens * self.data_raw[1::(2*self.dec_coef)]
-
-                if integral == False:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
-                    self.buffer_ready = 0
-                    
-                    #self.data_i_ph_T, self.data_q_ph_T = self.data_i_ph.T, self.data_q_ph.T
-                    return self.data_i_ph.T, self.data_q_ph.T ###self.data_i_ph_T, self.data_q_ph_T#, self.count_nip #, self.buffer_ready + 1
-
-                elif integral == True:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
-                    #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = self.detection_phase_list)
-                    self.buffer_ready = 0
-                    scale = 0.4 * self.dec_coef
-                    res_i = np.sum(self.data_i_ph[:, self.win_left:self.win_right], axis=1) * scale
-                    res_q = np.sum(self.data_q_ph[:, self.win_left:self.win_right], axis=1) * scale
-
-                    return  res_i, res_q#, self.buffer_ready + 1
-
-            elif self.buffer_ready == 0:
-                if integral == False:
-                    self.buffer_ready = 0
-                    return None, None #, None#, 0
-                    #return self.data_i_ph_T, self.data_q_ph_T, self.buffer_ready
-  
-                elif integral == True:
-                    self.buffer_ready = 0
-                    return None, None#, 0
-                    #return np.sum( (self.data_i_ph).T[:, self.win_left:self.win_right], axis = 1 ), np.sum( (self.data_q_ph).T[:, self.win_left:self.win_right], axis = 1 ), self.buffer_ready
+            if integral:
+                scale = 0.4 * self.dec_coef
+                res_i = np.sum(di[:, self.win_left:self.win_right],
+                               axis=1) * scale
+                res_q = np.sum(dq[:, self.win_left:self.win_right],
+                               axis=1) * scale
+                return res_i, res_q
+            return di.T, dq.T
 
         elif self.test_flag == 'test':
 
@@ -2267,228 +2078,6 @@ class Insys_FPGA:
                 if integral == False:
                     self.buffer_ready = 0
                     #return self.data_i_ph_T, self.data_q_ph_T#, self.buffer_ready
-                    return None, None #, None#, 0
-                elif integral == True:
-                    self.buffer_ready = 0
-                    #return np.sum( (self.data_i_ph).T[:, self.win_left:self.win_right], axis = 1 ), np.sum( (self.data_q_ph).T[:, self.win_left:self.win_right], axis = 1 ), self.buffer_ready
-                    return None, None#, 0
-
-    def digitizer_get_curve2(self, p, ph, live_mode = 0, integral = False, current_scan = 1, total_scan = 1):
-        """
-        p - points
-        ph - phases
-        """
-        self.l_mode = live_mode
-        if self.test_flag != 'test':
-            adc_window = self.adc_window
-            total_points = int(p * ph)
-
-            if (self.flag_adc_buffer == 0) and (live_mode == 0):
-
-                self.data_raw = np.zeros( ( int(p * ph * adc_window * 16) ), dtype = np.int32 )
-                self.count_nip = np.ones( (int(p * ph)), dtype = np.int32 )
-                self.flag_adc_buffer = 1
-            elif (live_mode == 1):
-                self.data_raw = np.zeros( ( int(p * ph * adc_window * 16) ), dtype = np.int32 )
-                self.count_nip = np.ones( (int(p * ph)), dtype = np.int32 )
-                #self.flag_adc_buffer = 1
-
-            #Функция проверки готовности буферов. Функция возвращает номер последнего записанного блока. Исходя из этого номера можно посчитать сколько блоков необходимо “забрать” 
-            #strmBufNum = self.getStreamBufNum()
-            #general.message(f"ADC Buffer Number: {strmBufNum}")
-
-            if (self.nIP_No_brd != total_points) or ( (self.nIP_No_brd == total_points) and (current_scan != total_scan) ):
-
-                BufCnt = self.AdcStreamGetBufState()
-                self.nBufToClcNum_brd = BufCnt - self.nStrmBufTotalCnt_brd
-                self.nBufToClcNum_brd = self.overflow_check(self.strmBufNum_brd, self.nBufToClcNum_brd, BufCnt, self.nStrmBufTotalCnt_brd)
-
-                if (self.nBufToClcNum_brd > 0):
-                    #general.message(f'BF_CNT: {self.nBufToClcNum_brd}')
-
-                    for kk in range( self.nBufToClcNum_brd ):
-
-                        self.AdcStreamGetBuf_buf( self.brdDataBuf_brd )
-                        if self.flag_sum_brd == 1:
-
-                            # в режиме с усреднениями 4 байта на отсчет
-                            data_raw, count_nip = self.gen_2d_array_from_buffer2( np.frombuffer(self.brdDataBuf_brd, dtype = np.int32), adc_window, p, ph, live_mode)
-
-                            i = self.nid_pc_prev
-                            j = self.nid_prev - (self.nid_prev % ph)
-                            
-                            #self.data_raw += data_raw
-                            #self.count_nip += count_nip
-
-                            if ( i == 0 ) or ( i > int( (p - 5) * ph) ):
-                                self.data_raw += data_raw
-                                self.count_nip += count_nip
-                            elif j < int( (p - 5) * ph):
-                                self.data_raw[int((i - ph) * adc_window * 16):int((j + ph) * adc_window * 16)] += data_raw[int((i - ph) * adc_window * 16):int((j + ph) * adc_window * 16)]
-                                self.count_nip[int((i - ph)):int((j + ph))] += count_nip[int((i - ph)):int((j + ph))]
-                            else:
-                                self.data_raw += data_raw
-                                self.count_nip += count_nip
-
-
-                    self.nStrmBufTotalCnt_brd = BufCnt
-
-            elif (self.nIP_No_brd == total_points) and (live_mode == 0) and (current_scan == total_scan):
-                #general.message(f'LAST: {self.nStrmBufTotalCnt_brd}')
-                #general.message(f'LAST_IP: {self.N_IP}')
-                while True:
-
-                    BufCnt = self.AdcStreamGetBufState()
-                    self.nBufToClcNum_brd = BufCnt - self.nStrmBufTotalCnt_brd
-                    self.nBufToClcNum_brd = self.overflow_check(self.strmBufNum_brd, self.nBufToClcNum_brd, BufCnt, self.nStrmBufTotalCnt_brd)
-
-                    if (self.nBufToClcNum_brd > 0):
-                        for kk in range(self.nBufToClcNum_brd):
-                            #general.message(f'BF_CNT: {self.nBufToClcNum_brd}')
-
-                            self.AdcStreamGetBuf_buf( self.brdDataBuf_brd )
-                            if self.flag_sum_brd == 1:
-                                # в режиме с усреднениями 4 байта на отсчет
-                                data_raw, count_nip = self.gen_2d_array_from_buffer2( np.frombuffer(self.brdDataBuf_brd, dtype = np.int32), adc_window, p, ph, live_mode)
-
-                                #self.data_raw = self.data_raw + data_raw
-                                #self.count_nip = self.count_nip + count_nip
-                                self.data_raw += data_raw
-                                self.count_nip += count_nip
-
-                        self.nStrmBufTotalCnt_brd = BufCnt
-                    
-                    # the case of 1 repetition of the last ID
-                    if ((self.nIP_No_brd - 1) == self.N_IP) and (self.count_nip[-1] > 0):
-                        #general.message(f'STOP: {self.nStrmBufTotalCnt_brd}')
-                        #self.pulser_stop()
-                        break
-
-                        #elif (self.count_nip[-1] <= 0):
-                        #    self.count_nip[-1] = 1
-
-            elif (self.nIP_No_brd == total_points) and (live_mode == 1):
-                #general.message(f'LAST: {self.nStrmBufTotalCnt_brd}')
-                #general.message(f'LAST_IP: {self.N_IP}')
-
-                BufCnt = self.AdcStreamGetBufState()
-                self.nBufToClcNum_brd = BufCnt - self.nStrmBufTotalCnt_brd
-                self.nBufToClcNum_brd = self.overflow_check(self.strmBufNum_brd, self.nBufToClcNum_brd, BufCnt, self.nStrmBufTotalCnt_brd)
-
-                if (self.nBufToClcNum_brd > 0):
-                    for kk in range(self.nBufToClcNum_brd):
-                        #general.message(f'BF_CNT: {self.nBufToClcNum_brd}')
-
-                        self.AdcStreamGetBuf_buf( self.brdDataBuf_brd )
-                        if self.flag_sum_brd == 1:
-                            # в режиме с усреднениями 4 байта на отсчет
-                            data_raw, count_nip = self.gen_2d_array_from_buffer2( np.frombuffer(self.brdDataBuf_brd, dtype = np.int32), adc_window, p, ph, live_mode)
-
-                            #self.data_raw = self.data_raw + data_raw
-                            #self.count_nip = self.count_nip + count_nip
-                            self.data_raw += data_raw
-                            self.count_nip += count_nip
-
-                    self.nStrmBufTotalCnt_brd = BufCnt
-
-            #data_i = self.adc_sens * self.data_raw[0::(2*self.dec_coef)]
-            #data_q = self.adc_sens * self.data_raw[1::(2*self.dec_coef)]
-
-            if self.buffer_ready == 1:
-                #data_i = self.adc_sens * self.data_raw[0::(2*self.dec_coef)]
-                #data_q = self.adc_sens * self.data_raw[1::(2*self.dec_coef)]
-                
-                #general.message(self.count_nip)
-                if integral == False:
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
-
-                    self.buffer_ready = 0
-                    return self.data_i_ph.T, self.data_q_ph.T ##self.data_i_ph_T, self.data_q_ph_T#, self.count_nip #, self.buffer_ready + 1
-                elif integral == True:
-                    #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef  )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = self.detection_phase_list)
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
-                    self.buffer_ready = 0
-                    scale = 0.4 * self.dec_coef
-                    res_i = np.sum(self.data_i_ph[:, self.win_left:self.win_right], axis=1) * scale
-                    res_q = np.sum(self.data_q_ph[:, self.win_left:self.win_right], axis=1) * scale
-
-                    return  res_i, res_q, self.buffer_ready + 1
-
-            elif self.buffer_ready == 0:
-                if integral == False:
-                    self.buffer_ready = 0
-                    return None, None #, None#, 0
-                    #return self.data_i_ph_T, self.data_q_ph_T, self.buffer_ready
-  
-                elif integral == True:
-                    self.buffer_ready = 0
-                    return None, None#, 0
-                    #return np.sum( (self.data_i_ph).T[:, self.win_left:self.win_right], axis = 1 ), np.sum( (self.data_q_ph).T[:, self.win_left:self.win_right], axis = 1 ), self.buffer_ready
-
-        elif self.test_flag == 'test':
-
-            self.count_nip = np.ones( (int(p * ph)), dtype = np.int32 )
-            acq_cycle = self.detection_phase_list
-
-            #####
-            rep_rate_pulser = self.rep_rate_pulser[0]
-            if rep_rate_pulser[-3:] == ' Hz':
-                rep_time = int(1000000000/float(rep_rate_pulser[:-3]))
-            elif rep_rate_pulser[-3:] == 'kHz':
-                rep_time = int(1000000/float(rep_rate_pulser[:-4]))
-            elif rep_rate_pulser[-3:] == 'MHz':
-                rep_time = int(1000/float(rep_rate_pulser[:-4]))
-
-            rep_time = self.round_to_closest(rep_time, 3.2)
-            ##assert( self.gimSum_brd * rep_time/ 1000000 > 25 ), f'Too low number of averages per phase.\nPlease increase number of avegares to { int(1000000 * 25 / rep_time ) + 1 }' 
-            #####
-
-
-            if self.awg_pulses_pulser == 0:
-                rect_p_phase = self.phase_array_length_pulser[0]
-                if rect_p_phase == 0:
-                    rect_p_phase = 1
-                    assert( rect_p_phase == ph ), 'Number of phases and number of phases of RECT MW pulses have incompatible size'
-                    rect_p_phase = 0
-                elif rect_p_phase != 0:
-                    assert( rect_p_phase == ph ), 'Number of phases and number of phases of RECT MW pulses have incompatible size'
-            elif self.awg_pulses_pulser == 1:
-                awg_p_phase = self.phase_array_length_0_awg[0]
-                if awg_p_phase == 0:
-                    awg_p_phase = 1
-                    assert( awg_p_phase == ph ), 'Number of phases and number of phases of AWG MW pulses have incompatible size'
-                    awg_p_phase = 0
-                elif awg_p_phase != 0:
-                    assert( awg_p_phase == ph ), 'Number of phases and number of phases of AWG MW pulses have incompatible size'
-
-            adc_window = self.adc_window
-            #self.data_raw = np.zeros( ( int(p * ph) * int( adc_window * 16) ) )
-            #self.count_nip = np.ones( (int(p * ph) * 1) )
-            #data_i = self.adc_sens * self.data_raw[0::(2*self.dec_coef)]
-            #data_q = self.adc_sens * self.data_raw[1::(2*self.dec_coef)]
-
-            if self.buffer_ready == 1:
-                if integral == False:
-                    #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(data_i.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, data_q.reshape(int(p * ph), int( adc_window * 8 / self.dec_coef )) / self.count_nip[:,None] / self.gimSum_brd, acq_cycle = acq_cycle)
-                    #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), acq_cycle = self.detection_phase_list)
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
-                    self.buffer_ready = 0
-                    return self.data_i_ph.T, self.data_q_ph.T #, None#, self.buffer_ready + 1
-                elif integral == True:
-                    #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.empty( ( int(p * ph), int( adc_window * 8 / self.dec_coef ) ) ), acq_cycle = self.detection_phase_list)
-                    #general.message( len(np.sum( ((self.data_i_ph))[:, self.win_left:self.win_right], axis = 1 )) )
-                    self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
-                    self.buffer_ready = 0
-                    scale = 0.4 * self.dec_coef
-                    res_i = np.sum(self.data_i_ph[:, self.win_left:self.win_right], axis=1) * scale
-                    res_q = np.sum(self.data_q_ph[:, self.win_left:self.win_right], axis=1) * scale
-
-                    return  res_i, res_q#, self.buffer_ready + 1
-
-            elif self.buffer_ready == 0:
-                if integral == False:
-                    self.buffer_ready = 0
-                    #return self.data_i_ph_T, self.data_q_ph_T, self.buffer_ready
                     return None, None #, None#, 0
                 elif integral == True:
                     self.buffer_ready = 0
@@ -3939,254 +3528,150 @@ class Insys_FPGA:
 
     ####################AUX#####################
     #changed + need to check
-    def gen_2d_array_from_buffer(self, data, adc_window, p, ph, live_mode):
-        #начало заголовка
-        #0хAA5500FF
+    def gen_2d_array_from_buffer(self, data, adc_window, p, ph, live_mode,
+                                 skip_redundant=False):
+        """
+        v4 streaming parser. Parses one driver-buffer worth of int32 data
+        IN PLACE into self.data_raw / self.count_nip (no per-buffer
+        intermediate allocation), with vectorised per-nid grouping.
 
+        Fixes carried from the v3 -> v4 hardware-test cycles:
+          1. Slice `data` to data[:int(nStrmBufSizeb_brd/4)] — the c_int
+             driver buffer is over-allocated 4x and the trailing 3/4 is
+             zero padding (description.txt). v1 encodes this via
+             `ind = np.append(ind, [int(nStrmBufSizeb_brd/4)])` (the line
+             this function used to start with). Without the slice the
+             parser would carry zero padding as tail_carry and the next
+             buffer would fail to parse.
+          2. HEADER_SIG-search when tail_carry is empty — handles
+             live-mode streaming continuation (data may start mid-
+             packet on a continuation from the previous buffer; live-
+             mode discards tail_carry per call, so we have to re-anchor
+             on the first header).
+          3. HEADER_SIG-check on leftover — only retain leftover as
+             tail_carry if it actually starts with HEADER_SIG. Otherwise
+             it's intra-data-portion padding and gets dropped.
+
+        skip_redundant=False (default): every parsed packet is summed
+            into the running average — correct on-board-averaging
+            semantics, lowest noise.
+        skip_redundant=True: matches the old gen_2d_array_from_buffer2
+            semantics. Within each contiguous run of consecutive same-
+            nid packets (carry across buffer boundaries via
+            self._last_processed_nid) only the FIRST packet is
+            accumulated; the rest are dropped.
+
+        Returns (lo_nid, hi_nid) — the inclusive range of nids touched
+        in this call, or (None, None) if no complete packets were
+        processed.
+        """
         self.buffer_ready = 1
-        ind = np.where(data == -1437269761)[0]
-        ind = np.append(ind, [int (self.nStrmBufSizeb_brd / 4 )])
-
-        ####
-        self.nid_prev = self.nid_split
-        ####
-
-        # FOR SCANS
-        if self.reset_flag == 0:
-            # to get rid of splitted buffer in live mode
-            if live_mode == 0:
-                splitted_data = np.split(data, ind )[1:-1]
-                splitted_data_tail = np.split(data, ind )[0:1]
-            elif live_mode == 1:
-                splitted_data = np.split(data, ind )[1:-2] # or -3?
-                splitted_data_tail = (np.array([]), np.array([]))
-
-        elif self.reset_flag == 1:
-            # to get rid of splitted buffer in live mode
-            if live_mode == 0:
-                splitted_data = np.split(data, ind )[1:-2]
-                splitted_data_tail = np.split(data, ind )[0:1]
-            elif live_mode == 1:
-                splitted_data = np.split(data, ind )[1:-2] # or -3?
-                splitted_data_tail = (np.array([]), np.array([]))
-            
-            ###self.flag_buffer_cut = 0
-            # this does nothing
-            self.reset_flag = 0
-            #self.nid_prev = -1  # important
-        
-        #splitted_data_tail = np.split(data, ind )[0:1]
-        
-        #a = []
-        #b = []
-
         full_adc = adc_window * 16
-        data_raw = np.zeros( ( int(p * ph * full_adc ) ), dtype = np.int32 )
-        count_nip = np.zeros( (int(p * ph) ), dtype = np.int16 )
+        pkt_size = full_adc + 8
+        total_points = p * ph
 
-        len_data_tail = len(splitted_data_tail[0])
-        dif_tail = int( full_adc ) - len_data_tail
+        # Fix 1: slice to the data portion (the rest is zero padding).
+        data_len = int(self.nStrmBufSizeb_brd / 4)
+        if data.size > data_len:
+            data = data[:data_len]
 
-        f_cut = self.flag_buffer_cut
-        n_split = self.nid_split
-        s_flag = self.sub_flag
-        n_prev = self.nid_prev
-        r_count_nip = self.reset_count_nip
+        if self.tail_carry.size:
+            stream = np.concatenate((self.tail_carry, data))
+        else:
+            # Fix 2: when tail_carry is empty the buffer may start mid-
+            # packet (live-mode streaming continuation, OR the very first
+            # exp-mode call where data does start with a header — which
+            # is also handled because first_hdr[0] = 0 in that case).
+            # Find the first HEADER_SIG and start parsing there.
+            first_hdr = np.where(data == _HEADER_SIG)[0]
+            if first_hdr.size == 0:
+                return None, None
+            if first_hdr[0] > 0:
+                data = data[first_hdr[0]:]
+            stream = data
 
-        for i in range(len(splitted_data)):
-
-            nid = int.from_bytes( ( (splitted_data[i])[2:4] ).tobytes()[0:6], byteorder='little' )
-            #check:!
-            ##nid = splitted_data[i][2:4].view(np.uint16)[0]
-
-            #if self.nid_prev != nid:
-                #a.append(nid)
-
-            len_data = len((splitted_data[i]))
-            dif = int( full_adc + 8) - len_data
-
-            #len_data_tail = len(splitted_data_tail[0])
-            #dif_tail = int( full_adc ) - len_data_tail
-
-            if (len_data_tail != 0) and (f_cut == 1):
-                #if self.nid_split != nid:
-                if (nid != 0):
-                    data_raw[(n_split*full_adc + dif_tail):((n_split + 1)*full_adc)] += (splitted_data_tail[0])
-                    f_cut = 0
-                    #b.append(self.nid_split)
-
-            # only in the last part of the buffer => beginning of the splitted data
-            if dif != 0: #) and (nid != self.N_IP)
-                if f_cut == 0:
-                    # inccorect head in the last point
-                    if (nid != (p * ph - 1)):
-                        data_raw[(nid*full_adc):(nid*full_adc + len_data - 8)] += (splitted_data[i])[8:]
-                    else:
-                        # inccorect count in the last point and prevent double subtraction
-                        if (s_flag == 0): #and (self.reset_count_nip == 1)
-                            count_nip[nid] += -1
-                            s_flag = 1
-
-                    f_cut = 1
-                    n_split = nid
-
+        n_complete = len(stream) // pkt_size
+        if n_complete == 0:
+            # Stream shorter than one packet — only worth carrying if it
+            # looks like the head of a packet.
+            if stream.size > 0 and stream[0] == _HEADER_SIG:
+                self.tail_carry = (stream.copy()
+                                   if stream is data else stream)
             else:
-                data_raw[(nid*full_adc):((nid + 1)*full_adc)] += (splitted_data[i])[8:]
+                self.tail_carry = np.empty(0, dtype=np.int32)
+            return None, None
 
-            if r_count_nip == 0:
-                if (count_nip[nid] == 1) and (n_prev != nid):
-                    pass
-                elif (n_prev == nid):
-                    count_nip[nid] += 1
-            elif r_count_nip == 1:
-                count_nip[nid] += 1
+        pkts = stream[:n_complete * pkt_size].reshape(n_complete, pkt_size)
 
-            n_prev = nid
+        # Header validation in one vectorised op. Trailing zero-padding
+        # at the end of an under-filled data portion shows up as a row
+        # whose first int32 isn't HEADER_SIG. Truncate at the first.
+        hdr_match = pkts[:, 0] == _HEADER_SIG
+        if not hdr_match.all():
+            n_complete = int(np.argmax(~hdr_match))
+            pkts = pkts[:n_complete]
 
-        
-        self.flag_buffer_cut = f_cut
-        self.nid_split = n_split
-        self.sub_flag = s_flag
-        self.nid_prev = n_prev
-        self.reset_count_nip = r_count_nip
+        # Fix 3: leftover is either the head of the next packet
+        # (streaming model: packets pack across the data-portion boundary
+        # into the next buffer's data portion) OR intra-data-portion
+        # under-fill padding. HEADER_SIG => carry; anything else => drop.
+        leftover = stream[n_complete * pkt_size:]
+        if leftover.size > 0 and leftover[0] == _HEADER_SIG:
+            self.tail_carry = leftover.copy()
+        else:
+            self.tail_carry = np.empty(0, dtype=np.int32)
 
-        # In live_ mode self.reset_count_nip is always 1
-        if live_mode == 1:
-            count_nip += -1
+        if n_complete == 0:
+            return None, None
 
-        self.N_IP = nid
+        # Extract nids in one vectorised slice (was an int.from_bytes
+        # Python call per packet in v1).
+        nids_all = pkts[:, 2].astype(np.intp)
+        in_range = (nids_all >= 0) & (nids_all < total_points)
+        if in_range.all():
+            nids = nids_all
+            payloads = pkts[:, 8:]
+        else:
+            nids = nids_all[in_range]
+            payloads = pkts[in_range, 8:]
 
-        #general.message(f'NID_SPLIT: {self.nid_split}')
-        #general.message(count_nip)
-        #general.message(f'N_IP_BOARD: {self.nIP_No_brd}')
-        #general.message(f'N_IP_BUFFER: {self.N_IP}')
+        if nids.size == 0:
+            return None, None
 
-        return data_raw, count_nip
+        # Optional: dedup consecutive same-nid packets (v2 semantics).
+        # Compares each nid with the previous one (carried from prev
+        # buffer via self._last_processed_nid) — drops every packet
+        # that repeats the immediately-preceding nid, keeping only the
+        # first of each run.
+        if skip_redundant:
+            prev_nids = np.concatenate(
+                ([self._last_processed_nid], nids[:-1]))
+            keep = nids != prev_nids
+            if not keep.all():
+                nids = nids[keep]
+                payloads = payloads[keep]
+            if nids.size == 0:
+                # Whole buffer was a continuation of the previous run.
+                return None, None
 
-    def gen_2d_array_from_buffer2(self, data, adc_window, p, ph, live_mode):
-        """
-        Skip additional repetitons
-        """
+        # count_nip += bincount of nids in this buffer (one numpy call).
+        self.count_nip += np.bincount(
+            nids, minlength=total_points).astype(np.int32)
 
-        #начало заголовка
-        #0хAA5500FF
+        # data_raw[nid] += sum of all this-buffer's payloads of that nid.
+        # In real ops a buffer holds ~5 unique nids out of ~100 packets,
+        # so iterating unique nids and summing the sub-mask is much
+        # faster than a per-packet Python loop.
+        unique_nids, inverse = np.unique(nids, return_inverse=True)
+        for k, nid in enumerate(unique_nids):
+            mask = inverse == k
+            self.data_raw[nid * full_adc:(nid + 1) * full_adc] += \
+                payloads[mask].sum(axis=0, dtype=np.int32)
 
-        self.buffer_ready = 1
-        ind = np.where(data == -1437269761)[0]
-        ind = np.append(ind, [int (self.nStrmBufSizeb_brd / 4 )])
-
-        ####
-        ####self.nid_prev = self.nid_split
-        ####
-
-        # FOR SCANS
-        if self.reset_flag == 0:
-            # to get rid of splitted buffer in live mode
-            if live_mode == 0:
-                splitted_data = np.split(data, ind )[1:-1]
-                splitted_data_tail = np.split(data, ind )[0:1]
-            elif live_mode == 1:
-                splitted_data = np.split(data, ind )[1:-2] # or -3?
-                splitted_data_tail = (np.array([]), np.array([]))
-
-        elif self.reset_flag == 1:
-            # to get rid of splitted buffer in live mode
-            if live_mode == 0:
-                splitted_data = np.split(data, ind )[1:-2]
-                splitted_data_tail = np.split(data, ind )[0:1]
-            elif live_mode == 1:
-                splitted_data = np.split(data, ind )[1:-2] # or -3?
-                splitted_data_tail = (np.array([]), np.array([]))
-            
-            ###self.flag_buffer_cut = 0
-            self.reset_flag = 0
-            #self.nid_prev = -1  # important
-        
-        #splitted_data_tail = np.split(data, ind )[0:1]
-        
-        #a = []
-        #b = []
-
-        full_adc = adc_window * 16
-        data_raw = np.zeros( ( int(p * ph * full_adc ) ), dtype = np.int32 )
-        count_nip = np.zeros( (int(p * ph) * 1), dtype = np.int16 )
-
-        len_data_tail = len(splitted_data_tail[0])
-        dif_tail = int( full_adc ) - len_data_tail
-
-        f_cut = self.flag_buffer_cut
-        n_split = self.nid_split
-        s_flag = self.sub_flag
-        n_prev = self.nid_prev
-        r_count_nip = self.reset_count_nip
-
-        for i in range(len(splitted_data)):
-
-            nid = int.from_bytes( ( (splitted_data[i])[2:4] ).tobytes()[0:6], byteorder='little' )
-            #check:!
-            ##nid = splitted_data[i][2:4].view(np.uint16)[0]
-            
-            if n_prev != nid:
-                #a.append(nid)
-
-                len_data = len((splitted_data[i]))
-                dif = int( full_adc + 8) - len_data
-
-                #len_data_tail = len(splitted_data_tail[0])
-                #dif_tail = int( full_adc ) - len_data_tail
-
-                if (len_data_tail != 0) and (f_cut == 1):
-                    #if self.nid_split != nid:
-                    if (nid != 0) :
-                        data_raw[(n_split*full_adc + dif_tail):((n_split + 1)*full_adc)] += (splitted_data_tail[0])
-                        f_cut = 0
-                        #b.append(self.nid_split)
-
-                # only in the last part of the buffer => beginning of the splitted data
-                if dif != 0: #) and (nid != self.N_IP)
-                    if f_cut == 0:
-                        # inccorect head in the last point
-                        if (nid != (p * ph - 1)):
-                            data_raw[(nid*full_adc):(nid*full_adc + len_data - 8)] += (splitted_data[i])[8:]
-                        else:
-                            # inccorect count in the last point and prevent double subtraction
-                            if (s_flag == 0): #and (self.reset_count_nip == 1)
-                                count_nip[nid] += -1
-                                s_flag = 1
-
-                        f_cut = 1
-                        n_split = nid
-
-                else:
-                    data_raw[(nid*full_adc):((nid + 1)*full_adc)] += (splitted_data[i])[8:]
-
-                if r_count_nip == 0:
-                    if (count_nip[nid] == 1) and (n_prev != nid):
-                        pass
-                    elif (n_prev == nid):
-                        count_nip[nid] += 1
-                elif r_count_nip == 1:
-                    count_nip[nid] += 1
-
-            n_prev = nid
-
-        self.flag_buffer_cut = f_cut
-        self.nid_split = n_split
-        self.sub_flag = s_flag
-        self.nid_prev = n_prev
-        self.reset_count_nip = r_count_nip
-
-        # In live_ mode self.reset_count_nip is always 1
-        if live_mode == 1:
-            count_nip += -1
-
-        self.N_IP = nid
-        #general.message(a)
-        #general.message(count_nip)
-        #general.message(f'N_IP_BOARD: {self.nIP_No_brd}')
-        #general.message(f'N_IP_BUFFER: {self.N_IP}')
-
-        return data_raw, count_nip
+        last_nid = int(unique_nids[-1])
+        self.N_IP = last_nid
+        self._last_processed_nid = int(nids[-1])
+        return int(unique_nids[0]), last_nid
 
     def overflow_check(self, BufNum, BufTot, BufCnt, StreamBufTot):
         """
