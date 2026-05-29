@@ -40,6 +40,7 @@ Documentation = "https://github.com/Anatoly1010/Atomize/tree/master/atomize/docu
     modbus = ["minimalmodbus>=1.0"]
 	bots = ["pyTelegramBotAPI>=4.15"]
     math = ["scipy>=1.15"]
+    test = ["pytest>=7"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["atomize"]
