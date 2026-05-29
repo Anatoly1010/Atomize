@@ -1,29 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os
-import gc
 import sys
-import pyvisa
-from pyvisa.constants import StopBits, Parity
-import atomize.main.local_config as lconf
+import atomize.device_modules.base_device as base
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
-class Lakeshore_335:
+class Lakeshore_335(base.BaseDevice):
+    config_file = 'Lakeshore_335_config.ini'
+
     #### Basic interaction functions
     def __init__(self):
-
-        #### Inizialization
-        # setting path to *.ini file
-        self.path_current_directory = lconf.load_config_device()
-        self.path_config_file = os.path.join(self.path_current_directory, 'Lakeshore_335_config.ini')
-
-        # configuration data
-        self.config = cutil.read_conf_util(self.path_config_file)
-        self.specific_parameters = cutil.read_specific_parameters(self.path_config_file)
-        self.loop_config = int(self.specific_parameters['loop']) # information about the loop used
-
         # auxilary dictionaries
         self.heater_dict = {'50 W': 3, '5 W': 2, '0.5 W': 1, 'Off': 0,};
         self.lock_dict = {'Local-Locked': 0, 'Remote-Locked': 1, 'Local-Unlocked': 2, 'Remote-Unlocked': 3,}
@@ -34,101 +21,25 @@ class Lakeshore_335:
         self.temperature_max = 320
         self.temperature_min = 0.3
 
-        # Test run parameters
-        # These values are returned by the modules in the test run 
-        if len(sys.argv) > 1:
-            self.test_flag = sys.argv[1]
-        else:
-            self.test_flag = 'None'
+        # config loading, test_flag, and connection are handled by BaseDevice
+        super().__init__()
 
-        if self.test_flag != 'test':
-            if self.config['interface'] == 'gpib':
-                try:
-                    import Gpib
-                    self.status_flag = 1
-                    self.device = Gpib.Gpib(self.config['board_address'], self.config['gpib_address'], \
-                                            timeout = self.config['timeout'])
-                    try:
-                        # test should be here
-                        self.device_write('*CLS')
-                        answer = int(self.device_query('*TST?'))
-                        if answer == 0:
-                            self.status_flag = 1
-                        else:
-                            general.message(f'During internal device test errors were found {self.__class__.__name__}')
-                            self.status_flag = 0
-                            sys.exit()
-                    except BrokenPipeError:
-                        general.message(f"No connection {self.__class__.__name__}")
-                        self.status_flag = 0;
-                        sys.exit()
-                except BrokenPipeError:        
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0
-                    sys.exit()
+        # information about the loop used
+        self.loop_config = int(self.specific_parameters['loop'])
 
-            elif self.config['interface'] == 'rs232':
-                try:
-                    self.status_flag = 1
-                    rm = pyvisa.ResourceManager()
-                    self.device = rm.open_resource(self.config['serial_address'], read_termination=self.config['read_termination'],
-                    write_termination=self.config['write_termination'], baud_rate=self.config['baudrate'],
-                    data_bits=self.config['databits'], parity=self.config['parity'], stop_bits=self.config['stopbits'])
-                    self.device.timeout = self.config['timeout'] # in ms
-                    try:
-                        # test should be here
-                        self.device_write('*CLS')
-                        answer = self.device_query('*TST?')
-                        if answer == 0:
-                            self.status_flag = 1
-                        else:
-                            general.message(f'During internal device test errors are found {self.__class__.__name__}')
-                            self.status_flag = 0
-                            sys.exit()
-                    except (pyvisa.VisaIOError, BrokenPipeError):
-                        self.status_flag = 0
-                        general.message(f"No connection {self.__class__.__name__}")
-                        sys.exit()
-                except (pyvisa.VisaIOError, BrokenPipeError):
-                    general.message(f"No connection {self.__class__.__name__}")
-                    self.status_flag = 0
-                    sys.exit()
+    def _init_test_values(self):
+        # These values are returned by the module in the test run
+        self.test_temperature = 200.
+        self.test_set_point = 298.
+        self.test_lock = 'Remote-Locked'
+        self.test_heater_range = '5 W'
+        self.test_heater_percentage = 1.
+        self.test_sensor = 'A'
 
-        elif self.test_flag == 'test':
-            self.test_temperature = 200.
-            self.test_set_point = 298.
-            self.test_lock = 'Remote-Locked'
-            self.test_heater_range = '5 W'
-            self.test_heater_percentage = 1.
-            self.test_sensor = 'A'
-
-    def close_connection(self):
-        if self.test_flag != 'test':
-            self.status_flag = 0
-            gc.collect()
-        elif self.test_flag == 'test':
-            pass
-
-    def device_write(self, command):
-        if self.status_flag == 1:
-            command = str(command)
-            self.device.write(command)
-        else:
-            general.message(f"No connection {self.__class__.__name__}")
-            self.status_flag = 0
-            sys.exit()
-
-    def device_query(self, command):
-        if self.status_flag == 1:
-            if self.config['interface'] == 'gpib':
-                self.device.write(command)
-                general.wait('50 ms')
-                answer = self.device.read()
-            elif self.config['interface'] == 'rs232':
-                answer = self.device.query(command)
-            return answer
-        else:
-            general.message(f"No connection {self.__class__.__name__}")
+    def _self_test(self):
+        self.device_write('*CLS')
+        if int(self.device_query('*TST?')) != 0:
+            general.message(f'During internal device test errors were found {self.__class__.__name__}')
             self.status_flag = 0
             sys.exit()
 
@@ -154,7 +65,7 @@ class Lakeshore_335:
             elif channel == 'B':
                 answer = float(self.device_query('KRDG? B'))
                 return answer
-        
+
         elif self.test_flag == 'test':
             assert(channel == 'A' or channel == 'B'), "Incorrect channel; channel: ['A', 'B']"
             answer = self.test_temperature
@@ -170,7 +81,7 @@ class Lakeshore_335:
 
                 elif len(temp) == 0:
                     answer = float(self.device_query('SETP? ' + str(self.loop_config)))
-                    return answer               
+                    return answer
 
         elif self.test_flag == 'test':
             if len(temp) == 1:
@@ -200,7 +111,7 @@ class Lakeshore_335:
                 answer = cutil.search_keys_dictionary(self.heater_dict, raw_answer)
                 return answer
 
-        elif self.test_flag == 'test':                           
+        elif self.test_flag == 'test':
             if  len(heater) == 1:
                 hr = str(heater[0])
                 if hr in self.heater_dict:
@@ -229,7 +140,7 @@ class Lakeshore_335:
             full_answer = [answer, answer1]
             return full_answer
 
-    def tc_sensor(self, *sensor): 
+    def tc_sensor(self, *sensor):
         if self.test_flag != 'test':
             if len(sensor) == 1:
                 sens = int(sensor[0])
@@ -303,7 +214,7 @@ class Lakeshore_335:
                 elif answer1 == 0 and answer2 == 1:
                     answer_flag = 3
                     answer = cutil.search_keys_dictionary(self.lock_dict, answer_flag)
-                    return answer                
+                    return answer
 
         elif self.test_flag == 'test':
             if len(lock) == 1:
@@ -314,7 +225,7 @@ class Lakeshore_335:
                     assert(1 == 2), f"Invalid lock argument; lock: {list( self.lock_dict.keys() )}"
             elif len(lock) == 0:
                 answer = self.test_lock
-                return answer    
+                return answer
             else:
                 assert(1 == 2), f"Invalid lock argument; lock: {list( self.lock_dict.keys() )}"
 
