@@ -35,6 +35,13 @@ def test_temperature_channel_b(make_lakeshore):
     assert dev.device.written == ["KRDG? B"]
 
 
+def test_temperature_ethernet(make_lakeshore):
+    # ethernet routes device_query through .query() (same path as rs232)
+    dev = make_lakeshore("ethernet", responses=["298.5"])
+    assert dev.tc_temperature("A") == 298.5
+    assert dev.device.written == ["KRDG? A"]
+
+
 def test_setpoint_write(make_lakeshore):
     dev = make_lakeshore("rs232", loop=1)
     dev.tc_setpoint(298.0)

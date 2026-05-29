@@ -35,13 +35,31 @@ class FakeVisa:
         return self._responses.pop(0)
 
 
+class FakeModbus:
+    """Stand-in for a minimalmodbus.Instrument. Records register writes as
+    (register, value, decimals, functioncode, signed) tuples and returns
+    scripted register reads (default 0)."""
+
+    def __init__(self, registers=None):
+        self.writes = []
+        self.registers = dict(registers or {})
+
+    def write_register(self, register, value, decimals, functioncode=16, signed=False):
+        self.writes.append((register, value, decimals, functioncode, signed))
+
+    def read_register(self, register, decimals, signed=False):
+        return self.registers.get(register, 0)
+
+
 @pytest.fixture(autouse=True)
 def _no_sleep(monkeypatch):
-    """general.wait() really sleeps outside test mode; neutralize it so the
-    50 ms GPIB write->read settle delay inside device_query doesn't slow the
-    suite. Targeted so message()/plot() semantics are untouched."""
+    """Neutralize real sleeps so the suite stays fast: general.wait() (the GPIB
+    write->read settle delay) and time.sleep() (e.g. Termodat_11M6's
+    device_read_signed delay). message()/plot() semantics are untouched."""
+    import time
     import atomize.general_modules.general_functions as general
     monkeypatch.setattr(general, "wait", lambda *a, **k: None)
+    monkeypatch.setattr(time, "sleep", lambda *a, **k: None)
 
 
 @pytest.fixture
@@ -77,6 +95,77 @@ def make_lakeshore():
             dev.test_heater_range = "5 W"
             dev.test_heater_percentage = 1.0
             dev.test_sensor = "A"
+        return dev
+
+    return _make
+
+
+@pytest.fixture
+def make_owen():
+    """Build an Owen_MK110_220_4DN_4R (ModbusDevice subclass) with an injected
+    FakeModbus, bypassing __init__ (which would read config and open a real
+    minimalmodbus connection)."""
+    import atomize.device_modules.Owen_MK110_220_4DN_4R as owen_mod
+
+    _state = {'0': '0', '1': '1', '2': '10', '3': '100', '4': '1000',
+              '12': '11', '13': '101', '14': '1001', '23': '110', '24': '1010',
+              '34': '1100', '123': '111', '124': '1011', '134': '1101',
+              '234': '1110', '1234': '1111'}
+
+    def _make(registers=None, test_flag="None"):
+        dev = owen_mod.Owen_MK110_220_4DN_4R.__new__(owen_mod.Owen_MK110_220_4DN_4R)
+        dev.config = {"interface": "rs485", "name": "Owen MK110"}
+        dev.channel_dict = {"1": 1, "2": 2, "3": 3, "4": 4}
+        dev.output_state_dict = dict(_state)
+        dev.input_state_dict = dict(_state)
+        dev.test_flag = test_flag
+        dev.status_flag = 1
+        dev.device = FakeModbus(registers)
+        if test_flag == "test":
+            dev.test_input_state = "0"
+            dev.test_output_state = "0"
+            dev.test_counter = 1
+        return dev
+
+    return _make
+
+
+@pytest.fixture
+def make_termodat():
+    """Build a Termodat_11M6 / Termodat_13KX3 (ModbusDevice subclasses) with an
+    injected FakeModbus, bypassing __init__."""
+    import atomize.device_modules.Termodat_11M6 as t11_mod
+    import atomize.device_modules.Termodat_13KX3 as t13_mod
+
+    classes = {"11M6": t11_mod.Termodat_11M6, "13KX3": t13_mod.Termodat_13KX3}
+    chans = {"11M6": {"1": 1, "2": 2, "3": 3, "4": 4}, "13KX3": {"1": 1, "2": 2}}
+
+    def _make(model="11M6", registers=None, channels=None, test_flag="None"):
+        cls = classes[model]
+        dev = cls.__new__(cls)
+        dev.config = {"interface": "rs485", "name": f"Termodat {model}"}
+        dev.channel_dict = dict(chans[model])
+        dev.state_dict = {"On": 1, "Off": 0}
+        dev.channels = channels if channels is not None else len(chans[model])
+        dev.temperature_max = 750
+        dev.temperature_min = 0.3
+        dev.proportional_min = 0.1
+        dev.proportional_max = 2000
+        dev.derivative_min = 0.0
+        dev.derivative_max = 999.9
+        dev.integral_min = 0
+        dev.integral_max = 9999
+        dev.test_flag = test_flag
+        dev.status_flag = 1
+        dev.device = FakeModbus(registers)
+        if test_flag == "test":
+            dev.test_temperature = 300
+            dev.test_set_point = 273
+            dev.test_power = 0
+            dev.test_loop_state = "Off"
+            dev.test_proportional = 70
+            dev.test_derivative = 50
+            dev.test_integral = 600
         return dev
 
     return _make
