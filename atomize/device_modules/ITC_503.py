@@ -93,7 +93,7 @@ class ITC_503:
 
         elif self.test_flag == 'test':
             self.test_temperature = 200.
-            self.self.test_set_point = 298.
+            self.test_set_point = 298.
             self.test_flow = 1.
             self.test_heater_percentage = 1.
             self.test_mode = 'Manual-Manual'

@@ -53,12 +53,12 @@ class FakeModbus:
 
 @pytest.fixture(autouse=True)
 def _no_sleep(monkeypatch):
-    """Neutralize real sleeps so the suite stays fast: general.wait() (the GPIB
-    write->read settle delay) and time.sleep() (e.g. Termodat_11M6's
-    device_read_signed delay). message()/plot() semantics are untouched."""
+    """Neutralize real sleeps so the suite stays fast. Both general.wait() (the
+    GPIB write->read settle delay) and Termodat's device_read_signed delay
+    ultimately call time.sleep(), so patching time.sleep covers both -- without
+    replacing general.wait itself, which the general_functions tests exercise
+    for real."""
     import time
-    import atomize.general_modules.general_functions as general
-    monkeypatch.setattr(general, "wait", lambda *a, **k: None)
     monkeypatch.setattr(time, "sleep", lambda *a, **k: None)
 
 

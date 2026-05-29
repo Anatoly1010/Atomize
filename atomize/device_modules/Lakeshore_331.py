@@ -18,7 +18,6 @@ class Lakeshore_331:
         # setting path to *.ini file
         self.path_current_directory = lconf.load_config_device()
         self.path_config_file = os.path.join(self.path_current_directory, 'Lakeshore_331_config.ini')
-        self.loop_config = self.config['loop'] # information about the loop used
 
         # configuration data
         self.config = cutil.read_conf_util(self.path_config_file)

@@ -670,7 +670,7 @@ class Spectrum_M4I_2211_X8:
             elif len(points) == 0:
                 return self.points
             else:
-                assert( 1 == 2 ), assert( 1 == 2 ), 'Incorrect argument; points: int'
+                assert( 1 == 2 ), 'Incorrect argument; points: int'
 
     def digitizer_posttrigger(self, *post_points):
         """

@@ -73,7 +73,7 @@ class Rigol_MSO8000_Series:
         self.sensitivity_max = float(self.specific_parameters['sensitivity_max'])
         self.wave_gen_freq_max = float(self.specific_parameters['wave_gen_freq_max'])
         self.wave_gen_freq_min = float(self.specific_parameters['wave_gen_freq_min'])
-        self.wave_gen = str(self.specific_parameters['wage_gen'])
+        self.wave_gen = str(self.specific_parameters['wave_gen'])
 
         #integration window
         self.win_left = 0
