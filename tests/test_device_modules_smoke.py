@@ -60,5 +60,12 @@ def test_module_instantiates_in_test_mode(name, monkeypatch):
         cls()
     except (ImportError, OSError) as exc:
         pytest.skip(f"driver/dependency unavailable at init: {exc!r}")
+    except KeyError as exc:
+        # read_conf_util raises KeyError('name') when the config file is
+        # missing/empty -- a packaging/env gap, not a code bug. Any other
+        # missing key (e.g. a specific_parameters typo) is a real bug -> fail.
+        if exc.args and exc.args[0] == "name":
+            pytest.skip(f"config file missing or empty for {name} (no DEFAULT.name)")
+        raise
     except SystemExit:
         pytest.fail(f"{name}() called sys.exit() during test-mode init")
