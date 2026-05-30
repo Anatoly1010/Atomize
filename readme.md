@@ -12,7 +12,7 @@ Currently there are more than 200 device specific and general functions availabl
 
 ## Documentation and Available Instruments
 
-[Detailed documentation](https://anatoly1010.github.io/atomize_docs/functions/)<br/>
+[Detailed documentation](https://anatoly1010.github.io/atomize_docs/)<br/>
 [Available instruments](https://anatoly1010.github.io/atomize_docs/pages/instruments.html)
 
 ## Status

@@ -84,10 +84,71 @@ def scans(num_of_scans):
         yield index
         index += 1
 
+# Plotting guards. Above these sizes the data is strided down for *display only*
+# (the arrays held by the script and written to disk are never modified). The
+# caps sit well under the LivePlotClient shared-memory limit and keep pyqtgraph
+# from freezing the GUI on multi-million-point payloads.
+_PLOT_MAX_POINTS_1D = 2_000_000
+_PLOT_MAX_CELLS_2D = 4_000_000
+
+def _notify(text):
+    """Push a line to the main-window log regardless of test/normal mode."""
+    print(f'print {text}', flush=True)
+
+def _safe_call(target, args, kwargs):
+    """Run a plotter call, turning any failure into a log line instead of a
+    crash. Used for both the sync and the threaded (`pr=`) paths so a plotting
+    error can never kill the experiment or vanish inside a background Thread."""
+    try:
+        target(*args, **kwargs)
+    except Exception as e:
+        _notify(f"plot failed: {e!r}")
+
+def _downsample_1d(xd, yd, max_points):
+    """Stride (xd, yd) down so each curve has <= max_points samples. Returns
+    (xd, yd, step); step == 1 leaves the inputs untouched. yd may be 1D (one
+    curve) or 2D / a tuple of two arrays (two curves) — the last axis is the
+    sample axis in every case, and xd is strided to match."""
+    shape = np.shape(yd)
+    n = shape[-1] if shape else 0
+    if n <= max_points:
+        return xd, yd, 1
+    step = int(np.ceil(n / max_points))
+    return np.asarray(xd)[..., ::step], np.asarray(yd)[..., ::step], step
+
+def _downsample_2d(data, start_step, max_cells):
+    """Stride a 2D image down to <= max_cells, scaling start_step so the axes
+    stay correct. Returns (data, start_step, factor); factor == 1 is a no-op.
+
+    A 3D array is treated as a stack of frames (n_frames, ny, nx) — e.g. the
+    real/imag pair of a complex 2D result that plot_2d shows as toggleable
+    frames; only the two image axes are strided and every frame is kept."""
+    arr = np.asarray(data)
+    if arr.ndim >= 3:
+        size = int(np.prod(arr.shape[-2:]))
+        if size <= max_cells:
+            return data, start_step, 1
+        factor = int(np.ceil(np.sqrt(size / max_cells)))
+        data_ds = arr[..., ::factor, ::factor]
+    else:
+        size = int(np.prod(arr.shape)) if arr.shape else 0
+        if size <= max_cells:
+            return data, start_step, 1
+        factor = int(np.ceil(np.sqrt(size / max_cells)))
+        data_ds = arr[::factor, ::factor]
+    if start_step is None:
+        new_ss = ((0, factor), (0, factor))
+    else:
+        (x0, xs), (y0, ys) = start_step
+        new_ss = ((x0, xs * factor), (y0, ys * factor))
+    return data_ds, new_ss, factor
+
 def _dispatch_plot(target, args, kwargs, pr, get_first=None):
     """
     Call `target(*args, **kwargs)` synchronously, or on a background Thread
     when `pr` is not the sentinel string 'None' (joining the prior Thread first).
+    Both paths go through `_safe_call`, so a plotter error becomes a log line
+    rather than crashing the script or being swallowed by a Thread.
     If `get_first` is provided, skip the call when it returns NaN or raises
     IndexError/TypeError. Returns the Thread (when async) or None.
     """
@@ -102,19 +163,23 @@ def _dispatch_plot(target, args, kwargs, pr, get_first=None):
             if np.isnan(get_first()):
                 return None
         except (IndexError, TypeError) as e:
-            message(f"plot skipped: empty or non-numeric data ({e!r})")
+            _notify(f"plot skipped: empty or non-numeric data ({e!r})")
             return None
 
     if pr == 'None':
-        target(*args, **kwargs)
+        _safe_call(target, args, kwargs)
         return None
 
-    p1 = Thread(target=target, args=args, kwargs=kwargs)
+    p1 = Thread(target=_safe_call, args=(target, args, kwargs))
     p1.start()
     return p1
 
 def _plot_1d_impl(strname, xd, yd, label, xname, xscale, yname, yscale,
                   scatter, timeaxis, vline, pr, text):
+    xd, yd, step = _downsample_1d(xd, yd, _PLOT_MAX_POINTS_1D)
+    if step > 1:
+        _notify(f"plot '{strname}': downsampled {step}x for display "
+                f"(> {_PLOT_MAX_POINTS_1D} points); saved data is unaffected")
     kwargs = {'label': label, 'xname': xname, 'xscale': xscale,
               'yname': yname, 'yscale': yscale, 'scatter': scatter,
               'timeaxis': timeaxis, 'vline': vline, 'text': text}
@@ -151,11 +216,15 @@ def append_1d(strname, value, start_step=(0, 1), label='label', xname='X',
 
 def _plot_2d_impl(strname, data, start_step, xname, xscale, yname, yscale,
                   zname, zscale, pr, text):
+    data, start_step, factor = _downsample_2d(data, start_step, _PLOT_MAX_CELLS_2D)
+    if factor > 1:
+        _notify(f"plot '{strname}': downsampled {factor}x per axis for display "
+                f"(> {_PLOT_MAX_CELLS_2D} cells); saved data is unaffected")
     kwargs = {'start_step': start_step, 'xname': xname, 'xscale': xscale,
               'yname': yname, 'yscale': yscale, 'zname': zname,
               'zscale': zscale, 'text': text}
     return _dispatch_plot(_plotter().plot_z, (strname, data), kwargs, pr,
-                          lambda: data.flat[0])
+                          lambda: np.asarray(data).flat[0])
 
 def plot_2d(strname, data, start_step=None,
     xname='X', xscale='arb. u.', yname='Y', yscale='arb. u.', zname='Z',

@@ -1559,12 +1559,21 @@ class CrossSectionDock(CloseableDock):
         self.ui.histogram.item.axis.setLabel(text=zlabel)
 
     def setAxisLabels(self, *args, **kwargs):
-        if not hasattr(self, 'label_z'):
+        # honour the unit passed on each push (so re-labelling from a treatment
+        # tool updates the SI suffix), but keep the previous value when a push
+        # omits the key (e.g. append_z without zscale).
+        if 'zscale' in kwargs:
             self.label_z = kwargs.get('zscale', '')
-        if not hasattr(self, 'label_y'): 
+        elif not hasattr(self, 'label_z'):
+            self.label_z = ''
+        if 'yscale' in kwargs:
             self.label_y = kwargs.get('yscale', '')
-        if not hasattr(self, 'label_x'):
+        elif not hasattr(self, 'label_y'):
+            self.label_y = ''
+        if 'xscale' in kwargs:
             self.label_x = kwargs.get('xscale', '')
+        elif not hasattr(self, 'label_x'):
+            self.label_x = ''
 
         self.plot_item.setLabel(axis='bottom', text=kwargs.get('xname', ''), units=self.label_x)
         self.plot_item.setLabel(axis='left', text=kwargs.get('yname', ''), units=self.label_y)
@@ -1600,6 +1609,10 @@ class CrossSectionDock(CloseableDock):
             if self._x0_prev != self._x0 or self._y0_prev != self._y0 or self._xscale_prev != self._xscale or self._yscale_prev != self._yscale:
                 self.hide_cross_section()
                 self._clear_ruler()
+                # geometry changed (e.g. reset-to-raw, FFT axis swap): the old
+                # view range is meaningless, so refit the data this push.
+                kwargs['autoRange'] = True
+                item.enableAutoRange(pg.ViewBox.XYAxes)
 
         self._x0_prev = self._x0
         self._y0_prev = self._y0
@@ -1615,7 +1628,19 @@ class CrossSectionDock(CloseableDock):
             kwargs['autoLevels'] = False
         self.auto_levels = 0
 
+        # remember which frame of a multi-frame stack (e.g. real/imag) the user
+        # is viewing; ImageView.setImage resets it to 0 on every call, which
+        # would snap live re-pushes back to the first frame.
+        prev_index = getattr(self.img_view, 'currentIndex', 0) or 0
+
         self.img_view.setImage(*args, **kwargs )
+
+        if self.set_image != 0 and prev_index > 0:
+            img = self.img_view.image
+            nframes = img.shape[0] if (img is not None and img.ndim == 3) else 1
+            if prev_index < nframes:
+                self.img_view.setCurrentIndex(prev_index)
+
         if self.set_image == 0:
             item.autoRange(padding = 0.05 )
             if hasattr(self.img_view, 'tVals') and self.img_view.tVals is not None and len(self.img_view.tVals) > 0:
@@ -1982,6 +2007,9 @@ class CrossSectionDock(CloseableDock):
         self.imageItem.scene().sigMouseClicked.connect(self.toggle_search)
         self.imageItem.scene().sigMouseMoved.connect(self.handle_mouse_move)
         #self.img_view.timeLine.sigPositionChanged.connect(self.update_cross_section)
+        # refresh the section curves when the frame slider moves (e.g. toggling
+        # the real/imag frame of a complex stack), not just on a fresh setImage.
+        self.img_view.timeLine.sigPositionChanged.connect(self.update_cross_section_set_data)
         self.signals_connected = True
 
     def on_scene_clicked(self, ev):
@@ -2059,16 +2087,37 @@ class CrossSectionDock(CloseableDock):
             self.cursor_label.setText(label_text)
 
     def update_cross_section_set_data(self):
-        nx, ny = self.imageItem.image.shape
+        img = self.imageItem.image
+        if img is None or img.ndim != 2:
+            return
+        nx, ny = img.shape
+        # clamp stale crosshair indices after a shape change (e.g. FFT zero fill
+        # alters the point count) so the section refresh stays in range instead
+        # of raising and silently aborting the update.
+        self.x_cross_index = min(max(self.x_cross_index, 0), nx - 1)
+        self.y_cross_index = min(max(self.y_cross_index, 0), ny - 1)
         x0, y0, xscale, yscale = self._x0, self._y0, self._xscale, self._yscale
         xdata = np.linspace(x0, x0+(xscale*(nx-1)), nx)
         ydata = np.linspace(y0, y0+(yscale*(ny-1)), ny)
-        zval = self.imageItem.image[self.x_cross_index, self.y_cross_index]
-        v_xdata = self.imageItem.image[:, self.y_cross_index]
-        v_ydata = self.imageItem.image[self.x_cross_index, :]
+        v_xdata = img[:, self.y_cross_index]
+        v_ydata = img[self.x_cross_index, :]
 
         self.h_cross_section_widget_data.setData(xdata, v_xdata)
         self.v_cross_section_widget_data.setData(ydata, v_ydata)
+
+        # the curves now reflect new data / a new frame; resync the readout
+        # labels too (Z at the crosshair, and X/Y if the axes changed) so they
+        # don't keep showing the coordinates from the previous push.
+        if self.cross_section_enabled:
+            zval = img[self.x_cross_index, self.y_cross_index]
+            x_parsed = pg.siFormat(xdata[self.x_cross_index], suffix=self.label_x, precision=5)
+            y_parsed = pg.siFormat(ydata[self.y_cross_index], suffix=self.label_y, precision=5)
+            z_parsed = pg.siFormat(zval, suffix=self.label_z, precision=5)
+            self.cursor_label.setText(
+                f"X: {x_parsed} ({(self.y_cross_index+1):.0f})\n"
+                f"Y: {y_parsed} ({(self.x_cross_index+1):.0f})\nZ: {z_parsed}")
+            # section-plot crosshair labels + marker lines
+            self.update_cross_section()
 
     def update_cross_section(self):
         nx, ny = self.imageItem.image.shape

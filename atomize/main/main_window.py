@@ -872,7 +872,7 @@ class MainWindow(QMainWindow):
         """
         A function to open a documentation
         """
-        webbrowser.open("https://anatoly1010.github.io/atomize_docs/functions/", new = 0, autoraise = True)
+        webbrowser.open("https://anatoly1010.github.io/atomize_docs/", new = 0, autoraise = True)
 
     def edit_file(self):
         """
