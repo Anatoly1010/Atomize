@@ -172,6 +172,9 @@ def apply_app_style(app=None, app_id=None, theme=DEFAULT_THEME):
     if style is not None:
         app.setStyle(style)
     app.setPalette(build_palette(theme))
+    # Theme tooltips app-wide (a QToolTip-only sheet leaves all other widgets,
+    # which set their own per-widget stylesheets, untouched).
+    app.setStyleSheet(build_styles(theme)['TOOLTIP_STYLE'])
 
 
 # --------------------------------------------------------------------------- #
@@ -187,6 +190,12 @@ _TEMPLATES = {
         "font-weight: bold; }"),
 
     'LABEL_STYLE': Template("QLabel { color: $fg; font-weight: bold; }"),
+
+    # Tooltips: Fusion otherwise falls back to the OS default (light box), which
+    # clashes with the dark UI. Applied app-wide by apply_app_style().
+    'TOOLTIP_STYLE': Template(
+        "QToolTip { color: $fg; background-color: $bg; "
+        "border: 1px solid $accent; padding: 4px; border-radius: 3px; }"),
 
     # Spinboxes: colour text + selection only; Fusion draws the dark field,
     # themed border and the native +/- glyphs from the palette.
@@ -278,9 +287,9 @@ def build_styles(theme=DEFAULT_THEME):
     """
     Return a dict of per-widget stylesheet strings rendered from *theme*.
 
-    Keys: ``BUTTON_STYLE``, ``LABEL_STYLE``, ``DSPIN_STYLE``, ``SPIN_STYLE``,
-    ``COMBO_STYLE``, ``LINEEDIT_STYLE``, ``CHECKBOX_STYLE``, ``SCROLL_STYLE``,
-    ``TAB_STYLE``.
+    Keys: ``BUTTON_STYLE``, ``LABEL_STYLE``, ``TOOLTIP_STYLE``, ``DSPIN_STYLE``,
+    ``SPIN_STYLE``, ``COMBO_STYLE``, ``LINEEDIT_STYLE``, ``CHECKBOX_STYLE``,
+    ``SCROLL_STYLE``, ``TAB_STYLE``.
     """
     subs = {
         'bg':     _css(theme.bg),
@@ -306,6 +315,7 @@ ACCENT = _css(DEFAULT_THEME.accent)
 _STYLES = build_styles(DEFAULT_THEME)
 BUTTON_STYLE   = _STYLES['BUTTON_STYLE']
 LABEL_STYLE    = _STYLES['LABEL_STYLE']
+TOOLTIP_STYLE  = _STYLES['TOOLTIP_STYLE']
 DSPIN_STYLE    = _STYLES['DSPIN_STYLE']
 SPIN_STYLE     = _STYLES['SPIN_STYLE']
 COMBO_STYLE    = _STYLES['COMBO_STYLE']

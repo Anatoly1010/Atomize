@@ -194,12 +194,25 @@ def _menger(x1, y1, x2, y2, x3, y3):
     return 0.0 if denom == 0 else 2*twice_area/denom
 
 
-def l_curve(K, F, alphas, L=None):
-    """L-curve scan: solution vs residual norm over `alphas`, corner picked by
-    maximum Menger curvature in log-log space.
+def l_curve(K, F, alphas, L=None, method='gcv'):
+    """Regularization scan over `alphas`: for each one solve the NNLS-Tikhonov
+    problem and record the residual norm rho, the roughness norm eta, the Menger
+    L-curve curvature, and the GCV score.
 
-    Returns dict: alphas, rho (residual norms), eta (solution norms), curvature,
-    alpha_opt, index, P (the solution at the corner).
+    The optimal alpha is chosen by `method`:
+      'gcv'       -- minimum of the generalized cross-validation score (default).
+                     Robust for DEER, whose L-curve is nearly vertical (the
+                     residual stays at the noise floor across decades of alpha),
+                     so the classic L-corner is ill-defined and tends to pick a
+                     tiny alpha => spiky P(r).
+      'curvature' -- classic maximum-Menger-curvature L-corner.
+
+    GCV uses the (unconstrained) Tikhonov influence-matrix trace as the effective
+    degrees of freedom paired with the NNLS residual -- the standard DEER GCV
+    approximation.
+
+    Returns dict: alphas, rho, eta, curvature, gcv, alpha_opt, index, method,
+    P (the solution at the chosen alpha).
     """
     _require_scipy()
     K = np.asarray(K, float)
@@ -207,22 +220,36 @@ def l_curve(K, F, alphas, L=None):
     if L is None:
         L = regularization_matrix(K.shape[1], 2)
     alphas = np.asarray(alphas, float)
+    n = len(F)
+    KtK = K.T@K
+    LtL = L.T@L
     rho = np.empty(len(alphas))
     eta = np.empty(len(alphas))
+    gcv = np.empty(len(alphas))
     Ps = []
     for i, al in enumerate(alphas):
         P = tikhonov_nnls(K, F, al, L)
         Ps.append(P)
         rho[i] = np.linalg.norm(K@P - F)
         eta[i] = np.linalg.norm(L@P)
+        try:                                          # effective d.o.f. (hat trace)
+            dof = float(np.trace(K@np.linalg.solve(KtK + (al**2)*LtL, K.T)))
+        except np.linalg.LinAlgError:
+            dof = 0.0
+        denom = n - dof
+        gcv[i] = n*rho[i]**2/denom**2 if abs(denom) > 1e-9 else np.inf
     x = np.log(rho + 1e-300)
     y = np.log(eta + 1e-300)
     kappa = np.zeros(len(alphas))
     for i in range(1, len(alphas) - 1):
         kappa[i] = _menger(x[i - 1], y[i - 1], x[i], y[i], x[i + 1], y[i + 1])
-    idx = int(np.argmax(kappa)) if len(alphas) > 2 else len(alphas)//2
+    if method == 'curvature':
+        idx = int(np.argmax(kappa)) if len(alphas) > 2 else len(alphas)//2
+    else:                                             # 'gcv' (default)
+        idx = int(np.argmin(gcv))
     return {'alphas': alphas, 'rho': rho, 'eta': eta, 'curvature': kappa,
-            'alpha_opt': float(alphas[idx]), 'index': idx, 'P': Ps[idx]}
+            'gcv': gcv, 'alpha_opt': float(alphas[idx]), 'index': idx,
+            'method': method, 'P': Ps[idx]}
 
 
 # --------------------------------------------------------------------------- #
@@ -240,16 +267,30 @@ def _normalize_masses(P):
 
 def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False,
                 alpha=None, alphas=None, reg_order=2, nu_dd=NU_DD,
-                scan_lcurve=True):
+                scan_lcurve=True, method='gcv', engine='sequential'):
     """Full DEER pipeline: background-correct V(t), build the kernel, invert to
-    P(r) by Tikhonov + NNLS (alpha at the L-curve corner if not supplied).
+    P(r) by Tikhonov + NNLS. When `alpha` is not supplied it is chosen
+    automatically by `method` ('gcv' default, or 'curvature' for the classic
+    L-corner) -- see `l_curve`.
 
-    `t` in us, `r` in nm. With `scan_lcurve` (default) the L-curve is always
-    computed for display, even when an explicit `alpha` is given. Returns a dict:
+    `engine` selects how the background is handled:
+      'sequential' -- fit the background on the tail window, divide it out, then
+                       invert the form factor (this function; fast, the default).
+      'joint'      -- fit background + modulation depth together with P(r) in one
+                       separable-NLLS pass (`deer_invert_joint`; DeerLab-style,
+                       more robust on short/shallow backgrounds).
+
+    `t` in us, `r` in nm. With `scan_lcurve` (default) the regularization scan is
+    always computed for display, even when an explicit `alpha` is given. Returns a dict:
     t, r, form_factor F(t), F_fit = K P, residuals, P (raw masses), P_norm
     (masses, sum = 1), P_density (P_norm / dr, integrates to 1), kernel, alpha,
-    l_curve (when scanned), background result, and lambda / k / dim.
+    l_curve (when scanned), background result, lambda / k / dim, and engine.
     """
+    if engine == 'joint':
+        return deer_invert_joint(t, V, r=r, bg_start=bg_start, bg_end=bg_end,
+                                 dim=dim, fit_dim=fit_dim, alpha=alpha,
+                                 alphas=alphas, reg_order=reg_order, nu_dd=nu_dd,
+                                 method=method, scan_lcurve=scan_lcurve)
     _require_scipy()
     t = np.asarray(t, float)
     V = np.asarray(V, float)
@@ -261,8 +302,10 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
     K = dipolar_kernel(t, r, nu_dd=nu_dd)
     L = regularization_matrix(len(r), reg_order)
     if alphas is None:
-        alphas = np.logspace(-4, 1, 25)
-    lc = l_curve(K, F, alphas, L) if (scan_lcurve or alpha is None) else None
+        # wide grid (1e-4 .. 1e3): GCV needs room above the old 1e1 ceiling to
+        # find its true minimum, which for well-separated peaks sits at alpha~1e2.
+        alphas = np.logspace(-4, 3, 36)
+    lc = l_curve(K, F, alphas, L, method=method) if (scan_lcurve or alpha is None) else None
     if alpha is None:
         alpha = lc['alpha_opt']
         P = lc['P']
@@ -276,7 +319,103 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
             'residuals': F - F_fit, 'P': P, 'P_norm': P_norm,
             'P_density': P_density, 'kernel': K, 'alpha': float(alpha),
             'l_curve': lc, 'background': bg, 'lambda': bg['lambda'],
-            'k': bg['k'], 'dim': bg['dim']}
+            'k': bg['k'], 'dim': bg['dim'], 'engine': 'sequential'}
+
+
+def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
+                      fit_dim=False, alpha=None, alphas=None, reg_order=2,
+                      nu_dd=NU_DD, method='gcv', scan_lcurve=True):
+    """DEER inversion with a *joint* (separable-NLLS / variable-projection) fit of
+    the background and modulation depth together with the regularized non-negative
+    P(r) -- the strategy DeerLab uses. More robust than the sequential
+    'fit background, then invert' pipeline (`deer_invert`) on real traces with
+    short or shallow backgrounds, where the tail fit and the inversion are coupled.
+
+    Model:  V(t) = B(t) * [ (1 - lam) + lam * (K P)(t) ],  B(t) = exp(-(k|t|)^(d/3)).
+    Substituting P~ = lam * P and K'(t, r) = K(t, r) - 1 (note K(0, r) = 1) makes
+    the linear part free of lam:
+
+        V/B - 1 = K' P~ ,     lam = sum(P~) recovered afterwards, P = P~/lam .
+
+    So only the background (k, and d when `fit_dim`) is nonlinear. For each trial
+    background the optimal P~ >= 0 is the regularized NNLS solution of the
+    V-space-weighted system diag(B) K' P~ = V - B (down-weighting the noisy long-t
+    tail), and the V-space residual is minimized over (k[, d]) with
+    scipy.optimize.least_squares. K' is constant, so alpha (GCV by default) is
+    stable across the search; it is re-selected once at the converged background.
+
+    `bg_start`/`bg_end` only seed the initial background guess here (the joint fit
+    uses the whole trace). Same return dict as `deer_invert`, with engine='joint'.
+    """
+    _require_scipy()
+    from scipy.optimize import least_squares
+    t = np.asarray(t, float)
+    V = np.asarray(V, float)
+    r = default_r_axis() if r is None else np.asarray(r, float)
+    V = V/V[int(np.argmin(np.abs(t)))]            # normalize V(0) = 1
+    K = dipolar_kernel(t, r, nu_dd=nu_dd)
+    Kp = K - 1.0                                  # K'(t, r); K'(0, r) = 0
+    L = regularization_matrix(len(r), reg_order)
+    if alphas is None:
+        alphas = np.logspace(-4, 3, 36)
+
+    # seed (k, d) from the cheap sequential tail fit
+    if bg_start is None:
+        bg_start = t[0] + 0.5*(t[-1] - t[0])
+    bg0 = background_fit(t, V, bg_start, bg_end=bg_end, dim=dim, fit_dim=fit_dim)
+    k0, d0 = bg0['k'], bg0['dim']
+
+    def solve_lin(k, d, al):
+        B = np.exp(-(k*np.abs(t))**(d/3.0))
+        A = B[:, None]*Kp                         # diag(B) K'
+        return B, A, (V - B)
+
+    # pick alpha by GCV on the initial background (K' fixed => alpha is stable)
+    B0, A0, y0 = solve_lin(k0, d0, None)
+    lc = (l_curve(A0, y0, alphas, L, method=method)
+          if (scan_lcurve or alpha is None) else None)
+    alpha_use = float(alpha) if alpha is not None else lc['alpha_opt']
+
+    def resid(theta):
+        k = abs(theta[0]); d = theta[1] if fit_dim else d0
+        B, A, y = solve_lin(k, d, alpha_use)
+        return A@tikhonov_nnls(A, y, alpha_use, L) - y
+
+    theta0 = [k0, d0] if fit_dim else [k0]
+    lb = [0.0, 1.0] if fit_dim else [0.0]
+    ub = [np.inf, 6.0] if fit_dim else [np.inf]
+    try:
+        sol = least_squares(resid, theta0, bounds=(lb, ub), max_nfev=2000)
+        k = abs(sol.x[0]); d = sol.x[1] if fit_dim else d0
+    except Exception:
+        k, d = k0, d0                             # fall back to the seed background
+
+    # final solution at the converged background, alpha re-selected there
+    B = np.exp(-(k*np.abs(t))**(d/3.0))
+    A = B[:, None]*Kp
+    y = V - B
+    if alpha is None and scan_lcurve:
+        lc = l_curve(A, y, alphas, L, method=method)
+        alpha_use = lc['alpha_opt']
+    Ptil = tikhonov_nnls(A, y, alpha_use, L)
+    lam = float(np.sum(Ptil))
+    if abs(lam) < 1e-9:
+        lam = 1e-9
+    P = Ptil/lam                                  # masses, sum = 1
+    P_norm = _normalize_masses(P)
+    dr = float(r[1] - r[0]) if len(r) > 1 else 1.0
+    F = (V/B - (1 - lam))/lam                      # background-corrected form factor
+    F_fit = K@P_norm
+    bg = {'lambda': lam, 'k': float(k), 'dim': float(d), 'A': float(1 - lam),
+          'B': B, 'form_factor': F, 'V_norm': V, 't': t,
+          'bg_start': float(bg_start),
+          'bg_end': (None if bg_end is None else float(bg_end)),
+          'mask': (t >= bg_start)}
+    return {'t': t, 'r': r, 'form_factor': F, 'F_fit': F_fit,
+            'residuals': F - F_fit, 'P': Ptil, 'P_norm': P_norm,
+            'P_density': P_norm/dr, 'kernel': K, 'alpha': float(alpha_use),
+            'l_curve': lc, 'background': bg, 'lambda': lam,
+            'k': float(k), 'dim': float(d), 'engine': 'joint'}
 
 
 def simulate(t, r, P, lam=0.3, k=0.05, dim=3.0, nu_dd=NU_DD, noise=0.0, seed=None):
