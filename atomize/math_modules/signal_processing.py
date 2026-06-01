@@ -4,13 +4,13 @@
 import sys
 import numpy as np
 
-# scipy is an optional dependency (pip install -e .[math]); imported lazily so
-# that simply importing this module never fails on a minimal install.
-try:
-    from scipy.signal import savgol_filter
-    SCIPY_AVAILABLE = True
-except ImportError:
-    SCIPY_AVAILABLE = False
+# scipy.signal is an optional dependency (pip install -e .[math]) and slow to
+# import (~0.5 s on Windows). Probe availability cheaply -- find_spec does NOT
+# import scipy -- and defer the real import to savitzky_golay(), so importing
+# this module stays numpy-only (apodization / zero-fill / echo-center need no
+# scipy) and GUIs that embed it start fast.
+import importlib.util
+SCIPY_AVAILABLE = importlib.util.find_spec('scipy') is not None
 
 
 def apodization_window(n, name, param=8.6):
@@ -119,6 +119,7 @@ class Signal_Processing():
         if not SCIPY_AVAILABLE:
             raise RuntimeError("scipy is required for Savitzky-Golay smoothing. "
                                "Install with: pip install -e .[math]")
+        from scipy.signal import savgol_filter
         y = np.asarray(y, dtype=float)
         window = int(window)
         order = int(order)

@@ -4,14 +4,13 @@
 import sys
 import numpy as np
 
-# scipy is an optional dependency (pip install -e .[math]); imported lazily so
-# that simply importing this module never fails on a minimal install.
-try:
-    import scipy
-    from scipy import optimize
-    SCIPY_AVAILABLE = True
-except ImportError:
-    SCIPY_AVAILABLE = False
+# scipy is an optional dependency (pip install -e .[math]) and the slowest
+# import here (~0.6 s on Windows). Probe availability cheaply -- find_spec does
+# NOT import scipy -- and defer the real import to the functions that fit, so
+# that merely importing this module (e.g. for model_names()) stays numpy-only
+# and GUIs that embed it start fast.
+import importlib.util
+SCIPY_AVAILABLE = importlib.util.find_spec('scipy') is not None
 
 
 class math():
@@ -246,6 +245,7 @@ class math():
         """
         if not SCIPY_AVAILABLE:
             raise RuntimeError("scipy is required for fitting. Install with: pip install -e .[math]")
+        from scipy import optimize
 
         x = np.asarray(x, dtype=float)
         y = np.asarray(y, dtype=float)
@@ -296,6 +296,7 @@ class math():
     # Backwards-compatible helper kept for existing scripts
     ###############################################################
     def one_exp_fit(self, curve, guess_array):
+        from scipy import optimize
 
         popt_exp, pcov_exp = optimize.curve_fit(self.exponential, curve[0], curve[1], p0=guess_array)
 

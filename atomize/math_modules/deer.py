@@ -31,12 +31,13 @@ is imported lazily so importing this module never fails on a minimal install.
 
 import numpy as np
 
-try:
-    from scipy.special import fresnel
-    from scipy.optimize import nnls, curve_fit
-    SCIPY_AVAILABLE = True
-except ImportError:
-    SCIPY_AVAILABLE = False
+# scipy is an optional dependency (pip install -e .[math]) and slow to import
+# (~0.6 s on Windows). Probe availability cheaply -- find_spec does NOT import
+# scipy -- and defer the real import to _require_scipy(), so importing this
+# module stays numpy-only and GUIs that embed it start fast.
+import importlib.util
+SCIPY_AVAILABLE = importlib.util.find_spec('scipy') is not None
+fresnel = nnls = curve_fit = None
 
 # Perpendicular dipolar frequency constant: nu_perp = NU_DD / r^3 [MHz], r in nm
 # (g = 2.0023). w(r) = 2*pi*nu_perp is then in rad/us for t in us.
@@ -44,8 +45,16 @@ NU_DD = 52.04  # MHz nm^3
 
 
 def _require_scipy():
+    """Lazily import scipy on first use and bind the symbols this module needs.
+    Every scipy-using function calls this first, so the module-level fresnel /
+    nnls / curve_fit globals are guaranteed populated before they are read."""
+    global fresnel, nnls, curve_fit
     if not SCIPY_AVAILABLE:
         raise RuntimeError('DEER analysis requires scipy (pip install -e .[math]).')
+    if fresnel is None:
+        from scipy.special import fresnel as _fresnel
+        from scipy.optimize import nnls as _nnls, curve_fit as _curve_fit
+        fresnel, nnls, curve_fit = _fresnel, _nnls, _curve_fit
 
 
 # --------------------------------------------------------------------------- #
