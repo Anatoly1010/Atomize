@@ -207,8 +207,16 @@ _TEMPLATES = {
         "selection-color: $base; }"),
 
     'COMBO_STYLE': Template(
-        "QComboBox { color: $fg; selection-color: $accent; "
-        "selection-background-color: $base; outline: none; }"),
+        "QComboBox { color: $fg; background-color: $base; "
+        "selection-color: $base; selection-background-color: $accent; "
+        "outline: none; } "
+        # Once a QComboBox carries any stylesheet, Qt stops applying the palette
+        # to its popup view, so the dropdown items fall back to a default (light)
+        # background — the "strange" colour behind the selected label. Style the
+        # view explicitly to keep the dark theme on the open list too.
+        "QComboBox QAbstractItemView { background-color: $base; color: $fg; "
+        "selection-background-color: $accent; selection-color: $base; "
+        "outline: none; }"),
 
     'LINEEDIT_STYLE': Template(
         "QLineEdit { color: $accent; selection-background-color: $accent; "
