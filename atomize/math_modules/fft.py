@@ -14,6 +14,29 @@ class Fast_Fourier():
         else:
             self.test_flag = 'None'
 
+    @staticmethod
+    def auto_phase_zero(spectrum, threshold=0.1):
+        """Zero-order phase (degrees) that maximises the magnitude-weighted real
+        part of a complex spectrum.
+
+        Each bin S_k = |S_k|·e^{iθ_k}; we want one φ₀ with θ_k + φ₀ ≈ 0 over the
+        significant bins. Maximising Σ |S_k|·Re(S_k·e^{iφ₀}) is closed form:
+        φ₀ = -angle( Σ |S_k|·S_k ). The |S_k| weighting plus a magnitude
+        threshold (default 10 % of the peak) keep noise and baseline bins from
+        biasing the result. Returns a value in [0, 360); feed it to
+        ph_correction as cor1 = φ₀·π/180.
+        """
+        s = np.asarray(spectrum, dtype=complex).ravel()
+        mag = np.abs(s)
+        peak = mag.max() if mag.size else 0.0
+        if peak <= 0:
+            return 0.0
+        keep = mag >= threshold*peak
+        acc = np.sum(mag[keep]*s[keep])      # |S_k| weighting → peak-focused
+        if acc == 0:
+            return 0.0
+        return float(np.degrees(-np.angle(acc)) % 360.0)
+
     def ph_correction(self, freq, data_i, data_q, cor1, cor2, cor3):
         if self.test_flag != 'test':
             if np.isnan(data_i).any() or np.isnan(data_q).any():
