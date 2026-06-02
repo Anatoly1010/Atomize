@@ -77,22 +77,50 @@ def echo_center(envelope, window=0):
 
     The envelope should be offset-invariant (e.g. sqrt(I**2 + Q**2)), so the
     carrier modulation from a field/frequency offset has already cancelled and
-    only the echo shape remains. Returns the coarse magnitude-peak index
-    refined by a local centre-of-mass, rounded to the nearest integer sample.
+    only the echo shape remains. Returns the magnitude-peak index refined by a
+    local centre-of-mass, rounded to the nearest integer sample.
 
-    window: half-width (in points) of the centre-of-mass window around the
-    peak; <= 0 picks ~5 % of the length (min 3).
+    The refinement window is the key subtlety. A symmetric Hahn echo has its
+    centre-of-mass on the peak, but an FID rises sharply then decays slowly, so
+    a wide window lets the long tail drag the COM far past the peak. To stay put
+    on the peak for both shapes, the auto window is the crest width: walk out
+    from the peak until the envelope drops below a fraction of the *peak height*
+    and clamp to the narrower side. Measuring from the crest (rather than a
+    baseline-relative half-maximum) keeps it robust when the pre-echo baseline
+    is elevated — there a half-maximum can sit at the baseline level, the
+    rising-edge crossing never happens, the window blows up, and the slow FID
+    decay drags the COM far past the peak. The pedestal is subtracted inside the
+    window so a residual offset doesn't pull the COM either.
+
+    window: half-width (in points) of the centre-of-mass window around the peak.
+    <= 0 (default) auto-sizes from the crest width as described above;
+    > 0 forces that exact half-width.
     """
     env = np.abs(np.asarray(envelope, dtype=float))
     n = env.size
     if n < 3:
         return 0
     k = int(np.argmax(env))
-    if window <= 0:
-        window = max(3, int(round(0.05*n)))
-    lo = max(0, k - window)
-    hi = min(n, k + window + 1)
-    seg = env[lo:hi]
+    peak = env[k]
+    if window > 0:
+        w = window
+    elif peak <= 0:
+        return k
+    else:
+        # Crest width at 70 % of the peak height; take the narrower side so a
+        # slow one-sided decay can't widen (and bias) the COM.
+        thr = 0.7*peak
+        lo = k
+        while lo > 0 and env[lo - 1] >= thr:
+            lo -= 1
+        hi = k
+        while hi < n - 1 and env[hi + 1] >= thr:
+            hi += 1
+        w = max(3, min(k - lo, hi - k))
+    lo = max(0, k - w)
+    hi = min(n, k + w + 1)
+    seg = env[lo:hi].astype(float)
+    seg = seg - seg.min()        # drop the pedestal so the COM isn't tail-biased
     s = seg.sum()
     if s <= 0:
         return k
