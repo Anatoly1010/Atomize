@@ -207,7 +207,12 @@ _TEMPLATES = {
         "selection-color: $base; }"),
 
     'COMBO_STYLE': Template(
-        "QComboBox { color: $fg; background-color: $base; "
+        # No explicit background-color on the closed box: let Fusion paint it from
+        # the palette (Button = base), so it matches the spin/line-edit fields and
+        # the control-center tools that keep their own colour-only combo sheets.
+        # A flat background-color here made this combo look different from all the
+        # others.
+        "QComboBox { color: $fg; "
         "selection-color: $base; selection-background-color: $accent; "
         "outline: none; } "
         # Once a QComboBox carries any stylesheet, Qt stops applying the palette
