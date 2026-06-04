@@ -120,10 +120,12 @@ class MainWindow(QMainWindow):
 
         self.pid = 0
 
+        # Use the current interpreter so script-runner / syntax-check
+        # subprocesses inherit the pipx/venv/conda site-packages.
+        self.process_python.setProgram(sys.executable)
+        self.process_test.setProgram(sys.executable)
         if self.system == 'Windows':
             self.process_text_editor.setProgram(str(config['DEFAULT']['editorW']))
-            self.process_python.setProgram('python.exe')
-            self.process_test.setProgram('python.exe')
             print('EDITOR: ' + str(config['DEFAULT']['editorW']))
         elif self.system == 'Linux':
             self.editor = str(config['DEFAULT']['editor'])
@@ -133,8 +135,6 @@ class MainWindow(QMainWindow):
             else:
                 self.process_text_editor.setProgram(str(config['DEFAULT']['editor']))
                 print('EDITOR: ' + str(config['DEFAULT']['editor']))
-            self.process_python.setProgram('python3')
-            self.process_test.setProgram('python3')
 
         self.process_python.finished.connect(self.on_finished_script)
         self.file_handler = openfile.Saver_Opener()
