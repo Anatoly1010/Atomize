@@ -267,11 +267,18 @@ def _normalize_masses(P):
 
 def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False,
                 alpha=None, alphas=None, reg_order=2, nu_dd=NU_DD,
-                scan_lcurve=True, method='gcv', engine='sequential'):
+                scan_lcurve=True, method='gcv', engine='sequential',
+                alpha_factor=1.0):
     """Full DEER pipeline: background-correct V(t), build the kernel, invert to
     P(r) by Tikhonov + NNLS. When `alpha` is not supplied it is chosen
     automatically by `method` ('gcv' default, or 'curvature' for the classic
     L-corner) -- see `l_curve`.
+
+    `alpha_factor` scales the auto-selected alpha (ignored when an explicit
+    `alpha` is given). GCV/AIC tend to under-regularize the near-vertical DEER
+    L-curve, leaving noise spikes in P(r); a factor > 1 (e.g. 2-4) reproduces
+    the heavier hand-picked L-corner regularization the DeerAnalysis ring-test
+    labs used to get smooth distributions (Schiemann et al., JACS 2021).
 
     `engine` selects how the background is handled:
       'sequential' -- fit the background on the tail window, divide it out, then
@@ -290,7 +297,8 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
         return deer_invert_joint(t, V, r=r, bg_start=bg_start, bg_end=bg_end,
                                  dim=dim, fit_dim=fit_dim, alpha=alpha,
                                  alphas=alphas, reg_order=reg_order, nu_dd=nu_dd,
-                                 method=method, scan_lcurve=scan_lcurve)
+                                 method=method, scan_lcurve=scan_lcurve,
+                                 alpha_factor=alpha_factor)
     _require_scipy()
     t = np.asarray(t, float)
     V = np.asarray(V, float)
@@ -307,8 +315,8 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
         alphas = np.logspace(-4, 3, 36)
     lc = l_curve(K, F, alphas, L, method=method) if (scan_lcurve or alpha is None) else None
     if alpha is None:
-        alpha = lc['alpha_opt']
-        P = lc['P']
+        alpha = lc['alpha_opt']*float(alpha_factor)
+        P = lc['P'] if alpha_factor == 1.0 else tikhonov_nnls(K, F, alpha, L)
     else:
         P = tikhonov_nnls(K, F, alpha, L)
     F_fit = K@P
@@ -324,7 +332,8 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
 
 def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                       fit_dim=False, alpha=None, alphas=None, reg_order=2,
-                      nu_dd=NU_DD, method='gcv', scan_lcurve=True):
+                      nu_dd=NU_DD, method='gcv', scan_lcurve=True,
+                      alpha_factor=1.0):
     """DEER inversion with a *joint* (separable-NLLS / variable-projection) fit of
     the background and modulation depth together with the regularized non-negative
     P(r) -- the strategy DeerLab uses. More robust than the sequential
@@ -374,7 +383,7 @@ def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     B0, A0, y0 = solve_lin(k0, d0, None)
     lc = (l_curve(A0, y0, alphas, L, method=method)
           if (scan_lcurve or alpha is None) else None)
-    alpha_use = float(alpha) if alpha is not None else lc['alpha_opt']
+    alpha_use = float(alpha) if alpha is not None else lc['alpha_opt']*float(alpha_factor)
 
     def resid(theta):
         k = abs(theta[0]); d = theta[1] if fit_dim else d0
@@ -396,7 +405,7 @@ def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     y = V - B
     if alpha is None and scan_lcurve:
         lc = l_curve(A, y, alphas, L, method=method)
-        alpha_use = lc['alpha_opt']
+        alpha_use = lc['alpha_opt']*float(alpha_factor)
     Ptil = tikhonov_nnls(A, y, alpha_use, L)
     lam = float(np.sum(Ptil))
     if abs(lam) < 1e-9:
@@ -416,6 +425,110 @@ def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
             'P_density': P_norm/dr, 'kernel': K, 'alpha': float(alpha_use),
             'l_curve': lc, 'background': bg, 'lambda': lam,
             'k': float(k), 'dim': float(d), 'engine': 'joint'}
+
+
+# --------------------------------------------------------------------------- #
+#  Validation (DeerAnalysis-style ensemble averaging)
+# --------------------------------------------------------------------------- #
+def _bg_start_grid(t, center, span_frac=0.075, n=9):
+    """Default background-start sweep: n points spanning +/- span_frac of the
+    trace length around `center`, clipped to a sensible interior window."""
+    t = np.asarray(t, float)
+    t0, t1 = float(t.min()), float(t.max())
+    span = t1 - t0
+    if center is None:
+        center = t0 + 0.5*span
+    half = span_frac*span
+    lo = max(center - half, t0 + 0.1*span)
+    hi = min(center + half, t1 - 0.05*span)
+    if hi <= lo:
+        return np.array([float(np.clip(center, t0 + 0.1*span, t1 - 0.05*span))])
+    return np.linspace(lo, hi, int(n))
+
+
+def deer_validate(t, V, r=None, bg_start=None, bg_starts=None, bg_end=None,
+                  dim=3.0, fit_dim=False, alpha=None, alpha_factor=1.0,
+                  reg_order=2, nu_dd=NU_DD, method='gcv', engine='sequential',
+                  noise=0.0, n_noise=0, seed=0, percentiles=(5, 95)):
+    """DeerAnalysis-style validation: hold the regularization fixed, re-run the
+    inversion over a grid of background-start times (and optionally added-noise
+    realizations), collect the ensemble of P(r), and return the consensus P(r)
+    with a percentile band. Averaging over the trials suppresses the noise-driven
+    spikes a single GCV inversion leaves in P(r), giving a smooth distribution
+    plus an honest uncertainty band -- the procedure behind the smooth, banded
+    distributions of Fig. 4 in Schiemann et al., JACS 2021 (10.1021/jacs.1c07371).
+
+    `bg_starts` is the explicit sweep of background-start times; when None a
+    9-point grid spanning +/- 7.5% of the trace around `bg_start` (or the trace
+    midpoint) is used. alpha is selected once on the central trace (honouring
+    `alpha`/`alpha_factor`) and then held fixed for every trial -- validation
+    probes background/noise sensitivity, not the regularization choice. With
+    `noise` > 0 and `n_noise` > 0, each background-start trial is additionally
+    repeated with `n_noise` Gaussian-noise realizations of std `noise` added to V
+    (estimate `noise` from the trace residual). All trials share the grid `r`.
+
+    Returns a dict: r, P_density (the ensemble *median* -- the robust consensus
+    curve, always bracketed by the band), P_mean (ensemble mean, exposed for
+    reference), P_lower, P_upper (the `percentiles` band), ensemble
+    (n_trials x len(r) densities), n_trials, bg_starts, alpha (the fixed value),
+    peak (consensus-curve peak r), r_mean (its first moment), and base = the
+    single inversion at the central bg_start (its form factor / fit / residuals
+    for display).
+    """
+    _require_scipy()
+    t = np.asarray(t, float)
+    V = np.asarray(V, float)
+    r = default_r_axis() if r is None else np.asarray(r, float)
+    if bg_starts is None:
+        bg_starts = _bg_start_grid(t, bg_start)
+    bg_starts = np.atleast_1d(np.asarray(bg_starts, float))
+    reps = max(int(n_noise), 0) if noise > 0 else 0
+    rng = np.random.default_rng(seed)
+    dr = float(r[1] - r[0]) if len(r) > 1 else 1.0
+    bs_mid = float(bg_starts[len(bg_starts)//2])
+    af_mid = float(alpha_factor)
+
+    # Pick alpha ONCE on the central background, then hold it fixed across every
+    # trial (DeerAnalysis-style validation tests background-start / noise
+    # sensitivity, not the regularization choice). Holding alpha fixed also drops
+    # the per-trial L-curve scan -- the costly part -- so validation stays fast.
+    base = deer_invert(t, V, r=r, bg_start=bs_mid, bg_end=bg_end, dim=dim,
+                       fit_dim=fit_dim, alpha=alpha, alphas=None,
+                       reg_order=reg_order, nu_dd=nu_dd, method=method,
+                       engine=engine, alpha_factor=af_mid)
+    alpha_fixed = float(base['alpha'])
+
+    def _invert(Vx, bs):
+        return deer_invert(t, Vx, r=r, bg_start=bs, bg_end=bg_end, dim=dim,
+                           fit_dim=fit_dim, alpha=alpha_fixed, scan_lcurve=False,
+                           reg_order=reg_order, nu_dd=nu_dd, method=method,
+                           engine=engine)
+
+    ensemble = []
+    for bs in bg_starts:
+        trials = [V] + [V + noise*rng.standard_normal(V.shape)
+                        for _ in range(reps)]
+        for Vx in trials:
+            try:
+                ensemble.append(_invert(Vx, bs)['P_density'])
+            except Exception:
+                continue
+    if not ensemble:
+        raise RuntimeError('DEER validation produced no successful trials.')
+    ens = np.vstack(ensemble)
+    P_mean = ens.mean(axis=0)
+    P_median = np.median(ens, axis=0)
+    lo, hi = percentiles
+    P_lower = np.percentile(ens, lo, axis=0)
+    P_upper = np.percentile(ens, hi, axis=0)
+    P_mass = _normalize_masses(P_median*dr)
+    return {'r': r, 'P_density': P_median, 'P_mean': P_mean,
+            'P_lower': P_lower, 'P_upper': P_upper, 'ensemble': ens,
+            'n_trials': ens.shape[0], 'bg_starts': bg_starts,
+            'alpha': alpha_fixed,
+            'peak': float(r[int(np.argmax(P_median))]),
+            'r_mean': float(np.sum(r*P_mass)), 'base': base,
+            'percentiles': tuple(percentiles), 'engine': engine}
 
 
 def simulate(t, r, P, lam=0.3, k=0.05, dim=3.0, nu_dd=NU_DD, noise=0.0, seed=None):
@@ -465,4 +578,20 @@ if __name__ == '__main__':
     print(f'P(r) peak  = {r_peak:.3f} nm  (true {r0:.3f})')
     print(f'P(r) mean  = {r_mean:.3f} nm')
     ok = (abs(r_peak - r0) < 0.3) and (r2 > 0.95) and (abs(res['lambda'] - 0.35) < 0.1)
-    print('SELF-TEST:', 'PASS' if ok else 'FAIL')
+
+    # alpha_factor: heavier regularization must smooth (lower roughness ||L P||)
+    Lr = regularization_matrix(len(r), 2)
+    res_h = deer_invert(t, V, r=r, bg_start=1.0, alpha_factor=4.0)
+    rough = lambda d: float(np.linalg.norm(Lr@d['P_norm']))
+    print(f'alpha x1 = {res["alpha"]:.4g}  roughness {rough(res):.4g}')
+    print(f'alpha x4 = {res_h["alpha"]:.4g}  roughness {rough(res_h):.4g}')
+    smoother = (res_h['alpha'] > res['alpha']) and (rough(res_h) < rough(res))
+
+    # validation ensemble: smooth mean curve + band that brackets it
+    val = deer_validate(t, V, r=r, bg_start=1.0, noise=0.01, n_noise=3, seed=2)
+    band_ok = (np.all(val['P_lower'] <= val['P_density'] + 1e-12) and
+               np.all(val['P_density'] <= val['P_upper'] + 1e-12))
+    print(f'validation: {val["n_trials"]} trials, peak {val["peak"]:.3f} nm, '
+          f'mean {val["r_mean"]:.3f} nm, band_ok {band_ok}')
+    print('SELF-TEST:', 'PASS' if (ok and smoother and band_ok and
+          abs(val['peak'] - r0) < 0.3) else 'FAIL')
