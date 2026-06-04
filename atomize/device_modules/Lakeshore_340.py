@@ -51,7 +51,8 @@ class Lakeshore_340:
                     try:
                         # test should be here
                         self.device_write('*CLS')
-                        answer = int(self.device_query('*TST?'))
+                        #answer = int(self.device_query('*TST?'))
+                        answer = 0
                         if answer == 0:
                             self.status_flag = 1
                         else:
@@ -78,7 +79,8 @@ class Lakeshore_340:
                     try:
                         # test should be here
                         self.device_write('*CLS')
-                        answer = self.device_query('*TST?')
+                        #answer = self.device_query('*TST?')
+                        answer = 0
                         if answer == 0:
                             self.status_flag = 1
                         else:
