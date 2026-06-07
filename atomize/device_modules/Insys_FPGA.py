@@ -24,7 +24,7 @@ import atomize.general_modules.general_functions as general
 _HEADER_SIG = np.int32(-1437269761)
 
 # Max time to wait for the GIM "switch complete" status before raising.
-_GIM_SWCOMP_TIMEOUT_S = 5.0
+_GIM_SWCOMP_TIMEOUT_S = 30.0
 _GIM_SWCOMP_POLL_S = 0.0001
 
 _PHASE_SIGN = {
@@ -693,7 +693,7 @@ class Insys_FPGA:
 
                 if channel == 'DETECTION':
                     self.adc_window = int( self.adc_window + ceil(p_length / self.timebase_pulser) )
-                    assert( self.adc_window <= 3853 ), 'Maximum DETECTION WINDOW is 12329.6 ns'
+                    assert( self.adc_window <= 4000 ), 'Maximum DETECTION WINDOW is 12800 ns'
                     #self.win_right = self.adc_window - 1
                 elif channel == 'TRIGGER_AWG':
                     self.dac_window = int( self.dac_window + ceil(p_length / self.timebase_pulser) )
@@ -787,7 +787,6 @@ class Insys_FPGA:
             else:
                 assert (1 == 2), 'Incorrect channel name'
 
-    #add synt2
     def pulser_redefine_start(self, *, name, start):
         """
         A function for redefining start of the specified pulse.
@@ -1192,6 +1191,59 @@ class Insys_FPGA:
         self._rep_time_cache = rep_time
         return rep_time
 
+    def _stream_buffer_kb_for(self, rep_time, adc_window):
+        """
+        Stream buffer size (streamBufSizeKb, in KB) for a given rep_time (ns)
+        and adc_window (pulser counts). This is the single source of truth for
+        the rep-rate/window -> buffer mapping: the exact hardcoded variants used
+        by pulser_repetition_rate, computed deterministically so the value never
+        depends on the previous state of exam_adc.ini.
+        """
+        if rep_time > 20408163:          # slow repetition (< ~49 Hz)
+            if adc_window <= 256:
+                return 128
+            elif adc_window <= 511:
+                return 256
+            elif adc_window <= 1022:
+                return 512
+            else:
+                # Previously unhandled (slow rep + window > ~3270 ns): the old
+                # code left the ini untouched. Pin it to the 1024 baseline so
+                # the buffer is always defined.
+                return 1024
+        else:                            # faster repetition
+            if adc_window < 1000:
+                return 1024
+            else:
+                return 4096
+
+    def _set_stream_buffer_kb(self, kb):
+        """
+        Set streamBufSizeKb in exam_adc.ini to an absolute value, regardless of
+        its current value. Unlike change_ini_file (which only rewrites a single
+        known source string and silently no-ops otherwise), this is idempotent
+        and correct from any prior state, so a run can never inherit a stale
+        buffer size left by a previous run. No-op in test mode (the preflight
+        must not mutate the shared ini; the value is derived on read instead).
+        """
+        if self.test_flag == 'test':
+            return
+
+        file_ini = 'exam_adc.ini'
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(current_dir, "..", "..", "libs", file_ini)
+        file_path = os.path.normpath(file_path)
+
+        with fileinput.input(file_path, inplace = True, encoding='utf-8') as file:
+            for line in file:
+                # Match the active key only (not the commented ';streamBufSizeb').
+                if line.lstrip().startswith('streamBufSizeKb'):
+                    indent = line[:len(line) - len(line.lstrip())]
+                    ending = '\n' if line.endswith('\n') else ''
+                    print(f"{indent}streamBufSizeKb = {kb}{ending}", end = '')
+                else:
+                    print(line, end = '')
+
     def pulser_update(self):
         """
         A function that write instructions to PB.
@@ -1278,23 +1330,11 @@ class Insys_FPGA:
 
                 rep_time = self._rep_time_ns()
 
-                if rep_time > 20408163:
-                    if self.adc_window <= 256:
-                        self.change_ini_file("streamBufSizeKb = 1024", "streamBufSizeKb = 128")
-                    elif (self.adc_window > 256) and (self.adc_window <= 511):
-                        self.change_ini_file("streamBufSizeKb = 1024", "streamBufSizeKb = 256")
-                    elif (self.adc_window > 511) and (self.adc_window <= 1022):
-                        self.change_ini_file("streamBufSizeKb = 1024", "streamBufSizeKb = 512")
-                elif rep_time <= 20408163:
-                    if (self.adc_window < 1000):
-                        self.change_ini_file("streamBufSizeKb = 128", "streamBufSizeKb = 1024")
-                        self.change_ini_file("streamBufSizeKb = 256", "streamBufSizeKb = 1024")
-                        self.change_ini_file("streamBufSizeKb = 512", "streamBufSizeKb = 1024")
-                        self.change_ini_file("streamBufSizeKb = 2048", "streamBufSizeKb = 1024")
-                        self.change_ini_file("streamBufSizeKb = 4096", "streamBufSizeKb = 1024")
-                    else:
-                        self.change_ini_file("streamBufSizeKb = 1024", "streamBufSizeKb = 4096")
-
+                # Set the stream buffer to the size this rep-rate + window
+                # requires, absolutely (idempotent: correct regardless of the
+                # value any previous run left in exam_adc.ini).
+                self._set_stream_buffer_kb(
+                    self._stream_buffer_kb_for(rep_time, self.adc_window) )
 
                 self.rep_rate_count_pulser = 1
 
@@ -1305,13 +1345,9 @@ class Insys_FPGA:
             if  len(r_rate) == 1:
                 self.rep_rate_pulser = r_rate
                 self._rep_time_cache = None
-                rep_time = self._rep_time_ns()
-
-                if rep_time > 20408163:
-                    self.change_ini_file("streamBufSizeKb = 1024", "streamBufSizeKb = 128")
-                elif rep_time <= 20408163:
-                    self.change_ini_file("streamBufSizeKb = 128", "streamBufSizeKb = 1024")
-
+                # In test mode the shared ini is left untouched; the buffer size
+                # is derived deterministically at pulser_open (see below) from
+                # this rep-rate and the current adc_window.
                 self.rep_rate_count_pulser = 1
             elif len(r_rate) == 0:
                 return self.rep_rate_pulser[0]
@@ -1857,25 +1893,37 @@ class Insys_FPGA:
             self.brdDataBuf_brd    = (ctypes.c_int * self.nStrmBufSizeb_brd)()
             self.strmBufNum_brd    = self.getStreamBufNum()
 
-            file_to_read = open(self.path_status_file, 'w')
+            file_to_read = open(self.path_status_file, 'w', encoding='utf-8')
             file_to_read.write('Status:  On' + '\n')
             file_to_read.close()
 
         elif self.test_flag == 'test':
 
-            text = open( self.path_status_file ).read()
+            text = open( self.path_status_file, encoding='utf-8' ).read()
             lines = text.split('\n')
             assert( str( lines[0].split(':  ')[1] ) != 'On' ), "Insys FPGA card is already opened. Please, close it."
 
 
-            file_ini = 'exam_adc.ini'
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            file_path = os.path.join(current_dir, "..", "..", "libs", file_ini)
-            file_path = os.path.normpath(file_path)
-            
-            text = open( file_path ).read()
-            lines = text.split('\n')
-            self.nStrmBufSizeb_brd = int((lines[1][-4:])) * 2**10
+            # Derive the buffer size from the current rep-rate + window (the same
+            # mapping used to write the ini in real mode) rather than parsing
+            # exam_adc.ini, whose streamBufSizeKb is whatever the previous *real*
+            # run left there (test-mode runs never write it). This makes the
+            # test/preflight buffer match what the live run will actually use, so
+            # the "TOO MANY PHASES FOR LIVE MODE" check is correct and no longer
+            # depends on run history. Falls back to the file if the rep-rate
+            # hasn't been set yet.
+            try:
+                self.nStrmBufSizeb_brd = self._stream_buffer_kb_for(
+                    self._rep_time_ns(), self.adc_window ) * 2**10
+            except (AttributeError, IndexError, TypeError):
+                file_ini = 'exam_adc.ini'
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                file_path = os.path.join(current_dir, "..", "..", "libs", file_ini)
+                file_path = os.path.normpath(file_path)
+
+                text = open( file_path, encoding='utf-8' ).read()
+                lines = text.split('\n')
+                self.nStrmBufSizeb_brd = int((lines[1][-4:])) * 2**10
 
             #file_to_read = open(self.path_status_file, 'w')
             #file_to_read.write('Status:  On' + '\n')
@@ -1887,8 +1935,8 @@ class Insys_FPGA:
             #self.setEnable_GIM(0)
             closeRet = self.closeBrd()
             #general.message(f'CLOSE BOARD: {closeRet}')
-            
-            file_to_read = open(self.path_status_file, 'w')
+
+            file_to_read = open(self.path_status_file, 'w', encoding='utf-8')
             file_to_read.write('Status:  Off' + '\n')
             file_to_read.close()
             #general.message(self.count_nip[-4:])
@@ -2142,7 +2190,6 @@ class Insys_FPGA:
         """
         return ( self.win_right - self.win_left ) * 1000 / self.sample_rate
 
-    #mod
     def digitizer_decimation(self, *dec):
         """
         Special function for decimation
@@ -2169,10 +2216,10 @@ class Insys_FPGA:
             path_to_main = os.path.abspath( os.getcwd() )
             path_file = os.path.join(path_to_main, '..', 'atomize/control_center/digitizer_insys.param')
             #path_file = os.path.join(path_to_main, 'digitizer_insys.param')
-            file_to_read = open(path_file, 'r')
+            file_to_read = open(path_file, 'r', encoding='utf-8')
 
             text_from_file = file_to_read.read().split('\n')
-            # ['Points: 224', 'Sample Rate: 250', 'Posstriger: 16', 'Range: 500', 'CH0 Offset: 0', 'CH1 Offset: 0', 
+            # ['Points: 224', 'Sample Rate: 250', 'Posstriger: 16', 'Range: 500', 'CH0 Offset: 0', 'CH1 Offset: 0',
             # 'Window Left: 0', 'Window Right: 0', '']
 
             points = str( text_from_file[0].split(': ')[1] )
@@ -2209,10 +2256,10 @@ class Insys_FPGA:
             path_to_main = os.path.abspath( os.getcwd() )
             path_file = os.path.join(path_to_main, '..', 'atomize/control_center/digitizer_insys.param')
             #path_file = os.path.join(path_to_main, 'digitizer_insys.param')
-            file_to_read = open(path_file, 'r')
+            file_to_read = open(path_file, 'r', encoding='utf-8')
 
             text_from_file = file_to_read.read().split('\n')
-            # ['Points: 224', 'Sample Rate: 250', 'Posstriger: 16', 'Range: 500', 'CH0 Offset: 0', 'CH1 Offset: 0', 
+            # ['Points: 224', 'Sample Rate: 250', 'Posstriger: 16', 'Range: 500', 'CH0 Offset: 0', 'CH1 Offset: 0',
             # 'Window Left: 0', 'Window Right: 0', '']
             points = str( text_from_file[0].split(': ')[1] )
 
@@ -2806,7 +2853,6 @@ class Insys_FPGA:
                         pulse['frequency'] = fr
                         self.shift_count_awg = 1
 
-    #new
     def awg_redefine_amplitude(self, *, name, amplitude):
         """
         A function for redefining amplitude of the specified pulse.
@@ -3527,7 +3573,6 @@ class Insys_FPGA:
         self.current_phase_index_awg = 0
 
     ####################AUX#####################
-    #changed + need to check
     def gen_2d_array_from_buffer(self, data, adc_window, p, ph, live_mode,
                                  skip_redundant=False):
         """
@@ -3926,7 +3971,6 @@ class Insys_FPGA:
 
                 return answer
 
-    #mod
     def process_and_merge_rect_awg(self, data_list, target_channel=128, gap_threshold=70):
         if data_list is None or len(data_list) == 0:
             return []
@@ -4002,7 +4046,6 @@ class Insys_FPGA:
                         
             return np.asarray(list(chain(*answer)))
 
-    #mod3
     def check_problem_pulses_pulser(self, np_array):
         """
         A function for checking whether there is a two
@@ -4123,7 +4166,6 @@ class Insys_FPGA:
             no_duplicate_array = np.unique(np_array, axis = 0)
             return no_duplicate_array
 
-    #mod2
     def preparing_to_bit_pulse_pulser(self, np_array):
         """
         For pulses at each channel we check whether there is overlapping pulses using 
@@ -4498,7 +4540,6 @@ class Insys_FPGA:
             else:
                 assert(1 == 2), 'Pulse sequence is longer than one period of the repetition rate'             
 
-    #need to check
     def convert_to_bit_pulse_pulser(self, np_array):
         """
         A function to calculate in which time interval
@@ -4971,7 +5012,6 @@ class Insys_FPGA:
                 else:
                     return self.delete_duplicates_pulser(np.asarray(no_problem_list)), self.delete_duplicates_pulser(np.asarray(problem_list))
 
-    #mod2
     def convert_to_bit_pulse_amp_lna_pulser(self, p_list, channel):
         """
         A function to calculate in which time interval
@@ -5024,153 +5064,6 @@ class Insys_FPGA:
 
         return np.column_stack((final_channels, final_starts, final_stops))
 
-    #unused
-    def instruction_pulse_short_lna_amp_pulser(self, np_array):
-        """
-        Final convertion to the pulse blaster instruction pulses
-        It splits the bit_array into sequence of bit_arrays for individual pulses
-        after that converts them into instructions
-
-        We can drop pulses with channel 0 for AMP_ON and LNA_PROTECT case
-
-        Generally, this function is close to instruction_pulse_pulser() 
-        """
-        if self.test_flag != 'test':
-            if self.auto_defense_pulser == 'False':
-                pass
-            elif self.auto_defense_pulser == 'True':
-                final_pulse_array = []
-
-                # Create an array that is 1 where a is 0, and pad each end with an extra 0.
-                iszero = np.concatenate(([0], np_array, [0]))
-                absdiff = np.abs(np.diff(iszero))
-
-                # creating a mask to split bit array
-                ranges = np.where(absdiff != 0)[0]
-                # split using a mask
-                pulse_array_pulser = np.split(np_array, ranges)
-                pulse_info = np.concatenate(([0], ranges))
-
-                for index, element in enumerate(pulse_info[:-1]):
-                    # we can drop pulses with channel 0 for AMP_ON and LNA_PROTECT case
-                    if pulse_array_pulser[index][0] != 0:
-                        final_pulse_array.append( [pulse_array_pulser[index][0], pulse_info[index], pulse_info[index + 1]] )
-                    else:
-                        pass
-
-                return final_pulse_array
-
-        elif self.test_flag == 'test':
-            if self.auto_defense_pulser == 'False':
-                pass
-            elif self.auto_defense_pulser == 'True':
-                final_pulse_array = []
-
-                # Create an array that is 1 where a is 0, and pad each end with an extra 0.
-                iszero = np.concatenate(([0], np_array, [0]))
-                absdiff = np.abs(np.diff(iszero))
-
-                ranges = np.where(absdiff != 0)[0]
-                pulse_array_pulser = np.split(np_array, ranges)
-                pulse_info = np.concatenate(([0], ranges))
-
-                for index, element in enumerate(pulse_info[:-1]):
-                    if pulse_array_pulser[index][0] != 0:
-                        final_pulse_array.append( [pulse_array_pulser[index][0], pulse_info[index], pulse_info[index + 1]] )
-                    else:
-                        pass
-
-                return final_pulse_array
-
-    #unused
-    def check_short_pulses_pulser(self, np_array, channel):
-        """
-        A function for checking whether there is two pulses with
-        the distance between them shorter than 40 ns
-
-        If there are such pulses on MW channel an error will be raised
-        LNA_PROTECT and AMP_ON pulsess will be combined in one pulse
-
-        """
-        if self.test_flag != 'test':
-            # checking where the pulses are
-            one_indexes = np.argwhere(np_array == 1).flatten()
-            difference = np.diff(one_indexes)
-            
-            ## 16-09-2021; An attempt to optimize the speed; all pulses should be already checked in the TEST RUN
-            ## Uncomment everything starting with ## if needed
-            if channel == self.channel_dict_pulser['LNA_PROTECT'] or channel == self.channel_dict_pulser['AMP_ON']:
-            ##if channel != self.channel_dict_pulser['LNA_PROTECT'] and channel != self.channel_dict_pulser['AMP_ON']:
-
-            ##    # (min_pulse_length_pulser + 1) is 13 now
-            ##    if any(1 < element < (self.min_pulse_length_pulser + 1) for element in difference) == False:
-            ##        pass
-            ##    else:
-            ##        general.message('There are two pulses with shorter than ' + str(self.min_pulse_length_pulser*2) + ' ns distance between them')
-            ##        sys.exit()
-            ##else:
-                if any(1 < element < (self.min_pulse_length_pulser + self.minimal_distance_amp_lna_pulser) for element in difference) == False:
-                    return np_array
-                else:
-                    final_array = self.joining_pulses_pulser(np_array)
-                    return final_array
-
-        if self.test_flag == 'test':
-            # checking where the pulses are
-            one_indexes = np.argwhere(np_array == 1).flatten()
-            difference = np.diff(one_indexes)
-
-            if channel != self.channel_dict_pulser['LNA_PROTECT'] and channel != self.channel_dict_pulser['AMP_ON']:
-                if any(1 < element < (self.min_pulse_length_pulser + self.minimal_distance_amp_lna_pulser) for element in difference) == False:
-                    pass
-                else:
-                    assert(1 == 2), 'There are two pulses with shorter than ' + str(self.min_pulse_length_pulser) + ' ns distance between them'
-            else:
-                if any(1 < element < (self.min_pulse_length_pulser + self.minimal_distance_amp_lna_pulser) for element in difference) == False:
-                    return np_array
-                else:
-                    final_array = self.joining_pulses_pulser(np_array)
-                    return final_array
-
-    #unused
-    def joining_pulses_pulser(self, np_array):
-        """
-        A function that joing two short pulses in one
-        It is used for LNA_PROTECT and AMP_ON pulses
-        """
-        i = 0
-        j = 0
-        counter = 0
-
-        array_len = len(np_array)
-        # drop several first and last zeros
-        index_first_one = np.argwhere(np_array == 1)[0]
-        index_last_one = np.argwhere(np_array == 1)[-1]
-        short_array = np_array[index_first_one[0]:(index_last_one[0] + 1)]
-
-        while i < len(short_array):
-            if short_array[i] == 0:
-                # looking for several 0 in a row
-                if short_array[i + 1] == 0:
-                    counter += 1
-                elif short_array[i + 1] == 1:
-                    # (minimal_distance + 1) is 13 now
-                    if counter < (self.min_pulse_length_pulser + self.minimal_distance_amp_lna_pulser):
-                        # replace 0 with 1
-                        while j <= counter:
-                            short_array[i + j - counter] = 1
-                            j += 1
-                        counter = 0
-                        j = 0
-                    else:
-                        counter = 0
-
-            i += 1
-
-        final_array = np.concatenate( (np.zeros(index_first_one[0], dtype = np.int64), short_array, np.zeros( array_len - index_last_one[0] - 1, dtype = np.int64)), axis = None)
-
-        return final_array
-
     def change_pulse_settings_pulser(self, parameter, delay):
         """
         A special function for parsing some parameter (i.e. start, length) value from the pulse
@@ -5220,19 +5113,21 @@ class Insys_FPGA:
         A function to create GIM words from old PB_ESR_Pro instructions
         """
         sa = np.array(spinapi)
-        
-        range_time           = sa[1:,-1]
-        range_time_tail      = range_time >> 16
-        range_time           = range_time - (range_time_tail << 16)
 
-        qqq                  = sa[1:,0]
-        qqq[-1]              = qqq[-1] + (1 << 15)
+        duration         = sa[1:, -1]
+        range_time       = duration & 0xFFFF
+        range_time_tail  = duration >> 16
 
-        zer                  = np.zeros( (len(qqq), 8) , dtype = np.uint32 )
-        zer[:,0] , zer[:,1]  = ((range_time << 16) +  qqq ), ( range_time_tail << 0)
-        kk                   = zer.reshape(len(qqq) * 8).copy()
+        qqq       = sa[1:, 0]
+        qqq[-1]  |= (1 << 15)
 
-        self.data_buf_IP_GIM_brd = len(kk) , kk.ctypes.data_as( ctypes.POINTER( ctypes.c_int32 ) )
+        n  = len(qqq)
+        kk = np.zeros(n * 8, dtype=np.uint32)
+        kk[0::8] = (range_time << 16) | qqq
+        kk[1::8] = range_time_tail
+
+        self._gim_buffer = kk
+        self.data_buf_IP_GIM_brd = len(kk), kk.ctypes.data_as(ctypes.POINTER(ctypes.c_int32))
 
     def awg_update_test(self):
         """
@@ -5806,10 +5701,16 @@ class Insys_FPGA:
                     
                     norm_factor = 2 * np.tanh(b * x_mean)
                     phase_arg = (bw / b) * np.log(np.cosh(b * dx)) / norm_factor
-                    total_phase = 2 * np.pi * phase_arg + pulse_phase_np[index] + ph_cor
+                    # carrier offset: centre the sweep on (f_start+f_end)/2 like WURST
+                    center_freq = (pulse_frequency[index][0] + pulse_frequency[index][1]) / 2
+                    phase_carrier = 2 * np.pi * center_freq / self.sample_rate_awg * xs
+                    total_phase = 2 * np.pi * phase_arg + phase_carrier + pulse_phase_np[index] + ph_cor
                     
                     y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index]) * envelope * np.sin(total_phase)
                     y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index]) * envelope * np.sin(total_phase + self.phase_shift_ch1_seq_mode_awg)
+
+                    channel_1[current_pos : current_pos + length] = np.round(y1).astype(np.int16)
+                    channel_2[current_pos : current_pos + length] = np.round(y2).astype(np.int16)
 
                 current_pos += length
 
@@ -5838,7 +5739,6 @@ class Insys_FPGA:
 
             return self.dac_buffer_memorized_i[self.current_phase_index_awg - 1], self.dac_buffer_memorized_q[self.current_phase_index_awg - 1]
 
-    #new
     def post_process_overlap(self, channel_1, channel_2, intervals):
         if len(intervals) == 0:
             return channel_1, channel_2
@@ -6024,234 +5924,10 @@ class Insys_FPGA:
 
     def count_ip(self, ph):
         return np.sum( self.count_nip.reshape( len( self.count_nip ) // ph, ph, order = 'C' ), axis = 1 )
-
-    def define_buffer_single_joined_awg_unoptimized(self):
-        """
-        Define and fill the buffer in 'Single Joined' mode;
-        
-        Every even index is a new data sample for CH0,
-        Every odd index is a new data sample for CH1.
-
-        Second channel will be filled automatically
-        """
-        # pulses are in a form [channel_number, function, frequency, phase, length, sigma, start, delta_start, amp, n_wurst, b_sech] 
-        #                      [0,              1,        2,         3,      4,     5,      6,    7,           8,   9,       10    ]
-        pulses = self.preparing_buffer_single_awg() # 0.2-0.3 ms
-        # only ch0 pulses are analyzed
-        # ch1 will be generated automatically with shifted phase
-        arguments_array = [[], [], [], [], [], [], [], [], [], []]
-        for element in pulses[0]:
-            # collect arguments in special array for further handling
-            arguments_array[0].append(int(element[1]))     #   0    type; 0 is SINE; 1 is GAUSS; 2 is SINC; 3 is BLANK, 4 is WURST, 5 is SECH/TANH
-            arguments_array[1].append(element[6])          #   1    start
-            arguments_array[2].append(element[7])          #   2    delta_start
-            arguments_array[3].append(element[4])          #   3    length
-            arguments_array[4].append(element[3])          #   4    phase
-            arguments_array[5].append(element[5])          #   5    sigma
-            arguments_array[6].append(element[2])          #   6    frequency
-            arguments_array[7].append(element[8])          #   8    amp coefficient
-            arguments_array[8].append(element[9])          #   9    n
-            arguments_array[9].append(element[10])         #   10   b
-
-        # convert everything in samples 
-        pulse_phase_np        = np.asarray(arguments_array[4])
-        pulse_start_smp       = (np.asarray(arguments_array[1])).astype('int64')
-        pulse_delta_start_smp = (np.asarray(arguments_array[2])).astype('int64')
-        pulse_length_smp      = (np.asarray(arguments_array[3])).astype('int64')
-        pulse_sigma_smp       = np.asarray(arguments_array[5])
-        pulse_frequency       = np.asarray(arguments_array[6], dtype=object)
-        pulse_amp             = np.asarray(arguments_array[7])
-        pulse_n_wurst         = np.asarray(arguments_array[8])
-        pulse_b_sech          = np.asarray(arguments_array[9])
-
-        #_start = pulse_start_smp
-        #_end   = pulse_start_smp + pulse_length_smp 
-        #self.list_start_end = np.array([_start, _end]).T
-
-        last_pulse_length = pulse_length_smp[-1]
-        last_start = pulse_start_smp[-1]
-
-        # define buffer differently for only one or two channels enabled
-        # for ch1 phase is automatically shifted by self.phase_shift_ch1_seq_mode_awg
-        channel_1 = np.array([], dtype = np.int16)
-        channel_2 = np.array([], dtype = np.int16)
-
-        norm_c = self.maxCAD_awg / self.amplitude_max_awg  # 32767 - 260 mV MAX
-
-        #general.message( pulse_length_smp % 4 )
-        for index, element in enumerate(arguments_array[0]):
-
-            if element == 0: # 'SINE'
-                #start, end = self.list_start_end[index]
-                x = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] ) * pulse_frequency[index] / self.sample_rate_awg
-                # 32767 - 260 mV MAX
-                y1 = norm_c * self.amplitude_0_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] )
-                y2 = norm_c * self.amplitude_1_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg)
-                channel_1 = np.concatenate( (channel_1, y1.astype(int) ), axis = 0)
-                channel_2 = np.concatenate( (channel_2, y2.astype(int) ), axis = 0)
-
-            elif element == 1: # GAUSS
-                x_mean = int( pulse_length_smp[index] / 2 )
-                sigma  = pulse_sigma_smp[index] 
-                x = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] ) * pulse_frequency[index] / self.sample_rate_awg
-                xg = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] )
-
-                y1 = norm_c * self.amplitude_0_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] ) * np.exp(-(( xg  - x_mean)**2)*(1 / (2*sigma**2)))
-                y2 = norm_c * self.amplitude_1_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg) * np.exp(- ( (xg - x_mean) / sigma )** 2 / 2)
-                channel_1 = np.concatenate( (channel_1, y1.astype(int) ), axis = 0)
-                channel_2 = np.concatenate( (channel_2, y2.astype(int) ), axis = 0)
-
-            elif element == 2: # SINC
-                x_mean = int( pulse_length_smp[index] / 2 )
-                sigma  = pulse_sigma_smp[index] 
-                x = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] ) * pulse_frequency[index] / self.sample_rate_awg
-                xs = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] )
-
-                y1 = norm_c * self.amplitude_0_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] ) * np.sinc(- ( 2 * ( xs  - x_mean)) / sigma)
-                y2 = norm_c * self.amplitude_1_awg / pulse_amp[index] * np.sin(2 * np.pi * x + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg) * np.sinc(- ( 2 * ( xs  - x_mean)) / sigma)
-                channel_1 = np.concatenate( (channel_1, y1.astype(int) ), axis = 0)
-                channel_2 = np.concatenate( (channel_2, y2.astype(int) ), axis = 0)
-
-            elif element == 3: # BLANK
-                pass
-
-            elif element == 4: # WURST
-                # at = A*( 1 - abs( sin(pi*(t-tp/2)/tp) )^n )
-                # ph = 2*pi*(Fstr*t + 0.5*( Ffin - Fstr )*t^2/tp )
-                # WURST = at*sin(ph + phase_0)
-                x_mean = int( pulse_length_smp[index] / 2 )
-                 ###############################################
-                # resonator profile correction test
-                freq_sweep = pulse_frequency[index][1] - pulse_frequency[index][0]
-                m_p = ( x_mean - pulse_start_smp[index] )
-                
-                ###LO - RF; high frequency first; flip order
-                t_axis = np.flip( np.arange(0, 0 + pulse_length_smp[index] ) - m_p )
-
-                # 300 is wurst sweep
-                # md4
-                #c = 1 / self.triple_gauss(t_axis * 300 / pulse_length_smp[index], 0.570786, 0.383363, 12.2448, 1241.89, \
-                #                                                                            0.191815, -43.478, 1913.96, \
-                #                                                                            0.06655,  77.3173, 614.985)
-
-                # md3
-                #c = 1 / self.triple_lorentzian(t_axis * 300 / pulse_length_smp[index], 5.92087, 412.868, -124.647, 62.0069, \
-                #                                                                            420.717, -35.8879, 34.4214, \
-                #                                                                            9893.97,  12.4056, 150.304)
-                
-                c = 1 / self.triple_lorentzian(t_axis * freq_sweep / pulse_length_smp[index], self.bl_awg, self.a1_awg, self.x1_awg, self.w1_awg, self.a2_awg, self.x2_awg, self.w2_awg, self.a3_awg, self.x3_awg, self.w3_awg)
-
-                c = c / c[0]
-                # limit minimum B1
-                # 16 MHz is the value for MD3 at +-150 MHz around the center
-                # 23 MHz is an arbitrary limit; around 210 MHz width
-                c[c > self.low_level_awg / self.limit_awg] = self.low_level_awg / self.limit_awg
-                
-                c = c / c[0]
-                ph_cor = 0
-
-                if freq_sweep >= 0:
-                    pass
-                else:
-                    np.flip( c )
-
-                # only pi/2 correction
-                if self.pi2flag_awg == 1:
-                    if int( pulse_amp[index] ) > 1:
-                        pass
-                    else:
-                        c = 1
-
-                #general.plot_1d( 'C', np.arange(0, 0 + pulse_length_smp[index] ), c )
-                
-                #phase and amplitude from ideal resonator with f0 and Q
-                ##Q = 88
-                ##f0 = 9700
-
-                ##length = pulse_length_smp[index]
-                ##end_freq = pulse_frequency[index][1]
-                ##st_freq = pulse_frequency[index][0]
-                ##sweep = end_freq - st_freq
-
-                #LO - RF; high frequency first; flip order
-                ##t_axis = np.flip( np.arange( st_freq + f0, end_freq + f0, sweep / length ) )
-
-                ##ideal_res = 1 / ( 1 + 1j * Q * ( t_axis / f0 - f0 / t_axis ) )
-                ##ph_cor = np.arctan2( ideal_res.imag, ideal_res.real ) 
-                # only pi/2 correction
-                ##if int( pulse_amp[index] ) > 1:
-                ##    amp_cor = 1 / np.abs( ideal_res )
-                ##    c = amp_cor / amp_cor[0]
-                ##else:
-                ##    c = 1
-
-                #general.plot_1d( 'C', np.arange(0, 0 + pulse_length_smp[index] ), ph_cor * 180 / np.pi )
-                #general.plot_1d( 'C', np.arange(0, 0 + pulse_length_smp[index] ), c )
-
-                ###############################################
-                #x = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] ) * pulse_frequency[index] / self.sample_rate_awg
-                xs = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] )
-                y1 = norm_c * self.amplitude_0_awg / pulse_amp[index] * (1 - np.abs( np.sin( np.pi * ( xs - x_mean) / pulse_length_smp[index] )) ** pulse_n_wurst[index] ) * np.sin( 2*np.pi * ( xs * pulse_frequency[index][0] / self.sample_rate_awg + 0.5 * (pulse_frequency[index][1] -  pulse_frequency[index][0]) * xs**2 / self.sample_rate_awg / pulse_length_smp[index] ) + pulse_phase_np[index] + ph_cor)
-                y2 = norm_c * self.amplitude_1_awg / pulse_amp[index] * (1 - np.abs( np.sin( np.pi * ( xs - x_mean)  / pulse_length_smp[index] )) ** pulse_n_wurst[index] ) * np.sin( 2*np.pi * ( xs * pulse_frequency[index][0] / self.sample_rate_awg + 0.5 * (pulse_frequency[index][1] - pulse_frequency[index][0]) * xs**2 / self.sample_rate_awg / pulse_length_smp[index] ) + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg + ph_cor)
-                channel_1 = np.concatenate( (channel_1, y1.astype(int) ), axis = 0)
-                channel_2 = np.concatenate( (channel_2, y2.astype(int) ), axis = 0)
-            
-            elif element == 5: # 'SECH/TANH'
-                # mid_point for GAUSS and SINC and WURST and SECH/TANH
-                # at = A*Sech[b*tp*2^(n - 1) ((t - tp/2)/tp)^n]
-                # ph = 2*Pi*bw/b*Log[Cosh[b*(t - tp/2)]]/2/Tanh[b*tp/2]
-                # SECH = at*sin(ph + phase_0)
-                x_mean = int( pulse_length_smp[index] / 2 )
-
-                #########################################################
-                # resonator profile correction test
-                m_p = ( x_mean - pulse_start_smp[index] )
-                freq_sweep = pulse_frequency[index][1] - pulse_frequency[index][0]
-
-                ###LO - RF; high frequency first; flip order
-                t_axis = np.flip( np.arange(0, 0 + pulse_length_smp[index] ) - m_p )
-                
-                # 300 is wurst sweep
-                c = 1 / self.triple_lorentzian(t_axis * freq_sweep / pulse_length_smp[index], self.bl_awg, self.a1_awg, self.x1_awg, self.w1_awg, self.a2_awg, self.x2_awg, self.w2_awg, self.a3_awg, self.x3_awg, self.w3_awg)
-
-                c = c / c[0]
-                # limit minimum B1
-                # 16 MHz is the value for MD3 at +-150 MHz around the center
-                # 23 MHz is an arbitrary limit; around 210 MHz width
-                c[c > self.low_level_awg/self.limit_awg] = self.low_level_awg/self.limit_awg
-                
-                c = c / c[0]
-                ph_cor = 0
-
-                if freq_sweep >= 0:
-                    pass
-                else:
-                    np.flip( c )
-
-                # only pi/2 correction
-                if self.pi2flag_awg == 1:
-                    if int( pulse_amp[index] ) > 1:
-                        pass
-                    else:
-                        c = 1
-
-                #general.plot_1d( 'C', np.arange(0, 0 + pulse_length_smp[index] ), c )
-                freq_cen = ( pulse_frequency[index][1] + pulse_frequency[index][0] ) / 2
-
-                bw = (pulse_frequency[index][1] - pulse_frequency[index][0]) / self.sample_rate_awg
-                #pulse_b_sech[index]
-                xs = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] )
-                y1 = norm_c * self.amplitude_0_awg / pulse_amp[index] * ( 1 / np.cosh( (pulse_b_sech[index] * x_mean * 2 ** (pulse_n_wurst[index] - 1)) * ((xs - x_mean) / pulse_length_smp[index]) ** pulse_n_wurst[index]) ) * np.sin( 2*np.pi * ( bw / pulse_b_sech[index] * np.log( np.cosh( pulse_b_sech[index] * ( xs - x_mean ) ) ) / 2 / np.tanh(  pulse_b_sech[index] *x_mean ) ) + pulse_phase_np[index] + ph_cor + 0 * 2*np.pi*freq_cen / self.sample_rate_awg * xs )
-                y2 = norm_c * self.amplitude_1_awg / pulse_amp[index] * ( 1 / np.cosh( (pulse_b_sech[index] * x_mean * 2 ** (pulse_n_wurst[index] - 1)) * ((xs - x_mean) / pulse_length_smp[index]) ** pulse_n_wurst[index]) ) * np.sin( 2*np.pi * ( bw / pulse_b_sech[index] * np.log( np.cosh( pulse_b_sech[index] * ( xs - x_mean ) ) ) / 2 / np.tanh(  pulse_b_sech[index] *x_mean ) ) + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg + ph_cor + 0 * 2*np.pi*freq_cen / self.sample_rate_awg * xs )
-                channel_1 = np.concatenate( (channel_1, y1.astype(int) ), axis = 0)
-                channel_2 = np.concatenate( (channel_2, y2.astype(int) ), axis = 0)
-
-        return channel_1 , channel_2
     
     def number_adc_window_in_buffer(self):
         return int( self.nStrmBufSizeb_brd / ( self.adc_window * 64 + 32 ) )
 
-    #new
     def digitizer_iq(self, arr_i, arr_q, freq, ph, ph1, ph2, integral = False):
 
         if np.isnan(arr_i).any() or np.isnan(arr_q).any():
@@ -6289,7 +5965,6 @@ class Insys_FPGA:
         else:
             raise ValueError("Incorrect dimension of the array")
 
-    #new
     def digitizer_expand_phase_cycling(self, p_input, *pulse_args):
         phases = ['+x', '+y', '-x', '-y']
         norm = {'x':0, 'y':1, '-x':2, '-y':3, '+':0, '-':2, 'i':1, '-i':3, '0':0}
