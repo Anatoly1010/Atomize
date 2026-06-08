@@ -189,10 +189,10 @@ class Lakeshore_331:
                 if hr in self.heater_dict:
                     flag = self.heater_dict[hr]
                     if int(self.loop_config) in self.loop_list:
-                        self.device_write("RANGE " + str(self.loop_config) + ',' + str(flag))
+                        self.device_write("RANGE " + str(flag))
 
             elif len(heater) == 0:
-                raw_answer = int(self.device_query("RANGE? " + str(self.loop_config)))
+                raw_answer = int(self.device_query("RANGE?"))
                 answer = cutil.search_keys_dictionary(self.heater_dict, raw_answer)
                 return answer
 
