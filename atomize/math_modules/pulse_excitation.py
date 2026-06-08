@@ -146,7 +146,109 @@ def waveform(shape, t, tp, params):
     return a, nu
 
 
-def propagate_pulse(M, shape, tp, nu1, offsets, params, dt=0.5, phi0=0.0):
+def resonator_transfer(freqs, nu0, Q, detuning=0.0):
+    """Complex voltage transfer function of an ideal (lumped RLC) resonator.
+
+        H(nu) = 1 / (1 + i Q (nu/nu0 - nu0/nu))
+
+    with ``nu`` the *absolute* microwave frequency. A rotating-frame component at
+    ``f`` (relative to the carrier) sits at ``nu = nu0 - detuning + f``, where
+    ``detuning = nu_resonator - nu_carrier`` — so ``detuning = 0`` means the
+    carrier is tuned to the resonator centre and ``|H|`` peaks at ``f = 0``.
+
+    Parameters
+    ----------
+    freqs : ndarray
+        Rotating-frame frequencies (GHz), e.g. ``np.fft.fftfreq(n, dt)``.
+    nu0 : float
+        Resonator centre frequency (GHz, absolute).
+    Q : float
+        Loaded quality factor. The power bandwidth (FWHM) is ``nu0 / Q``.
+    detuning : float
+        Resonator centre minus carrier (GHz). Default 0 (carrier on resonance).
+
+    Returns
+    -------
+    ndarray (complex)
+        ``H`` at each frequency; ``|H| = 1`` exactly at the resonator centre.
+    """
+    nu = nu0 - detuning + np.asarray(freqs, dtype=float)
+    nu = np.where(np.abs(nu) < 1e-12, 1e-12, nu)   # guard the nu->0 pole
+    x = nu / nu0
+    return 1.0 / (1.0 + 1j * Q * (x - 1.0 / x))
+
+
+def ringdown_time(nu0, Q):
+    """Resonator amplitude ring-down time constant (ns): ``tau = Q / (pi nu0)``.
+
+    The stored field decays as ``exp(-t/tau)``; a window of ~5 tau captures the
+    ring-down to ~1%. With ``nu0`` in GHz the result is in ns.
+    """
+    return Q / (np.pi * nu0)
+
+
+def apply_resonator(w, dt, nu0, Q, detuning=0.0, mode='simulate', max_gain=10.0,
+                    ringdown=0.0):
+    """Filter a complex baseband waveform through the resonator transfer fn.
+
+    ``w`` is the sampled complex envelope ``a(t) exp(i phi(t))`` on a uniform
+    ``dt`` (ns) grid. The waveform is zero-padded before the FFT so the filtering
+    is a *linear* (not circular) convolution — this stops a rectangular pulse's
+    leading edge from wrapping its ring-up onto its trailing edge.
+
+    Parameters
+    ----------
+    w : ndarray (complex)
+        Programmed complex waveform, one sample per ``dt``.
+    dt : float
+        Sample spacing (ns) — must match how ``w`` was sampled.
+    nu0, Q, detuning
+        Resonator parameters, see :func:`resonator_transfer`.
+    mode : str
+        ``'simulate'``  — multiply by ``H``: what the spins see when the pulse is
+        sent *uncorrected* (the resonator distorts amplitude and phase).
+        ``'compensate'`` — multiply by ``1/H``: the pre-distortion needed so the
+        spins see the ideal pulse. The boost is capped at ``max_gain`` since
+        ``1/H`` diverges far off resonance.
+    max_gain : float
+        Maximum ``|1/H|`` allowed in compensate mode.
+    ringdown : float
+        If > 0 (and ``mode == 'simulate'``), append this many ns of post-pulse
+        ring-down: the resonator keeps emitting after the drive stops, so
+        ``ringdown/dt`` extra samples (driven by zero input) are returned. The
+        spins keep nutating under this decaying field. Ignored in compensate mode.
+
+    Returns
+    -------
+    ndarray (complex)
+        Distorted complex waveform. Length ``len(w)`` normally, or
+        ``len(w) + round(ringdown/dt)`` when a ring-down tail is appended.
+    """
+    w = np.asarray(w, dtype=complex)
+    n = w.size
+    if n < 2:
+        return w
+    n_rd = int(round(max(0.0, ringdown) / dt)) if mode == 'simulate' else 0
+    n_tot = n + n_rd
+    m = 1
+    while m < 2 * n_tot:                            # next pow2 >= 2*n_tot: linear conv
+        m *= 2
+    W = np.zeros(m, dtype=complex)
+    W[:n] = w                                       # drive is zero during ring-down
+    freqs = np.fft.fftfreq(m, d=dt)                 # GHz
+    H = resonator_transfer(freqs, nu0, Q, detuning)
+    if mode == 'compensate':
+        G = 1.0 / H
+        mag = np.abs(G)
+        big = mag > max_gain
+        G[big] = G[big] / mag[big] * max_gain       # cap the boost, keep phase
+    else:
+        G = H
+    return np.fft.ifft(np.fft.fft(W) * G)[:n_tot]
+
+
+def propagate_pulse(M, shape, tp, nu1, offsets, params, dt=0.5, phi0=0.0,
+                    resonator=None):
     """Apply one shaped pulse to a Bloch-vector array, return the new array.
 
     The workhorse: piecewise-constant SU(2)/Rodrigues propagation of every
@@ -163,6 +265,10 @@ def propagate_pulse(M, shape, tp, nu1, offsets, params, dt=0.5, phi0=0.0):
         As in :func:`excitation_profile`.
     offsets : ndarray
         Resonance offsets (GHz).
+    resonator : dict or None
+        If given, the programmed waveform is filtered through the resonator
+        before the spins see it (keys: ``nu0``, ``Q``, ``detuning``, ``mode`` —
+        see :func:`apply_resonator`). ``None`` = ideal transmitter.
 
     Returns
     -------
@@ -186,13 +292,25 @@ def propagate_pulse(M, shape, tp, nu1, offsets, params, dt=0.5, phi0=0.0):
     # pulse's phase is referenced to its own start (standard AWG convention).
     phi = phi0 + 2.0 * np.pi * (np.cumsum(nu * steps) - 0.5 * nu * steps)
 
+    # Optional resonator: filter the complex envelope a*exp(i phi) through the
+    # transfer function, then read back the distorted amplitude/phase the spins
+    # actually see (mid-step grid is uniform at dt, so it is a valid FFT axis).
+    # A ring-down tail (resonator['ringdown'] ns) lengthens the waveform; the
+    # spins keep nutating under the decaying field, so the step grid grows too.
+    if resonator is not None:
+        w = apply_resonator(a * np.exp(1j * phi), dt, **resonator)
+        a = np.abs(w)
+        phi = np.angle(w)
+        if a.size > steps.size:                  # extra dt steps for the ring-down
+            steps = np.concatenate((steps, np.full(a.size - steps.size, dt)))
+
     # Effective-field components (GHz). bx, by are common to all offsets; bz is
     # the offset itself (constant in time, varies across the axis).
     bx = nu1 * a * np.cos(phi)
     by = nu1 * a * np.sin(phi)
 
     bz = offsets                                 # (N,)
-    for k in range(tmid.size):
+    for k in range(steps.size):
         # Effective field for this step at every offset: (N, 3).
         vx = np.full_like(bz, bx[k])
         vy = np.full_like(bz, by[k])
@@ -239,7 +357,7 @@ def free_evolution(M, offsets, tau):
 
 
 def excitation_profile(shape, tp, nu1, offsets, params,
-                       dt=0.5, phi0=0.0, init=(0.0, 0.0, 1.0)):
+                       dt=0.5, phi0=0.0, init=(0.0, 0.0, 1.0), resonator=None):
     """Bloch-vector excitation profile of a single pulse over an offset axis.
 
     Parameters
@@ -270,7 +388,8 @@ def excitation_profile(shape, tp, nu1, offsets, params,
     """
     offsets = np.asarray(offsets, dtype=float)
     M = np.tile(np.asarray(init, dtype=float), (offsets.size, 1))
-    M = propagate_pulse(M, shape, tp, nu1, offsets, params, dt=dt, phi0=phi0)
+    M = propagate_pulse(M, shape, tp, nu1, offsets, params, dt=dt, phi0=phi0,
+                        resonator=resonator)
     return M[:, 0], M[:, 1], M[:, 2]
 
 

@@ -283,6 +283,13 @@ class Insys_FPGA:
             # in MHz
             self.low_level_awg = 16
             self.limit_awg = 23
+            # resonator-correction model: 'measured' (triple-Lorentzian magnitude
+            # fit) or 'ideal' (RLC with f0/Q, amplitude + optional phase).
+            self.cor_model_awg = 'measured'
+            self.f0_awg = 9700      # resonator centre (MHz), ideal model
+            self.q_awg = 88         # loaded Q, ideal model
+            self.phase_cor_awg = 0  # 1 = also predistort phase (ideal model)
+            self.cor_enable_awg = 0 # 1 once awg_correction() has been called
 
         elif self.test_flag == 'test':
             self.test_sample_rate_awg = '1250 MHz'
@@ -334,6 +341,13 @@ class Insys_FPGA:
             # in MHz
             self.low_level_awg = 16
             self.limit_awg = 23
+            # resonator-correction model: 'measured' (triple-Lorentzian magnitude
+            # fit) or 'ideal' (RLC with f0/Q, amplitude + optional phase).
+            self.cor_model_awg = 'measured'
+            self.f0_awg = 9700      # resonator centre (MHz), ideal model
+            self.q_awg = 88         # loaded Q, ideal model
+            self.phase_cor_awg = 0  # 1 = also predistort phase (ideal model)
+            self.cor_enable_awg = 0 # 1 once awg_correction() has been called
 
         ####################INSYS BOARD###########################################################################
         if self.test_flag != 'test':
@@ -3503,9 +3517,23 @@ class Insys_FPGA:
             xs = ( round( 1000 / self.sample_rate_awg, 1 ) ) * np.arange(len(self.channel_1))
             general.plot_1d('DAC buffer', xs, (self.channel_1, self.channel_2), label = 'ch')
 
-    def awg_correction(self, only_pi_half = 'True', coef_array = [1, 0, 0, 1, 0, 0, 1, 0, 0, 1], low_level = 16, limit = 23):
+    def awg_correction(self, only_pi_half = 'True', coef_array = [1, 0, 0, 1, 0, 0, 1, 0, 0, 1], low_level = 16, limit = 23, \
+                       model = 'measured', f0 = 9700, q_factor = 88, phase_correction = 'False'):
         """
-        Funtion for amplitude correction taking into account the resonator frequency profile
+        Resonator-profile predistortion of swept (WURST / sech-tanh) AWG pulses.
+
+        model = 'measured' : amplitude correction from the measured resonator
+                             magnitude profile (triple-Lorentzian fit in
+                             coef_array); phase left untouched.
+        model = 'ideal'    : amplitude (1/|H|) and, when phase_correction == 'True',
+                             phase (+angle(H), the sign for an LO - RF / lower-
+                             sideband bridge) from an ideal RLC resonator with
+                             centre f0 (MHz) and loaded Q = q_factor.
+
+        only_pi_half = 'True' restricts the correction to the high-amplitude
+        (pi) pulses (pulse_amp > 1); 'False' applies it to every swept pulse.
+        low_level / limit clamp the minimum effective B1 (their ratio caps the
+        amplitude boost).
         """
         self.bl_awg = coef_array[0]
         self.a1_awg = coef_array[1]
@@ -3523,12 +3551,68 @@ class Insys_FPGA:
         else:
             self.pi2flag_awg = 0
 
+        self.cor_model_awg = 'ideal' if str(model).lower().startswith('ideal') else 'measured'
+        self.f0_awg = float(f0)
+        self.q_awg = float(q_factor)
+        self.phase_cor_awg = 1 if phase_correction == 'True' else 0
+        self.cor_enable_awg = 1
+
         # in MHz
         # limit minimum B1
         # 16 MHz is the value for MD3 at +-150 MHz around the center
-        # 23 MHz is an arbitrary limit; around 210 MHz width        
+        # 23 MHz is an arbitrary limit; around 210 MHz width
         self.low_level_awg = low_level
         self.limit_awg = limit
+
+    def awg_correction_off(self):
+        """Disable resonator-profile correction (swept pulses sent as programmed)."""
+        self.cor_enable_awg = 0
+
+    def awg_resonator_correction(self, length, x_mean, pulse_start, f_start, f_end, pulse_amp):
+        """Per-sample amplitude (c) and phase (ph_cor) predistortion for one swept pulse.
+
+        Returns (c, ph_cor): ``c`` is a length-``length`` amplitude factor (or the
+        scalar ``1.0`` when this pulse is excluded) and ``ph_cor`` is a phase array
+        in radians (or the scalar ``0.0``). Maps each sample to its instantaneous
+        chirp frequency, flipped high-frequency-first for the LO - RF bridge, then
+        applies either the measured magnitude profile or the ideal RLC response.
+        """
+        length = int(length)
+        if self.cor_enable_awg == 0 or length < 1:
+            return 1.0, 0.0
+
+        freq_sweep = f_end - f_start
+        m_p = x_mean - pulse_start
+        # sample offset from the band centre, flipped (LO - RF: high freq first);
+        # rel_freq is the instantaneous sweep frequency relative to the band centre.
+        rel_freq = np.flip(np.arange(0, length) - m_p) * freq_sweep / length
+
+        ph_cor = 0.0
+        if self.cor_model_awg == 'ideal':
+            # absolute microwave frequency at each sample (LO = f0 assumed)
+            center_freq = 0.5 * (f_start + f_end)
+            abs_freq = self.f0_awg + center_freq + rel_freq
+            H = 1.0 / (1.0 + 1j * self.q_awg * (abs_freq / self.f0_awg - self.f0_awg / abs_freq))
+            amp = 1.0 / np.abs(H)
+            c = amp / amp[0]
+            if self.phase_cor_awg == 1:
+                # + angle(H) for an LO - RF (lower-sideband) bridge; referenced to
+                # the pulse start so no constant phase is introduced.
+                ph_cor = np.angle(H)
+                ph_cor = ph_cor - ph_cor[0]
+        else:
+            c = 1.0 / self.triple_lorentzian(rel_freq, self.bl_awg, self.a1_awg, self.x1_awg, \
+                    self.w1_awg, self.a2_awg, self.x2_awg, self.w2_awg, self.a3_awg, self.x3_awg, self.w3_awg)
+            c = c / c[0]
+
+        # clamp minimum B1 and renormalise (caps the amplitude boost)
+        c[c > self.low_level_awg / self.limit_awg] = self.low_level_awg / self.limit_awg
+        c = c / c[0]
+
+        # scope: with pi2flag the correction touches only the high-amplitude (pi) pulses
+        if self.pi2flag_awg == 1 and int(pulse_amp) <= 1:
+            return 1.0, 0.0
+        return c, ph_cor
 
     def awg_clear(self):
         """
@@ -5560,89 +5644,26 @@ class Insys_FPGA:
                     f_end = pulse_frequency[index][1]
 
                     x_mean = length / 2
-                    ###############################################
-                    # resonator profile correction test
-                    freq_sweep = pulse_frequency[index][1] - pulse_frequency[index][0]
-                    m_p = ( x_mean - pulse_start_smp[index] )
-                    
-                    ###LO - RF; high frequency first; flip order
-                    t_axis = np.flip( np.arange(0, 0 + length ) - m_p )
 
-                    # 300 is wurst sweep
-                    # md4
-                    #c = 1 / self.triple_gauss(t_axis * 300 / pulse_length_smp[index], 0.570786, 0.383363, 12.2448, 1241.89, \
-                    #                                                                            0.191815, -43.478, 1913.96, \
-                    #                                                                            0.06655,  77.3173, 614.985)
+                    # resonator-profile predistortion (measured or ideal RLC); c is
+                    # the per-sample amplitude factor, ph_cor the phase correction.
+                    c, ph_cor = self.awg_resonator_correction(length, x_mean,
+                        pulse_start_smp[index], f_start, f_end, pulse_amp[index])
+                    #general.plot_1d( 'C', np.arange(0, length ), np.atleast_1d(c) )
 
-                    # md3
-                    #c = 1 / self.triple_lorentzian(t_axis * 300 / pulse_length_smp[index], 5.92087, 412.868, -124.647, 62.0069, \
-                    #                                                                            420.717, -35.8879, 34.4214, \
-                    #                                                                            9893.97,  12.4056, 150.304)
-                    
-                    c = 1 / self.triple_lorentzian(t_axis * freq_sweep / pulse_length_smp[index], self.bl_awg, self.a1_awg, self.x1_awg, self.w1_awg, self.a2_awg, self.x2_awg, self.w2_awg, self.a3_awg, self.x3_awg, self.w3_awg)
-
-                    c = c / c[0]
-                    # limit minimum B1
-                    # 16 MHz is the value for MD3 at +-150 MHz around the center
-                    # 23 MHz is an arbitrary limit; around 210 MHz width
-                    c[c > self.low_level_awg / self.limit_awg] = self.low_level_awg / self.limit_awg
-                    
-                    c = c / c[0]
-                    ph_cor = 0
-
-                    if freq_sweep >= 0:
-                        pass
-                    else:
-                        np.flip( c )
-
-                    # only pi/2 correction
-                    if self.pi2flag_awg == 1:
-                        if int( pulse_amp[index] ) > 1:
-                            pass
-                        else:
-                            c = 1
-
-                    #general.plot_1d( 'C', np.arange(0, 0 + pulse_length_smp[index] ), c )
-                    
-                    #phase and amplitude from ideal resonator with f0 and Q
-                    ##Q = 88
-                    ##f0 = 9700
-
-                    ##length = pulse_length_smp[index]
-                    ##end_freq = pulse_frequency[index][1]
-                    ##st_freq = pulse_frequency[index][0]
-                    ##sweep = end_freq - st_freq
-
-                    #LO - RF; high frequency first; flip order
-                    ##t_axis = np.flip( np.arange( st_freq + f0, end_freq + f0, sweep / length ) )
-
-                    ##ideal_res = 1 / ( 1 + 1j * Q * ( t_axis / f0 - f0 / t_axis ) )
-                    ##ph_cor = np.arctan2( ideal_res.imag, ideal_res.real ) 
-                    # only pi/2 correction
-                    ##if int( pulse_amp[index] ) > 1:
-                    ##    amp_cor = 1 / np.abs( ideal_res )
-                    ##    c = amp_cor / amp_cor[0]
-                    ##else:
-                    ##    c = 1
-
-                    #general.plot_1d( 'C', np.arange(0, 0 + pulse_length_smp[index] ), ph_cor * 180 / np.pi )
-                    #general.plot_1d( 'C', np.arange(0, 0 + pulse_length_smp[index] ), c )
-
-                    ###############################################
-                    #x = np.linspace(0, pulse_length_smp[index], pulse_length_smp[index] ) * pulse_frequency[index] / self.sample_rate_awg
                     n = np.arange(length)
-                    envelope = 1 - np.abs(np.sin(np.pi * (n - length/2) / length))**n_wurst
-                    
+                    envelope = (1 - np.abs(np.sin(np.pi * (n - length/2) / length))**n_wurst) * c
+
                     t = n / self.sample_rate_awg
                     T_p = length / self.sample_rate_awg
-                    
+
                     phase_chirp = 2 * np.pi * (f_start * t + 0.5 * (f_end - f_start) / T_p * t**2)
-                    
+
                     common_phase = phase_chirp + pulse_phase_np[index] + ph_cor
-                    
-                    y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index] * 
+
+                    y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index] *
                           envelope * np.sin(common_phase))
-                    y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index] * 
+                    y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index] *
                           envelope * np.sin(common_phase + self.phase_shift_ch1_seq_mode_awg))
 
                     channel_1[current_pos : current_pos + length] = np.round(y1).astype(np.int16)
@@ -5656,49 +5677,23 @@ class Insys_FPGA:
                     length = int(pulse_length_smp[index])
                     x_mean = int( length / 2 )
 
-                    #########################################################
-                    # resonator profile correction test
-                    m_p = ( x_mean - pulse_start_smp[index] )
-                    freq_sweep = pulse_frequency[index][1] - pulse_frequency[index][0]
+                    f_start = pulse_frequency[index][0]
+                    f_end = pulse_frequency[index][1]
+                    # resonator-profile predistortion (measured or ideal RLC)
+                    c, ph_cor = self.awg_resonator_correction(length, x_mean,
+                        pulse_start_smp[index], f_start, f_end, pulse_amp[index])
+                    #general.plot_1d( 'C', np.arange(0, length ), np.atleast_1d(c) )
 
-                    ###LO - RF; high frequency first; flip order
-                    t_axis = np.flip( np.arange(0, 0 + pulse_length_smp[index] ) - m_p )
-                    
-                    # 300 is wurst sweep
-                    c = 1 / self.triple_lorentzian(t_axis * freq_sweep / pulse_length_smp[index], self.bl_awg, self.a1_awg, self.x1_awg, self.w1_awg, self.a2_awg, self.x2_awg, self.w2_awg, self.a3_awg, self.x3_awg, self.w3_awg)
-
-                    c = c / c[0]
-                    # limit minimum B1
-                    # 16 MHz is the value for MD3 at +-150 MHz around the center
-                    # 23 MHz is an arbitrary limit; around 210 MHz width
-                    c[c > self.low_level_awg/self.limit_awg] = self.low_level_awg/self.limit_awg
-                    
-                    c = c / c[0]
-                    ph_cor = 0
-
-                    if freq_sweep >= 0:
-                        pass
-                    else:
-                        np.flip( c )
-
-                    # only pi/2 correction
-                    if self.pi2flag_awg == 1:
-                        if int( pulse_amp[index] ) > 1:
-                            pass
-                        else:
-                            c = 1
-
-                    #general.plot_1d( 'C', np.arange(0, 0 + pulse_length_smp[index] ), c )
                     b = pulse_b_sech[index]
                     n = pulse_n_wurst[index]
                     bw = (pulse_frequency[index][1] - pulse_frequency[index][0]) / self.sample_rate_awg
-        
+
                     xs = np.arange(length)
                     dx = xs - x_mean
-                    
+
                     env_arg = (b * x_mean * 2**(n - 1)) * (np.abs(dx) / length)**n
-                    envelope = 1.0 / np.cosh(env_arg)
-                    
+                    envelope = (1.0 / np.cosh(env_arg)) * c
+
                     norm_factor = 2 * np.tanh(b * x_mean)
                     phase_arg = (bw / b) * np.log(np.cosh(b * dx)) / norm_factor
                     # carrier offset: centre the sweep on (f_start+f_end)/2 like WURST
