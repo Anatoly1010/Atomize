@@ -17,6 +17,22 @@ pg.setConfigOption('foreground', (192, 202, 227))
 
 LastExportDirectory = None
 
+# Bare SI base units pyqtgraph may auto-prefix in a cursor readout. An
+# already-prefixed unit ('ns', 'MHz', 'mV') or a non-SI label is shown verbatim,
+# so a value of 0.4 with unit 'ns' reads '0.4 ns', not the double-prefixed
+# '400 mns' that siFormat() would emit. Mirrors data_treatment_2d.SI_BASE_UNITS.
+SI_BASE_UNITS = {'s', 'hz', 'v', 'a', 'g', 't', 'k', 'm', 'ev'}
+
+def si_cursor_label(value, unit, precision=5):
+    """Format a cursor-readout value: let pyqtgraph SI-prefix only bare SI-base
+    units; for already-prefixed or non-SI units, print the value verbatim with
+    the unit appended to avoid a double prefix."""
+    u = str(unit).strip()
+    if u.lower() in SI_BASE_UNITS:
+        return pg.siFormat(value, suffix=u, precision=precision)
+    num = f"{value:.{precision}g}"
+    return f"{num} {u}" if u else num
+
 def get_widget(rank, name):
     return {
         1: CrosshairDock,
@@ -1970,9 +1986,9 @@ class CrossSectionDock(CloseableDock):
         self.cursor_label.setVisible(not self.hide_action.isChecked())
         #self.cursor_label.show()
 
-        mid_y_parsed = pg.siFormat(mid_y, suffix=self.label_y, precision = 5)
-        mid_x_parsed = pg.siFormat(mid_x, suffix=self.label_x, precision = 5)
-        mid_z_parsed = pg.siFormat(0, suffix=self.label_z, precision = 5)
+        mid_y_parsed = si_cursor_label(mid_y, self.label_y)
+        mid_x_parsed = si_cursor_label(mid_x, self.label_x)
+        mid_z_parsed = si_cursor_label(0, self.label_z)
 
         self.cursor_label.border = pg.mkPen((255, 255, 0, 255), width=1.5)
         label_text = f"X: {mid_x_parsed}\nY: {mid_y_parsed}\nZ: {mid_z_parsed}"
@@ -2079,9 +2095,9 @@ class CrossSectionDock(CloseableDock):
 
             #self.cursor_label.show()
 
-            y_parsed = pg.siFormat(view_y, suffix=self.label_y, precision = 5)
-            x_parsed = pg.siFormat(view_x, suffix=self.label_x, precision = 5)
-            z_parsed = pg.siFormat(z_val, suffix=self.label_z, precision = 5)
+            y_parsed = si_cursor_label(view_y, self.label_y)
+            x_parsed = si_cursor_label(view_x, self.label_x)
+            z_parsed = si_cursor_label(z_val, self.label_z)
 
             label_text = f"X: {x_parsed} ({(self.y_cross_index+1):.0f})\nY: {y_parsed} ({(self.x_cross_index+1):.0f})\nZ: {z_parsed}"
             self.cursor_label.setText(label_text)
@@ -2110,9 +2126,9 @@ class CrossSectionDock(CloseableDock):
         # don't keep showing the coordinates from the previous push.
         if self.cross_section_enabled:
             zval = img[self.x_cross_index, self.y_cross_index]
-            x_parsed = pg.siFormat(xdata[self.x_cross_index], suffix=self.label_x, precision=5)
-            y_parsed = pg.siFormat(ydata[self.y_cross_index], suffix=self.label_y, precision=5)
-            z_parsed = pg.siFormat(zval, suffix=self.label_z, precision=5)
+            x_parsed = si_cursor_label(xdata[self.x_cross_index], self.label_x)
+            y_parsed = si_cursor_label(ydata[self.y_cross_index], self.label_y)
+            z_parsed = si_cursor_label(zval, self.label_z)
             self.cursor_label.setText(
                 f"X: {x_parsed} ({(self.y_cross_index+1):.0f})\n"
                 f"Y: {y_parsed} ({(self.x_cross_index+1):.0f})\nZ: {z_parsed}")
@@ -2195,9 +2211,9 @@ class CrossSectionDock(CloseableDock):
                 #self.v_cross_section_widget.cursor_label.show()
                 self.v_cross_section_widget.update_label_visibility()
 
-            y_parsed = pg.siFormat(ydata[self.y_cross_index], suffix=self.label_y, precision = 5)
-            x_parsed = pg.siFormat(xdata[self.x_cross_index], suffix=self.label_x, precision = 5)
-            z_parsed = pg.siFormat(zval, suffix=self.label_z, precision = 5)
+            y_parsed = si_cursor_label(ydata[self.y_cross_index], self.label_y)
+            x_parsed = si_cursor_label(xdata[self.x_cross_index], self.label_x)
+            z_parsed = si_cursor_label(zval, self.label_z)
 
             label_text = f"X: {x_parsed} ({(self.y_cross_index+1):.0f})\nY: {y_parsed} ({(self.x_cross_index+1):.0f})\nZ: {z_parsed}"
             #label_text = f"Y: {ydata[self.y_cross_index]:.4g}\nZ: {zval:.4g}\nPoint: {(self.x_cross_index+1):.0f}"
@@ -2268,9 +2284,9 @@ class CrossSectionDock(CloseableDock):
                 #self.h_cross_section_widget.cursor_label.show()
                 self.h_cross_section_widget.update_label_visibility()
 
-            y_parsed = pg.siFormat(ydata[self.y_cross_index], suffix=self.label_y, precision = 5)
-            x_parsed = pg.siFormat(xdata[self.x_cross_index], suffix=self.label_x, precision = 5)
-            z_parsed = pg.siFormat(zval, suffix=self.label_z, precision = 5)
+            y_parsed = si_cursor_label(ydata[self.y_cross_index], self.label_y)
+            x_parsed = si_cursor_label(xdata[self.x_cross_index], self.label_x)
+            z_parsed = si_cursor_label(zval, self.label_z)
 
             label_text = f"X: {x_parsed} ({(self.y_cross_index+1):.0f})\nY: {y_parsed} ({(self.x_cross_index+1):.0f})\nZ: {z_parsed}"
             #f"X: {xdata[self.x_cross_index]:.4g}\nZ: {zval:.4g}\nPoint: {(self.y_cross_index+1):.0f}"

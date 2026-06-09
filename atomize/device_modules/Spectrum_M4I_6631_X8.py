@@ -5,9 +5,6 @@ import os
 import sys
 import gc
 import random
-###AWG
-sys.path.append('/home/pulseepr/Sources/AWG/Examples/python')
-#sys.path.append('C:/Users/User/Desktop/Examples/python')
 from math import sin, pi, exp, log2
 from itertools import groupby, chain
 from copy import deepcopy
@@ -15,6 +12,14 @@ import numpy as np
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
+
+# The pyspcm driver source path (header_dir) and the card device node
+# (device, e.g. /dev/spcm0) are machine-specific and read from the device
+# config [SPECIFIC] section, so this module stays identical across installations.
+_spec_cfg = cutil.read_specific_parameters(
+    os.path.join( lconf.load_config_device(), 'Spectrum_M4I_6631_X8_config.ini' ) )
+if _spec_cfg.get('header_dir'):
+    sys.path.append( _spec_cfg['header_dir'] )
 
 from pyspcm import *
 from spcm_tools import *
@@ -30,6 +35,9 @@ class Spectrum_M4I_6631_X8:
         # configuration data
         #config = cutil.read_conf_util(self.path_config_file)
         self.specific_parameters = cutil.read_specific_parameters(self.path_config_file)
+
+        # card device node (machine-specific), read from the config
+        self.device = self.specific_parameters.get('device', '/dev/spcm0')
 
         # Channel assignments
         #ch0 = self.specific_parameters['ch0'] # TRIGGER
@@ -211,7 +219,7 @@ class Spectrum_M4I_6631_X8:
             
             if self.state == 0:
                 # open card
-                self.hCard = spcm_hOpen ( create_string_buffer (b'/dev/spcm0') )
+                self.hCard = spcm_hOpen ( create_string_buffer ( self.device.encode() ) )
                 self.state = 1
                 if self.hCard == None:
                     general.message("No card found...")
