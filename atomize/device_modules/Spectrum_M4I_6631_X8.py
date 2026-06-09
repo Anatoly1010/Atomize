@@ -136,6 +136,20 @@ class Spectrum_M4I_6631_X8:
             self.update_counter = 0
             self.visualize_counter = 0
 
+            # resonator-profile correction defaults (overwritten by awg_correction())
+            # in MHz; low_level / limit clamp the minimum effective B1 (their ratio
+            # caps the amplitude boost). 16 MHz is the value for MD3 at +-150 MHz
+            # around the centre; 23 MHz is an arbitrary limit (around 210 MHz width).
+            self.low_level_awg = 16
+            self.limit_awg = 23
+            # model: 'measured' (triple-Lorentzian magnitude fit) or 'ideal' (RLC f0/Q)
+            self.cor_model_awg = 'measured'
+            self.f0_awg = 9700      # resonator centre (MHz), ideal model
+            self.q_awg = 88         # loaded Q, ideal model
+            self.phase_cor_awg = 0  # 1 = also predistort phase (ideal model)
+            self.pi2flag_awg = 0    # 1 = correct only high-amplitude (pi) pulses
+            self.cor_enable_awg = 0 # 1 once awg_correction() has been called
+
         elif self.test_flag == 'test':
             self.test_sample_rate = '1250 MHz'
             self.test_clock_mode = 'Internal'
@@ -198,10 +212,20 @@ class Spectrum_M4I_6631_X8:
             self.pnBuffer = c_void_p()
             self.pvBuffer = pvAllocMemPageAligned (self.qwBufferSize.value)
             self.pnBuffer = cast (self.pvBuffer, ptr16)
-            
+
             # update and visualize counters
             self.update_counter = 0
             self.visualize_counter = 0
+
+            # resonator-profile correction defaults (overwritten by awg_correction())
+            self.low_level_awg = 16
+            self.limit_awg = 23
+            self.cor_model_awg = 'measured'
+            self.f0_awg = 9700
+            self.q_awg = 88
+            self.phase_cor_awg = 0
+            self.pi2flag_awg = 0
+            self.cor_enable_awg = 0
 
     # Module functions
     def awg_name(self):
@@ -2031,6 +2055,108 @@ class Spectrum_M4I_6631_X8:
 
             else:
                 assert( 1 == 2 ), 'Incorrect arguments'
+
+    def awg_correction(self, only_pi_half = 'True', coef_array = [1, 0, 0, 1, 0, 0, 1, 0, 0, 1], low_level = 16, limit = 23, \
+                       model = 'measured', f0 = 9700, q_factor = 88, phase_correction = 'False'):
+        """
+        Resonator-profile predistortion of swept (WURST / sech-tanh) AWG pulses.
+
+        model = 'measured' : amplitude correction from the measured resonator
+                             magnitude profile (triple-Lorentzian fit in
+                             coef_array); phase left untouched.
+        model = 'ideal'    : amplitude (1/|H|) and, when phase_correction == 'True',
+                             phase (+angle(H), the sign for an LO - RF / lower-
+                             sideband bridge) from an ideal RLC resonator with
+                             centre f0 (MHz) and loaded Q = q_factor.
+
+        only_pi_half = 'True' restricts the correction to the high-amplitude
+        (pi) pulses (pulse_amp > 1); 'False' applies it to every swept pulse.
+        low_level / limit clamp the minimum effective B1 (their ratio caps the
+        amplitude boost).
+        """
+        self.bl_awg = coef_array[0]
+        self.a1_awg = coef_array[1]
+        self.x1_awg = coef_array[2]
+        self.w1_awg = coef_array[3]
+        self.a2_awg = coef_array[4]
+        self.x2_awg = coef_array[5]
+        self.w2_awg = coef_array[6]
+        self.a3_awg = coef_array[7]
+        self.x3_awg = coef_array[8]
+        self.w3_awg = coef_array[9]
+
+        if only_pi_half == 'True':
+            self.pi2flag_awg = 1
+        else:
+            self.pi2flag_awg = 0
+
+        self.cor_model_awg = 'ideal' if str(model).lower().startswith('ideal') else 'measured'
+        self.f0_awg = float(f0)
+        self.q_awg = float(q_factor)
+        self.phase_cor_awg = 1 if phase_correction == 'True' else 0
+        self.cor_enable_awg = 1
+
+        # in MHz
+        # limit minimum B1
+        # 16 MHz is the value for MD3 at +-150 MHz around the center
+        # 23 MHz is an arbitrary limit; around 210 MHz width
+        self.low_level_awg = low_level
+        self.limit_awg = limit
+
+    def awg_correction_off(self):
+        """Disable resonator-profile correction (swept pulses sent as programmed)."""
+        self.cor_enable_awg = 0
+
+    def awg_resonator_correction(self, length, x_mean, pulse_start, f_start, f_end, pulse_amp):
+        """Per-sample amplitude (c) and phase (ph_cor) predistortion for one swept pulse.
+
+        Returns (c, ph_cor): ``c`` is a length-``length`` amplitude factor (or the
+        scalar ``1.0`` when this pulse is excluded) and ``ph_cor`` is a phase array
+        in radians (or the scalar ``0.0``). Maps each sample to its instantaneous
+        chirp frequency, flipped high-frequency-first for the LO - RF bridge, then
+        applies either the measured magnitude profile or the ideal RLC response.
+
+        Note: the buffer in 'Single Joined' mode places each pulse at its absolute
+        position (zeros between pulses), so the caller passes ``x_mean`` as the
+        absolute mid-point sample; ``x_mean - pulse_start`` then equals length/2 and
+        the frequency axis stays independent of where the pulse sits in the buffer.
+        """
+        length = int(length)
+        if self.cor_enable_awg == 0 or length < 1:
+            return 1.0, 0.0
+
+        freq_sweep = f_end - f_start
+        m_p = x_mean - pulse_start
+        # sample offset from the band centre, flipped (LO - RF: high freq first);
+        # rel_freq is the instantaneous sweep frequency relative to the band centre.
+        rel_freq = np.flip(np.arange(0, length) - m_p) * freq_sweep / length
+
+        ph_cor = 0.0
+        if self.cor_model_awg == 'ideal':
+            # absolute microwave frequency at each sample (LO = f0 assumed)
+            center_freq = 0.5 * (f_start + f_end)
+            abs_freq = self.f0_awg + center_freq + rel_freq
+            H = 1.0 / (1.0 + 1j * self.q_awg * (abs_freq / self.f0_awg - self.f0_awg / abs_freq))
+            amp = 1.0 / np.abs(H)
+            c = amp / amp[0]
+            if self.phase_cor_awg == 1:
+                # + angle(H) for an LO - RF (lower-sideband) bridge; referenced to
+                # the pulse start so no constant phase is introduced.
+                ph_cor = np.angle(H)
+                ph_cor = ph_cor - ph_cor[0]
+        else:
+            c = 1.0 / self.triple_lorentzian(rel_freq, self.bl_awg, self.a1_awg, self.x1_awg, \
+                    self.w1_awg, self.a2_awg, self.x2_awg, self.w2_awg, self.a3_awg, self.x3_awg, self.w3_awg)
+            c = c / c[0]
+
+        # clamp minimum B1 and renormalise (caps the amplitude boost)
+        c[c > self.low_level_awg / self.limit_awg] = self.low_level_awg / self.limit_awg
+        c = c / c[0]
+
+        # scope: with pi2flag the correction touches only the high-amplitude (pi) pulses
+        if self.pi2flag_awg == 1 and int(pulse_amp) <= 1:
+            return 1.0, 0.0
+        return c, ph_cor
 
     def awg_clear(self):
         """
@@ -4106,302 +4232,89 @@ class Spectrum_M4I_6631_X8:
 
             # run over defined pulses inside a sequence point
             for index, element in enumerate(arguments_array[0]):
-                # DEER pulse
-                #rnd_phase = 2*pi*random.random()
+                # Each pulse is written into its absolute interleaved slice (zeros stay
+                # between pulses): sl[0::2] is CH0, sl[1::2] is CH1 (phase shifted by
+                # phase_shift_ch1_seq_mode). DEER pulses carry the sentinel phase 1000
+                # and get a random carrier phase instead.
+                start = pulse_start_smp[index]
+                length = pulse_length_smp[index]
+                sl = slice(2*start, 2*(start + length))
+                amp_scale = self.maxCAD / pulse_amp[index]
+                phase = pulse_phase_np[index]
+                n = np.arange(0, length)                                  # relative sample index
+                rnd_phase = 2*pi*random.random() if phase == 1000 else 0.0
 
                 if element == 0: #'SINE'
-                    ## STANDARD RANGE APPROACH:
-                    ##for i in range(2 * (pulse_start_smp[index] ), 2*self.memsize, 2):
-                    ##    if i < 2 * (pulse_start_smp[index] ):
-                    ##        pass
-                    ##    elif ( i >= 2 * ( pulse_start_smp[index] ) and \
-                    ##           i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] ) ):
-                    ##        
-                    ##        #if pulse_phase_np[index] != 1000:
-                    ##            #self.full_buffer[point, i] 
-                    ##        # ch0
-                    ##        self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
-                    ##        #ch1
-                    ##        self.pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
-                    ##                                     self.phase_shift_ch1_seq_mode) )
-                    ##        #else:
-                    ##            #self.full_buffer[point, i]
-                    ##            # ch0
-                    ##            #self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase) )
-                    ##            #ch1
-                    ##            #self.pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase + \
-                    ##            #                         self.phase_shift_ch1_seq_mode) )
-                    ##    else:
-                    ##        break
-
-                    # vectorized version:
-                    # always zero phase: np.arange(0, 0 + pulse_length_smp[index]) )
-                    # one phase: np.arange(pulse_start_smp[index], pulse_start_smp[index] + pulse_length_smp[index]) )
-                    if pulse_phase_np[index] != 1000:
-                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
-                                    (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(0, 0 + \
-                                        pulse_length_smp[index]) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] )).astype(int64)
-                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
-                                    (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(0, 0 + \
-                                        pulse_length_smp[index]) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode)).astype(int64)
-                    else:
-                        # DEER pulse
-                        rnd_phase = 2*pi*random.random()
-                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
-                                    (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(0, 0 + \
-                                        pulse_length_smp[index]) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase)).astype(int64)
-                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
-                                    (self.maxCAD / pulse_amp[index] * np.sin(2*np.pi*(( np.arange(0, 0 + \
-                                        pulse_length_smp[index]) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode + rnd_phase)).astype(int64)
+                    base = 2*np.pi*n*pulse_frequency[index] / self.sample_rate + phase + rnd_phase
+                    self.pnBuffer[sl][0::2] = (amp_scale * np.sin(base)).astype(int64)
+                    self.pnBuffer[sl][1::2] = (amp_scale * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
 
                 elif element == 1: #'GAUSS'
-                    # mid_point for GAUSS, SINC, and WURST, and SECH/TANH
-                    mid_point = int( pulse_start_smp[index] + (pulse_length_smp[index] )/2 )
-                    ## STANDARD RANGE APPROACH:
-                    ##for i in range(2 * (pulse_start_smp[index] ), 2*self.memsize, 2):
-                    ##    if i < 2 * (pulse_start_smp[index] ):
-                    ##        pass
-                    ##    elif ( i >= 2 * ( pulse_start_smp[index] ) and \
-                    ##           i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] ) ):
-                    ##
-                    ##        #if pulse_phase_np[index] != 1000:
-                    ##            #self.full_buffer[point, i]
-                    ##        # ch0
-                    ##        self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                    ##                                    sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
-                    ##        #ch1
-                    ##        self.pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                    ##                                    sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
-                    ##                                    self.phase_shift_ch1_seq_mode) )
-                    ##
-                    ##        #else:
-                    ##            #self.full_buffer[point, i]
-                    ##            # ch0
-                    ##        #    self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * exp(-((( i/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                    ##        #                            sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase ) )
-                    ##            #ch1
-                    ##        #    self.pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * exp(-((( ( i )/2 ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                    ##        #                            sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + rnd_phase +\
-                    ##        #                            self.phase_shift_ch1_seq_mode) )                                    
-                    ##
-                    ##    else:
-                    ##        break
-
-                    # always zero phase in Sine: np.arange(0, 0 + pulse_length_smp[index]) )
-                    # one phase in Sine: np.arange(pulse_start_smp[index], pulse_start_smp[index] + pulse_length_smp[index]) )
-                    if pulse_phase_np[index] != 1000:
-                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
-                                        (self.maxCAD / pulse_amp[index] * np.exp(-((( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                            pulse_length_smp[index]) ) ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                                    np.sin(2*np.pi*(( ( np.arange(0, 0 + \
-                                            pulse_length_smp[index]) )  ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] )).astype(int64)
-                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
-                                        (self.maxCAD / pulse_amp[index] * np.exp(-((( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                            pulse_length_smp[index]) )  ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                                    np.sin(2*np.pi*(( ( np.arange(0, 0 + \
-                                            pulse_length_smp[index]) )  ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode )).astype(int64)
-                    else:
-                        # DEER pulse
-                        rnd_phase = 2*pi*random.random()
-                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
-                                        (self.maxCAD / pulse_amp[index] * np.exp(-((( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                            pulse_length_smp[index]) ) ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                                    np.sin(2*np.pi*(( ( np.arange(0, 0 + \
-                                            pulse_length_smp[index]) )  ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase)).astype(int64)
-                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
-                                        (self.maxCAD / pulse_amp[index] * np.exp(-((( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                            pulse_length_smp[index]) )  ) - mid_point)**2)*(1/(2*pulse_sigma_smp[index]**2)))*\
-                                                    np.sin(2*np.pi*(( ( np.arange(0, 0 + \
-                                            pulse_length_smp[index]) )  ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode + rnd_phase)).astype(int64)
+                    mid_point = int( start + length/2 )
+                    envelope = np.exp(-(( np.arange(start, start + length) - mid_point )**2) * (1/(2*pulse_sigma_smp[index]**2)))
+                    base = 2*np.pi*n*pulse_frequency[index] / self.sample_rate + phase + rnd_phase
+                    self.pnBuffer[sl][0::2] = (amp_scale * envelope * np.sin(base)).astype(int64)
+                    self.pnBuffer[sl][1::2] = (amp_scale * envelope * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
 
                 elif element == 2: #'SINC'
-                    # mid_point for GAUSS, SINC, and WURST, and SECH/TANH 
-                    mid_point = int( pulse_start_smp[index] + (pulse_length_smp[index])/2 )
-                    ## STANDARD RANGE APPROACH:
-                    ##for i in range(2 * (pulse_start_smp[index] ), 2*self.memsize, 2):
-                    ##
-                    ##    if i < 2 * (pulse_start_smp[index] ):
-                    ##        pass
-                    ##    elif ( i >= 2 * ( pulse_start_smp[index] ) and \
-                    ##           i <= 2 * (pulse_start_smp[index] + pulse_length_smp[index] ) ):
-                    ##        
-                    ##        #if pulse_phase_np[index] != 1000:
-                    ##            #self.full_buffer[point, i]
-                    ##        # ch0
-                    ##        self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                    ##                                     sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] ) )
-                    ##        #ch1
-                    ##        self.pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( i  )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                    ##                                     sin(2*pi*(( ( i  )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
-                    ##                                     self.phase_shift_ch1_seq_mode) )
-                    ##        #else:
-                    ##            #self.full_buffer[point, i]
-                    ##            # ch0
-                    ##        #    self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( i/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                    ##        #                             sin(2*pi*(( i/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase) )
-                    ##        #    self.pnBuffer[i + 1] = int( self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( i )/2 ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                    ##        #                             sin(2*pi*(( ( i )/2 ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] +\
-                    ##        #                             self.phase_shift_ch1_seq_mode + rnd_phase) )
-                    ##    else:
-                    ##        break
-
-                    # always zero phase in Sine: np.arange(0, 0 + pulse_length_smp[index]) )
-                    # one phase in Sine: np.arange(pulse_start_smp[index], pulse_start_smp[index] + pulse_length_smp[index]) )
-                    if pulse_phase_np[index] != 1000:
-                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
-                                        (self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                            pulse_length_smp[index]) ) ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                                np.sin(2*np.pi*(( ( np.arange(0, 0 + \
-                                                    pulse_length_smp[index]) ) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] )).astype(int64)
-                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
-                                        (self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                            pulse_length_smp[index]) ) ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                                np.sin(2*np.pi*(( ( np.arange(0, 0 + \
-                                                    pulse_length_smp[index]) ) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode )).astype(int64)
-                    else:
-                        # DEER pulse
-                        rnd_phase = 2*pi*random.random()
-                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
-                                        (self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                            pulse_length_smp[index]) ) ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                                np.sin(2*np.pi*(( ( np.arange(0, 0 + \
-                                                    pulse_length_smp[index]) ) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + rnd_phase)).astype(int64)
-                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
-                                        (self.maxCAD / pulse_amp[index] * np.sinc(2*(( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                            pulse_length_smp[index]) ) ) - mid_point) / (pulse_sigma_smp[index]) )*\
-                                                np.sin(2*np.pi*(( ( np.arange(0, 0 + \
-                                                    pulse_length_smp[index]) ) ))*pulse_frequency[index] / self.sample_rate + pulse_phase_np[index] + \
-                                                        self.phase_shift_ch1_seq_mode + rnd_phase )).astype(int64)
+                    mid_point = int( start + length/2 )
+                    envelope = np.sinc(2 * ( np.arange(start, start + length) - mid_point ) / pulse_sigma_smp[index])
+                    base = 2*np.pi*n*pulse_frequency[index] / self.sample_rate + phase + rnd_phase
+                    self.pnBuffer[sl][0::2] = (amp_scale * envelope * np.sin(base)).astype(int64)
+                    self.pnBuffer[sl][1::2] = (amp_scale * envelope * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
 
                 elif element == 3: # BLANK
                     pass
 
                 elif element == 4: #'WURST'
-                    # mid_point for GAUSS, SINC, and WURST, and SECH/TANH
-                    mid_point = int( pulse_start_smp[index] + (pulse_length_smp[index])/2 )
- 
-                    # always zero phase in Sine: np.arange(0, 0 + pulse_length_smp[index]) )
-                    # one phase in Sine: np.arange(pulse_start_smp[index], pulse_start_smp[index] + pulse_length_smp[index]) )
-
                     # at = A*( 1 - abs( sin(pi*(t-tp/2)/tp) )^n )
                     # ph = 2*pi*(Fstr*t + 0.5*( Ffin - Fstr )*t^2/tp )
                     # WURST = at*sin(ph + phase_0)
+                    mid_point = int( start + length/2 )
+                    f_start = pulse_frequency[index][0]
+                    f_end = pulse_frequency[index][1]
 
-                    # resonator profile correction test
-                    if pulse_frequency[index][1] > 0:
-                        ###m_p = ( mid_point - pulse_start_smp[index] )
-                        
-                        ###LO - RF; high frequency first; flip order
-                        ###t_axis = np.flip( np.arange(0, 0 + pulse_length_smp[index] ) - m_p )
-                        
-                        ###c = 1 / self.triple_gauss(t_axis * 300 / pulse_length_smp[index], 0.570786, 0.383363, 12.2448, 1241.89, \
-                        ###                                                                            0.191815, -43.478, 1913.96, \
-                        ###                                                                            0.06655,  77.3173, 614.985)
-                        ###c = c / c[0]
-                        
-                        ###general.plot_1d( 'C', np.arange(0, 0 + pulse_length_smp[index] ), c )
-                        
-                        #phase and amplitude from ideal resonator with f0 and Q
-                        Q = 78
-                        f0 = 9700
+                    # resonator-profile predistortion (measured or ideal RLC); c is the
+                    # per-sample amplitude factor, ph_cor the phase correction. The
+                    # absolute mid-point is passed so m_p = length/2 (position
+                    # independent despite the absolute placement of the pulse).
+                    c, ph_cor = self.awg_resonator_correction(length, mid_point, start, f_start, f_end, pulse_amp[index])
+                    #general.plot_1d( 'C', np.arange(0, length), np.atleast_1d(c) )
 
-                        length = pulse_length_smp[index]
-                        end_freq = pulse_frequency[index][1]
-                        st_freq = pulse_frequency[index][0]
-                        sweep = end_freq - st_freq
+                    envelope = 1 - np.abs( np.sin( np.pi * ( np.arange(start, start + length) - mid_point ) / length ) ) ** pulse_n_wurst[index]
+                    phase_chirp = 2*np.pi*( n * (f_start / self.sample_rate) + 0.5 * (f_end - f_start) / self.sample_rate * n**2 / length )
 
-                        #LO - RF; high frequency first; flip order
-                        t_axis = np.flip( np.arange( st_freq + f0, end_freq + f0, sweep / length ) )
-
-                        ideal_res = 1 / ( 1 + 1j * Q * ( t_axis / f0 - f0 / t_axis ) )
-                        ph_cor = np.arctan2( ideal_res.imag, ideal_res.real ) 
-                        # only pi/2 correction
-                        if int( pulse_amp[index] ) > 1:
-                            amp_cor = 1 / np.abs( ideal_res )
-                            c = amp_cor / amp_cor[0]
-                        else:
-                            c = 1
-
-                        #general.plot_1d( 'C', np.arange(0, 0 + pulse_length_smp[index] ), ph_cor * 180 / np.pi )
-                        #general.plot_1d( 'C', np.arange(0, 0 + pulse_length_smp[index] ), c )
-                        #ph_cor = 0
-                        #c = 1
-
+                    if phase != 1000:
+                        base = phase_chirp + phase + ph_cor
+                        self.pnBuffer[sl][0::2] = (amp_scale * c * envelope * np.sin(base)).astype(int64)
+                        self.pnBuffer[sl][1::2] = (amp_scale * c * envelope * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
                     else:
-                        c = 1
-                        # No flip here;
-
-                        #c = 0.5 * np.flip(1 + np.arange(0, 0 + pulse_length_smp[index] ) * 1.005 - np.arange(0, 0 + pulse_length_smp[index] ) )
-
-                    if pulse_phase_np[index] != 1000:
-                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
-                                        (self.maxCAD * c / pulse_amp[index] * ( 1 - np.abs( np.sin( np.pi * ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                            pulse_length_smp[index]) - mid_point) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] ) * \
-                                            np.sin(2*np.pi*( np.arange(0, 0 + \
-                                            pulse_length_smp[index] )*( pulse_frequency[index][0] / self.sample_rate ) + 0.5 * ( pulse_frequency[index][1] - pulse_frequency[index][0])\
-                                             / self.sample_rate * np.arange(0, 0 + pulse_length_smp[index] )**2 / pulse_length_smp[index] ) \
-                                             + pulse_phase_np[index] + ph_cor )).astype(int64)
-
-                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
-                                        (self.maxCAD * c / pulse_amp[index] * ( 1 - np.abs( np.sin( np.pi * ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                            pulse_length_smp[index]) - mid_point) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] ) * \
-                                            np.sin(2*np.pi*( np.arange(0, 0 + \
-                                            pulse_length_smp[index] )*( pulse_frequency[index][0] / self.sample_rate ) + 0.5 * ( pulse_frequency[index][1] - pulse_frequency[index][0])\
-                                             / self.sample_rate * np.arange(0, 0 + pulse_length_smp[index] )**2 / pulse_length_smp[index] ) \
-                                              + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode + ph_cor )).astype(int64) 
-
-                    else:
-                        # DEER pulse
-                        rnd_phase = 2*pi*random.random()
-
-                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
-                                        (self.maxCAD / pulse_amp[index] * ( 1 - np.abs( np.sin( np.pi * ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                            pulse_length_smp[index]) - mid_point) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] ) * \
-                                            np.sin(2*np.pi*( np.arange(0, 0 + \
-                                            pulse_length_smp[index] )*( pulse_frequency[index][0] / self.sample_rate ) + 0.5 * ( pulse_frequency[index][1] - pulse_frequency[index][0])\
-                                             / self.sample_rate * np.arange(0, 0 + pulse_length_smp[index] )**2 / pulse_length_smp[index] ) \
-                                             + pulse_phase_np[index] + rnd_phase )).astype(int64)
-
-                        self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
-                                        (self.maxCAD / pulse_amp[index] * ( 1 - np.abs( np.sin( np.pi * ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                            pulse_length_smp[index]) - mid_point) / pulse_length_smp[index] ) ) ** pulse_n_wurst[index] ) * \
-                                            np.sin(2*np.pi*( np.arange(0, 0 + \
-                                            pulse_length_smp[index] )*( pulse_frequency[index][0] / self.sample_rate ) + 0.5 * ( pulse_frequency[index][1] - pulse_frequency[index][0])\
-                                             / self.sample_rate * np.arange(0, 0 + pulse_length_smp[index] )**2 / pulse_length_smp[index] ) \
-                                             + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode + rnd_phase )).astype(int64)
+                        # DEER pulse: random carrier phase, no resonator correction
+                        base = phase_chirp + phase + rnd_phase
+                        self.pnBuffer[sl][0::2] = (amp_scale * envelope * np.sin(base)).astype(int64)
+                        self.pnBuffer[sl][1::2] = (amp_scale * envelope * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
 
                 elif element == 5: # 'SECH/TANH'
-                    # mid_point for GAUSS, SINC, and WURST, and SECH/TANH
-                    mid_point = int( pulse_start_smp[index] + (pulse_length_smp[index])/2 )
- 
-                    # always zero phase in Sine: np.arange(0, 0 + pulse_length_smp[index]) )
-                    # one phase in Sine: np.arange(pulse_start_smp[index], pulse_start_smp[index] + pulse_length_smp[index]) )
-
                     # at = A*Sech[b*tp*2^(n - 1) ((t - tp/2)/tp)^n]
                     # ph = 2*Pi*bw/b*Log[Cosh[b*(t - tp/2)]]/2/Tanh[b*tp/2]
                     # SECH = at*sin(ph + phase_0)
-                    freq_cen = ( pulse_frequency[index][1] + pulse_frequency[index][0] ) / 2
-                    c = 1
-                    ph_cor = 0
+                    mid_point = int( start + length/2 )
+                    f_start = pulse_frequency[index][0]
+                    f_end = pulse_frequency[index][1]
+                    freq_cen = ( f_end + f_start ) / 2
 
-                    self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][0::2] = \
-                                    (self.maxCAD * c / pulse_amp[index] * ( 1 / np.cosh( pulse_b_sech[index] * pulse_length_smp[index] * 2 ** (pulse_n_wurst[index] - 1)  * \
-                                    ( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                        pulse_length_smp[index]) - mid_point ) / pulse_length_smp[index] )** pulse_n_wurst[index] ) ) * \
-                                    np.sin(2*np.pi*(pulse_frequency[index][1] - pulse_frequency[index][0]) / self.sample_rate / pulse_b_sech[index] * np.log( np.cosh( pulse_b_sech[index] \
-                                        * ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                        pulse_length_smp[index]) - mid_point )  ) ) / 2 / np.tanh( pulse_b_sech[index] * mid_point ) + pulse_phase_np[index] + ph_cor + \
-                                        2*np.pi*freq_cen / self.sample_rate * ( np.arange(0, 0 + pulse_length_smp[index] ) ) )).astype(int64)
+                    # resonator-profile predistortion (measured or ideal RLC)
+                    c, ph_cor = self.awg_resonator_correction(length, mid_point, start, f_start, f_end, pulse_amp[index])
 
+                    b = pulse_b_sech[index]
+                    dx = np.arange(start, start + length) - mid_point
+                    envelope = 1 / np.cosh( b * length * 2 ** (pulse_n_wurst[index] - 1) * ( dx / length ) ** pulse_n_wurst[index] )
+                    phase_arg = 2*np.pi*(f_end - f_start) / self.sample_rate / b * np.log( np.cosh( b * dx ) ) / 2 / np.tanh( b * mid_point )
+                    carrier = 2*np.pi*freq_cen / self.sample_rate * n
+                    base = phase_arg + phase + ph_cor + carrier
 
-                    self.pnBuffer[2*pulse_start_smp[index]:2*(pulse_start_smp[index] + pulse_length_smp[index])][1::2] = \
-                                    (self.maxCAD * c / pulse_amp[index] * ( 1 / np.cosh( pulse_b_sech[index] * pulse_length_smp[index] * 2 ** (pulse_n_wurst[index] - 1)  * \
-                                    ( ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                        pulse_length_smp[index]) - mid_point ) / pulse_length_smp[index] )** pulse_n_wurst[index] ) ) * \
-                                    np.sin(2*np.pi*(pulse_frequency[index][1] - pulse_frequency[index][0]) / self.sample_rate / pulse_b_sech[index] * np.log( np.cosh( pulse_b_sech[index] \
-                                        * ( np.arange(pulse_start_smp[index], pulse_start_smp[index] + \
-                                        pulse_length_smp[index]) - mid_point )  ) ) / 2 / np.tanh( pulse_b_sech[index] * mid_point ) + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode + ph_cor + \
-                                        2*np.pi*freq_cen / self.sample_rate * ( np.arange(0, 0 + pulse_length_smp[index] ) ) )).astype(int64)
+                    self.pnBuffer[sl][0::2] = (amp_scale * c * envelope * np.sin(base)).astype(int64)
+                    self.pnBuffer[sl][1::2] = (amp_scale * c * envelope * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
 
                 elif element == 6: #'TEST'
                     # vectorized version:
@@ -4504,6 +4417,9 @@ class Spectrum_M4I_6631_X8:
 
     def triple_gauss(self, x, bl, a1, x1, w1, a2, x2, w2, a3, x3, w3):
         return bl + a1 * np.exp( -(x - x1)**2 / w1  ) + a2 * np.exp( -(x - x2)**2 / w2  ) + a3 * np.exp( -(x - x3)**2 / w3  )
+
+    def triple_lorentzian(self, x, bl, a1, x1, w1, a2, x2, w2, a3, x3, w3):
+        return bl + a1 * 0.5 * w1 / np.pi / ( (x - x1)**2 + (0.5 * w1)**2  ) + a2 * 0.5 * w2 / np.pi / ( (x - x2)**2 + (0.5 * w2)**2  ) + a3 * 0.5 * w3 / np.pi / ( (x - x3)**2 + (0.5 * w3)**2  )
 
     def round_to_closest(self, x, y):
         """
