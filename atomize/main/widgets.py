@@ -9,6 +9,7 @@ from pathlib import Path
 from pyqtgraph.dockarea import Dock
 from PyQt6 import QtWidgets, QtCore, QtGui, sip
 import atomize.main.local_config as lconf
+import atomize.general_modules.last_dir as ldir
 
 pg.setConfigOption('background', (63,63,97))
 pg.setConfigOption('leftButtonPan', False)
@@ -1106,6 +1107,8 @@ class CrosshairDock(CloseableDock):
         :param filename: string
         """
         file_path = filename
+        self.open_dir = os.path.dirname(filename)
+        ldir.save('data', self.open_dir)      # remember the data folder
 
         header_array = []
         header = 0
@@ -1139,7 +1142,7 @@ class CrosshairDock(CloseableDock):
         """
         A function to open a new window for choosing 1d data
         """
-        filedialog = QtWidgets.QFileDialog(self, 'Open File', directory = self.open_dir, filter = "CSV (*.csv)",  options = QtWidgets.QFileDialog.Option.DontUseNativeDialog ) 
+        filedialog = QtWidgets.QFileDialog(self, 'Open File', directory = ldir.load('data', self.open_dir), filter = "CSV (*.csv)",  options = QtWidgets.QFileDialog.Option.DontUseNativeDialog )
         filedialog.resize(800, 450) 
         # use QFileDialog.Option.DontUseNativeDialog to change directory
         filedialog.setIconProvider(QtWidgets.QFileIconProvider())

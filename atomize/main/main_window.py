@@ -30,6 +30,7 @@ import atomize.main.queue as queue
 import atomize.main.codeeditor as codeedit
 import atomize.main.local_config as lconf
 import atomize.general_modules.csv_opener_saver as openfile
+import atomize.general_modules.last_dir as ldir
 os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
 
 class MainWindow(QMainWindow):
@@ -897,6 +898,7 @@ class MainWindow(QMainWindow):
         self.cached_stamp = os.stat(filename).st_mtime
         text = open(filename).read()
         self.path = os.path.dirname(filename) # for memorizing the path to the last used folder
+        ldir.save('script', self.path)        # persist across relaunches
         self.script = filename
         self.textEdit.setPlainText(text)
 
@@ -911,13 +913,15 @@ class MainWindow(QMainWindow):
             file.write(self.textEdit.toPlainText())
 
         self.cached_stamp = os.stat(filename).st_mtime
+        self.path = os.path.dirname(filename)
+        ldir.save('script', self.path)        # persist across relaunches
         self.script = filename
 
     def open_file_dialog(self):
         """
         A function to open a new window for choosing an experimental script.
         """
-        filedialog = QFileDialog(self, 'Open File', directory = self.path, filter = "python (*.py)",options = QFileDialog.Option.DontUseNativeDialog)
+        filedialog = QFileDialog(self, 'Open File', directory = ldir.load('script', self.path), filter = "python (*.py)",options = QFileDialog.Option.DontUseNativeDialog)
 
         filedialog.setIconProvider(QFileIconProvider())
         filedialog.resize(800, 450) 
@@ -1149,7 +1153,7 @@ class MainWindow(QMainWindow):
         """
         A function to open a new window for choosing a name for a new experimental script.
         """
-        filedialog = QFileDialog(self, 'Save File', directory = self.path, filter = "python (*.py)",options = QFileDialog.Option.DontUseNativeDialog)
+        filedialog = QFileDialog(self, 'Save File', directory = ldir.load('script', self.path), filter = "python (*.py)",options = QFileDialog.Option.DontUseNativeDialog)
         filedialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
         # use QFileDialog.Option.DontUseNativeDialog to change directory
         filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
@@ -1302,6 +1306,8 @@ class NameList(QDockWidget):
         :param filename: string
         """
         file_path = filename
+        self.open_dir = os.path.dirname(filename)
+        ldir.save('data', self.open_dir)      # remember the data folder
 
         header_lines = []
 
@@ -1364,6 +1370,8 @@ class NameList(QDockWidget):
         :param filename: string
         """
         file_path = filename
+        self.open_dir = os.path.dirname(filename)
+        ldir.save('data', self.open_dir)      # remember the data folder
 
         header_lines = []
 
@@ -1392,7 +1400,7 @@ class NameList(QDockWidget):
         """
         A function to open a new window for choosing 1d data
         """
-        filedialog = QFileDialog(self, 'Open File', directory = self.open_dir, filter = "CSV (*.csv)", options = QFileDialog.Option.DontUseNativeDialog )
+        filedialog = QFileDialog(self, 'Open File', directory = ldir.load('data', self.open_dir), filter = "CSV (*.csv)", options = QFileDialog.Option.DontUseNativeDialog )
 
         filedialog.setIconProvider(QFileIconProvider())
         filedialog.resize(800, 450) 
@@ -1637,7 +1645,7 @@ class NameList(QDockWidget):
         """
         A function to open a new window for choosing 2D data
         """
-        filedialog = QFileDialog(self, 'Open File', directory = self.open_dir, filter = "CSV (*.csv)", options = QFileDialog.Option.DontUseNativeDialog )
+        filedialog = QFileDialog(self, 'Open File', directory = ldir.load('data', self.open_dir), filter = "CSV (*.csv)", options = QFileDialog.Option.DontUseNativeDialog )
 
         filedialog.setIconProvider(QFileIconProvider())
         filedialog.resize(800, 450) 
