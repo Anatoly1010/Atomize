@@ -390,7 +390,7 @@ class Spectrum_M4I_6631_X8:
                     # we define the buffer for transfer and start the DMA transfer
                     #sys.stdout.write("Starting the DMA transfer and waiting until data is in board memory\n")
                     # spcm_dwDefTransfer_i64 (device, buffer_type, direction, event (0=and of transfer), data, offset, buffer length)
-                    spcm_dwDefTransfer_i64 (self.hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), self.buf, uint64 (0), self.qwBufferSize.value)
+                    spcm_dwDefTransfer_i64 (self.hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), self.buf, uint64 (0), uint64 (self.qwBufferSize.value))
                     # transfer
                     spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
                     #general.message("AWG buffer has been transferred to board memory")
@@ -412,7 +412,7 @@ class Spectrum_M4I_6631_X8:
                     # we define the buffer for transfer and start the DMA transfer
                     #sys.stdout.write("Starting the DMA transfer and waiting until data is in board memory\n")
                     # spcm_dwDefTransfer_i64 (device, buffer_type, direction, event (0=and of transfer), data, offset, buffer length)
-                    spcm_dwDefTransfer_i64 (self.hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), self.buf, uint64 (0), self.qwBufferSize.value)
+                    spcm_dwDefTransfer_i64 (self.hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), self.buf, uint64 (0), uint64 (self.qwBufferSize.value))
                     # transfer
                     spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
                     #general.message("AWG buffer has been transferred to board memory")
@@ -443,7 +443,7 @@ class Spectrum_M4I_6631_X8:
                         spcm_dwSetParam_i64 (self.hCard, SPC_SEQMODE_SEGMENTSIZE, seg_memory ) # define size of current segment
 
                         # data transfer #self.full_buffer_pointer[index]
-                        spcm_dwDefTransfer_i64 (self.hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), element, uint64 (0), self.qwBufferSize.value)
+                        spcm_dwDefTransfer_i64 (self.hCard, SPCM_BUF_DATA, SPCM_DIR_PCTOCARD, int32 (0), element, uint64 (0), uint64 (self.qwBufferSize.value))
                         spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_DATA_STARTDMA | M2CMD_DATA_WAITDMA)
 
                         #general.message("AWG buffer has been transferred to board memory")
@@ -794,6 +794,11 @@ class Spectrum_M4I_6631_X8:
 
         def func(*, name1, name2): defines a function without default values of key arguments
         """
+        # accept parallel lists of names/values (delegates to the single-pulse path)
+        if not isinstance(name, str):
+            for nm, val in zip(name, delta_start):
+                self.awg_redefine_delta_start(name=nm, delta_start=val)
+            return
 
         if self.test_flag != 'test':
             i = 0
@@ -838,6 +843,11 @@ class Spectrum_M4I_6631_X8:
 
         def func(*, name1, name2): defines a function without default values of key arguments
         """
+        # accept parallel lists of names/values (delegates to the single-pulse path)
+        if not isinstance(name, str):
+            for nm, val in zip(name, freq):
+                self.awg_redefine_frequency(name=nm, freq=val)
+            return
 
         if self.test_flag != 'test':
             i = 0
@@ -892,6 +902,11 @@ class Spectrum_M4I_6631_X8:
 
         def func(*, name1, name2): defines a function without default values of key arguments
         """
+        # accept parallel lists of names/values (delegates to the single-pulse path)
+        if not isinstance(name, str):
+            for nm, val in zip(name, phase):
+                self.awg_redefine_phase(name=nm, phase=val)
+            return
 
         if self.test_flag != 'test':
             i = 0
@@ -926,6 +941,11 @@ class Spectrum_M4I_6631_X8:
 
         def func(*, name1, name2): defines a function without default values of key arguments
         """
+        # accept parallel lists of names/values (delegates to the single-pulse path)
+        if not isinstance(name, str):
+            for nm, val in zip(name, delta_phase):
+                self.awg_redefine_delta_phase(name=nm, delta_phase=val)
+            return
 
         if self.test_flag != 'test':
             i = 0
@@ -961,6 +981,11 @@ class Spectrum_M4I_6631_X8:
 
         def func(*, name1, name2): defines a function without default values of key arguments
         """
+        # accept parallel lists of names/values (delegates to the single-pulse path)
+        if not isinstance(name, str):
+            for nm, val in zip(name, add_phase):
+                self.awg_add_phase(name=nm, add_phase=val)
+            return
 
         if self.test_flag != 'test':
             i = 0
@@ -1001,6 +1026,11 @@ class Spectrum_M4I_6631_X8:
 
         def func(*, name1, name2): defines a function without default values of key arguments
         """
+        # accept parallel lists of names/values (delegates to the single-pulse path)
+        if not isinstance(name, str):
+            for nm, val in zip(name, length_increment):
+                self.awg_redefine_length_increment(name=nm, length_increment=val)
+            return
 
         if self.test_flag != 'test':
             i = 0
@@ -1037,6 +1067,43 @@ class Spectrum_M4I_6631_X8:
 
                 i += 1
 
+    def awg_redefine_amplitude(self, *, name, amplitude):
+        """
+        A function for redefining amplitude of the specified pulse(s).
+        awg_redefine_amplitude(name = 'P0', amplitude = 50) changes amplitude of the
+        'P0' pulse to 50%. The amplitude is stored as the d_coef = 100 / amplitude
+        used by awg_pulse(); the buffer is rebuilt on the next awg_update().
+
+        name / amplitude may be a single value or matching lists (name = ['P2','P4'],
+        amplitude = [50, 70]); the main purpose is a pulse-amplitude sweep.
+
+        def func(*, name1, name2): defines a function without default values of key arguments
+        """
+        names_list = [name] if isinstance(name, str) else name
+        amplitude_list = [amplitude] if isinstance(amplitude, (str, int, float)) else amplitude
+
+        if self.test_flag != 'test':
+            for nm, ampl in zip(names_list, amplitude_list):
+                i = 0
+                while i < len( self.pulse_array ):
+                    if nm == self.pulse_array[i]['name']:
+                        self.pulse_array[i]['amp'] = 100 / float(ampl)
+                        self.shift_count = 1
+                    i += 1
+
+        elif self.test_flag == 'test':
+            for nm, ampl in zip(names_list, amplitude_list):
+                assert( nm in self.pulse_name_array ), 'Pulse with the specified name is not defined'
+
+                i = 0
+                while i < len( self.pulse_array ):
+                    if nm == self.pulse_array[i]['name']:
+                        assert( ( float(ampl) > 0 ) and ( float(ampl) <= 100 ) ), \
+                            'Pulse amplitude should be in the range of 0-100%'
+                        self.pulse_array[i]['amp'] = 100 / float(ampl)
+                        self.shift_count = 1
+                    i += 1
+
     def awg_shift(self, *pulses):
         """
         A function to shift the phase of the pulses for Single mode.
@@ -1064,21 +1131,21 @@ class Spectrum_M4I_6631_X8:
                 # increment start if in Single Joined
                 elif self.single_joined == 1:
                     while i < len( self.pulse_array ):
-                        if int( self.pulse_array[i]['delta_start'][:-3] ) == 0:
+                        if int( float( self.pulse_array[i]['delta_start'][:-3] ) ) == 0:
                             pass
                         else:
                             # convertion to ns
                             temp = self.pulse_array[i]['delta_start'].split(' ')
                             if temp[1] in self.timebase_dict:
                                 flag = self.timebase_dict[temp[1]]
-                                d_start = int((temp[0]))*flag
+                                d_start = int(float(temp[0]))*flag
                             else:
                                 pass
 
                             temp2 = self.pulse_array[i]['start'].split(' ')
                             if temp2[1] in self.timebase_dict:
                                 flag2 = self.timebase_dict[temp2[1]]
-                                st = int((temp2[0]))*flag2
+                                st = int(float(temp2[0]))*flag2
                             else:
                                 pass
                                     
@@ -1108,21 +1175,21 @@ class Spectrum_M4I_6631_X8:
                         if element in self.pulse_name_array:
                             pulse_index = self.pulse_name_array.index(element)
 
-                            if int( self.pulse_array[pulse_index]['delta_start'][:-3] ) == 0:
+                            if int( float( self.pulse_array[pulse_index]['delta_start'][:-3] ) ) == 0:
                                 pass
                             else:
                                 # convertion to ns
                                 temp = self.pulse_array[pulse_index]['delta_start'].split(' ')
                                 if temp[1] in self.timebase_dict:
                                     flag = self.timebase_dict[temp[1]]
-                                    d_start = int((temp[0]))*flag
+                                    d_start = int(float(temp[0]))*flag
                                 else:
                                     pass
 
                                 temp2 = self.pulse_array[pulse_index]['start'].split(' ')
                                 if temp2[1] in self.timebase_dict:
                                     flag2 = self.timebase_dict[temp2[1]]
-                                    st = int((temp2[0]))*flag2
+                                    st = int(float(temp2[0]))*flag2
                                 else:
                                     pass
                                         
@@ -1149,21 +1216,21 @@ class Spectrum_M4I_6631_X8:
                 # increment start if in Single Joined
                 elif self.single_joined == 1:
                     while i < len( self.pulse_array ):
-                        if int( self.pulse_array[i]['delta_start'][:-3] ) == 0:
+                        if int( float( self.pulse_array[i]['delta_start'][:-3] ) ) == 0:
                             pass
                         else:
                             # convertion to ns
                             temp = self.pulse_array[i]['delta_start'].split(' ')
                             if temp[1] in self.timebase_dict:
                                 flag = self.timebase_dict[temp[1]]
-                                d_start = int((temp[0]))*flag
+                                d_start = int(float(temp[0]))*flag
                             else:
                                 pass
 
                             temp2 = self.pulse_array[i]['start'].split(' ')
                             if temp2[1] in self.timebase_dict:
                                 flag2 = self.timebase_dict[temp2[1]]
-                                st = int((temp2[0]))*flag2
+                                st = int(float(temp2[0]))*flag2
                             else:
                                 pass
                                     
@@ -1197,21 +1264,21 @@ class Spectrum_M4I_6631_X8:
                         if element in self.pulse_name_array:
                             pulse_index = self.pulse_name_array.index(element)
 
-                            if int( self.pulse_array[pulse_index]['delta_start'][:-3] ) == 0:
+                            if int( float( self.pulse_array[pulse_index]['delta_start'][:-3] ) ) == 0:
                                 pass
                             else:
                                 # convertion to ns
                                 temp = self.pulse_array[pulse_index]['delta_start'].split(' ')
                                 if temp[1] in self.timebase_dict:
                                     flag = self.timebase_dict[temp[1]]
-                                    d_start = int((temp[0]))*flag
+                                    d_start = int(float(temp[0]))*flag
                                 else:
                                     pass
 
                                 temp2 = self.pulse_array[pulse_index]['start'].split(' ')
                                 if temp2[1] in self.timebase_dict:
                                     flag2 = self.timebase_dict[temp2[1]]
-                                    st = int((temp2[0]))*flag2
+                                    st = int(float(temp2[0]))*flag2
                                 else:
                                     pass
                                         
@@ -1229,7 +1296,7 @@ class Spectrum_M4I_6631_X8:
             if len(pulses) == 0:
                 i = 0
                 while i < len( self.pulse_array ):
-                    if int( self.pulse_array[i]['length_increment'][:-3] ) == 0:
+                    if int( float( self.pulse_array[i]['length_increment'][:-3] ) ) == 0:
                         pass
                     else:
                         # convertion to ns
@@ -1273,7 +1340,7 @@ class Spectrum_M4I_6631_X8:
                     if element in self.pulse_name_array:
                         pulse_index = self.pulse_name_array.index(element)
 
-                        if int( self.pulse_array[pulse_index]['length_increment'][:-3] ) == 0:
+                        if int( float( self.pulse_array[pulse_index]['length_increment'][:-3] ) ) == 0:
                             pass
                         else:
                             # convertion to ns
@@ -1314,7 +1381,7 @@ class Spectrum_M4I_6631_X8:
             if len(pulses) == 0:
                 i = 0
                 while i < len( self.pulse_array ):
-                    if int( self.pulse_array[i]['length_increment'][:-3] ) == 0:
+                    if int( float( self.pulse_array[i]['length_increment'][:-3] ) ) == 0:
                         pass
                     else:
                         # convertion to ns
@@ -1362,7 +1429,7 @@ class Spectrum_M4I_6631_X8:
                     if element in self.pulse_name_array:
 
                         pulse_index = self.pulse_name_array.index(element)
-                        if int( self.pulse_array[pulse_index]['length_increment'][:-3] ) == 0:
+                        if int( float( self.pulse_array[pulse_index]['length_increment'][:-3] ) ) == 0:
                             pass
                         else:
                             # convertion to ns
@@ -2291,7 +2358,7 @@ class Spectrum_M4I_6631_X8:
                     xs = 1000/self.sample_rate*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_single', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
-                    general.plot_1d('Buffer_single', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
+                    general.plot_1d('Buffer_single', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2].astype(np.int64), \
                                     label = 'ch1')
 
                 # Single Joined
@@ -2310,7 +2377,7 @@ class Spectrum_M4I_6631_X8:
                     ##sin = self.maxCAD * np.sin(2*np.pi*xs*0.125)
                     general.plot_1d('Buffer_single_joined', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
-                    general.plot_1d('Buffer_single_joined', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
+                    general.plot_1d('Buffer_single_joined', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2].astype(np.int64), \
                                     label = 'ch1')
                     ###general.plot_1d('Buffer_single_joined', xs, sin, label = 'sin')
 
@@ -2343,7 +2410,7 @@ class Spectrum_M4I_6631_X8:
                     xs = 1000/self.sample_rate*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_multi', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
-                    general.plot_1d('Buffer_multi', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
+                    general.plot_1d('Buffer_multi', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2].astype(np.int64), \
                                     label = 'ch1')
 
             elif self.sequence_mode == 1:
@@ -2444,7 +2511,7 @@ class Spectrum_M4I_6631_X8:
                     xs = 1000/self.sample_rate*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_single', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
-                    general.plot_1d('Buffer_single', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
+                    general.plot_1d('Buffer_single', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2].astype(np.int64), \
                                     label = 'ch1')
                 
                 # Single Joined
@@ -2462,7 +2529,7 @@ class Spectrum_M4I_6631_X8:
                     xs = 1000/self.sample_rate*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_single_joined', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
-                    general.plot_1d('Buffer_single_joined', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
+                    general.plot_1d('Buffer_single_joined', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2].astype(np.int64), \
                                     label = 'ch1')
 
                 elif self.card_mode == 512 and (self.channel == 1 or self.channel == 2):
@@ -2494,7 +2561,7 @@ class Spectrum_M4I_6631_X8:
                     xs = 1000/self.sample_rate*np.arange( int(self.memsize) )
                     general.plot_1d('Buffer_multi', xs, np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[0::2], \
                                     label = 'ch0')
-                    general.plot_1d('Buffer_multi', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2], \
+                    general.plot_1d('Buffer_multi', xs, 2 * self.maxCAD + np.ctypeslib.as_array(buf, shape = (int(self.memsize * 2), ))[1::2].astype(np.int64), \
                                     label = 'ch1')
 
             elif self.sequence_mode == 1:

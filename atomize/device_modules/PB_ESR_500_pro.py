@@ -275,6 +275,11 @@ class PB_ESR_500_Pro:
 
         def func(*, name1, name2): defines a function without default values of key arguments
         """
+        # accept parallel lists of names/values (delegates to the single-pulse path)
+        if not isinstance(name, str):
+            for nm, val in zip(name, start):
+                self.pulser_redefine_start(name=nm, start=val)
+            return
 
         if self.test_flag != 'test':
             i = 0
@@ -320,6 +325,11 @@ class PB_ESR_500_Pro:
 
         def func(*, name1, name2): defines a function without default values of key arguments
         """
+        # accept parallel lists of names/values (delegates to the single-pulse path)
+        if not isinstance(name, str):
+            for nm, val in zip(name, delta_start):
+                self.pulser_redefine_delta_start(name=nm, delta_start=val)
+            return
 
         if self.test_flag != 'test':
             i = 0
@@ -365,6 +375,11 @@ class PB_ESR_500_Pro:
 
         def func(*, name1, name2): defines a function without default values of key arguments
         """
+        # accept parallel lists of names/values (delegates to the single-pulse path)
+        if not isinstance(name, str):
+            for nm, val in zip(name, length_increment):
+                self.pulser_redefine_length_increment(name=nm, length_increment=val)
+            return
 
         if self.test_flag != 'test':
             i = 0
