@@ -178,6 +178,53 @@ def resonator_transfer(freqs, nu0, Q, detuning=0.0):
     return 1.0 / (1.0 + 1j * Q * (x - 1.0 / x))
 
 
+def measured_transfer(freqs, freq_meas, H_meas, carrier):
+    """Measured complex transfer function interpolated onto rotating-frame freqs.
+
+    Use this instead of :func:`resonator_transfer` when a *measured* resonator
+    response (e.g. a VNA S21 sweep) is available, so the real, non-Lorentzian
+    magnitude ripple and phase are modelled rather than an ideal RLC.
+
+    Parameters
+    ----------
+    freqs : ndarray
+        Rotating-frame frequencies (GHz), e.g. ``np.fft.fftfreq(n, dt)``.
+    freq_meas : ndarray
+        Absolute microwave frequency (GHz) of the measurement points.
+    H_meas : ndarray (complex)
+        Measured complex transfer at each ``freq_meas`` (e.g. S21).
+    carrier : float
+        Carrier frequency (GHz): a rotating-frame component at ``f`` maps to the
+        absolute frequency ``nu = carrier + f``.
+
+    Returns
+    -------
+    ndarray (complex)
+        ``H`` interpolated onto ``freqs``, normalised to **unit peak magnitude**
+        and **zero phase at the carrier** (the same convention as
+        :func:`resonator_transfer`: ``|H| = 1`` at centre, phase referenced to the
+        pulse start), so only the relative across-band distortion is applied.
+        Magnitude and *unwrapped* phase are interpolated separately (a linear
+        interp of the raw complex values would chord across phase wraps).
+        Out-of-band frequencies clamp to the nearest measured point.
+    """
+    fm = np.asarray(freq_meas, dtype=float)
+    Hm = np.asarray(H_meas, dtype=complex)
+    order = np.argsort(fm)
+    fm, Hm = fm[order], Hm[order]
+    mag_m = np.abs(Hm)
+    ph_m = np.unwrap(np.angle(Hm))
+    nu = carrier + np.asarray(freqs, dtype=float)
+    mag = np.interp(nu, fm, mag_m)
+    ph = np.interp(nu, fm, ph_m)
+    H = mag * np.exp(1j * ph)
+    peak = np.max(mag_m)
+    if peak > 0:
+        H = H / peak
+    ph0 = np.interp(carrier, fm, ph_m)        # reference phase to the carrier
+    return H * np.exp(-1j * ph0)
+
+
 def ringdown_time(nu0, Q):
     """Resonator amplitude ring-down time constant (ns): ``tau = Q / (pi nu0)``.
 
@@ -188,7 +235,7 @@ def ringdown_time(nu0, Q):
 
 
 def apply_resonator(w, dt, nu0, Q, detuning=0.0, mode='simulate', max_gain=10.0,
-                    ringdown=0.0):
+                    ringdown=0.0, measured=None):
     """Filter a complex baseband waveform through the resonator transfer fn.
 
     ``w`` is the sampled complex envelope ``a(t) exp(i phi(t))`` on a uniform
@@ -217,6 +264,11 @@ def apply_resonator(w, dt, nu0, Q, detuning=0.0, mode='simulate', max_gain=10.0,
         ring-down: the resonator keeps emitting after the drive stops, so
         ``ringdown/dt`` extra samples (driven by zero input) are returned. The
         spins keep nutating under this decaying field. Ignored in compensate mode.
+    measured : (ndarray, ndarray) or None
+        Optional ``(freq_meas_GHz, H_meas_complex)`` measured transfer function. If
+        given, ``H`` is built from it via :func:`measured_transfer` (carrier taken
+        as ``nu0 - detuning``) instead of the ideal RLC ``resonator_transfer`` —
+        ``nu0``/``Q`` then only set the carrier reference and the ring-down clock.
 
     Returns
     -------
@@ -236,7 +288,10 @@ def apply_resonator(w, dt, nu0, Q, detuning=0.0, mode='simulate', max_gain=10.0,
     W = np.zeros(m, dtype=complex)
     W[:n] = w                                       # drive is zero during ring-down
     freqs = np.fft.fftfreq(m, d=dt)                 # GHz
-    H = resonator_transfer(freqs, nu0, Q, detuning)
+    if measured is not None:
+        H = measured_transfer(freqs, measured[0], measured[1], nu0 - detuning)
+    else:
+        H = resonator_transfer(freqs, nu0, Q, detuning)
     if mode == 'compensate':
         G = 1.0 / H
         mag = np.abs(G)
