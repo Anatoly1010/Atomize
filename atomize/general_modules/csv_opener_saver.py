@@ -47,7 +47,8 @@ class Saver_Opener():
             self.test_file_path = os.path.join(self.path_to_main, 'test')
             self.test_file_param_path = os.path.join(self.path_to_main, 'test.param')
     
-    def open_file_dialog(self, directory = '', fmt = '', multiprocessing = False):
+    def open_file_dialog(self, directory = '', fmt = '', multiprocessing = False,
+                         name_filters = None):
         if self.test_flag != 'test':
             if not multiprocessing:
                 print("open_file_dialog", flush = True)
@@ -58,7 +59,8 @@ class Saver_Opener():
                 return None
 
             else:
-                file_path = self.FileDialog(directory = directory, mode = 'Open', fmt = 'csv')
+                file_path = self.FileDialog(directory = directory, mode = 'Open',
+                                            fmt = 'csv', name_filters = name_filters)
                 
                 if file_path:
                     return file_path
@@ -223,7 +225,7 @@ class Saver_Opener():
         elif self.test_flag == 'test':
             return self.test_header_array, self.test_data_2d
 
-    def FileDialog(self, directory = '', mode = 'Open', fmt = ''):
+    def FileDialog(self, directory = '', mode = 'Open', fmt = '', name_filters = None):
 
         self.dialog = QFileDialog( options = QFileDialog.Option.DontUseNativeDialog )
         self.dialog.setIconProvider(QFileIconProvider())
@@ -452,8 +454,10 @@ class Saver_Opener():
 
         """)
 
-        # set format
-        if fmt != '':
+        # set format: an explicit filter list wins, else the single-suffix filter
+        if name_filters:
+            self.dialog.setNameFilters(list(name_filters))
+        elif fmt != '':
             self.dialog.setDefaultSuffix(fmt)
             self.dialog.setNameFilters([f'{fmt} (*.{fmt})'])
 
