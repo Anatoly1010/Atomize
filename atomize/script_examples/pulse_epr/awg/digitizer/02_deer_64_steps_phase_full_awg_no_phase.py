@@ -6,15 +6,15 @@ import atomize.general_modules.general_functions as general
 import atomize.device_modules.PB_ESR_500_pro as pb_pro
 import atomize.device_modules.Spectrum_M4I_6631_X8 as spectrum
 import atomize.device_modules.Spectrum_M4I_4450_X8 as spectrum_dig
-import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
+import atomize.device_modules.Micran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.BH_15 as bh
 import atomize.device_modules.SR_PTC_10 as sr
-import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+import atomize.general_modules.csv_opener_saver as openfile
 
 # initialization of the devices
 file_handler = openfile.Saver_Opener()
 ptc10 = sr.SR_PTC_10()
-mw = mwBridge.Mikran_X_band_MW_bridge()
+mw = mwBridge.Micran_X_band_MW_bridge()
 pb = pb_pro.PB_ESR_500_Pro()
 bh15 = bh.BH_15()
 dig4450 = spectrum_dig.Spectrum_M4I_4450_X8()
@@ -79,12 +79,12 @@ pb.pulser_pulse(name = 'P0', channel = 'TRIGGER_AWG', start = '0 ns', length = '
 pb.pulser_pulse(name = 'P1', channel = 'AWG', start = PULSE_1_START, length = PULSE_1_LENGTH)
 awg.awg_pulse(name = 'P2', channel = 'CH0', func = 'SINE', frequency = '100 MHz', phase = 0, \
             length = PULSE_1_LENGTH, sigma = PULSE_1_LENGTH, start = PULSE_1_AWG_START, \
-            phase_list = ['+x'], d_coef = 3.448)
+            phase_list = ['+x'], amplitude = 100/3.448)
 
 pb.pulser_pulse(name = 'P3', channel = 'AWG', start = PULSE_2_START, length = PULSE_2_LENGTH)
 awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'SINE', frequency = '100 MHz', phase = 0, \
             length = PULSE_2_LENGTH, sigma = PULSE_2_LENGTH, start = PULSE_2_AWG_START, \
-            phase_list = ['+x'], d_coef = 3.448)
+            phase_list = ['+x'], amplitude = 100/3.448)
 
 #PUMP
 pb.pulser_pulse(name = 'P7', channel = 'AWG', start = PULSE_PUMP_START, length = PULSE_PUMP_LENGTH, delta_start = str(STEP) + ' ns')
@@ -95,7 +95,7 @@ awg.awg_pulse(name = 'P8', channel = 'CH0', func = 'SINE', frequency = '170 MHz'
 pb.pulser_pulse(name = 'P5', channel = 'AWG', start = PULSE_3_START, length = PULSE_3_LENGTH)
 awg.awg_pulse(name = 'P6', channel = 'CH0', func = 'SINE', frequency = '100 MHz', phase = 0, \
             length = PULSE_3_LENGTH, sigma = PULSE_3_LENGTH, start = PULSE_3_AWG_START, \
-            phase_list = ['+x'], d_coef = 3.448)
+            phase_list = ['+x'], amplitude = 100/3.448)
 
 # 398 ns is delay from AWG trigger 1.25 GHz
 # 494 ns is delay from AWG trigger 1.00 GHz

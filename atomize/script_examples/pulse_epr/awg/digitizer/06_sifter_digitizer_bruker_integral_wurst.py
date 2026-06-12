@@ -4,7 +4,7 @@ import datetime
 import numpy as np
 import atomize.math_modules.fft as fft_module
 import atomize.general_modules.general_functions as general
-import atomize.general_modules.return_thread as returnThread
+import atomize.general_modules.returned_thread as returnThread
 import atomize.device_modules.PB_ESR_500_pro as pb_pro
 import atomize.device_modules.Spectrum_M4I_6631_X8 as spectrum
 import atomize.device_modules.Spectrum_M4I_4450_X8 as spectrum_dig
@@ -58,13 +58,13 @@ CURVE_NAME = 'cur2'
 # Setting pulses
 awg.awg_pulse(name = 'P0', channel = 'CH0', func = FUNC, frequency = FREQ, phase = 0, \
             length = PULSE_1_LENGTH, sigma = PULSE_1_LENGTH, start = PULSE_AWG_1_START, \
-            phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x'], n = 30, d_coef = 3.86)
+            phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x'], n = 30, amplitude = 100/3.86)
 awg.awg_pulse(name = 'P1', channel = 'CH0', func = FUNC, frequency = FREQ, phase = 0, \
             length = PULSE_2_LENGTH, sigma = PULSE_2_LENGTH, start = PULSE_AWG_2_START, delta_start = str(int(STEP)) + ' ns', \
             phase_list = ['+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y'], n = 30)
 awg.awg_pulse(name = 'P2', channel = 'CH0', func = FUNC, frequency = FREQ, phase = 0, \
             length = PULSE_3_LENGTH, sigma = PULSE_3_LENGTH, start = PULSE_AWG_3_START, delta_start = str(int(STEP*2)) + ' ns', \
-            phase_list = ['+y', '+y', '+y', '+y', '-y', '-y', '-y', '-y', '+y', '+y', '+y', '+y', '-y', '-y', '-y', '-y'], n = 30, d_coef = 3.86)
+            phase_list = ['+y', '+y', '+y', '+y', '-y', '-y', '-y', '-y', '+y', '+y', '+y', '+y', '-y', '-y', '-y', '-y'], n = 30, amplitude = 100/3.86)
 awg.awg_pulse(name = 'P3', channel = 'CH0', func = FUNC, frequency = FREQ, phase = 0, \
             length = PULSE_4_LENGTH, sigma = PULSE_4_LENGTH, start = PULSE_AWG_4_START, delta_start = str(int(STEP)) + ' ns', \
             phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x'], n = 30)

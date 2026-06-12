@@ -6,15 +6,15 @@ import atomize.general_modules.general_functions as general
 import atomize.device_modules.PB_ESR_500_pro as pb_pro
 import atomize.device_modules.Spectrum_M4I_6631_X8 as spectrum
 import atomize.device_modules.Spectrum_M4I_4450_X8 as spectrum_dig
-import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
+import atomize.device_modules.Micran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.BH_15 as bh
 import atomize.device_modules.SR_PTC_10 as sr
-import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+import atomize.general_modules.csv_opener_saver as openfile
 
 # initialization of the devices
 file_handler = openfile.Saver_Opener()
 ptc10 = sr.SR_PTC_10()
-mw = mwBridge.Mikran_X_band_MW_bridge()
+mw = mwBridge.Micran_X_band_MW_bridge()
 pb = pb_pro.PB_ESR_500_Pro()
 bh15 = bh.BH_15()
 dig4450 = spectrum_dig.Spectrum_M4I_4450_X8()
@@ -100,7 +100,7 @@ awg.awg_pulse(name = 'P2', channel = 'CH0', func = 'SINE', frequency = f1, phase
                           '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', \
                           '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', \
                           '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y'], \
-                          d_coef = coef)
+                          amplitude = 100/coef)
 
 pb.pulser_pulse(name = 'P3', channel = 'AWG', start = PULSE_2_START, length = PULSE_2_LENGTH, delta_start = str( int(STEP8) ) + ' ns')
 awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'SINE', frequency = f1, phase = 0, delta_start = str( int(STEP8) ) + ' ns', \
@@ -121,7 +121,7 @@ awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'SINE', frequency = f1, phase
                           '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', \
                           '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', \
                           '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y'], \
-                          d_coef = coef)
+                          amplitude = 100/coef)
 
 #PUMP
 pb.pulser_pulse(name = 'P7', channel = 'AWG', start = PULSE_PUMP_START, length = PULSE_PUMP_LENGTH, delta_start = str(STEP) + ' ns')
@@ -163,7 +163,7 @@ awg.awg_pulse(name = 'P6', channel = 'CH0', func = 'SINE', frequency = f1, phase
                           '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', \
                           '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', \
                           '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y'] , \
-                          d_coef = coef)
+                          amplitude = 100/coef)
 
 # 398 ns is delay from AWG trigger 1.25 GHz
 # 494 ns is delay from AWG trigger 1.00 GHz

@@ -6,15 +6,15 @@ import atomize.general_modules.general_functions as general
 import atomize.device_modules.PB_ESR_500_pro as pb_pro
 import atomize.device_modules.Spectrum_M4I_6631_X8 as spectrum
 import atomize.device_modules.Spectrum_M4I_4450_X8 as spectrum_dig
-import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
+import atomize.device_modules.Micran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.SR_PTC_10 as sr
 import atomize.device_modules.BH_15 as bh
-import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+import atomize.general_modules.csv_opener_saver as openfile
 
 # initialization of the devices
 file_handler = openfile.Saver_Opener()
 ptc10 = sr.SR_PTC_10()
-mw = mwBridge.Mikran_X_band_MW_bridge()
+mw = mwBridge.Micran_X_band_MW_bridge()
 pb = pb_pro.PB_ESR_500_Pro()
 bh15 = bh.BH_15()
 dig4450 = spectrum_dig.Spectrum_M4I_4450_X8()
@@ -75,19 +75,19 @@ awg.awg_pulse(name = 'P5', channel = 'CH0', func = 'WURST', frequency = ('90 MHz
             phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x',\
                   '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y', '+y',\
                   '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x',\
-                  '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y'], n = 30, d_coef = 1.0)
+                  '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y', '-y'], n = 30, amplitude = 100/1.0)
 awg.awg_pulse(name = 'P6', channel = 'CH0', func = 'WURST', frequency = ('90 MHz', '368 MHz'), phase = 0, \
             length = PULSE_2_LENGTH, sigma = PULSE_2_LENGTH, start = PULSE_AWG_2_START, \
             phase_list = ['+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
                   '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
                   '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y',\
-                  '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y'], n = 30, d_coef = 1.0)
+                  '+x', '+x', '+x', '+x', '+y', '+y', '+y', '+y', '-x', '-x', '-x', '-x', '-y', '-y', '-y', '-y'], n = 30, amplitude = 100/1.0)
 awg.awg_pulse(name = 'P7', channel = 'CH0', func = 'WURST', frequency = ('90 MHz', '368 MHz'), phase = 0, \
             length = PULSE_3_LENGTH, sigma = PULSE_3_LENGTH, start = PULSE_AWG_3_START, delta_start = str(STEP) + ' ns', \
             phase_list = ['+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
                   '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
                   '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y',\
-                  '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y'], n = 30, d_coef = 1.0)
+                  '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y'], n = 30, amplitude = 100/1.0)
 
 
 pb.pulser_repetition_rate( REP_RATE )

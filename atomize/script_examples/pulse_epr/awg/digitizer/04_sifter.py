@@ -6,10 +6,10 @@ import atomize.general_modules.general_functions as general
 import atomize.device_modules.PB_ESR_500_pro as pb_pro
 import atomize.device_modules.Spectrum_M4I_6631_X8 as spectrum
 import atomize.device_modules.Spectrum_M4I_4450_X8 as spectrum_dig
-import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
+import atomize.device_modules.Micran_X_band_MW_bridge as mwBridge
 import atomize.device_modules.BH_15 as bh
 import atomize.device_modules.SR_PTC_10 as sr
-import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+import atomize.general_modules.csv_opener_saver as openfile
 
 # 10.1016/S0009-2614(00)01171-4   -> phase cycling
 # 10.1039/C5CP03671B              -> timings
@@ -17,7 +17,7 @@ import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
 # initialization of the devices
 file_handler = openfile.Saver_Opener()
 ptc10 = sr.SR_PTC_10()
-mw = mwBridge.Mikran_X_band_MW_bridge()
+mw = mwBridge.Micran_X_band_MW_bridge()
 pb = pb_pro.PB_ESR_500_Pro()
 bh15 = bh.BH_15()
 dig4450 = spectrum_dig.Spectrum_M4I_4450_X8()
@@ -82,28 +82,28 @@ pb.pulser_pulse(name = 'P1', channel = 'AWG', start = str( int(PULSE_1_START.spl
 awg.awg_pulse(name = 'P2', channel = 'CH0', func = 'WURST', frequency = ('80 MHz', '390 MHz'), phase = 0, \
                 length = PULSE_1_LENGTH, sigma = PULSE_1_LENGTH, start = PULSE_1_START, \
                 phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x'], \
-                d_coef = 5.0, n = 30)
+                amplitude = 100/5.0, n = 30)
 
 pb.pulser_pulse(name = 'P3', channel = 'AWG', start = str( int(PULSE_2_START.split(' ')[0]) + 494 ) + ' ns', length = PULSE_2_LENGTH, \
                 delta_start = str(STEP) + ' ns')
 awg.awg_pulse(name = 'P4', channel = 'CH0', func = 'WURST', frequency = ('80 MHz', '390 MHz'), phase = 0, \
                 length = PULSE_2_LENGTH, sigma = PULSE_2_LENGTH, start = PULSE_2_START, delta_start = str(STEP) + ' ns', \
                 phase_list = ['+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y', '+x', '+y', '-x', '-y'], \
-                d_coef = 1.0, n = 30)
+                amplitude = 100/1.0, n = 30)
 
 pb.pulser_pulse(name = 'P5', channel = 'AWG', start = str( int(PULSE_3_START.split(' ')[0]) + 494 ) + ' ns', length = PULSE_3_LENGTH, \
                 delta_start = str(2 * STEP) + ' ns')
 awg.awg_pulse(name = 'P6', channel = 'CH0', func = 'WURST', frequency = ('80 MHz', '390 MHz'), phase = 0, \
                 length = PULSE_3_LENGTH, sigma = PULSE_3_LENGTH, start = PULSE_3_START, delta_start = str(2 * STEP) + ' ns', \
                 phase_list = ['+y', '+y', '+y', '+y', '-y', '-y', '-y', '-y', '+y', '+y', '+y', '+y', '-y', '-y', '-y', '-y'], \
-                d_coef = 5.0, n = 30)
+                amplitude = 100/5.0, n = 30)
 
 pb.pulser_pulse(name = 'P7', channel = 'AWG', start = str( int(PULSE_4_START.split(' ')[0]) + 494 ) + ' ns', length = PULSE_4_LENGTH, \
                 delta_start = str(STEP) + ' ns')
 awg.awg_pulse(name = 'P8', channel = 'CH0', func = 'WURST', frequency = ('80 MHz', '390 MHz'), phase = 0, \
                 length = PULSE_4_LENGTH, sigma = PULSE_4_LENGTH, start = PULSE_4_START, delta_start = str(STEP) + ' ns', \
                 phase_list = ['+x', '+x', '+x', '+x', '+x', '+x', '+x', '+x', '-x', '-x', '-x', '-x', '-x', '-x', '-x', '-x'], \
-                d_coef = 1.0, n = 30)
+                amplitude = 100/1.0, n = 30)
 
 pb.pulser_pulse(name = 'P9', channel = 'TRIGGER', start = PULSE_SIGNAL_START, length = '100 ns') #, delta_start = str(4 * STEP) + ' ns'
 

@@ -1,7 +1,7 @@
 import atomize.general_modules.general_functions as general
-import atomize.device_modules.Mikran_X_band_MW_bridge as mwBridge
+import atomize.device_modules.Micran_X_band_MW_bridge as mwBridge
 
-mw = mwBridge.Mikran_X_band_MW_bridge()
+mw = mwBridge.Micran_X_band_MW_bridge()
 
 #general.message( mw.mw_bridge_name() )
 

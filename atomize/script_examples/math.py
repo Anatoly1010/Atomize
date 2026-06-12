@@ -2,7 +2,7 @@ import time
 import numpy as np
 import atomize.general_modules.general_functions as general
 import atomize.math_modules.least_square_fitting_modules as math_modules
-import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+import atomize.general_modules.csv_opener_saver as openfile
 
 open1d = openfile.Saver_Opener()
 

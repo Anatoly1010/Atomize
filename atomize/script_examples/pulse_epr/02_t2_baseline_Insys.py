@@ -4,10 +4,10 @@ import datetime
 import numpy as np
 import atomize.general_modules.general_functions as general
 import atomize.device_modules.Insys_FPGA as pb_pro
-import atomize.device_modules.Mikran_X_band_MW_bridge_v2 as mwBridge
+import atomize.device_modules.Micran_X_band_MW_bridge_v2 as mwBridge
 import atomize.device_modules.Lakeshore_335 as ls
 import atomize.device_modules.ITC_FC as itc
-import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+import atomize.general_modules.csv_opener_saver as openfile
 
 ### PARAMETERS
 POINTS = 401
@@ -37,7 +37,7 @@ x_axis = np.linspace(0, (POINTS - 1)*STEP, num = POINTS)
 # INITIALIZATION
 file_handler = openfile.Saver_Opener()
 ls335 = ls.Lakeshore_335()
-mw = mwBridge.Mikran_X_band_MW_bridge_v2()
+mw = mwBridge.Micran_X_band_MW_bridge_v2()
 pb = pb_pro.Insys_FPGA()
 bh15 = itc.ITC_FC()
 
