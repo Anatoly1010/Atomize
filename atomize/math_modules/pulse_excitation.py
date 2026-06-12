@@ -146,6 +146,41 @@ def waveform(shape, t, tp, params):
     return a, nu
 
 
+def sampled_waveform(shape, tp, params, dt=0.5, phi0=0.0):
+    """Mid-step sampled envelope, frequency and running phase of a pulse.
+
+    The shared discretization behind :func:`propagate_pulse` and
+    :func:`adiabaticity_profile` (and the density-matrix engine in
+    :mod:`spin_dynamics`): the pulse is chopped into ``dt`` steps, the
+    waveform is sampled at the step midpoints, and the running RF phase
+    ``phi(t) = phi0 + 2*pi * integral(nu dt')`` is accumulated by the
+    trapezoid rule on that grid. For amplitude-only shapes ``nu == center``
+    so ``phi`` is linear. Each pulse's phase is referenced to its own start
+    (standard AWG convention).
+
+    Returns
+    -------
+    steps : ndarray
+        Per-step durations (ns); ``steps.sum() == tp`` up to grid rounding.
+    tmid : ndarray
+        Mid-step times (ns).
+    a : ndarray
+        Amplitude envelope at ``tmid`` (peak 1).
+    nu : ndarray
+        Instantaneous frequency at ``tmid`` (GHz, relative to the carrier).
+    phi : ndarray
+        Running RF phase at ``tmid`` (rad).
+    """
+    edges = np.arange(0.0, tp + 0.5 * dt, dt)
+    if edges.size < 2:
+        edges = np.array([0.0, tp])
+    tmid = 0.5 * (edges[:-1] + edges[1:])
+    steps = np.diff(edges)                       # per-step durations (ns)
+    a, nu = waveform(shape, tmid, tp, params)
+    phi = phi0 + 2.0 * np.pi * (np.cumsum(nu * steps) - 0.5 * nu * steps)
+    return steps, tmid, a, nu, phi
+
+
 def resonator_transfer(freqs, nu0, Q, detuning=0.0):
     """Complex voltage transfer function of an ideal (lumped RLC) resonator.
 
@@ -333,19 +368,7 @@ def propagate_pulse(M, shape, tp, nu1, offsets, params, dt=0.5, phi0=0.0,
     offsets = np.asarray(offsets, dtype=float)
     M = np.array(M, dtype=float, copy=True)
 
-    # Mid-step sampling of the waveform (matches the notebook's mid-point rule).
-    edges = np.arange(0.0, tp + 0.5 * dt, dt)
-    if edges.size < 2:
-        edges = np.array([0.0, tp])
-    tmid = 0.5 * (edges[:-1] + edges[1:])
-    steps = np.diff(edges)                       # per-step durations (ns)
-
-    a, nu = waveform(shape, tmid, tp, params)
-
-    # Running RF phase phi(t) = phi0 + 2*pi * integral(nu dt'), trapezoid on the
-    # mid-step grid; for amplitude-only shapes nu == 0 so phi == phi0. Each
-    # pulse's phase is referenced to its own start (standard AWG convention).
-    phi = phi0 + 2.0 * np.pi * (np.cumsum(nu * steps) - 0.5 * nu * steps)
+    steps, tmid, a, nu, phi = sampled_waveform(shape, tp, params, dt=dt, phi0=phi0)
 
     # Optional resonator: filter the complex envelope a*exp(i phi) through the
     # transfer function, then read back the distorted amplitude/phase the spins
@@ -490,14 +513,7 @@ def adiabaticity_profile(shape, tp, nu1, offsets, params, dt=0.5, phi0=0.0,
     shape as ``offsets``).
     """
     offsets = np.asarray(offsets, dtype=float)
-    edges = np.arange(0.0, tp + 0.5 * dt, dt)
-    if edges.size < 2:
-        edges = np.array([0.0, tp])
-    tmid = 0.5 * (edges[:-1] + edges[1:])
-    steps = np.diff(edges)
-
-    a, nu = waveform(shape, tmid, tp, params)
-    phi = phi0 + 2.0 * np.pi * (np.cumsum(nu * steps) - 0.5 * nu * steps)
+    steps, tmid, a, nu, phi = sampled_waveform(shape, tp, params, dt=dt, phi0=phi0)
 
     # The resonator is a filter: it cannot move the frequency sweep, only
     # attenuate the amplitude (and add phase). Its effect on adiabaticity is the

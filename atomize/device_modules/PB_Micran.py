@@ -10,8 +10,6 @@ import struct
 import termios
 from copy import deepcopy
 import operator
-from operator import iconcat
-from functools import reduce
 from itertools import groupby, chain
 import numpy as np
 import atomize.main.local_config as lconf
@@ -153,11 +151,8 @@ class PB_Micran:
             self.current_phase_index = 0
             self.awg_pulses = 0
             self.phase_pulses = 0
-            self.instr_from_file = 0
-            self.iterator_of_updates = 0
 
         elif self.test_flag == 'test':
-            open('instructions.out', 'w').close()
             self.test_rep_rate = '200 Hz'
             
             self.pulse_array = []
@@ -173,7 +168,6 @@ class PB_Micran:
             self.current_phase_index = 0
             self.awg_pulses = 0
             self.phase_pulses = 0
-            self.instr_from_file = 0
 
     # Module functions
     def pulser_name(self):
@@ -627,12 +621,8 @@ class PB_Micran:
                 #temp, visualizer = self.convert_to_bit_pulse( self.pulse_array )
                 
                 #to_spinapi = self.instruction_pulse( temp, rep_time )
-                if self.instr_from_file == 0:
-                    to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
-                elif self.instr_from_file == 1:
-                    raw_data = np.fromstring( self.raw_instructions[self.iterator_of_updates], dtype = int, sep = ',' )
-                    to_spinapi = raw_data.reshape( ( int(len(raw_data)/3), 3 ) ).tolist()
-                
+                to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
+
                 # Duty cycle checking
                 amp_on_duration = 0
                 shaper_duration = 0
@@ -794,8 +784,6 @@ class PB_Micran:
                 self.shift_count = 0
                 self.increment_count = 0
                 self.rep_rate_count = 0
-
-                self.iterator_of_updates += 1
             else:
                 pass
 
@@ -817,13 +805,6 @@ class PB_Micran:
                 # using a special functions for convertion to instructions
                 #to_spinapi = self.instruction_pulse( self.convert_to_bit_pulse( self.pulse_array ) )
                 to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
-                
-                # instructions from file:
-                if self.instr_from_file == 1:
-                    with open("instructions.out", "a") as f:
-                        np.savetxt(f, [reduce(iconcat, to_spinapi, [])], delimiter = ',', fmt = '%u') 
-                
-                    f.close()
 
                 amp_on_duration = 0
                 shaper_duration = 0
@@ -1228,7 +1209,7 @@ class PB_Micran:
         """
         self.current_phase_index = 0
 
-    def pulser_reset(self, interal_cycle = 'False'):
+    def pulser_reset(self):
         """
         Reset all pulses to the initial state it was in at the start of the experiment.
         It includes the complete functionality of pulser_pulse_reset(), but also immediately
@@ -1249,17 +1230,7 @@ class PB_Micran:
             # using a special functions for convertion to instructions
             # we get two return arrays because of pulser_visualizer. It is not the case for test flag.
             #temp, visualizer = self.convert_to_bit_pulse( self.pulse_array )
-            if interal_cycle == 'False':
-                self.iterator_of_updates = 0
-            elif interal_cycle == 'True':
-                pass
-
-            if self.instr_from_file == 0:
-                to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
-            elif self.instr_from_file == 1:
-                #self.iterator_of_updates = 0
-                raw_data = np.fromstring( self.raw_instructions[self.iterator_of_updates], dtype = int, sep = ',' )
-                to_spinapi = raw_data.reshape( (int(len(raw_data)/3), 3 ) ).tolist()
+            to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
 
             # Duty cycle checking
             amp_on_duration = 0
@@ -1412,8 +1383,6 @@ class PB_Micran:
             self.shift_count = 0
             self.current_phase_index = 0
 
-            self.iterator_of_updates += 1
-
         elif self.test_flag == 'test':
             # get repetition rate
             rep_rate = self.rep_rate[0]
@@ -1431,13 +1400,6 @@ class PB_Micran:
             # using a special functions for convertion to instructions
             #to_spinapi = self.instruction_pulse( self.convert_to_bit_pulse( self.pulse_array ), rep_time )
             to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
-
-            # instructions from file:
-            if self.instr_from_file == 1:
-                with open("instructions.out", "a") as f:
-                    np.savetxt(f, [reduce(iconcat, to_spinapi, [])], delimiter = ',', fmt = '%u') 
-            
-                f.close()
 
             amp_on_duration = 0
             shaper_duration = 0
@@ -1563,26 +1525,22 @@ class PB_Micran:
             self.shift_count = 0
             self.current_phase_index = 0
 
-    def pulser_pulse_reset(self, *pulses, interal_cycle = 'False'):
+    def pulser_pulse_reset(self, *pulses):
         """
         Reset all pulses to the initial state it was in at the start of the experiment.
-        It does not update the pulser, if you want to reset all pulses and and also update 
+        It does not update the pulser, if you want to reset all pulses and and also update
         the pulser use the function pulser_reset() instead.
         """
         if self.test_flag != 'test':
 
             self.pulser_stop()
-            
+
             if len(pulses) == 0:
                 self.pulse_array = deepcopy(self.pulse_array_init)
                 self.reset_count = 0
                 self.increment_count = 0
                 self.shift_count = 0
                 self.current_phase_index = 0
-                if interal_cycle == 'False':
-                    self.iterator_of_updates = 0
-                elif interal_cycle == 'True':
-                    pass
 
             else:
                 set_from_list = set(pulses)
@@ -1597,8 +1555,6 @@ class PB_Micran:
                         self.increment_count = 0
                         self.shift_count = 0
                         self.current_phase_index = 0
-
-                        #self.iterator_of_updates = 0
 
         elif self.test_flag == 'test':
 
@@ -1678,14 +1634,7 @@ class PB_Micran:
             self.device_write( 4, byte_to_write = 4, data_to_write = 56, type_of_systems = 2, shift = 0 )
 
             to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
-            
-            # instructions from file:
-            if self.instr_from_file == 1:
-                with open("instructions.out", "a") as f:
-                    np.savetxt(f, [reduce(iconcat, to_spinapi, [])], delimiter = ',', fmt = '%u') 
-            
-                f.close()
-            
+
             self.i_trigger = 0
             self.i_amp_on = 0
             self.i_lna = 0
@@ -1815,14 +1764,7 @@ class PB_Micran:
                 rep_time = int(1000/float(rep_rate[:-4]))
 
             to_spinapi = self.split_into_parts( self.pulse_array, rep_time )
-            
-            # instructions from file:
-            if self.instr_from_file == 1:
-                with open("instructions.out", "a") as f:
-                    np.savetxt(f, [reduce(iconcat, to_spinapi, [])], delimiter = ',', fmt = '%u') 
-            
-                f.close()
-            
+
             self.i_trigger = 0
             self.i_amp_on = 0
             self.i_lna = 0
@@ -2050,25 +1992,6 @@ class PB_Micran:
             ##        assert (1 == 2), 'Incorrect operation in the acquisition cycle'
 
             return (answer.real / len(acq_cycle))[0], (answer.imag / len(acq_cycle))[0]
-    
-    def pulser_instruction_from_file(self, flag, filename = 'instructions.out'):
-        """
-        Special function to read instructions from the .txt file
-        """
-        if self.test_flag != 'test':
-            if flag == 1:
-                self.instr_from_file = 1
-                f = open(filename)
-                self.raw_instructions = f.read().splitlines()
-                f.close()
-            elif flag == 0:
-                self.instr_from_file = 0
-
-        elif self.test_flag == 'test':
-            if flag == 1:
-                self.instr_from_file = 1
-            elif flag == 0:
-                self.instr_from_file = 0
 
     # Auxilary functions
     def pulser_open(self):
@@ -2127,6 +2050,22 @@ class PB_Micran:
         elif self.test_flag == 'test':
             pass
 
+    def time_to_ticks(self, time_str):
+        """
+        Convert a '<float> <unit>' time string to pulser clock ticks.
+        The unit is taken from the last two characters ('ns' / 'us' / 'ms'),
+        replicating the historical suffix parsing of convertion_to_numpy()
+        """
+        unit = time_str[-2:]
+        if unit == 'ns':
+            return int(float(time_str[:-3])/self.timebase)
+        elif unit == 'us':
+            return int(float(time_str[:-3])*1000/self.timebase)
+        elif unit == 'ms':
+            return int(float(time_str[:-3])*1000000/self.timebase)
+        elif unit == 's':
+            return int(float(time_str[:-3])*1000000000/self.timebase)
+
     def convertion_to_numpy(self, p_array):
         """
         Convertion of the pulse_array into numpy array in the form of
@@ -2156,14 +2095,7 @@ class PB_Micran:
                     st = self.change_pulse_settings(p_array[i]['start'], -self.rect_awg_switch_delay)
                     self.awg_pulses = 1
 
-                if st[-2:] == 'ns':
-                    st_time = int(float(st[:-3])/self.timebase)
-                elif st[-2:] == 'us':
-                    st_time = int(float(st[:-3])*1000/self.timebase)
-                elif st[-2:] == 'ms':
-                    st_time = int(float(st[:-3])*1000000/self.timebase)
-                elif st[-2:] == 's':
-                    st_time = int(float(st[:-3])*1000000000/self.timebase)
+                st_time = self.time_to_ticks(st)
                 
                 # get length
                 if ch != 'AWG':
@@ -2173,36 +2105,12 @@ class PB_Micran:
                     leng = self.change_pulse_settings(p_array[i]['length'], self.rect_awg_switch_delay + self.rect_awg_delay)
                     self.awg_pulses = 1
 
-                if leng[-2:] == 'ns':
-                    leng_time = int(float(leng[:-3])/self.timebase)
-                elif leng[-2:] == 'us':
-                    leng_time = int(float(leng[:-3])*1000/self.timebase)
-                elif leng[-2:] == 'ms':
-                    leng_time = int(float(leng[:-3])*1000000/self.timebase)
-                elif leng[-2:] == 's':
-                    leng_time = int(float(leng[:-3])*1000000000/self.timebase)
+                leng_time = self.time_to_ticks(leng)
 
-                # get delta start
-                del_st = p_array[i]['delta_start']
-                if del_st[-2:] == 'ns':
-                    delta_start = int(float(del_st[:-3])/self.timebase)
-                elif del_st[-2:] == 'us':
-                    delta_start = int(float(del_st[:-3])*1000/self.timebase)
-                elif del_st[-2:] == 'ms':
-                    delta_start = int(float(del_st[:-3])*1000000/self.timebase)
-                elif del_st[-2:] == 's':
-                    delta_start = int(float(del_st[:-3])*1000000000/self.timebase)
-
-                # get length_increment
-                len_in = p_array[i]['length_increment']
-                if len_in[-2:] == 'ns':
-                    length_increment = int(float(len_in[:-3])/self.timebase)
-                elif len_in[-2:] == 'us':
-                    length_increment = int(float(len_in[:-3])*1000/self.timebase)
-                elif len_in[-2:] == 'ms':
-                    length_increment = int(float(len_in[:-3])*1000000/self.timebase)
-                elif len_in[-2:] == 's':
-                    length_increment = int(float(len_in[:-3])*1000000000/self.timebase)
+                # delta_start and length_increment are not part of the
+                # [channel, start, end] rows built below, so they are
+                # intentionally not parsed here (they used to be parsed
+                # and discarded)
 
                 # creating converted array
                 # in terms of bits the number of channel is 2**(ch_num - 1)
@@ -2231,14 +2139,7 @@ class PB_Micran:
                     st = self.change_pulse_settings(p_array[i]['start'], -self.rect_awg_switch_delay)
                     self.awg_pulses = 1
 
-                if st[-2:] == 'ns':
-                    st_time = int(float(st[:-3])/self.timebase)
-                elif st[-2:] == 'us':
-                    st_time = int(float(st[:-3])*1000/self.timebase)
-                elif st[-2:] == 'ms':
-                    st_time = int(float(st[:-3])*1000000/self.timebase)
-                elif st[-2:] == 's':
-                    st_time = int(float(st[:-3])*1000000000/self.timebase)
+                st_time = self.time_to_ticks(st)
 
                 # get length
                 if ch != 'AWG':
@@ -2248,36 +2149,12 @@ class PB_Micran:
                     leng = self.change_pulse_settings(p_array[i]['length'], self.rect_awg_switch_delay + self.rect_awg_delay)
                     self.awg_pulses = 1
                 
-                if leng[-2:] == 'ns':
-                    leng_time = int(float(leng[:-3])/self.timebase)
-                elif leng[-2:] == 'us':
-                    leng_time = int(float(leng[:-3])*1000/self.timebase)
-                elif leng[-2:] == 'ms':
-                    leng_time = int(float(leng[:-3])*1000000/self.timebase)
-                elif leng[-2:] == 's':
-                    leng_time = int(float(leng[:-3])*1000000000/self.timebase)
+                leng_time = self.time_to_ticks(leng)
 
-                # get delta start
-                del_st = p_array[i]['delta_start']
-                if del_st[-2:] == 'ns':
-                    delta_start = int(float(del_st[:-3])/self.timebase)
-                elif del_st[-2:] == 'us':
-                    delta_start = int(float(del_st[:-3])*1000/self.timebase)
-                elif del_st[-2:] == 'ms':
-                    delta_start = int(float(del_st[:-3])*1000000/self.timebase)
-                elif del_st[-2:] == 's':
-                    delta_start = int(float(del_st[:-3])*1000000000/self.timebase)
-
-                # get length_increment
-                len_in = p_array[i]['length_increment']
-                if len_in[-2:] == 'ns':
-                    length_increment = int(float(len_in[:-3])/self.timebase)
-                elif len_in[-2:] == 'us':
-                    length_increment = int(float(len_in[:-3])*1000/self.timebase)
-                elif len_in[-2:] == 'ms':
-                    length_increment = int(float(len_in[:-3])*1000000/self.timebase)
-                elif len_in[-2:] == 's':
-                    length_increment = int(float(len_in[:-3])*1000000000/self.timebase)
+                # delta_start and length_increment are not part of the
+                # [channel, start, end] rows built below, so they are
+                # intentionally not parsed here (they used to be parsed
+                # and discarded)
 
                 # creating converted array
                 # in terms of bits the number of channel is 2**(ch_num - 1)
@@ -2452,13 +2329,13 @@ class PB_Micran:
         It is used when we deal with AMP_ON and LNA_PROTECT pulses
         with less than 12 ns distance
         """
-        if self.test_flag != 'test':
-            no_duplicate_array = np.unique(np_array, axis = 0)
-            return no_duplicate_array
-
-        elif self.test_flag == 'test':
-            no_duplicate_array = np.unique(np_array, axis = 0)
-            return no_duplicate_array
+        rows = np.asarray(np_array)
+        if len(rows) == 0:
+            return np.unique(rows, axis = 0)
+        # np.unique(..., axis = 0) sorts rows lexicographically; for the
+        # small arrays used here a Python set + sort is much faster and
+        # gives the identical result
+        return np.asarray(sorted(set(map(tuple, rows.tolist()))), dtype = np.int64)
 
     def preparing_to_bit_pulse(self, np_array):
         """
@@ -2549,25 +2426,25 @@ class PB_Micran:
                             cor_pulses_amp_final = cor_pulses_amp
                         elif cor_pulses_amp[0][0] == 0:
                             # nothing to concatenate
-                            amp_on_pulses, shaper_pulses = self.convert_to_bit_pulse_amp_lna(prob_pulses_amp)
-                            cor_pulses_amp_final = np.concatenate((self.instruction_pulse_short_lna_amp(amp_on_pulses), self.instruction_pulse_short_lna_amp(shaper_pulses)), axis = 0)
+                            amp_on_instructions, shaper_instructions = self.instructions_amp_lna_joined(prob_pulses_amp)
+                            cor_pulses_amp_final = np.concatenate((amp_on_instructions, shaper_instructions), axis = 0)
                         else:
-                            amp_on_pulses, shaper_pulses = self.convert_to_bit_pulse_amp_lna(prob_pulses_amp)
+                            amp_on_instructions, shaper_instructions = self.instructions_amp_lna_joined(prob_pulses_amp)
                             try:
-                                cor_pulses_amp_final = np.concatenate((cor_pulses_amp, self.instruction_pulse_short_lna_amp(amp_on_pulses), self.instruction_pulse_short_lna_amp(shaper_pulses)), axis = 0)
+                                cor_pulses_amp_final = np.concatenate((cor_pulses_amp, amp_on_instructions, shaper_instructions), axis = 0)
                             except ValueError:
-                                cor_pulses_amp_final = np.concatenate((cor_pulses_amp, self.instruction_pulse_short_lna_amp(amp_on_pulses)), axis = 0)
+                                cor_pulses_amp_final = np.concatenate((cor_pulses_amp, amp_on_instructions), axis = 0)
 
                         # combining short distance LNA_PROTECT pulses
                         if prob_pulses_lna[0][0] == 0:
                             cor_pulses_lna_final = cor_pulses_lna
                         elif cor_pulses_lna[0][0] == 0:
                             # nothing to concatenate
-                            lna_pulses, video_pulses = self.convert_to_bit_pulse_amp_lna(prob_pulses_lna)
-                            cor_pulses_lna_final =  np.concatenate((self.instruction_pulse_short_lna_amp(lna_pulses), self.instruction_pulse_short_lna_amp(video_pulses)), axis = 0)
+                            lna_instructions, video_instructions = self.instructions_amp_lna_joined(prob_pulses_lna)
+                            cor_pulses_lna_final =  np.concatenate((lna_instructions, video_instructions), axis = 0)
                         else:
-                            lna_pulses, video_pulses = self.convert_to_bit_pulse_amp_lna(prob_pulses_lna)
-                            cor_pulses_lna_final =  np.concatenate((cor_pulses_lna, self.instruction_pulse_short_lna_amp(lna_pulses), self.instruction_pulse_short_lna_amp(video_pulses)), axis = 0)
+                            lna_instructions, video_instructions = self.instructions_amp_lna_joined(prob_pulses_lna)
+                            cor_pulses_lna_final =  np.concatenate((cor_pulses_lna, lna_instructions, video_instructions), axis = 0)
 
                     elif element[0, 0] == self.channel_dict['-X'] or element[0, 0] == self.channel_dict['+Y']:
                         pass
@@ -2582,16 +2459,16 @@ class PB_Micran:
 
                 # combine all pulses
                 #np.concatenate( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final), axis = None)
+                # split_pulse_array already contains the extended RECT_AWG
+                # pulses (see splitting_acc_to_channel()); flattening it is
+                # equivalent to self.extending_rect_awg( self.pulse_array )
+                # but avoids re-parsing the whole pulse array
                 try:
-                    #return np.row_stack( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final))
-                    # self.extending_rect_awg( self.pulse_array ) is for extendind RECT_AWG pulses
-                    # see self.extending_rect_awg()
-                    return np.row_stack( (self.extending_rect_awg( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final))
+                    return np.row_stack( (np.asarray(list(chain(*split_pulse_array))), cor_pulses_amp_final, cor_pulses_lna_final))
 
                 # when we do not MW pulses at all
                 except UnboundLocalError:
-                    #return self.convertion_to_numpy( self.pulse_array )
-                    return self.extending_rect_awg( self.pulse_array )
+                    return np.asarray(list(chain(*split_pulse_array)))
 
         elif self.test_flag == 'test':
             if self.auto_defense == 'False':
@@ -2665,25 +2542,25 @@ class PB_Micran:
                             cor_pulses_amp_final = cor_pulses_amp
                         elif cor_pulses_amp[0][0] == 0:
                             # nothing to concatenate
-                            amp_on_pulses, shaper_pulses = self.convert_to_bit_pulse_amp_lna(prob_pulses_amp)
-                            cor_pulses_amp_final = np.concatenate((self.instruction_pulse_short_lna_amp(amp_on_pulses), self.instruction_pulse_short_lna_amp(shaper_pulses)), axis = 0)
+                            amp_on_instructions, shaper_instructions = self.instructions_amp_lna_joined(prob_pulses_amp)
+                            cor_pulses_amp_final = np.concatenate((amp_on_instructions, shaper_instructions), axis = 0)
                         else:
-                            amp_on_pulses, shaper_pulses = self.convert_to_bit_pulse_amp_lna(prob_pulses_amp)
+                            amp_on_instructions, shaper_instructions = self.instructions_amp_lna_joined(prob_pulses_amp)
                             try:
-                                cor_pulses_amp_final = np.concatenate((cor_pulses_amp, self.instruction_pulse_short_lna_amp(amp_on_pulses), self.instruction_pulse_short_lna_amp(shaper_pulses)), axis = 0)
+                                cor_pulses_amp_final = np.concatenate((cor_pulses_amp, amp_on_instructions, shaper_instructions), axis = 0)
                             except ValueError:
-                                cor_pulses_amp_final = np.concatenate((cor_pulses_amp, self.instruction_pulse_short_lna_amp(amp_on_pulses)), axis = 0)
+                                cor_pulses_amp_final = np.concatenate((cor_pulses_amp, amp_on_instructions), axis = 0)
 
                         # combining short distance LNA_PROTECT pulses
                         if prob_pulses_lna[0][0] == 0:
                             cor_pulses_lna_final = cor_pulses_lna
                         elif cor_pulses_lna[0][0] == 0:
                             # nothing to concatenate
-                            lna_pulses, video_pulses = self.convert_to_bit_pulse_amp_lna(prob_pulses_lna)
-                            cor_pulses_lna_final =  np.concatenate((self.instruction_pulse_short_lna_amp(lna_pulses), self.instruction_pulse_short_lna_amp(video_pulses)), axis = 0)
+                            lna_instructions, video_instructions = self.instructions_amp_lna_joined(prob_pulses_lna)
+                            cor_pulses_lna_final =  np.concatenate((lna_instructions, video_instructions), axis = 0)
                         else:
-                            lna_pulses, video_pulses = self.convert_to_bit_pulse_amp_lna(prob_pulses_lna)
-                            cor_pulses_lna_final =  np.concatenate((cor_pulses_lna, self.instruction_pulse_short_lna_amp(lna_pulses), self.instruction_pulse_short_lna_amp(video_pulses)), axis = 0)
+                            lna_instructions, video_instructions = self.instructions_amp_lna_joined(prob_pulses_lna)
+                            cor_pulses_lna_final =  np.concatenate((cor_pulses_lna, lna_instructions, video_instructions), axis = 0)
 
                     elif element[0, 0] == self.channel_dict['-X'] or element[0, 0] == self.channel_dict['+Y']:
                         # for phases pulses just check 10 ns distance
@@ -2694,10 +2571,13 @@ class PB_Micran:
 
                 # combine all pulses
                 #np.concatenate( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final), axis = None) 
+                # split_pulse_array already contains the extended RECT_AWG
+                # pulses; flattening it is equivalent to
+                # self.extending_rect_awg( self.pulse_array )
                 try:
-                    return np.row_stack( (self.extending_rect_awg( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final))
+                    return np.row_stack( (np.asarray(list(chain(*split_pulse_array))), cor_pulses_amp_final, cor_pulses_lna_final))
                 except UnboundLocalError:
-                    return self.extending_rect_awg( self.pulse_array )
+                    return np.asarray(list(chain(*split_pulse_array)))
 
     def split_into_parts(self, np_array, rep_time):
         """
@@ -3140,69 +3020,97 @@ class PB_Micran:
         Returns both specified parts for further convertion in shich problematic part
         are joined using check_short_pulses() and joining_pulses()
         """
-        if self.test_flag != 'test':
-            if self.auto_defense == 'False':
-                pass
-            elif self.auto_defense == 'True':
-                problem_list = []
-                # memorize index of problem elements
-                problem_index = []
-                # numpy arrays don't support element deletion
-                no_problem_list = deepcopy(p_list.tolist())
+        if self.auto_defense == 'False':
+            pass
+        elif self.auto_defense == 'True':
+            rows = p_list.tolist()
+            problem_list = []
+            # memorize index of problem elements
+            problem_index = set()
 
-                # there STILL can be errors
-                # now compare two pulses with I and I+2 indexes, since there are two pulses SHAPER and AMP_ON; LNA_PROTECT and VIDEO_PROTECT
-                # (end and start + 1)
-                for index, element in enumerate(p_list[:-2]):
+            # there STILL can be errors
+            # now compare two pulses with I and I+2 indexes, since there are two pulses SHAPER and AMP_ON; LNA_PROTECT and VIDEO_PROTECT
+            # (end and start + 1)
+            for index in range(len(rows) - 2):
+                # minimal_distance_amp_lna is 0 ns now
+                if rows[index + 2][1] - rows[index][2] < self.minimal_distance_amp_lna:
+                    problem_list.append(rows[index])
+                    problem_list.append(rows[index + 2])
+                    # memorize indexes of the problem pulses
+                    problem_index.add(index)
+                    problem_index.add(index + 2)
 
-                    # minimal_distance_amp_lna is 0 ns now
-                    if p_list[index + 2][1] - element[2] < self.minimal_distance_amp_lna:
-                        problem_list.append(element)
-                        problem_list.append(p_list[index + 2])
-                        # memorize indexes of the problem pulses
-                        problem_index.append(index)
-                        problem_index.append(index + 2)
+            # delete problem pulses from no_problem_list
+            no_problem_list = [row for index, row in enumerate(rows) if index not in problem_index]
 
-                # delete duplicates in the index list: list(dict.fromkeys(problem_index)) )
-                # delete problem pulses from no_problem_list
-                # np.delete( no_problem_list, list(dict.fromkeys(problem_index)), axis = 0 ).tolist() )
-                no_problem_list = np.delete( no_problem_list, list(dict.fromkeys(problem_index)), axis = 0 ).tolist()
+            # for not returning an empty list
+            # the same conditions are used in preparing_to_bit_pulse()
+            if len(problem_list) == 0:
+                return self.delete_duplicates(np.asarray(no_problem_list)), np.array([[0]])
+            elif len(no_problem_list) == 0:
+                return np.array([[0]]), self.delete_duplicates(np.asarray(problem_list))
+            else:
+                return self.delete_duplicates(np.asarray(no_problem_list)), self.delete_duplicates(np.asarray(problem_list))
 
-                # for not returning an empty list
-                # the same conditions are used in preparing_to_bit_pulse()
-                if len(problem_list) == 0:
-                    return self.delete_duplicates(np.asarray(no_problem_list)), np.array([[0]])
-                elif len(no_problem_list) == 0:
-                    return np.array([[0]]), self.delete_duplicates(np.asarray(problem_list))
+    def instructions_amp_lna_joined(self, p_list):
+        """
+        Interval-based replacement for the convert_to_bit_pulse_amp_lna() /
+        check_short_pulses() / joining_pulses() /
+        instruction_pulse_short_lna_amp() pipeline, producing exactly the
+        same result without materializing the per-clock-tick bit arrays.
+
+        p_list contains two interleaved channel types (AMP_ON + SHAPER or
+        LNA_PROTECT + VIDEO_PROTECT); as in convert_to_bit_pulse_amp_lna()
+        the channel of the second row defines the first group, all other
+        rows form the second group. Within each group overlapping or
+        touching pulses are united; if any two of the united pulses are
+        closer than the minimal allowed distance, all pulses closer than
+        (min_pulse_length + 1) ticks are joined into one, exactly as
+        check_short_pulses() + joining_pulses() do on the bit array.
+        Returns two lists of [channel, start, end] rows in clock ticks
+        """
+        rows = np.asarray(p_list).tolist()
+        # two types of pulses: AMP_ON and SHAPER; LNA_PROTECT and VIDEO_PROTECT
+        first_channel = rows[1][0]
+        group_1 = [row for row in rows if row[0] == first_channel]
+        group_2 = [row for row in rows if row[0] != first_channel]
+
+        def united_and_joined(group):
+            intervals = sorted([row[1], row[2]] for row in group)
+            united = []
+            for start, end in intervals:
+                if end <= start:
+                    continue
+                if united and start <= united[-1][1]:
+                    if end > united[-1][1]:
+                        united[-1][1] = end
                 else:
-                    return self.delete_duplicates(np.asarray(no_problem_list)), self.delete_duplicates(np.asarray(problem_list))
+                    united.append([start, end])
+            # check_short_pulses() triggers the joining when two pulses are
+            # separated by 1 .. (min_pulse_length - 1) ticks ...
+            if any( 1 <= united[k + 1][0] - united[k][1] <= self.min_pulse_length - 1 \
+                    for k in range(len(united) - 1) ):
+                # ... and joining_pulses() then joins every pair separated
+                # by up to (min_pulse_length + 1) ticks
+                joined = [united[0]]
+                for start, end in united[1:]:
+                    if start - joined[-1][1] <= self.min_pulse_length + 1:
+                        joined[-1][1] = end
+                    else:
+                        joined.append([start, end])
+                united = joined
+            return united
 
-        elif self.test_flag == 'test':
-            if self.auto_defense == 'False':
-                pass
-            elif self.auto_defense == 'True':            
-                problem_list = []
-                problem_index = []
-                # numpy arrays don't support element deletion
-                no_problem_list = deepcopy(p_list.tolist())
+        instructions_1 = [ [first_channel, start, end] for start, end in united_and_joined(group_1) ]
+        if len(group_2) != 0:
+            # as in convert_to_bit_pulse_amp_lna() the last row of the
+            # second group defines the second channel
+            second_channel = group_2[-1][0]
+            instructions_2 = [ [second_channel, start, end] for start, end in united_and_joined(group_2) ]
+        else:
+            instructions_2 = []
 
-                for index, element in enumerate(p_list[:-2]):
-                    # minimal_distance_amp_lna is 0 ns now
-                    if p_list[index + 2][1] - element[2] < (self.minimal_distance_amp_lna):
-                        problem_list.append(element)
-                        problem_list.append(p_list[index + 2])
-                        # memorize indexes of the problem pulses
-                        problem_index.append(index)
-                        problem_index.append(index + 2)
-
-                no_problem_list = np.delete( no_problem_list, list(dict.fromkeys(problem_index)), axis = 0 ).tolist()
-
-                if len(problem_list) == 0:
-                    return self.delete_duplicates(np.asarray(no_problem_list)), np.array([[0]])
-                elif len(no_problem_list) == 0:
-                    return np.array([[0]]), self.delete_duplicates(np.asarray(problem_list))
-                else:
-                    return self.delete_duplicates(np.asarray(no_problem_list)), self.delete_duplicates(np.asarray(problem_list))
+        return instructions_1, instructions_2
 
     def convert_to_bit_pulse_amp_lna(self, p_list):
         """

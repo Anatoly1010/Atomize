@@ -149,6 +149,11 @@ class Spectrum_M4I_6631_X8:
             self.phase_cor_awg = 0  # 1 = also predistort phase (ideal model)
             self.pi2flag_awg = 0    # 1 = correct only high-amplitude (pi) pulses
             self.cor_enable_awg = 0 # 1 once awg_correction() has been called
+            self.cor_version_awg = 0 # bumped on every correction-settings change
+
+            # per-pulse waveform cache for 'Single Joined' mode, keyed by all
+            # waveform-defining parameters except the pulse position
+            self.waveform_cache = {}
 
         elif self.test_flag == 'test':
             self.test_sample_rate = '1250 MHz'
@@ -226,6 +231,10 @@ class Spectrum_M4I_6631_X8:
             self.phase_cor_awg = 0
             self.pi2flag_awg = 0
             self.cor_enable_awg = 0
+            self.cor_version_awg = 0
+
+            # per-pulse waveform cache for 'Single Joined' mode
+            self.waveform_cache = {}
 
     # Module functions
     def awg_name(self):
@@ -2162,6 +2171,7 @@ class Spectrum_M4I_6631_X8:
         self.q_awg = float(q_factor)
         self.phase_cor_awg = 1 if phase_correction == 'True' else 0
         self.cor_enable_awg = 1
+        self.cor_version_awg += 1
 
         # in MHz
         # limit minimum B1
@@ -2173,6 +2183,7 @@ class Spectrum_M4I_6631_X8:
     def awg_correction_off(self):
         """Disable resonator-profile correction (swept pulses sent as programmed)."""
         self.cor_enable_awg = 0
+        self.cor_version_awg += 1
 
     def awg_resonator_correction(self, length, x_mean, pulse_start, f_start, f_end, pulse_amp):
         """Per-sample amplitude (c) and phase (ph_cor) predistortion for one swept pulse.
@@ -4276,10 +4287,11 @@ class Spectrum_M4I_6631_X8:
                                i <= (pulse_start_smp[index] + pulse_length_smp[index] ) ):
                             
                             # ( i - pulse_start_smp[index] ) in Sine for always zero phase
+                            # normalisation: relative mid-point (length/2), as in Insys_FPGA
                             self.pnBuffer[i] = int( self.maxCAD / pulse_amp[index] * ( 1 / np.cosh( pulse_b_sech[index] * pulse_length_smp[index] * 2 ** (pulse_n_wurst[index] - 1)  * \
                                 ( ( i - mid_point ) / pulse_length_smp[index] )** pulse_n_wurst[index] ) ) *\
                                 sin(2*pi*(pulse_frequency[index][1] - pulse_frequency[index][0]) / self.sample_rate / pulse_b_sech[index] * np.log( np.cosh( pulse_b_sech[index] \
-                                    * ( i - mid_point )  ) ) / 2 / np.tanh( pulse_b_sech[index] * mid_point ) + pulse_phase_np[index] + 2 * pi * i * freq_cen / self.sample_rate ))
+                                    * ( i - mid_point )  ) ) / 2 / np.tanh( pulse_b_sech[index] * int( pulse_length_smp[index] / 2 ) ) + pulse_phase_np[index] + 2 * pi * i * freq_cen / self.sample_rate ))
                         else:
                             break
 
@@ -4311,24 +4323,44 @@ class Spectrum_M4I_6631_X8:
                 n = np.arange(0, length)                                  # relative sample index
                 rnd_phase = 2*pi*random.random() if phase == 1000 else 0.0
 
+                # A shaped pulse's waveform depends on everything except its position
+                # in the buffer, so across phase cycling / delay sweeps the same samples
+                # are recomputed for every awg_update(). Cache them keyed by all
+                # waveform-defining parameters and paste at the (new) start instead.
+                # DEER pulses (sentinel phase 1000) need a fresh random phase on every
+                # rebuild and TEST waveforms write outside their own slice — not cached.
+                key = None
+                if element in (0, 1, 2, 4, 5) and phase != 1000:
+                    freq = pulse_frequency[index]
+                    freq_key = tuple(freq) if isinstance(freq, (list, tuple, np.ndarray)) else float(freq)
+                    key = (element, int(length), float(phase), freq_key, float(pulse_sigma_smp[index]), \
+                           float(pulse_amp[index]), float(pulse_n_wurst[index]), float(pulse_b_sech[index]), \
+                           self.sample_rate, self.cor_version_awg)
+                    cached = self.waveform_cache.get(key)
+                    if cached is not None:
+                        self.pnBuffer[sl][0::2] = cached[0]
+                        self.pnBuffer[sl][1::2] = cached[1]
+                        continue
+
+                y1 = y2 = None
                 if element == 0: #'SINE'
                     base = 2*np.pi*n*pulse_frequency[index] / self.sample_rate + phase + rnd_phase
-                    self.pnBuffer[sl][0::2] = (amp_scale * np.sin(base)).astype(int64)
-                    self.pnBuffer[sl][1::2] = (amp_scale * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
+                    y1 = (amp_scale * np.sin(base)).astype(int64)
+                    y2 = (amp_scale * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
 
                 elif element == 1: #'GAUSS'
                     mid_point = int( start + length/2 )
                     envelope = np.exp(-(( np.arange(start, start + length) - mid_point )**2) * (1/(2*pulse_sigma_smp[index]**2)))
                     base = 2*np.pi*n*pulse_frequency[index] / self.sample_rate + phase + rnd_phase
-                    self.pnBuffer[sl][0::2] = (amp_scale * envelope * np.sin(base)).astype(int64)
-                    self.pnBuffer[sl][1::2] = (amp_scale * envelope * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
+                    y1 = (amp_scale * envelope * np.sin(base)).astype(int64)
+                    y2 = (amp_scale * envelope * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
 
                 elif element == 2: #'SINC'
                     mid_point = int( start + length/2 )
                     envelope = np.sinc(2 * ( np.arange(start, start + length) - mid_point ) / pulse_sigma_smp[index])
                     base = 2*np.pi*n*pulse_frequency[index] / self.sample_rate + phase + rnd_phase
-                    self.pnBuffer[sl][0::2] = (amp_scale * envelope * np.sin(base)).astype(int64)
-                    self.pnBuffer[sl][1::2] = (amp_scale * envelope * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
+                    y1 = (amp_scale * envelope * np.sin(base)).astype(int64)
+                    y2 = (amp_scale * envelope * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
 
                 elif element == 3: # BLANK
                     pass
@@ -4353,13 +4385,13 @@ class Spectrum_M4I_6631_X8:
 
                     if phase != 1000:
                         base = phase_chirp + phase + ph_cor
-                        self.pnBuffer[sl][0::2] = (amp_scale * c * envelope * np.sin(base)).astype(int64)
-                        self.pnBuffer[sl][1::2] = (amp_scale * c * envelope * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
+                        y1 = (amp_scale * c * envelope * np.sin(base)).astype(int64)
+                        y2 = (amp_scale * c * envelope * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
                     else:
                         # DEER pulse: random carrier phase, no resonator correction
                         base = phase_chirp + phase + rnd_phase
-                        self.pnBuffer[sl][0::2] = (amp_scale * envelope * np.sin(base)).astype(int64)
-                        self.pnBuffer[sl][1::2] = (amp_scale * envelope * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
+                        y1 = (amp_scale * envelope * np.sin(base)).astype(int64)
+                        y2 = (amp_scale * envelope * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
 
                 elif element == 5: # 'SECH/TANH'
                     # at = A*Sech[b*tp*2^(n - 1) ((t - tp/2)/tp)^n]
@@ -4376,12 +4408,14 @@ class Spectrum_M4I_6631_X8:
                     b = pulse_b_sech[index]
                     dx = np.arange(start, start + length) - mid_point
                     envelope = 1 / np.cosh( b * length * 2 ** (pulse_n_wurst[index] - 1) * ( dx / length ) ** pulse_n_wurst[index] )
-                    phase_arg = 2*np.pi*(f_end - f_start) / self.sample_rate / b * np.log( np.cosh( b * dx ) ) / 2 / np.tanh( b * mid_point )
+                    # normalisation uses the relative mid-point (length/2, as in
+                    # Insys_FPGA) so the waveform is independent of the pulse position
+                    phase_arg = 2*np.pi*(f_end - f_start) / self.sample_rate / b * np.log( np.cosh( b * dx ) ) / 2 / np.tanh( b * int( length / 2 ) )
                     carrier = 2*np.pi*freq_cen / self.sample_rate * n
                     base = phase_arg + phase + ph_cor + carrier
 
-                    self.pnBuffer[sl][0::2] = (amp_scale * c * envelope * np.sin(base)).astype(int64)
-                    self.pnBuffer[sl][1::2] = (amp_scale * c * envelope * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
+                    y1 = (amp_scale * c * envelope * np.sin(base)).astype(int64)
+                    y2 = (amp_scale * c * envelope * np.sin(base + self.phase_shift_ch1_seq_mode)).astype(int64)
 
                 elif element == 6: #'TEST'
                     # vectorized version:
@@ -4476,6 +4510,18 @@ class Spectrum_M4I_6631_X8:
                     self.pnBuffer[2*(pulse_middle_point-l_part):2*(pulse_middle_point)][1::2] = (amp - amp * coef2 * np.arange(1, l_part+1) + ph1 ).astype(int64)
                     # linear part up
                     self.pnBuffer[2*(pulse_middle_point):2*(pulse_middle_point+l_part)][1::2] = (amp * coef + amp * coef2 * np.arange(1, l_part+1) + ph1 ).astype(int64)
+
+                # shaped pulses (SINE..SECH/TANH) write through the common tail;
+                # BLANK and TEST waveforms leave y1 as None
+                if y1 is not None:
+                    self.pnBuffer[sl][0::2] = y1
+                    self.pnBuffer[sl][1::2] = y2
+                    if key is not None:
+                        # int16 halves the memory and matches the unsafe cast of the
+                        # int64 -> int16 buffer assignment above
+                        if len(self.waveform_cache) > 1024:
+                            self.waveform_cache.clear()
+                        self.waveform_cache[key] = ( y1.astype(np.int16), y2.astype(np.int16) )
 
             return self.pvBuffer, self.pnBuffer.ctypes.data_as(ptr16) #STANDARD: return self.pvBuffer, self.pnBuffer
     

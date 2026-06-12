@@ -176,8 +176,6 @@ class Insys_FPGA:
             self.current_phase_index_pulser = 0
             self.awg_pulses_pulser = 0
             self.phase_pulses_pulser = 0
-            self.instr_from_file_pulser = 0
-            self.iterator_of_updates_pulser = 0
             # Default synt for AWG channel
             self.synt_number = 2
 
@@ -197,7 +195,6 @@ class Insys_FPGA:
             self.current_phase_index_pulser = 0
             self.awg_pulses_pulser = 0
             self.phase_pulses_pulser = 0
-            self.instr_from_file_pulser = 0
             # Default synt for AWG channel
             self.synt_number = 2
 
@@ -236,9 +233,10 @@ class Insys_FPGA:
             self.test_sample_rate_adc = '2500 MHz'
 
         ####################DAC################################################################################
-        self.is_first_phase_cycle = 1
-        self.dac_buffer_memorized_i = []
-        self.dac_buffer_memorized_q = []
+        # per-pulse waveform cache for the 'Single Joined' DAC buffer, keyed by
+        # all waveform-defining parameters (see define_buffer_single_joined_awg)
+        self.waveform_cache_awg = {}
+        self.cor_version_awg = 0 # bumped on every correction-settings change
 
         if self.test_flag != 'test':
             # Collect all parameters for AWG settings
@@ -1307,8 +1305,6 @@ class Insys_FPGA:
             self.increment_count_pulser = 0
             self.rep_rate_count_pulser = 0
 
-            self.iterator_of_updates_pulser += 1
-
         elif self.test_flag == 'test':
             if not (self.reset_count_pulser == 0 or self.shift_count_pulser == 1
                     or self.increment_count_pulser == 1 or self.rep_rate_count_pulser == 1):
@@ -1622,7 +1618,7 @@ class Insys_FPGA:
                     else:
                         assert(1 == 2), "There is no pulse with the specified name"
 
-    def pulser_pulse_reset(self, *pulses, interal_cycle = 'False'):
+    def pulser_pulse_reset(self, *pulses):
         """
         Reset all pulses to the initial state it was in at the start of the experiment.
         It does not update the pulser, if you want to reset all pulses and and also update 
@@ -1652,10 +1648,6 @@ class Insys_FPGA:
                 self.increment_count_pulser = 0
                 self.shift_count_pulser = 0
                 self.current_phase_index_pulser = 0
-                if interal_cycle == 'False':
-                    self.iterator_of_updates_pulser = 0
-                elif interal_cycle == 'True':
-                    pass
 
             else:
                 set_from_list = set(pulses)
@@ -1670,7 +1662,6 @@ class Insys_FPGA:
                         self.increment_count_pulser = 0
                         self.shift_count_pulser = 0
                         self.current_phase_index_pulser = 0
-                        #self.iterator_of_updates_pulser = 0
 
         elif self.test_flag == 'test':
 
@@ -3082,11 +3073,6 @@ class Insys_FPGA:
         Or the start of the pulses for Single Joined mode.
         The function directly affects the pulse_array.
         """
-        if self.overlap_flag == False:
-            self.is_first_phase_cycle = 0
-        else:
-            self.is_first_phase_cycle = 1
-
         if self.test_flag != 'test':
             self.shift_count_awg = 1
             self.current_phase_index_awg = 0
@@ -3159,7 +3145,6 @@ class Insys_FPGA:
         A function to increment both the length and sigma of the pulses.
         The function directly affects the pulse_array.
         """
-        #self.is_first_phase_cycle = 0
         if self.test_flag != 'test':
             if len(pulses) == 0:
                 i = 0
@@ -3361,7 +3346,6 @@ class Insys_FPGA:
         It does not update the AWG card, if you want to reset all pulses and and also update 
         the AWG card use the function awg_reset() instead.
         """
-        #self.is_first_phase_cycle = 0
         if self.test_flag != 'test':
             
             if len(pulses) == 0:
@@ -3573,6 +3557,7 @@ class Insys_FPGA:
         self.q_awg = float(q_factor)
         self.phase_cor_awg = 1 if phase_correction == 'True' else 0
         self.cor_enable_awg = 1
+        self.cor_version_awg += 1
 
         # in MHz
         # limit minimum B1
@@ -3584,6 +3569,7 @@ class Insys_FPGA:
     def awg_correction_off(self):
         """Disable resonator-profile correction (swept pulses sent as programmed)."""
         self.cor_enable_awg = 0
+        self.cor_version_awg += 1
 
     def awg_resonator_correction(self, length, x_mean, pulse_start, f_start, f_end, pulse_amp):
         """Per-sample amplitude (c) and phase (ph_cor) predistortion for one swept pulse.
@@ -3832,6 +3818,23 @@ class Insys_FPGA:
             
         return BufTot
 
+    def time_to_ticks_pulser(self, time_str):
+        """
+        Convert a '<float> <unit>' time string to pulser clock ticks
+        (3.2 ns grid, ceil-rounded). The unit is taken from the last two
+        characters ('ns' / 'us' / 'ms'), replicating the historical
+        suffix parsing of convertion_to_numpy_pulser()
+        """
+        unit = time_str[-2:]
+        if unit == 'ns':
+            return int( ceil(round( float(time_str[:-3]) / self.timebase_pulser, 1) ) )
+        elif unit == 'us':
+            return int( ceil(round( float(time_str[:-3]) * 1000 / self.timebase_pulser, 1) ) )
+        elif unit == 'ms':
+            return int( ceil(round( float(time_str[:-3]) * 1000000 / self.timebase_pulser, 1) ) )
+        elif unit == 's':
+            return int( ceil(round( float(time_str[:-3]) * 1000000000 / self.timebase_pulser, 1) ) )
+
     def convertion_to_numpy_pulser(self, p_array):
         """
         Convertion of the pulse_array_pulser into numpy array in the form of
@@ -3862,14 +3865,7 @@ class Insys_FPGA:
                     st = self.change_pulse_settings_pulser(p_array[i]['start'], -self.rect_awg_switch_delay_pulser)
                     self.awg_pulses_pulser = 1
 
-                if st[-2:] == 'ns':
-                    st_time = int( ceil(round( float(st[:-3]) / self.timebase_pulser, 1) ) )
-                elif st[-2:] == 'us':
-                    st_time = int( ceil(round( float(st[:-3]) * 1000 / self.timebase_pulser, 1) ) )
-                elif st[-2:] == 'ms':
-                    st_time = int( ceil(round( float(st[:-3]) * 1000000 / self.timebase_pulser, 1) ) )
-                elif st[-2:] == 's':
-                    st_time = int( ceil(round( float(st[:-3]) * 1000000000 / self.timebase_pulser, 1) ) )
+                st_time = self.time_to_ticks_pulser(st)
                 
                 # get length
                 #mod
@@ -3880,36 +3876,12 @@ class Insys_FPGA:
                     leng = self.change_pulse_settings_pulser(p_array[i]['length'], self.rect_awg_switch_delay_pulser + self.rect_awg_delay_pulser)
                     self.awg_pulses_pulser = 1
 
-                if leng[-2:] == 'ns':
-                    leng_time = int( ceil(round( float(leng[:-3]) / self.timebase_pulser, 1) ) )
-                elif leng[-2:] == 'us':
-                    leng_time = int( ceil(round( float(leng[:-3]) * 1000 / self.timebase_pulser, 1) ) )
-                elif leng[-2:] == 'ms':
-                    leng_time = int( ceil(round( float(leng[:-3]) * 1000000 / self.timebase_pulser, 1) ) )
-                elif leng[-2:] == 's':
-                    leng_time = int( ceil(round( float(leng[:-3]) * 1000000000 / self.timebase_pulser, 1) ) )
+                leng_time = self.time_to_ticks_pulser(leng)
 
-                # get delta start
-                del_st = p_array[i]['delta_start']
-                if del_st[-2:] == 'ns':
-                    delta_start = int( ceil(round( float(del_st[:-3]) / self.timebase_pulser, 1) ) )
-                elif del_st[-2:] == 'us':
-                    delta_start = int( ceil(round( float(del_st[:-3]) * 1000 / self.timebase_pulser, 1) ) )
-                elif del_st[-2:] == 'ms':
-                    delta_start = int( ceil(round( float(leng[:-3]) * 1000000 / self.timebase_pulser, 1) ) )
-                elif del_st[-2:] == 's':
-                    delta_start = int( ceil(round( float(del_st[:-3]) * 1000000000 / self.timebase_pulser, 1) ) )
-
-                # get length_increment
-                len_in = p_array[i]['length_increment']
-                if len_in[-2:] == 'ns':
-                    length_increment = int( ceil(round( float(len_in[:-3]) / self.timebase_pulser, 1) ) )
-                elif len_in[-2:] == 'us':
-                    length_increment = int( ceil(round( float(len_in[:-3]) * 1000 / self.timebase_pulser, 1) ) )
-                elif len_in[-2:] == 'ms':
-                    length_increment = int( ceil(round( float(len_in[:-3]) * 1000000 / self.timebase_pulser, 1) ) )
-                elif len_in[-2:] == 's':
-                    length_increment = int( ceil(round( float(len_in[:-3]) * 1000000000 / self.timebase_pulser, 1) ) )
+                # delta_start and length_increment are not part of the
+                # [channel, start, end] rows built below, so they are
+                # intentionally not parsed here (they used to be parsed
+                # and discarded)
 
                 # creating converted array
                 # in terms of bits the number of channel is 2**(ch_num - 1)
@@ -3941,14 +3913,7 @@ class Insys_FPGA:
                     st = self.change_pulse_settings_pulser(p_array[i]['start'], -self.rect_awg_switch_delay_pulser)
                     self.awg_pulses_pulser = 1
 
-                if st[-2:] == 'ns':
-                    st_time = int( ceil(round( float(st[:-3]) / self.timebase_pulser, 1) ) )
-                elif st[-2:] == 'us':
-                    st_time = int( ceil(round( float(st[:-3]) * 1000 / self.timebase_pulser, 1) ) )
-                elif st[-2:] == 'ms':
-                    st_time = int( ceil(round( float(st[:-3]) * 1000000 / self.timebase_pulser, 1) ) )
-                elif st[-2:] == 's':
-                    st_time = int( ceil(round( float(st[:-3]) * 1000000000 / self.timebase_pulser, 1) ) )
+                st_time = self.time_to_ticks_pulser(st)
 
                 # get length
                 #mod
@@ -3959,38 +3924,12 @@ class Insys_FPGA:
                     leng = self.change_pulse_settings_pulser(p_array[i]['length'], self.rect_awg_switch_delay_pulser + self.rect_awg_delay_pulser)
                     self.awg_pulses_pulser = 1
 
-                if leng[-2:] == 'ns':
-                    leng_time = int( ceil(round( float(leng[:-3]) / self.timebase_pulser, 1) ) )
-                elif leng[-2:] == 'us':
-                    leng_time = int( ceil(round( float(leng[:-3]) * 1000 / self.timebase_pulser, 1) ) )
-                elif leng[-2:] == 'ms':
-                    leng_time = int( ceil(round( float(leng[:-3]) * 1000000 / self.timebase_pulser, 1) ) )
-                elif leng[-2:] == 's':
-                    leng_time = int( ceil(round( float(leng[:-3]) * 1000000000 / self.timebase_pulser, 1) ) )
+                leng_time = self.time_to_ticks_pulser(leng)
 
-                # get delta start
-                del_st = p_array[i]['delta_start']
-
-                if del_st[-2:] == 'ns':
-                    delta_start = int( ceil(round( float(del_st[:-3]) / self.timebase_pulser, 1) ) )
-                elif del_st[-2:] == 'us':
-                    delta_start = int( ceil(round( float(del_st[:-3]) * 1000 / self.timebase_pulser, 1) ) )
-                elif del_st[-2:] == 'ms':
-                    delta_start = int( ceil(round( float(del_st[:-3]) * 1000000 / self.timebase_pulser, 1) ) )
-                elif del_st[-2:] == 's':
-                    delta_start = int( ceil(round( float(del_st[:-3]) * 1000000000 / self.timebase_pulser, 1) ) )
-
-                # get length_increment
-                len_in = p_array[i]['length_increment']
-
-                if len_in[-2:] == 'ns':
-                    length_increment = int( ceil(round( float(len_in[:-3]) / self.timebase_pulser, 1) ) )
-                elif len_in[-2:] == 'us':
-                    length_increment = int( ceil(round( float(len_in[:-3]) * 1000 / self.timebase_pulser, 1) ) )
-                elif len_in[-2:] == 'ms':
-                    length_increment = int( ceil(round( float(len_in[:-3]) * 1000000 / self.timebase_pulser, 1) ) )
-                elif len_in[-2:] == 's':
-                    length_increment = int( ceil(round( float(len_in[:-3]) * 1000000000 / self.timebase_pulser, 1) ) )
+                # delta_start and length_increment are not part of the
+                # [channel, start, end] rows built below, so they are
+                # intentionally not parsed here (they used to be parsed
+                # and discarded)
 
                 # creating converted array
                 # in terms of bits the number of channel is 2**(ch_num - 1)
@@ -4259,13 +4198,13 @@ class Insys_FPGA:
         It is used when we deal with AMP_ON and LNA_PROTECT pulses
         with less than 12 ns distance
         """
-        if self.test_flag != 'test':
-            no_duplicate_array = np.unique(np_array, axis = 0)
-            return no_duplicate_array
-
-        elif self.test_flag == 'test':
-            no_duplicate_array = np.unique(np_array, axis = 0)
-            return no_duplicate_array
+        rows = np.asarray(np_array)
+        if len(rows) == 0:
+            return np.unique(rows, axis = 0)
+        # np.unique(..., axis = 0) sorts rows lexicographically; for the
+        # small arrays used here a Python set + sort is much faster and
+        # gives the identical result
+        return np.asarray(sorted(set(map(tuple, rows.tolist()))), dtype = np.int64)
 
     def preparing_to_bit_pulse_pulser(self, np_array):
         """
@@ -4390,16 +4329,21 @@ class Insys_FPGA:
                         # get assertion error if the distance < 40 ns
 
                 # combine all pulses
-                #np.concatenate( (self.convertion_to_numpy_pulser( self.pulse_array_pulser ), cor_pulses_amp_final, cor_pulses_lna_final), axis = None)
+                # split_pulse_array already contains the extended RECT_AWG
+                # pulses; sorting the MW / AWG groups and flattening it is
+                # equivalent to self.extending_rect_awg_pulser( self.pulse_array_pulser )
+                # but avoids re-parsing the whole pulse array
+                extended = [ self.check_problem_pulses_pulser(element) \
+                    if ( element[0, 0] == 2**self.channel_dict_pulser['MW'] or element[0, 0] == 2**self.channel_dict_pulser['AWG'] ) \
+                    else element for element in split_pulse_array ]
                 try:
-                    raw = np.row_stack( (self.extending_rect_awg_pulser( self.pulse_array_pulser ), cor_pulses_amp_final, cor_pulses_lna_final))
+                    raw = np.row_stack( (np.asarray(list(chain(*extended))), cor_pulses_amp_final, cor_pulses_lna_final))
                     answer = self.process_and_merge_rect_awg(raw, target_channel=128, gap_threshold=75)
                     return answer
 
                 # when we do not MW pulses at all
                 except UnboundLocalError:
-                    #return self.convertion_to_numpy_pulser( self.pulse_array_pulser )
-                    return self.extending_rect_awg_pulser( self.pulse_array_pulser )
+                    return np.asarray(list(chain(*extended)))
 
         elif self.test_flag == 'test':
             if self.auto_defense_pulser == 'False':
@@ -4507,14 +4451,21 @@ class Insys_FPGA:
                         self.check_problem_pulses_pulser(element)
 
                 # combine all pulses
-                #np.concatenate( (self.convertion_to_numpy_pulser( self.pulse_array_pulser ), cor_pulses_amp_final, cor_pulses_lna_final), axis = None) 
+                # split_pulse_array already contains the extended RECT_AWG
+                # pulses; sorting the MW / AWG / TRIGGER_AWG groups and
+                # flattening it is equivalent to
+                # self.extending_rect_awg_pulser( self.pulse_array_pulser )
+                extended = [ self.check_problem_pulses_pulser(element) \
+                    if ( element[0, 0] == 2**self.channel_dict_pulser['MW'] or element[0, 0] == 2**self.channel_dict_pulser['AWG'] \
+                         or element[0, 0] == 2**self.channel_dict_pulser['TRIGGER_AWG'] ) \
+                    else element for element in split_pulse_array ]
                 try:
-                    raw = np.row_stack( (self.extending_rect_awg_pulser( self.pulse_array_pulser ), cor_pulses_amp_final, cor_pulses_lna_final))
+                    raw = np.row_stack( (np.asarray(list(chain(*extended))), cor_pulses_amp_final, cor_pulses_lna_final))
                     answer = self.process_and_merge_rect_awg(raw, target_channel=128, gap_threshold=75)
                     return answer
 
                 except UnboundLocalError:
-                    return self.extending_rect_awg_pulser( self.pulse_array_pulser )
+                    return np.asarray(list(chain(*extended)))
 
     def split_into_parts_pulser(self, np_array, rep_time):
         """
@@ -4536,12 +4487,9 @@ class Insys_FPGA:
             sorted_arrays_parts = np.split(sorted_pulses_start, index_jump + 1)
 
             for index, element in enumerate(sorted_arrays_parts):
-                temp, min_value = self.convert_to_bit_pulse_pulser(element)
+                instructions, min_value = self.instructions_from_part_pulser(element)
 
-                ###??????
-                temp = np.concatenate((np.array([0]), temp), axis=None)
-
-                answer.append(self.instruction_pulse_pulser(temp))
+                answer.append(instructions)
                 # keep them all for further shifting
                 min_list.append(min_value)
             # at this point we have different array for different interval:
@@ -4601,10 +4549,9 @@ class Insys_FPGA:
             sorted_arrays_parts = np.split(sorted_pulses_start, index_jump + 1)
 
             for index, element in enumerate(sorted_arrays_parts):
-                temp, min_value = self.convert_to_bit_pulse_pulser(element)
-                temp = np.concatenate((np.array([0]), temp), axis=None)
+                instructions, min_value = self.instructions_from_part_pulser(element)
 
-                answer.append(self.instruction_pulse_pulser(temp))
+                answer.append(instructions)
                 # keep them all for further shifting
                 min_list.append(min_value)
 
@@ -4640,6 +4587,58 @@ class Insys_FPGA:
                 return one_array
             else:
                 assert(1 == 2), 'Pulse sequence is longer than one period of the repetition rate'             
+
+    def instructions_from_part_pulser(self, np_array):
+        """
+        Event-based replacement for the convert_to_bit_pulse_pulser() +
+        leading-zero prepend + instruction_pulse_pulser() sequence used in
+        split_into_parts_pulser(), producing exactly the same instruction
+        list without materializing the per-clock-tick bit array.
+
+        The output word in every time interval is the bitwise OR of the
+        channel bits of all pulses covering that interval; instructions
+        are the maximal intervals of constant output word, including
+        zero-word gaps. As in the original code one extra zero tick is
+        prepended in front of the part.
+        Returns (final_pulse_array, min_pulse) where final_pulse_array is
+        a list of [output_word, start, length] instructions in clock
+        ticks and min_pulse is the start of the part in clock ticks
+        """
+        part = np_array if isinstance(np_array, list) else np_array.tolist()
+        starts = [p[1] for p in part]
+        ends = [p[2] for p in part]
+        max_pulse = max(ends)
+        min_pulse = min(starts) - self.add_shift_pulser
+
+        # boundaries of the intervals on which the output word is constant;
+        # (min_pulse - 1) accounts for the prepended zero tick and the last
+        # boundary is always max_pulse (the largest pulse end)
+        boundaries = [min_pulse - 1] + sorted(set(starts).union(ends, (min_pulse,)))
+
+        # output word on [boundaries[k], boundaries[k+1]): bitwise OR of
+        # channel bits of all pulses covering the left edge
+        words = []
+        for k in range(len(boundaries) - 1):
+            left_edge = boundaries[k]
+            word = 0
+            for p in part:
+                if p[1] <= left_edge < p[2]:
+                    word |= p[0]
+            words.append(word)
+
+        # merge adjacent intervals with equal output word and convert
+        # to [output_word, start, length] instructions
+        final_pulse_array = []
+        seg_start = boundaries[0]
+        prev_word = words[0]
+        for k in range(1, len(words)):
+            if words[k] != prev_word:
+                final_pulse_array.append( [prev_word, seg_start - boundaries[0], boundaries[k] - seg_start] )
+                seg_start = boundaries[k]
+                prev_word = words[k]
+        final_pulse_array.append( [prev_word, seg_start - boundaries[0], max_pulse - seg_start] )
+
+        return final_pulse_array, min_pulse
 
     def convert_to_bit_pulse_pulser(self, np_array):
         """
@@ -5049,69 +5048,36 @@ class Insys_FPGA:
         Returns both specified parts for further convertion in shich problematic part
         are joined using check_short_pulses_pulser() and joining_pulses_pulser()
         """
-        if self.test_flag != 'test':
-            if self.auto_defense_pulser == 'False':
-                pass
-            elif self.auto_defense_pulser == 'True':
-                problem_list = []
-                # memorize index of problem elements
-                problem_index = []
-                # numpy arrays don't support element deletion
-                no_problem_list = deepcopy(p_list.tolist())
+        if self.auto_defense_pulser == 'False':
+            pass
+        elif self.auto_defense_pulser == 'True':
+            rows = p_list.tolist()
+            problem_list = []
+            # memorize index of problem elements
+            problem_index = set()
 
-                # there STILL can be errors
-                # now compare two pulses with I and I+2 indexes, since there are two pulses SHAPER and AMP_ON; LNA_PROTECT and VIDEO_PROTECT
-                # (end and start + 1)
-                for index, element in enumerate(p_list[:-1]):
+            # there STILL can be errors
+            # now compare two consequent pulses (end and start + 1)
+            for index in range(len(rows) - 1):
+                # minimal_distance_amp_lna_pulser is 0 ns now
+                if rows[index + 1][1] - rows[index][2] < self.minimal_distance_amp_lna_pulser:
+                    problem_list.append(rows[index])
+                    problem_list.append(rows[index + 1])
+                    # memorize indexes of the problem pulses
+                    problem_index.add(index)
+                    problem_index.add(index + 1)
 
-                    # minimal_distance_amp_lna_pulser is 0 ns now
-                    if p_list[index + 1][1] - element[2] < self.minimal_distance_amp_lna_pulser:
-                        problem_list.append(element)
-                        problem_list.append(p_list[index + 1])
-                        # memorize indexes of the problem pulses
-                        problem_index.append(index)
-                        problem_index.append(index + 1)
+            # delete problem pulses from no_problem_list
+            no_problem_list = [row for index, row in enumerate(rows) if index not in problem_index]
 
-                # delete duplicates in the index list: list(dict.fromkeys(problem_index)) )
-                # delete problem pulses from no_problem_list
-                # np.delete( no_problem_list, list(dict.fromkeys(problem_index)), axis = 0 ).tolist() )
-                no_problem_list = np.delete( no_problem_list, list(dict.fromkeys(problem_index)), axis = 0 ).tolist()
-
-                # for not returning an empty list
-                # the same conditions are used in preparing_to_bit_pulse_pulser()
-                if len(problem_list) == 0:
-                    return self.delete_duplicates_pulser(np.asarray(no_problem_list)), np.array([[0]])
-                elif len(no_problem_list) == 0:
-                    return np.array([[0]]), self.delete_duplicates_pulser(np.asarray(problem_list))
-                else:
-                    return self.delete_duplicates_pulser(np.asarray(no_problem_list)), self.delete_duplicates_pulser(np.asarray(problem_list))
-
-        elif self.test_flag == 'test':
-            if self.auto_defense_pulser == 'False':
-                pass
-            elif self.auto_defense_pulser == 'True':            
-                problem_list = []
-                problem_index = []
-                # numpy arrays don't support element deletion
-                no_problem_list = deepcopy(p_list.tolist())
-
-                for index, element in enumerate(p_list[:-1]):
-                    # minimal_distance_amp_lna_pulser is 0 ns now
-                    if p_list[index + 1][1] - element[2] < (self.minimal_distance_amp_lna_pulser):
-                        problem_list.append(element)
-                        problem_list.append(p_list[index + 1])
-                        # memorize indexes of the problem pulses
-                        problem_index.append(index)
-                        problem_index.append(index + 1)
-
-                no_problem_list = np.delete( no_problem_list, list(dict.fromkeys(problem_index)), axis = 0 ).tolist()
-
-                if len(problem_list) == 0:
-                    return self.delete_duplicates_pulser(np.asarray(no_problem_list)), np.array([[0]])
-                elif len(no_problem_list) == 0:
-                    return np.array([[0]]), self.delete_duplicates_pulser(np.asarray(problem_list))
-                else:
-                    return self.delete_duplicates_pulser(np.asarray(no_problem_list)), self.delete_duplicates_pulser(np.asarray(problem_list))
+            # for not returning an empty list
+            # the same conditions are used in preparing_to_bit_pulse_pulser()
+            if len(problem_list) == 0:
+                return self.delete_duplicates_pulser(np.asarray(no_problem_list)), np.array([[0]])
+            elif len(no_problem_list) == 0:
+                return np.array([[0]]), self.delete_duplicates_pulser(np.asarray(problem_list))
+            else:
+                return self.delete_duplicates_pulser(np.asarray(no_problem_list)), self.delete_duplicates_pulser(np.asarray(problem_list))
 
     def convert_to_bit_pulse_amp_lna_pulser(self, p_list, channel):
         """
@@ -5546,210 +5512,211 @@ class Insys_FPGA:
         #general.message_test(tr_awg_array)
         # TRIGGER_AWG pulses: [[   1,   0, 400], [   1, 400, 456], [   1, 680, 700], [   1,2760,2816]]
 
-        if (self.is_first_phase_cycle == 1) or (self.overlap_flag == True):
+        pulses = self.preparing_buffer_single_awg() # 0.2-0.3 ms
+        # only ch0 pulses are analyzed
+        # ch1 will be generated automatically with shifted phase
+        arguments_array = [[], [], [], [], [], [], [], [], [], []]
+        for element in pulses[0]:
+            # collect arguments in special array for further handling
+            arguments_array[0].append(int(element[1]))     #   0    type; 0 is SINE; 1 is GAUSS; 2 is SINC; 3 is BLANK, 4 is WURST, 5 is SECH/TANH
+            arguments_array[1].append(element[6])          #   1    start
+            arguments_array[2].append(element[7])          #   2    delta_start
+            arguments_array[3].append(element[4])          #   3    length
+            arguments_array[4].append(element[3])          #   4    phase
+            arguments_array[5].append(element[5])          #   5    sigma
+            arguments_array[6].append(element[2])          #   6    frequency
+            arguments_array[7].append(element[8])          #   8    amp coefficient
+            arguments_array[8].append(element[9])          #   9    n
+            arguments_array[9].append(element[10])         #   10   b
 
-            pulses = self.preparing_buffer_single_awg() # 0.2-0.3 ms
-            # only ch0 pulses are analyzed
-            # ch1 will be generated automatically with shifted phase
-            arguments_array = [[], [], [], [], [], [], [], [], [], []]
-            for element in pulses[0]:
-                # collect arguments in special array for further handling
-                arguments_array[0].append(int(element[1]))     #   0    type; 0 is SINE; 1 is GAUSS; 2 is SINC; 3 is BLANK, 4 is WURST, 5 is SECH/TANH
-                arguments_array[1].append(element[6])          #   1    start
-                arguments_array[2].append(element[7])          #   2    delta_start
-                arguments_array[3].append(element[4])          #   3    length
-                arguments_array[4].append(element[3])          #   4    phase
-                arguments_array[5].append(element[5])          #   5    sigma
-                arguments_array[6].append(element[2])          #   6    frequency
-                arguments_array[7].append(element[8])          #   8    amp coefficient
-                arguments_array[8].append(element[9])          #   9    n
-                arguments_array[9].append(element[10])         #   10   b
+        # convert everything in samples
+        pulse_phase_np        = np.asarray(arguments_array[4])
+        pulse_start_smp       = (np.asarray(arguments_array[1])).astype('int64')
+        pulse_delta_start_smp = (np.asarray(arguments_array[2])).astype('int64')
+        pulse_length_smp      = (np.asarray(arguments_array[3])).astype('int64')
+        pulse_sigma_smp       = np.asarray(arguments_array[5])
+        pulse_frequency       = np.asarray(arguments_array[6], dtype=object)
+        pulse_amp             = np.asarray(arguments_array[7])
+        pulse_n_wurst         = np.asarray(arguments_array[8])
+        pulse_b_sech          = np.asarray(arguments_array[9])
 
-            # convert everything in samples 
-            pulse_phase_np        = np.asarray(arguments_array[4])
-            pulse_start_smp       = (np.asarray(arguments_array[1])).astype('int64')
-            pulse_delta_start_smp = (np.asarray(arguments_array[2])).astype('int64')
-            pulse_length_smp      = (np.asarray(arguments_array[3])).astype('int64')
-            pulse_sigma_smp       = np.asarray(arguments_array[5])
-            pulse_frequency       = np.asarray(arguments_array[6], dtype=object)
-            pulse_amp             = np.asarray(arguments_array[7])
-            pulse_n_wurst         = np.asarray(arguments_array[8])
-            pulse_b_sech          = np.asarray(arguments_array[9])
+        # for ch1 phase is automatically shifted by self.phase_shift_ch1_seq_mode_awg
+        norm_c = self.maxCAD_awg / self.amplitude_max_awg  # 32767 - 260 mV MAX
 
-            #_start = pulse_start_smp
-            #_end   = pulse_start_smp + pulse_length_smp 
-            #self.list_start_end = np.array([_start, _end]).T
+        total_samples = np.sum(pulse_length_smp)
+        channel_1 = np.zeros(total_samples, dtype=np.int16)
+        channel_2 = np.zeros(total_samples, dtype=np.int16)
+        current_pos = 0
 
-            last_pulse_length = pulse_length_smp[-1]
-            last_start = pulse_start_smp[-1]
+        for index, element in enumerate(arguments_array[0]):
 
-            # define buffer differently for only one or two channels enabled
-            # for ch1 phase is automatically shifted by self.phase_shift_ch1_seq_mode_awg
-            #channel_1 = np.array([], dtype = np.int16)
-            #channel_2 = np.array([], dtype = np.int16)
+            length = int(pulse_length_smp[index])
 
-            norm_c = self.maxCAD_awg / self.amplitude_max_awg  # 32767 - 260 mV MAX
+            # A pulse's waveform does not depend on its position in the packed
+            # buffer, but across phase cycling / delay sweeps the same samples
+            # are recomputed on every rebuild. Cache the waveforms keyed by all
+            # waveform-defining parameters and paste at the current position;
+            # any parameter change gives a new key, so a stale entry is never
+            # served. Overlap merging (post_process_overlap) runs downstream on
+            # the freshly assembled buffer every call, so caching stays valid
+            # for overlapping TRIGGER_AWG windows as well.
+            key = None
+            if element in (0, 1, 2, 4, 5):
+                freq = pulse_frequency[index]
+                freq_key = tuple(freq) if isinstance(freq, (list, tuple, np.ndarray)) else float(freq)
+                key = (element, length, float(pulse_phase_np[index]), freq_key, float(pulse_sigma_smp[index]), \
+                       float(pulse_amp[index]), float(pulse_n_wurst[index]), float(pulse_b_sech[index]), \
+                       self.sample_rate_awg, self.amplitude_0_awg, self.amplitude_1_awg, self.cor_version_awg)
+                cached = self.waveform_cache_awg.get(key)
+                if cached is not None:
+                    channel_1[current_pos : current_pos + length] = cached[0]
+                    channel_2[current_pos : current_pos + length] = cached[1]
+                    current_pos += length
+                    continue
 
-            total_samples = np.sum(pulse_length_smp)
-            channel_1 = np.zeros(total_samples, dtype=np.int16)
-            channel_2 = np.zeros(total_samples, dtype=np.int16)
-            current_pos = 0
+            y1 = y2 = None
+            if element == 0:  # 'SINE'
+                n = np.arange(length)
+                phase_arg = 2 * np.pi * n * pulse_frequency[index] / self.sample_rate_awg
 
-            #general.message( pulse_length_smp % 4 )
+                y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index] *
+                      np.sin(phase_arg + pulse_phase_np[index]))
+                y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index] *
+                      np.sin(phase_arg + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg))
 
-            for index, element in enumerate(arguments_array[0]):
-                
-                if element == 0:  # 'SINE'
-                    length = int(pulse_length_smp[index])
-                    n = np.arange(length)
-                    phase_arg = 2 * np.pi * n * pulse_frequency[index] / self.sample_rate_awg
-                    
-                    y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index] * 
-                          np.sin(phase_arg + pulse_phase_np[index]))
-                    y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index] * 
-                          np.sin(phase_arg + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg))
+            elif element == 1: # GAUSS
+                sigma = pulse_sigma_smp[index]
+                x_mean = length / 2
+                n = np.arange(length)
 
-                    channel_1[current_pos : current_pos + length] = np.round(y1).astype(np.int16)
-                    channel_2[current_pos : current_pos + length] = np.round(y2).astype(np.int16)
-                
-                elif element == 1: # GAUSS
-                    length = int(pulse_length_smp[index])
-                    sigma = pulse_sigma_smp[index]
-                    x_mean = length / 2
-                    n = np.arange(length)
-                    
-                    phase_arg = 2 * np.pi * n * pulse_frequency[index] / self.sample_rate_awg
-                    envelope = np.exp(-0.5 * ((n - x_mean) / sigma)**2)
-                    
-                    y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index] * 
-                          np.sin(phase_arg + pulse_phase_np[index]) * envelope)
-                    y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index] * 
-                          np.sin(phase_arg + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg) * envelope)
-                    
-                    channel_1[current_pos : current_pos + length] = np.round(y1).astype(np.int16)
-                    channel_2[current_pos : current_pos + length] = np.round(y2).astype(np.int16)
-                    
-                elif element == 2: # SINC
-                    length = int(pulse_length_smp[index])
-                    sigma = pulse_sigma_smp[index]
-                    x_mean = length / 2
-                    
-                    n = np.arange(length)
-                    
-                    phase_arg = 2 * np.pi * n * pulse_frequency[index] / self.sample_rate_awg
-                    envelope = np.sinc(2 * (n - x_mean) / sigma)
+                phase_arg = 2 * np.pi * n * pulse_frequency[index] / self.sample_rate_awg
+                envelope = np.exp(-0.5 * ((n - x_mean) / sigma)**2)
 
-                    amp_scale_0 = norm_c * self.amplitude_0_awg / pulse_amp[index]
-                    amp_scale_1 = norm_c * self.amplitude_1_awg / pulse_amp[index]
+                y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index] *
+                      np.sin(phase_arg + pulse_phase_np[index]) * envelope)
+                y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index] *
+                      np.sin(phase_arg + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg) * envelope)
 
-                    y1 = amp_scale_0 * np.sin(phase_arg + pulse_phase_np[index]) * envelope
-                    y2 = amp_scale_1 * np.sin(phase_arg + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg) * envelope
-                    
-                    channel_1[current_pos : current_pos + length] = np.round(y1).astype(np.int16)
-                    channel_2[current_pos : current_pos + length] = np.round(y2).astype(np.int16)
-                    
-                elif element == 3: # BLANK
-                    pass
+            elif element == 2: # SINC
+                sigma = pulse_sigma_smp[index]
+                x_mean = length / 2
 
-                elif element == 4: # WURST
-                    # at = A*( 1 - abs( sin(pi*(t-tp/2)/tp) )^n )
-                    # ph = 2*pi*(Fstr*t + 0.5*( Ffin - Fstr )*t^2/tp )
-                    # WURST = at*sin(ph + phase_0)
-                    length = int(pulse_length_smp[index])
-                    n_wurst = pulse_n_wurst[index]
-                    f_start = pulse_frequency[index][0]
-                    f_end = pulse_frequency[index][1]
+                n = np.arange(length)
 
-                    x_mean = length / 2
+                phase_arg = 2 * np.pi * n * pulse_frequency[index] / self.sample_rate_awg
+                envelope = np.sinc(2 * (n - x_mean) / sigma)
 
-                    # resonator-profile predistortion (measured or ideal RLC); c is
-                    # the per-sample amplitude factor, ph_cor the phase correction.
-                    c, ph_cor = self.awg_resonator_correction(length, x_mean,
-                        pulse_start_smp[index], f_start, f_end, pulse_amp[index])
-                    #general.plot_1d( 'C', np.arange(0, length ), np.atleast_1d(c) )
+                amp_scale_0 = norm_c * self.amplitude_0_awg / pulse_amp[index]
+                amp_scale_1 = norm_c * self.amplitude_1_awg / pulse_amp[index]
 
-                    n = np.arange(length)
-                    envelope = (1 - np.abs(np.sin(np.pi * (n - length/2) / length))**n_wurst) * c
+                y1 = amp_scale_0 * np.sin(phase_arg + pulse_phase_np[index]) * envelope
+                y2 = amp_scale_1 * np.sin(phase_arg + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg) * envelope
 
-                    t = n / self.sample_rate_awg
-                    T_p = length / self.sample_rate_awg
+            elif element == 3: # BLANK
+                pass
 
-                    phase_chirp = 2 * np.pi * (f_start * t + 0.5 * (f_end - f_start) / T_p * t**2)
+            elif element == 4: # WURST
+                # at = A*( 1 - abs( sin(pi*(t-tp/2)/tp) )^n )
+                # ph = 2*pi*(Fstr*t + 0.5*( Ffin - Fstr )*t^2/tp )
+                # WURST = at*sin(ph + phase_0)
+                n_wurst = pulse_n_wurst[index]
+                f_start = pulse_frequency[index][0]
+                f_end = pulse_frequency[index][1]
 
-                    common_phase = phase_chirp + pulse_phase_np[index] + ph_cor
+                x_mean = length / 2
 
-                    y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index] *
-                          envelope * np.sin(common_phase))
-                    y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index] *
-                          envelope * np.sin(common_phase + self.phase_shift_ch1_seq_mode_awg))
+                # resonator-profile predistortion (measured or ideal RLC); c is
+                # the per-sample amplitude factor, ph_cor the phase correction.
+                # The ABSOLUTE mid-point is passed so that the frequency axis
+                # inside the helper (x_mean - pulse_start = length/2) does not
+                # depend on the pulse position (as in Spectrum_M4I_6631_X8).
+                c, ph_cor = self.awg_resonator_correction(length, pulse_start_smp[index] + x_mean,
+                    pulse_start_smp[index], f_start, f_end, pulse_amp[index])
+                #general.plot_1d( 'C', np.arange(0, length ), np.atleast_1d(c) )
 
-                    channel_1[current_pos : current_pos + length] = np.round(y1).astype(np.int16)
-                    channel_2[current_pos : current_pos + length] = np.round(y2).astype(np.int16)
-                
-                elif element == 5: # 'SECH/TANH'
-                    # mid_point for GAUSS and SINC and WURST and SECH/TANH
-                    # at = A*Sech[b*tp*2^(n - 1) ((t - tp/2)/tp)^n]
-                    # ph = 2*Pi*bw/b*Log[Cosh[b*(t - tp/2)]]/2/Tanh[b*tp/2]
-                    # SECH = at*sin(ph + phase_0)
-                    length = int(pulse_length_smp[index])
-                    x_mean = int( length / 2 )
+                n = np.arange(length)
+                envelope = (1 - np.abs(np.sin(np.pi * (n - length/2) / length))**n_wurst) * c
 
-                    f_start = pulse_frequency[index][0]
-                    f_end = pulse_frequency[index][1]
-                    # resonator-profile predistortion (measured or ideal RLC)
-                    c, ph_cor = self.awg_resonator_correction(length, x_mean,
-                        pulse_start_smp[index], f_start, f_end, pulse_amp[index])
-                    #general.plot_1d( 'C', np.arange(0, length ), np.atleast_1d(c) )
+                t = n / self.sample_rate_awg
+                T_p = length / self.sample_rate_awg
 
-                    b = pulse_b_sech[index]
-                    n = pulse_n_wurst[index]
-                    bw = (pulse_frequency[index][1] - pulse_frequency[index][0]) / self.sample_rate_awg
+                phase_chirp = 2 * np.pi * (f_start * t + 0.5 * (f_end - f_start) / T_p * t**2)
 
-                    xs = np.arange(length)
-                    dx = xs - x_mean
+                common_phase = phase_chirp + pulse_phase_np[index] + ph_cor
 
-                    env_arg = (b * x_mean * 2**(n - 1)) * (np.abs(dx) / length)**n
-                    envelope = (1.0 / np.cosh(env_arg)) * c
+                y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index] *
+                      envelope * np.sin(common_phase))
+                y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index] *
+                      envelope * np.sin(common_phase + self.phase_shift_ch1_seq_mode_awg))
 
-                    norm_factor = 2 * np.tanh(b * x_mean)
-                    phase_arg = (bw / b) * np.log(np.cosh(b * dx)) / norm_factor
-                    # carrier offset: centre the sweep on (f_start+f_end)/2 like WURST
-                    center_freq = (pulse_frequency[index][0] + pulse_frequency[index][1]) / 2
-                    phase_carrier = 2 * np.pi * center_freq / self.sample_rate_awg * xs
-                    total_phase = 2 * np.pi * phase_arg + phase_carrier + pulse_phase_np[index] + ph_cor
-                    
-                    y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index]) * envelope * np.sin(total_phase)
-                    y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index]) * envelope * np.sin(total_phase + self.phase_shift_ch1_seq_mode_awg)
+            elif element == 5: # 'SECH/TANH'
+                # mid_point for GAUSS and SINC and WURST and SECH/TANH
+                # at = A*Sech[b*tp*2^(n - 1) ((t - tp/2)/tp)^n]
+                # ph = 2*Pi*bw/b*Log[Cosh[b*(t - tp/2)]]/2/Tanh[b*tp/2]
+                # SECH = at*sin(ph + phase_0)
+                x_mean = int( length / 2 )
 
-                    channel_1[current_pos : current_pos + length] = np.round(y1).astype(np.int16)
-                    channel_2[current_pos : current_pos + length] = np.round(y2).astype(np.int16)
+                f_start = pulse_frequency[index][0]
+                f_end = pulse_frequency[index][1]
+                # resonator-profile predistortion (measured or ideal RLC);
+                # absolute mid-point, see the WURST branch
+                c, ph_cor = self.awg_resonator_correction(length, pulse_start_smp[index] + x_mean,
+                    pulse_start_smp[index], f_start, f_end, pulse_amp[index])
+                #general.plot_1d( 'C', np.arange(0, length ), np.atleast_1d(c) )
 
-                current_pos += length
+                b = pulse_b_sech[index]
+                n = pulse_n_wurst[index]
+                bw = (pulse_frequency[index][1] - pulse_frequency[index][0]) / self.sample_rate_awg
 
-            if self.overlap_flag == True:
+                xs = np.arange(length)
+                dx = xs - x_mean
 
-                chmod1, chmod2 = self.post_process_overlap(channel_1, channel_2, tr_awg_array)
-                self.dac_window = int( len(chmod1) / 4 )
-                #xs = ( round( 1000 / self.sample_rate_awg, 1 ) ) * np.arange(len(chmod1))
-                #general.plot_1d_test('DAC bufferOVER', xs, (chmod1, chmod2), label = 'ch')
+                env_arg = (b * x_mean * 2**(n - 1)) * (np.abs(dx) / length)**n
+                envelope = (1.0 / np.cosh(env_arg)) * c
 
-                return chmod1, chmod2
+                norm_factor = 2 * np.tanh(b * x_mean)
+                phase_arg = (bw / b) * np.log(np.cosh(b * dx)) / norm_factor
+                # carrier offset: centre the sweep on (f_start+f_end)/2 like WURST
+                center_freq = (pulse_frequency[index][0] + pulse_frequency[index][1]) / 2
+                phase_carrier = 2 * np.pi * center_freq / self.sample_rate_awg * xs
+                total_phase = 2 * np.pi * phase_arg + phase_carrier + pulse_phase_np[index] + ph_cor
 
-            else:
-                self.dac_buffer_memorized_i.append(channel_1)
-                self.dac_buffer_memorized_q.append(channel_2)
-                self.dac_window = int( len(channel_1) / 4 )
+                y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index]) * envelope * np.sin(total_phase)
+                y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index]) * envelope * np.sin(total_phase + self.phase_shift_ch1_seq_mode_awg)
 
-                #xs = ( round( 1000 / self.sample_rate_awg, 1 ) ) * np.arange(len(channel_1))
-                #general.plot_1d_test('DAC buffer', xs, (channel_1, channel_2), label = 'ch')
+            # shaped pulses (SINE..SECH/TANH) write through the common tail;
+            # BLANK leaves y1 as None (zeros are already in the buffer)
+            if y1 is not None:
+                y1 = np.round(y1).astype(np.int16)
+                y2 = np.round(y2).astype(np.int16)
+                channel_1[current_pos : current_pos + length] = y1
+                channel_2[current_pos : current_pos + length] = y2
+                if key is not None:
+                    if len(self.waveform_cache_awg) > 1024:
+                        self.waveform_cache_awg.clear()
+                    self.waveform_cache_awg[key] = ( y1, y2 )
 
-                return channel_1, channel_2
+            current_pos += length
+
+        # overlap merging always runs on the freshly assembled buffer with the
+        # current TRIGGER_AWG intervals, whether the waveforms came from the
+        # cache or were just computed
+        if self.overlap_flag == True:
+
+            chmod1, chmod2 = self.post_process_overlap(channel_1, channel_2, tr_awg_array)
+            self.dac_window = int( len(chmod1) / 4 )
+            #xs = ( round( 1000 / self.sample_rate_awg, 1 ) ) * np.arange(len(chmod1))
+            #general.plot_1d_test('DAC bufferOVER', xs, (chmod1, chmod2), label = 'ch')
+
+            return chmod1, chmod2
 
         else:
-            #xs = ( round( 1000 / self.sample_rate_awg, 1 ) ) * np.arange(len(self.dac_buffer_memorized_i[self.current_phase_index_awg - 1]))
-            #general.plot_1d_test('DAC bufferMEM', xs, (self.dac_buffer_memorized_i[self.current_phase_index_awg - 1], self.dac_buffer_memorized_q[self.current_phase_index_awg - 1]), label = 'ch')
+            self.dac_window = int( len(channel_1) / 4 )
 
-            return self.dac_buffer_memorized_i[self.current_phase_index_awg - 1], self.dac_buffer_memorized_q[self.current_phase_index_awg - 1]
+            #xs = ( round( 1000 / self.sample_rate_awg, 1 ) ) * np.arange(len(channel_1))
+            #general.plot_1d_test('DAC buffer', xs, (channel_1, channel_2), label = 'ch')
+
+            return channel_1, channel_2
 
     def post_process_overlap(self, channel_1, channel_2, intervals):
         if len(intervals) == 0:
