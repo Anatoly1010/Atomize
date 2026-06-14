@@ -2250,6 +2250,65 @@ class PB_Micran:
             
             return np.asarray(list(chain(*answer)))
 
+    def process_and_merge_rect_awg(self, data_list, target_channel = 8, gap_threshold = 75):
+        """
+        Merge nearby RECT_AWG gating pulses into a single one.
+
+        Ported from Insys_FPGA.process_and_merge_rect_awg(). When two AWG
+        pulses sit close to each other their (already extended) RECT_AWG
+        gating pulses would form two separate rectangles separated by a tiny
+        off-interval, which makes the RECT_AWG switch toggle rapidly. Here we
+        join RECT_AWG rows whose gap (next.start - current.end) is smaller
+        than gap_threshold (in pulser ticks) into one continuous gate.
+
+        Only rows on target_channel are merged; every other channel
+        (MW, AMP_ON, LNA_PROTECT, ...) is passed through untouched. Note that
+        PB_Micran stores raw channel numbers (not 2**ch), so target_channel
+        is channel_dict['AWG'] == 8. The call sites pass
+        gap_threshold = int(240/self.timebase), i.e. a 240 ns physical gap
+        (75 ticks at Insys_FPGA's 3.2 ns timebase) normalized to this
+        pulser's timebase.
+        """
+        if data_list is None or len(data_list) == 0:
+            return []
+
+        all_data = np.array(data_list)
+
+        target_mask = all_data[:, 0] == target_channel
+        target_rows = all_data[target_mask]
+        other_rows = all_data[~target_mask]
+
+        if len(target_rows) == 0:
+            return all_data[all_data[:, 0].argsort()]
+
+        target_rows = target_rows[target_rows[:, 1].argsort()]
+
+        merged_target = []
+        current = target_rows[0].copy()
+
+        for i in range(1, len(target_rows)):
+            next_row = target_rows[i]
+
+            gap = next_row[1] - current[2]
+
+            if gap < gap_threshold:
+                current[2] = max(current[2], next_row[2])
+            else:
+                merged_target.append(current.copy())
+                current = next_row.copy()
+
+        merged_target.append(current.copy())
+        merged_target_arr = np.array(merged_target)
+
+        if len(other_rows) == 0:
+            final_result = merged_target_arr
+        else:
+            final_result = np.vstack([other_rows, merged_target_arr])
+
+        final_result = final_result[final_result[:, 0].argsort()]
+
+        return final_result
+
     def check_problem_pulses(self, np_array):
         """
         A function for checking whether there is a two
@@ -2277,13 +2336,31 @@ class PB_Micran:
         elif self.test_flag == 'test':
             sorted_np_array = np.asarray(sorted(np_array, key = lambda x: int(x[1])), dtype = np.int64)
 
-            # compare the end time with the start time for each couple of pulses
-            for index, element in enumerate(sorted_np_array[:-1]):
-                # minimal_distance is 40 ns now
-                if sorted_np_array[index + 1][1] - element[2] < self.min_pulse_length:
-                    assert(1 == 2), 'Overlapping pulses or two pulses with less than ' + str(self.min_pulse_length) + ' ns distance'
-                else:
-                    pass
+            # Overlapping RECT_AWG gates of nearby AWG pulses are allowed: they are
+            # merged into one continuous gate by process_and_merge_rect_awg() in the
+            # real run. So in the test run we merge them here (and warn once) instead
+            # of asserting, mirroring Insys_FPGA. Genuinely-too-close pulses on any
+            # other channel (MW-MW, MW-AWG, ...) remain a hard error. PB_Micran stores
+            # raw channel numbers, so the AWG/RECT_AWG channel is channel_dict['AWG'].
+            awg_bit = self.channel_dict['AWG']
+            index = 0
+            awg_overlap_warned = False
+            while index < len(sorted_np_array) - 1:
+                element = sorted_np_array[index]
+                next_element = sorted_np_array[index + 1]
+                # compare the end time with the start time for each couple of pulses
+                if next_element[1] - element[2] < self.min_pulse_length:
+                    if element[0] == awg_bit and next_element[0] == awg_bit:
+                        sorted_np_array[index][2] = max(element[2], next_element[2])
+                        sorted_np_array = np.delete(sorted_np_array, index + 1, 0)
+                        if not awg_overlap_warned:
+                            general.message_test('Overlapping AWG pulses are merged into one RECT_AWG gate')
+                            awg_overlap_warned = True
+                        index = 0
+                        continue
+                    else:
+                        assert(1 == 2), 'Overlapping pulses or two pulses with less than ' + str(self.min_pulse_length) + ' ns distance'
+                index += 1
 
             return sorted_np_array
 
@@ -2464,7 +2541,8 @@ class PB_Micran:
                 # equivalent to self.extending_rect_awg( self.pulse_array )
                 # but avoids re-parsing the whole pulse array
                 try:
-                    return np.row_stack( (np.asarray(list(chain(*split_pulse_array))), cor_pulses_amp_final, cor_pulses_lna_final))
+                    raw = np.row_stack( (np.asarray(list(chain(*split_pulse_array))), cor_pulses_amp_final, cor_pulses_lna_final))
+                    return self.process_and_merge_rect_awg(raw, target_channel = self.channel_dict['AWG'], gap_threshold = int(240/self.timebase))
 
                 # when we do not MW pulses at all
                 except UnboundLocalError:
@@ -2575,7 +2653,8 @@ class PB_Micran:
                 # pulses; flattening it is equivalent to
                 # self.extending_rect_awg( self.pulse_array )
                 try:
-                    return np.row_stack( (np.asarray(list(chain(*split_pulse_array))), cor_pulses_amp_final, cor_pulses_lna_final))
+                    raw = np.row_stack( (np.asarray(list(chain(*split_pulse_array))), cor_pulses_amp_final, cor_pulses_lna_final))
+                    return self.process_and_merge_rect_awg(raw, target_channel = self.channel_dict['AWG'], gap_threshold = int(240/self.timebase))
                 except UnboundLocalError:
                     return np.asarray(list(chain(*split_pulse_array)))
 

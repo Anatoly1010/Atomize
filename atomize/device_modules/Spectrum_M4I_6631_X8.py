@@ -4308,6 +4308,12 @@ class Spectrum_M4I_6631_X8:
             self.pnBuffer = cast (self.pvBuffer, ptr16)
             # additional line to convertion back to numpy; it should be commented in a standard range approach
             self.pnBuffer = np.ctypeslib.as_array(self.pnBuffer, shape = (int(2 * self.memsize), ))
+            # Overlapping AWG pulses are SUMMED into the buffer (+= below) so that two
+            # close/overlapping pulses join into one continuous waveform instead of the
+            # later pulse overwriting the earlier one. For that the buffer must start
+            # from zero (gaps between pulses must also stay at 0); the page-aligned
+            # allocation is normally already zeroed, this makes the += semantics explicit.
+            self.pnBuffer[:] = 0
 
             # run over defined pulses inside a sequence point
             for index, element in enumerate(arguments_array[0]):
@@ -4338,8 +4344,12 @@ class Spectrum_M4I_6631_X8:
                            self.sample_rate, self.cor_version_awg)
                     cached = self.waveform_cache.get(key)
                     if cached is not None:
-                        self.pnBuffer[sl][0::2] = cached[0]
-                        self.pnBuffer[sl][1::2] = cached[1]
+                        # add (not overwrite) so overlapping pulses join; clip to the
+                        # int16 DAC range to avoid overflow wraparound on the sum
+                        seg0 = self.pnBuffer[sl][0::2].astype(np.int64) + cached[0]
+                        seg1 = self.pnBuffer[sl][1::2].astype(np.int64) + cached[1]
+                        self.pnBuffer[sl][0::2] = np.clip(seg0, -self.maxCAD, self.maxCAD)
+                        self.pnBuffer[sl][1::2] = np.clip(seg1, -self.maxCAD, self.maxCAD)
                         continue
 
                 y1 = y2 = None
@@ -4514,8 +4524,14 @@ class Spectrum_M4I_6631_X8:
                 # shaped pulses (SINE..SECH/TANH) write through the common tail;
                 # BLANK and TEST waveforms leave y1 as None
                 if y1 is not None:
-                    self.pnBuffer[sl][0::2] = y1
-                    self.pnBuffer[sl][1::2] = y2
+                    # add (not overwrite) so two overlapping pulses join into one
+                    # continuous waveform; clip the sum to the int16 DAC range to avoid
+                    # overflow wraparound. Where pulses do not overlap the buffer is 0,
+                    # so this is equivalent to a plain assignment.
+                    seg0 = self.pnBuffer[sl][0::2].astype(np.int64) + y1
+                    seg1 = self.pnBuffer[sl][1::2].astype(np.int64) + y2
+                    self.pnBuffer[sl][0::2] = np.clip(seg0, -self.maxCAD, self.maxCAD)
+                    self.pnBuffer[sl][1::2] = np.clip(seg1, -self.maxCAD, self.maxCAD)
                     if key is not None:
                         # int16 halves the memory and matches the unsafe cast of the
                         # int64 -> int16 buffer assignment above
