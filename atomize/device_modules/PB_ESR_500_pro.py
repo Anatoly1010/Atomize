@@ -1655,7 +1655,107 @@ class PB_ESR_500_Pro:
 
         final_result = final_result[final_result[:, 0].argsort()]
 
-        return final_result
+        # After the merge a RECT_AWG gate can end within the 10 ns SpinCore
+        # minimum-instruction window of a (fixed) TRIGGER_AWG edge; snap the
+        # movable gate/trigger edges so no sub-10 ns instruction is produced.
+        return self.snap_short_instructions(final_result)
+
+    def snap_short_instructions(self, data_list):
+        """
+        Remove sub-min_pulse_length (10 ns) instructions created when an AWG
+        card trigger (TRIGGER_AWG) or an AWG gating pulse (RECT_AWG / AMP_ON /
+        LNA_PROTECT) edge falls within the SpinCore 10 ns minimum-instruction
+        window of another edge.
+
+        This typically happens right after process_and_merge_rect_awg() extends
+        a merged RECT_AWG gate to the end of the later of two overlapping AWG
+        pulses, which can push the gate's falling edge to within a few ns of a
+        fixed TRIGGER_AWG edge. split_into_parts() would then emit a <10 ns
+        instruction and assert ('Incorrect instruction ... Trigger pulses ...').
+
+        Only the AWG "gate cluster" channels are moved (RECT_AWG, AMP_ON,
+        LNA_PROTECT and the TRIGGER_AWG end), and only in the growing direction
+        (gate / trigger ENDs are pushed later, gate STARTs are pulled earlier),
+        so the AWG output stays gated and the amplifier-protection window never
+        shrinks. Every other edge - MW, phase, DETECTION and, crucially, the
+        TRIGGER_AWG / DETECTION rising edges - is treated as a fixed anchor and
+        is never moved. The pass is a no-op when all edges are already >= 10 ns
+        apart, so it cannot disturb sequences that already program cleanly.
+
+        Works on rows of [channel_bit, start, end] in pulser ticks (the same
+        format process_and_merge_rect_awg() returns) and returns the same.
+        """
+        rows = np.asarray(data_list, dtype = np.int64)
+        if len(rows) == 0:
+            return rows
+        rows = rows.tolist()
+
+        # 10 ns SpinCore minimum expressed in pulser ticks: instructions_from_part()
+        # multiplies tick lengths by timebase, so a segment is illegal when its
+        # tick length is below min_pulse_length/timebase ticks (5 ticks @ 2 ns)
+        min_gap = int(math.ceil(self.min_pulse_length / self.timebase))
+
+        awg = 2**self.channel_dict['AWG']
+        amp = 2**self.channel_dict['AMP_ON']
+        lna = 2**self.channel_dict['LNA_PROTECT']
+        trg = 2**self.channel_dict['TRIGGER_AWG']
+        # ENDs we may push later (extend a gate / the trigger) and STARTs we may
+        # pull earlier (extend a gate); the TRIGGER_AWG start is hardware-fixed
+        # and DETECTION/MW edges belong to no cluster, so they stay put.
+        end_movable   = (awg, amp, lna, trg)
+        start_movable = (awg, amp, lna)
+
+        # iteratively close the first sub-min gap until none remain; the bound
+        # is a safety net against pathological cascades (then we leave the rest
+        # for the downstream check to report rather than loop forever)
+        for _ in range(8 * len(rows) + 16):
+            bounds = sorted(set([r[1] for r in rows] + [r[2] for r in rows]))
+            gap = None
+            for i in range(len(bounds) - 1):
+                if 0 < bounds[i + 1] - bounds[i] < min_gap:
+                    gap = (bounds[i], bounds[i + 1])
+                    break
+            if gap is None:
+                break
+
+            a, b = gap                       # a < b and b - a < min_gap
+            changed = False
+
+            # (1) a movable gate/trigger END sits at the left edge a -> grow it
+            #     up to b so the [a, b] sliver collapses (falling edge later)
+            for r in rows:
+                if r[0] in end_movable and r[2] == a:
+                    r[2] = b
+                    changed = True
+            # (2) a movable gate START sits at the right edge b -> grow it down
+            #     to a (rising edge earlier)
+            if not changed:
+                for r in rows:
+                    if r[0] in start_movable and r[1] == b:
+                        r[1] = a
+                        changed = True
+            # (3) the sliver is bounded by a fixed anchor on one side; push the
+            #     movable edge on the other side away by min_gap
+            if not changed:
+                for r in rows:
+                    # movable END at b, anchor at a -> push the end past a + min_gap
+                    if r[0] in end_movable and r[2] == b and r[1] <= a:
+                        r[2] = a + min_gap
+                        changed = True
+            if not changed:
+                for r in rows:
+                    # movable START at a, anchor at b -> pull the start before b - min_gap
+                    if r[0] in start_movable and r[1] == a and r[2] >= b:
+                        r[1] = b - min_gap
+                        changed = True
+
+            if not changed:
+                # collision between two fixed anchors (e.g. MW-MW); not ours to
+                # fix -> stop and let split_into_parts()/check_problem_pulses()
+                # surface it
+                break
+
+        return np.asarray(rows, dtype = np.int64)
 
     def check_problem_pulses(self, np_array):
         """
