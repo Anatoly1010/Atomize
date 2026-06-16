@@ -595,9 +595,12 @@ class Spectrum_M4I_4450_X8:
         Close the digitizer. No argument; No output
         """
         if self.test_flag != 'test':
-            # clean up
-            spcm_vClose ( self.hCard )
-            self.state == 0
+            # clean up (idempotent: safe if already closed / never opened, so it
+            # can run on the normal path and again in the worker's finally)
+            if getattr(self, 'hCard', None) is not None:
+                spcm_vClose ( self.hCard )
+                self.hCard = None
+                self.state = 0
 
         elif self.test_flag == 'test':
             pass
@@ -613,7 +616,8 @@ class Spectrum_M4I_4450_X8:
             #if hCard == None:
             #    general.message("No card found...")
             #    sys.exit()
-            spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_STOP)
+            if getattr(self, 'hCard', None) is not None:
+                spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_STOP)
             #general.message('Digitizer stopped')
 
         elif self.test_flag == 'test':

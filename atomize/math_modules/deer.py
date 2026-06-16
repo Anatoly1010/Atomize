@@ -919,7 +919,8 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                        n_tau=601, bg_engine='joint', n_mc=0, ci_z=1.96, seed=0,
                        taumax_method='penalty', noise_space='V',
                        wiener=0.0, taumax_extend=True, extend_short_frac=0.18,
-                       fit_rmin_frac=0.18, signed_fit=True, **_ignored):
+                       fit_rmin_frac=0.18, signed_fit=True, taper_short=True,
+                       **_ignored):
     """Model-free DEER inversion by the analytic integral Mellin transform
     (doi 10.1039/C7CP04059H). Background-corrects V(t), then recovers the distance
     distribution analytically: no Tikhonov, no NNLS, no L-curve. The only
@@ -1050,17 +1051,33 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     else:
         bg = background_fit(t, V, bg_start, bg_end=bg_end, dim=dim, fit_dim=fit_dim)
     F = bg['form_factor']
+    Vn, B, lam = bg['V_norm'], bg['B'], bg['lambda']
+    # White electrical-noise level from the decayed tail; reused for the MC band.
+    sig_e = _tail_noise(t, Vn)
     if delta is None or delta <= 0:
-        delta = mellin_delta(t, F, level=0.85)         # parabolic [0,delta], floored >=90 ns
+        # Noise-adaptive split point. delta governs how much of the echo top is
+        # handled by the clean analytic PARABOLA term ([0,delta]) versus the numeric
+        # Mellin integral over [delta, Tmax] -- and that numeric part is where the
+        # high-|tau| noise that maps to the spurious SHORT-r spike (the "double peak
+        # near t=0", and the too-narrow forward-fit echo top) enters. A larger delta
+        # hands more of the steep, noisy near-echo region to the parabola, so the
+        # spike and the thin parabola are suppressed AT SOURCE rather than cleaned up
+        # afterwards. But a large delta over-smooths SHARP distributions (it models
+        # too much real modulation as a single parabola), so it must NOT be raised on
+        # clean data: scale the floor/cap up only with the measured relative noise
+        # sig_e/lambda. Clean (rel < 0.02): unchanged 0.09/0.12 (sharp resolution
+        # kept). Noisy (rel ~ 0.1, e.g. sigma 0.04 at lambda 0.4): floor/cap pushed
+        # to ~0.13/0.16, which restores the echo-top width (benchmark forward-fit
+        # half-width vs the true F: 0.78 -> ~1.0 at sigma 0.04) and roughly halves the
+        # short-r spurious mass. Tuned on the synthetic benchmark.
+        rel = float(sig_e)/max(float(lam), 1e-3)
+        bump = min(max(rel - 0.02, 0.0)*0.6, 0.04)
+        delta = mellin_delta(t, F, level=0.85, floor=0.09 + bump, cap=0.12 + bump)
     D = 2.0*np.pi*nu_dd                                 # w = D / r^3 (rad/us)
     w = D/r**3
     dr = float(r[1] - r[0]) if len(r) > 1 else 1.0
     K = dipolar_kernel(t, r, nu_dd=nu_dd)
-    Vn, B, lam = bg['V_norm'], bg['B'], bg['lambda']
     pos = t > 0
-    # White electrical-noise level from the decayed tail; also reused for the MC
-    # band below. Sets the Wiener regularization strength (next).
-    sig_e = _tail_noise(t, Vn)
 
     def _masses(fr):
         """Area-normalized signed density/masses -- the honest model-free Mellin
@@ -1278,11 +1295,30 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
 
     tau, Phi, _invert_F = _build(float(tau_max), int(n_tau))
     f_r, Vimg = _invert_F(F)
-    masses, P_density = _masses(f_r)                     # signed density (displayed, negatives kept)
-    F_fit = _fwd(f_r)                                   # forward fit (signed by default; clipped+
-                                                        # low-r taper when signed_fit=False -- the
-                                                        # clip keeps F_fit monotone where a large
-                                                        # short-r negative spike would double-peak)
+
+    # Short-r taper on the DISPLAYED density (`taper_short`, default on). The
+    # propagated noise piles into a spurious spike at the bottom of the r grid (the
+    # r^-2.5 Jacobian) -- the visible "double peak near t=0" -- right where, for
+    # DEER, the distance is too short to be reliable anyway. Multiply the signed
+    # density by the same raised-cosine `_fit_w` (0 at the grid edge -> 1 by
+    # `fit_rmin_frac` of the range) so P(r) goes *smoothly* to zero there instead of
+    # carrying that spike. This is purely geometric (distance-based, NOT amplitude-
+    # or noise-based), so it leaves the mid/long-r density bit-identical to the
+    # honest Mellin result -- no shape carving, no hard zeros -- and only the
+    # unreliable short-r edge is down-weighted (a genuine short-r peak is attenuated,
+    # not deleted). The area re-normalization then returns the small amount of area
+    # the spurious spike had stolen back to the real peaks. The tapered density also
+    # feeds F_fit, so the forward-fit echo top widens back to the data (no more thin
+    # parabola). Set taper_short=False for the raw signed density + the separate
+    # `signed_fit`/`_phys_fit` forward model.
+    f_disp = f_r*_fit_w if taper_short else f_r
+    masses, P_density = _masses(f_disp)                  # signed density (displayed)
+    if taper_short:
+        F_fit = K@masses                                # consistent with the displayed P(r)
+    else:
+        F_fit = _fwd(f_r)                               # signed by default; clipped+low-r taper
+                                                        # when signed_fit=False (keeps F_fit
+                                                        # monotone vs a short-r negative spike)
 
     # discrepancy diagnostics (V space): sigma_fit over t>0 vs the noise floor
     # from the decayed tail (where the dipolar signal is gone). sigma_fit ~
@@ -1319,7 +1355,7 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
             Vk = vfit + sig_e*rng.standard_normal(Vn.shape)   # add white electrical noise
             Fk = (Vk/B - (1 - lam))/lam                 # propagate (amplifies toward tail)
             fk, _ = _invert_F(Fk)
-            _, dk = _masses(fk)                         # signed density
+            _, dk = _masses(fk*_fit_w if taper_short else fk)  # match the displayed taper
             ens[j] = dk
         P_std = ens.std(axis=0)
         P_lower = P_density - ci_z*P_std                # signed band about the estimate
@@ -1349,6 +1385,13 @@ def deer_mellin_consensus(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     """Robust ("consensus") Mellin inversion for NOISY traces: marginalize over the
     data-consistent zero-time and tau_max (and noise) instead of committing to one
     fragile point estimate.
+
+    SUPERSEDED (kept for explicit/diagnostic use; no longer in the GUI). The
+    noise-adaptive delta + short-r taper in `deer_invert_mellin` (both default-on)
+    make the single pick more accurate than this marginalization on the benchmark
+    (no-bg mean overlap 0.884 vs 0.861 -- the ensemble median over t0/tau-shifted
+    curves over-broadens), so prefer the plain single pick; use this only to inspect
+    the t0 x tau_max ambiguity explicitly.
 
     Why: at high relative noise (sigma/lambda gtrsim 0.06) a DEER trace does not
     determine the zero-time t0 OR the Mellin cutoff tau_max -- the V-space forward

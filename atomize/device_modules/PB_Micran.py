@@ -1621,6 +1621,15 @@ class PB_Micran:
         A function to stop pulse sequence
         """
         if self.test_flag != 'test':
+            # Defensive teardown: pulser_stop() also runs in the worker's finally,
+            # which can fire before any sequence was programmed (an early error or
+            # an immediate Stop). With no pulses / repetition rate there is nothing
+            # running to stop -- just make sure the device connection is released
+            # (pulser_close() is idempotent: it no-ops when the fd is already shut).
+            if len(getattr(self, 'pulse_array', [])) == 0 or not getattr(self, 'rep_rate', None):
+                self.pulser_close()
+                return
+
             # get repetition rate
             rep_rate = self.rep_rate[0]
             if rep_rate[-3:] == ' Hz':
