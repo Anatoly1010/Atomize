@@ -448,101 +448,61 @@ def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
 
     Model:  V(t) = B(t) * [ (1 - lam) + lam * (K P)(t) ],  B(t) = exp(-(k|t|)^(d/3)).
 
-    The background decay rate (k, and d when `fit_dim`) is the only nonlinear
-    unknown. For each trial rate the modulation depth lam is *pinned* to the mean
-    baseline of V/B over the background window [bg_start, bg_end] (where the
-    intramolecular form factor has decayed and V ~ (1-lam) B), and the non-negative
-    regularized P(r) follows from K P = (V/B - (1-lam))/lam. The rate is chosen to
-    minimize the whole-trace residual ||V - B[(1-lam)+lam KP]||.
+    The background + modulation depth are fit by `joint_background` (shared with the
+    Mellin engine): the decay rate k (and d when `fit_dim`) is the nonlinear unknown,
+    lam is *pinned* to the tail baseline of V/B, and the rate is fit jointly with a
+    coarse non-negative P(r) on a distance grid TRUNCATED at the trace-supported
+    r_max. Truncating that grid is what breaks the background / long-r degeneracy:
+    on the full r grid a gentle (few-percent-over-the-trace) background can be
+    reproduced by spurious long-r P(r) mass instead, so an unconstrained rate search
+    collapses k -> 0 and leaves residual curvature in F that broadens P(r). (An
+    earlier version fit the rate here on the full grid and fell into exactly that
+    trap, returning a flat background even on traces with a real shallow one and
+    costing ~0.02 overlap at low noise on the synthetic benchmark.) Pinning lam
+    removes the depth degeneracy. `bg_start`/`bg_end` set the baseline window.
 
-    Pinning lam to the baseline is essential: with lam free the fit is degenerate
-    (a near-flat background plus extra long-r P(r) mass reproduces V equally well)
-    and collapses to k -> 0; the baseline constraint removes that direction and
-    recovers the correct, deeper background -- matching DeerLab's joint fit.
-    `bg_start`/`bg_end` therefore set the baseline window. Same return dict as
-    `deer_invert`, with engine='joint'.
+    The full-resolution non-negative P(r) then follows from K P = (V/B - (1-lam))/lam
+    by Tikhonov + NNLS, the regularization weight chosen by GCV on the fitted-
+    background form factor (the same `l_curve` selection as `deer_invert`). Same
+    return dict as `deer_invert`, with engine='joint'.
     """
     _require_scipy()
-    from scipy.optimize import least_squares, minimize_scalar
     t = np.asarray(t, float)
     V = np.asarray(V, float)
     r = default_r_axis() if r is None else np.asarray(r, float)
-    V = V/_echo_top(t, V)                          # normalize V(0) = 1 (robust)
     K = dipolar_kernel(t, r, nu_dd=nu_dd)
     L = regularization_matrix(len(r), reg_order)
     if alphas is None:
         alphas = np.logspace(-4, 3, 24)
 
-    if bg_start is None:
-        bg_start = t[0] + 0.6*(t[-1] - t[0])      # bias into the decayed tail
-    hi = bg_end if (bg_end is not None and bg_end > bg_start) else float(t.max())
-    mask = (t >= bg_start) & (t <= hi)
-    if int(mask.sum()) < 3:
-        mask = t >= bg_start
+    # Background + modulation depth from the capped-grid, lambda-pinned joint fit
+    # (`joint_background` -- the SAME background the Mellin engine uses). Fitting
+    # the decay rate on a TRUNCATED distance grid is what breaks the background /
+    # long-r degeneracy: on the FULL r grid a gentle (few-percent-over-the-trace)
+    # background can be reproduced by spurious long-r P(r) mass instead, so an
+    # unconstrained rate search collapses k -> 0 and leaves residual curvature in F
+    # that broadens P(r) (the old scalar-k-search behaviour here -- it returned a
+    # flat background even on traces with a real shallow one, costing ~0.02 overlap
+    # at low noise). The capped fit recovers the true shallow k, giving a clean
+    # F -> 0 and a sharper, better-resolved P(r). The lambda pin (tail baseline)
+    # also removes the depth degeneracy. bg_start/bg_end set the baseline window.
+    bg = joint_background(t, V, bg_start=bg_start, bg_end=bg_end, dim=dim,
+                          fit_dim=fit_dim, nu_dd=nu_dd)
+    Vn, B, lam, k, d = bg['V_norm'], bg['B'], bg['lambda'], bg['k'], bg['dim']
+    F = bg['form_factor']
 
-    bg0 = background_fit(t, V, bg_start, bg_end=bg_end, dim=dim, fit_dim=fit_dim)
-    k0, d0 = bg0['k'], bg0['dim']
-
-    def lam_of(B):
-        return min(max(1.0 - float(np.mean((V/B)[mask])), 0.02), 0.95)
-
-    def solve_P(k, d, al):
-        B = np.exp(-(k*np.abs(t))**(d/3.0))
-        lam = lam_of(B)
-        F = (V/B - (1 - lam))/lam
-        return B, lam, F, tikhonov_nnls(K, F, al, L)
-
-    # select alpha once on the seed background; F is normalized (F(0)=1) so the
-    # regularization weight is stable across the rate search
-    B0 = np.exp(-(k0*np.abs(t))**(d0/3.0))
-    lam0 = lam_of(B0)
-    F0 = (V/B0 - (1 - lam0))/lam0
-    lc = (l_curve(K, F0, alphas, L, method=method)
+    # regularization weight on the fitted-background form factor (F(0)=1)
+    lc = (l_curve(K, F, alphas, L, method=method)
           if (scan_lcurve or alpha is None) else None)
     alpha_use = float(alpha) if alpha is not None else lc['alpha_opt']*float(alpha_factor)
-
-    def vss(k, d):                                # whole-trace V-space residual SS
-        B, lam, F, P = solve_P(k, d, alpha_use)
-        return float(np.sum((V - B*((1 - lam) + lam*(K@P)))**2))
-
-    kref = max(float(k0), 1e-4)
-    if fit_dim:
-        def resid(theta):
-            k = abs(theta[0]); d = min(max(theta[1], 1.0), 6.0)
-            B, lam, F, P = solve_P(k, d, alpha_use)
-            return V - B*((1 - lam) + lam*(K@P))
-        try:
-            sol = least_squares(resid, [kref, d0],
-                                bounds=([0.0, 1.0], [np.inf, 6.0]), max_nfev=200)
-            k = abs(sol.x[0]); d = min(max(sol.x[1], 1.0), 6.0)
-        except Exception:
-            k, d = kref, d0
+    if alpha is None and alpha_factor == 1.0 and lc is not None:
+        P_masses = lc['P']                         # reuse the scan solution
     else:
-        d = d0
-        try:
-            sol = minimize_scalar(lambda lk: vss(np.exp(lk), d),
-                                  bounds=(np.log(kref/100.0), np.log(kref*100.0)),
-                                  method='bounded', options={'xatol': 3e-2})
-            k = float(np.exp(sol.x))
-        except Exception:
-            k = kref
-
-    # final solution at the fitted background (alpha from the seed selection is
-    # reused: F is normalized to F(0)=1, so the weight transfers across the rate
-    # search — re-scanning here only adds a costly GCV pass for no gain)
-    B = np.exp(-(k*np.abs(t))**(d/3.0))
-    lam = lam_of(B)
-    F = (V/B - (1 - lam))/lam
-    P_masses = tikhonov_nnls(K, F, alpha_use, L)
+        P_masses = tikhonov_nnls(K, F, alpha_use, L)
     P_norm = _normalize_masses(P_masses)
     dr = float(r[1] - r[0]) if len(r) > 1 else 1.0
     F_fit = K@P_norm
     P_lower, P_upper = tikhonov_ci(K, F, alpha_use, P_masses, L=L, dr=dr)
-    bg = {'lambda': lam, 'k': float(k), 'dim': float(d), 'A': float(1 - lam),
-          'B': B, 'form_factor': F, 'V_norm': V, 't': t,
-          'bg_start': float(bg_start),
-          'bg_end': (None if bg_end is None else float(bg_end)),
-          'mask': mask}
     return {'t': t, 'r': r, 'form_factor': F, 'F_fit': F_fit,
             'residuals': F - F_fit, 'P': P_masses, 'P_norm': P_norm,
             'P_density': P_norm/dr, 'P_lower': P_lower, 'P_upper': P_upper,
@@ -685,13 +645,13 @@ def joint_background(t, V, bg_start=None, bg_end=None, dim=3.0, fit_dim=False,
     """Joint (DeerLab-style) intermolecular background returning ONLY the
     background (same dict shape as `background_fit`). Fits the decay rate k (and d
     when `fit_dim`) together with a non-negative P(r), with the modulation depth
-    lambda pinned to the tail baseline of V/B -- the same degeneracy-breaking
-    strategy as `deer_invert_joint`, but stripped of the final full-resolution
-    inversion / L-curve. The rate is fit on a coarse internal distance grid
-    (`n_r`) at a fixed regularization (`rate_alpha`): k and lambda are insensitive
-    to the P(r) resolution, so this is ~30x faster than a full joint inversion.
-    Used by `deer_invert_mellin` (bg_engine='joint') and Mellin validation, where
-    the background must be re-fit per background-start.
+    lambda pinned to the tail baseline of V/B -- the degeneracy-breaking background
+    fit shared by BOTH inversion engines (`deer_invert_joint` for Tikhonov and
+    `deer_invert_mellin` for Mellin call this), stripped of the final full-
+    resolution inversion / L-curve. The rate is fit on a coarse internal distance
+    grid (`n_r`) at a fixed regularization (`rate_alpha`): k and lambda are
+    insensitive to the P(r) resolution, so this is ~30x faster than a full joint
+    inversion, and re-runnable per background-start during Mellin validation.
 
     Hardened against the short-bg_end collapse: the lambda pin uses the full
     available tail [bg_start, t_max] rather than [bg_start, bg_end], so k is
