@@ -150,6 +150,12 @@ class Spectrum_M4I_6631_X8:
             self.pi2flag_awg = 0    # 1 = correct only high-amplitude (pi) pulses
             self.cor_enable_awg = 0 # 1 once awg_correction() has been called
             self.cor_version_awg = 0 # bumped on every correction-settings change
+            # optional measured complex transfer for the 'measured' model: when
+            # set, its magnitude AND phase are used (otherwise the triple-
+            # Lorentzian magnitude-only fit above). meas_freq is absolute MW
+            # frequency in MHz; meas_H is the complex transfer at those points.
+            self.meas_freq_awg = None
+            self.meas_H_awg = None
 
             # per-pulse waveform cache for 'Single Joined' mode, keyed by all
             # waveform-defining parameters except the pulse position
@@ -232,6 +238,8 @@ class Spectrum_M4I_6631_X8:
             self.pi2flag_awg = 0
             self.cor_enable_awg = 0
             self.cor_version_awg = 0
+            self.meas_freq_awg = None
+            self.meas_H_awg = None
 
             # per-pulse waveform cache for 'Single Joined' mode
             self.waveform_cache = {}
@@ -2137,17 +2145,30 @@ class Spectrum_M4I_6631_X8:
                 assert( 1 == 2 ), 'Incorrect arguments'
 
     def awg_correction(self, only_pi_half = 'True', coef_array = [1, 0, 0, 1, 0, 0, 1, 0, 0, 1], low_level = 16, limit = 23, \
-                       model = 'measured', f0 = 9700, q_factor = 88, phase_correction = 'False'):
+                       model = 'measured', f0 = 9700, q_factor = 88, phase_correction = 'False', \
+                       meas_freq = None, meas_H = None):
         """
         Resonator-profile predistortion of swept (WURST / sech-tanh) AWG pulses.
 
         model = 'measured' : amplitude correction from the measured resonator
-                             magnitude profile (triple-Lorentzian fit in
-                             coef_array); phase left untouched.
+                             response. When a measured complex transfer is given
+                             (meas_freq, meas_H) it uses both magnitude (1/|H|)
+                             AND phase (+angle(H), the LO - RF sign); otherwise it
+                             falls back to the triple-Lorentzian magnitude-only
+                             fit in coef_array with phase left untouched.
         model = 'ideal'    : amplitude (1/|H|) and, when phase_correction == 'True',
                              phase (+angle(H), the sign for an LO - RF / lower-
                              sideband bridge) from an ideal RLC resonator with
                              centre f0 (MHz) and loaded Q = q_factor.
+
+        meas_freq / meas_H : optional measured complex transfer for the 'measured'
+                             model. meas_freq is the absolute microwave frequency
+                             (MHz) of each point; meas_H is the complex transfer
+                             (e.g. a VNA S21 sweep). Magnitude and unwrapped phase
+                             are interpolated per sample onto the chirp frequency,
+                             so the real (non-Lorentzian) ripple AND dispersion
+                             are corrected. Out-of-band samples clamp to the
+                             nearest measured point.
 
         only_pi_half = 'True' restricts the correction to the high-amplitude
         (pi) pulses (pulse_amp > 1); 'False' applies it to every swept pulse.
@@ -2176,6 +2197,16 @@ class Spectrum_M4I_6631_X8:
         self.phase_cor_awg = 1 if phase_correction == 'True' else 0
         self.cor_enable_awg = 1
         self.cor_version_awg += 1
+
+        # measured complex transfer (used by the 'measured' model when supplied):
+        # both magnitude and phase are applied; without it the triple-Lorentzian
+        # magnitude-only fit above is used.
+        if meas_H is not None and meas_freq is not None and len(np.atleast_1d(meas_freq)) >= 2:
+            self.meas_freq_awg = np.asarray(meas_freq, dtype = float)
+            self.meas_H_awg = np.asarray(meas_H, dtype = complex)
+        else:
+            self.meas_freq_awg = None
+            self.meas_H_awg = None
 
         # in MHz
         # limit minimum B1
@@ -2226,6 +2257,22 @@ class Spectrum_M4I_6631_X8:
                 # the pulse start so no constant phase is introduced.
                 ph_cor = np.angle(H)
                 ph_cor = ph_cor - ph_cor[0]
+        elif self.meas_H_awg is not None:
+            # measured complex transfer: interpolate |H| and unwrapped phase onto
+            # each sample's absolute MW frequency (LO = f0 assumed). Same
+            # convention as the ideal branch -- amplitude 1/|H|, phase +angle(H)
+            # for the LO - RF bridge, both referenced to the pulse start.
+            center_freq = 0.5 * (f_start + f_end)
+            abs_freq = self.f0_awg + center_freq + rel_freq
+            order = np.argsort(self.meas_freq_awg)
+            fm = self.meas_freq_awg[order]
+            mag_m = np.abs(self.meas_H_awg)[order]
+            ph_m = np.unwrap(np.angle(self.meas_H_awg))[order]
+            mag = np.interp(abs_freq, fm, mag_m)    # out-of-band clamps to nearest
+            ph = np.interp(abs_freq, fm, ph_m)
+            c = 1.0 / mag
+            c = c / c[0]
+            ph_cor = ph - ph[0]
         else:
             c = 1.0 / self.triple_lorentzian(rel_freq, self.bl_awg, self.a1_awg, self.x1_awg, \
                     self.w1_awg, self.a2_awg, self.x2_awg, self.w2_awg, self.a3_awg, self.x3_awg, self.w3_awg)
