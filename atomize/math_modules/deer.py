@@ -874,6 +874,94 @@ def residual_whiteness(resid, max_lag=None):
             'white': bool(abs(acf[1] if len(acf) > 1 else 0.0) <= ci95)}
 
 
+# Analytic kernel-integral constants I(s) for g=2 (Nekrasov, Matveeva, Syryamina,
+# Agarkin & Bowman, Phys. Chem. Chem. Phys. 2026, DOI 10.1039/D5CP04144A; their
+# Eqns. 5-6), with s = n/3 for the n-th moment.
+_MELLIN_I_S = {1: 4.35466, 2: 3.06158, 3: 2.77339, 4: 2.56993}
+
+
+def distribution_moments(r, P):
+    """Shape descriptors of a distance distribution P(r) on grid r (nm).
+
+    From the non-central moments  M_n = int r^n P(r) dr  of the clipped,
+    area-normalized density, returns the quantities most PDS work reports:
+        mean   r0    = M1                       (mean distance, nm)
+        width  dr    = sqrt(M2 - M1^2)          (rms width, nm)
+        skew   gamma = (M3 - 3 M1 dr^2 - M1^3)/dr^3
+    plus the raw m1..m4. Negative excursions (the signed Mellin output) are
+    clipped before normalizing so these stay proper distribution moments. See
+    Nekrasov et al., PCCP 2026 (DOI 10.1039/D5CP04144A), Eqns. 6-7 & 17."""
+    r = np.asarray(r, float)
+    p = np.clip(np.asarray(P, float), 0.0, None)
+    area = float(_trapz(p, r))
+    if not np.isfinite(area) or area <= 0:
+        nan = float('nan')
+        return {'mean': nan, 'width': nan, 'skew': nan,
+                'm1': nan, 'm2': nan, 'm3': nan, 'm4': nan}
+    p = p/area
+    m1 = float(_trapz(r*p, r))
+    m2 = float(_trapz(r**2*p, r))
+    m3 = float(_trapz(r**3*p, r))
+    m4 = float(_trapz(r**4*p, r))
+    var = max(m2 - m1*m1, 0.0)
+    dr = float(np.sqrt(var))
+    skew = float((m3 - 3*m1*var - m1**3)/dr**3) if dr > 1e-9 else 0.0
+    return {'mean': m1, 'width': dr, 'skew': skew,
+            'm1': m1, 'm2': m2, 'm3': m3, 'm4': m4}
+
+
+def moment_error_apriori(eps, dt, n_points, n=1):
+    """A priori rms error of the n-th non-central moment M_n of P(r) from random
+    noise alone -- the closed form of Nekrasov, Matveeva, Syryamina, Agarkin &
+    Bowman, PCCP 2026 (DOI 10.1039/D5CP04144A), Eqn. 9, for uniform acquisition:
+
+        ME_n = (eps * dt^s / I(s)) * sqrt( 1/4 + sum_{i=2}^{NT-1} i^{2(s-1)} )
+
+    with s = n/3 and I(s) the analytic kernel integral (their Eqns. 5-6). It needs
+    NO inversion and NO ground truth -- the precision of a moment is a property of
+    the *acquisition* (noise level, step, length), because the additivity of the
+    Mellin transform decouples the noise from the (unknown) distribution.
+
+    Parameters
+    ----------
+    eps : float
+        Per-point rms noise on the NORMALIZED form factor F(t) (F(0)=1). For a
+        background-corrected trace with modulation depth lambda this is the raw
+        trace noise amplified by 1/(lambda*B): eps ~ sigma_trace/lambda.
+    dt : float
+        Time step in NANOSECONDS (the constants I(s) are fixed for g=2 with the
+        dipolar frequency in GHz, i.e. time in ns). Pass dt_us*1e3.
+    n_points : int
+        Number of dipolar-trace points (t >= 0).
+    n : int
+        Moment order (1..4). n=1 is the mean distance -- the robust one; its
+        i^{-4/3} weight is dominated by the EARLY points, so ME_1 is nearly flat
+        in n_points (extending the trace does not improve the mean distance).
+
+    Returns
+    -------
+    float : ME_n in nm^n  (nm for the mean distance, n=1).
+
+    Notes
+    -----
+    Reproduces the paper's reported uniform-acquisition std(M1)=0.0400 nm for
+    eps=0.04, dt=24 ns, NT=231 (-> 0.0407 nm). The empirical std of M1 from a full
+    Tikhonov / Mellin inversion sits at or below this bound (regularization only
+    reduces the noise-driven scatter), so ME_1 is a conservative a priori error
+    bar on the recovered mean distance."""
+    n = int(n)
+    if n not in _MELLIN_I_S:
+        raise ValueError('moment order n must be 1..4')
+    nt = int(n_points)
+    if nt < 3 or eps <= 0 or dt <= 0:
+        return float('nan')
+    s = n/3.0
+    I = _MELLIN_I_S[n]
+    i = np.arange(2, nt, dtype=float)
+    S = 0.25 + float(np.sum(i**(2.0*(s - 1.0))))      # alpha_1^2=(1/2)^2 + tail
+    return float(eps*dt**s/I*np.sqrt(S))
+
+
 def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                        fit_dim=False, nu_dd=NU_DD, delta=None, tau_max=30.0,
                        n_tau=601, bg_engine='joint', n_mc=0, ci_z=1.96, seed=0,
