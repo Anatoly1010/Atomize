@@ -207,25 +207,30 @@ def background_fit(t, V, bg_start, bg_end=None, dim=3.0, fit_dim=False):
             'bg_end': (None if bg_end is None else float(bg_end)), 'mask': mask}
 
 
-def background_general(t, V, bg_start, bg_end=None, **_ignored):
-    """General empirical intermolecular background fit on the tail window
+def background_general(t, V, bg_start, bg_end=None,
+                       a=None, b=None, c=None, d=None, fit=True, **_ignored):
+    """General empirical intermolecular background on the tail window
     bg_start <= t (<= bg_end):
 
         g(t) = a + b*t + c*d^t        (offset + linear drift + exponential, base d)
 
     A flexible alternative to the stretched-exponential `background_fit` for traces
-    whose intermolecular decay is not well described by exp(-(k|t|)^(d/3)) -- the
-    four parameters a, b, c, d are free. Same convention as `background_fit`: V is
-    normalized to V(0)=1, the fitted tail baseline g(t) = (1-lambda)*B(t), so the
-    background normalized to B(0)=1 is B(t) = g(t)/g(0), the modulation depth is
-    lambda = 1 - g(0) (g(0) = a + c, since d^0 = 1), and
+    whose intermolecular decay is not well described by exp(-(k|t|)^(d/3)). Same
+    convention as `background_fit`: V is normalized to V(0)=1, the tail baseline
+    g(t) = (1-lambda)*B(t), so the background normalized to B(0)=1 is
+    B(t) = g(t)/g(0), the modulation depth is lambda = 1 - g(0) (g(0) = a + c,
+    since d^0 = 1), and  F(t) = (V(t)/B(t) - (1 - lambda)) / lambda .
 
-        F(t) = (V(t)/B(t) - (1 - lambda)) / lambda .
-
-    `d` is constrained to (0, 1] so the exponential term decays (a growing
-    background is unphysical for the intermolecular contribution). Returns the same
-    dict shape as `background_fit`, with k / dim = NaN (not applicable) and the
-    fitted coefficients in `params` (a, b, c, d) and `model` = 'general'.
+    With `fit=True` (default) the four coefficients are fit on the tail; any of
+    a / b / c / d that are supplied are used as the initial guess. With `fit=False`
+    they are used DIRECTLY as the background (manual mode -- the GUI's hand-set
+    coefficients), no fitting. When fitting, `d` is constrained so the exponential
+    retains >= 5% of its t=0 amplitude across the fit window (d^span >= 0.05):
+    otherwise c and d are unconstrained by the tail and the g(0) extrapolation
+    blows up (a faster decay is not an intermolecular background anyway). Time `t`
+    is in microseconds, so the manual coefficients act on t in us. Returns the same
+    dict shape as `background_fit`, with k / dim = NaN and the coefficients in
+    `params` (a, b, c, d) and `model` = 'general'.
     """
     _require_scipy()
     t = np.asarray(t, dtype=float)
@@ -236,36 +241,36 @@ def background_general(t, V, bg_start, bg_end=None, **_ignored):
     mask = t >= bg_start
     if bg_end is not None:
         mask = mask & (t <= bg_end)
-    if int(mask.sum()) < 4:
-        raise ValueError('Background region has too few points; widen [bg_start, bg_end].')
-    tt, vv = t[mask], V[mask]
-    span = float(tt[-1] - tt[0]) or 1.0
 
-    def _model(x, a, b, c, d):
-        d = min(max(float(d), 1e-9), 1.0)
-        return a + b*x + c*np.power(d, x)
+    def _model(x, aa, bb, cc, dd):
+        dd = min(max(float(dd), 1e-9), 1.0)
+        return aa + bb*x + cc*np.power(dd, x)
 
-    # The exponential term must be a genuine (slow) BACKGROUND decay -- if d is so
-    # small that c*d^t has already collapsed before the fit window, c and d are
-    # unconstrained by the tail and the extrapolation to g(0) blows up. Bound d so
-    # the term still retains >= 5% of its t=0 amplitude at the END of the fit
-    # window (d^span >= 0.05), which keeps it data-constrained; a faster decay is
-    # not an intermolecular background anyway. The linear term carries any residual
-    # gentle drift.
-    d_lo = float(np.clip(0.05**(1.0/span), 0.05, 0.95))
-    a0 = float(vv[-1])                                 # tail-end baseline
-    b0 = float((vv[-1] - vv[0])/span)                  # gentle slope
-    c0 = float(np.clip(vv[0] - vv[-1], -1.0, 1.0))     # exp amplitude across the tail
-    d0 = float(np.sqrt(d_lo))
-    p0 = [a0, b0, c0, d0]
-    bounds = ([-np.inf, -np.inf, -np.inf, d_lo], [np.inf, np.inf, np.inf, 1.0])
-    try:
-        popt, _ = curve_fit(_model, tt, vv, p0=p0, bounds=bounds, maxfev=10000)
-    except Exception:
-        popt = p0
-    a, b, c, d = (float(x) for x in popt)
-    g = _model(t, a, b, c, d)                         # = (1-lambda)*B(t) baseline
-    g0 = a + c                                         # g(0): d^0 = 1
+    if fit:
+        if int(mask.sum()) < 4:
+            raise ValueError('Background region has too few points; widen [bg_start, bg_end].')
+        tt, vv = t[mask], V[mask]
+        span = float(tt[-1] - tt[0]) or 1.0
+        # bound d so the exponential stays data-constrained over the fit window
+        d_lo = float(np.clip(0.05**(1.0/span), 0.05, 0.95))
+        a0 = float(a) if a is not None else float(vv[-1])               # tail-end baseline
+        b0 = float(b) if b is not None else float((vv[-1] - vv[0])/span)  # gentle slope
+        c0 = float(c) if c is not None else float(np.clip(vv[0] - vv[-1], -1.0, 1.0))
+        d0 = float(np.clip(d if d is not None else np.sqrt(d_lo), d_lo, 1.0))
+        p0 = [a0, b0, c0, d0]
+        bounds = ([-np.inf, -np.inf, -np.inf, d_lo], [np.inf, np.inf, np.inf, 1.0])
+        try:
+            popt, _ = curve_fit(_model, tt, vv, p0=p0, bounds=bounds, maxfev=10000)
+        except Exception:
+            popt = p0
+        af, bf, cf, df = (float(x) for x in popt)
+    else:                                              # manual: use the given coefficients
+        af = 0.0 if a is None else float(a)
+        bf = 0.0 if b is None else float(b)
+        cf = 0.0 if c is None else float(c)
+        df = float(np.clip(0.8 if d is None else float(d), 1e-6, 1.0))
+    g = _model(t, af, bf, cf, df)                     # = (1-lambda)*B(t) baseline
+    g0 = af + cf                                       # g(0): d^0 = 1
     lam = float(np.clip(1.0 - g0, 0.02, 0.98))
     B = g/g0 if abs(g0) > 1e-9 else np.ones_like(t)
     F = (V/np.clip(B, 1e-3, None) - (1 - lam))/lam
@@ -273,7 +278,7 @@ def background_general(t, V, bg_start, bg_end=None, **_ignored):
             'B': B, 'form_factor': F, 'V_norm': V, 't': t,
             'bg_start': float(bg_start),
             'bg_end': (None if bg_end is None else float(bg_end)), 'mask': mask,
-            'model': 'general', 'params': {'a': a, 'b': b, 'c': c, 'd': d}}
+            'model': 'general', 'params': {'a': af, 'b': bf, 'c': cf, 'd': df}}
 
 
 # --------------------------------------------------------------------------- #
@@ -462,6 +467,9 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
     (masses, sum = 1), P_density (P_norm / dr, integrates to 1), kernel, alpha,
     l_curve (when scanned), background result, lambda / k / dim, and engine.
     """
+    # coefficients for the 'general' background (a/b/c/d, fit flag); flows through
+    # kwargs so deer_validate and the engine dispatch carry it transparently.
+    bg_params = kwargs.pop('bg_params', None)
     if engine == 'joint':
         return deer_invert_joint(t, V, r=r, bg_start=bg_start, bg_end=bg_end,
                                  dim=dim, fit_dim=fit_dim, alpha=alpha,
@@ -470,10 +478,12 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
                                  alpha_factor=alpha_factor)
     if engine == 'mellin':
         return deer_invert_mellin(t, V, r=r, bg_start=bg_start, bg_end=bg_end,
-                                  dim=dim, fit_dim=fit_dim, nu_dd=nu_dd, **kwargs)
+                                  dim=dim, fit_dim=fit_dim, nu_dd=nu_dd,
+                                  bg_params=bg_params, **kwargs)
     if engine == 'gauss':
         return deer_invert_gauss(t, V, r=r, bg_start=bg_start, bg_end=bg_end,
-                                 dim=dim, fit_dim=fit_dim, nu_dd=nu_dd, **kwargs)
+                                 dim=dim, fit_dim=fit_dim, nu_dd=nu_dd,
+                                 bg_params=bg_params, **kwargs)
     _require_scipy()
     t = np.asarray(t, float)
     V = np.asarray(V, float)
@@ -483,7 +493,7 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
     if engine == 'none':          # no intermolecular background (B=1); fit lambda only
         bg = _no_background(t, V, bg_start=bg_start, bg_end=bg_end)
     elif engine == 'general':     # general empirical background a + b*t + c*d^t
-        bg = background_general(t, V, bg_start, bg_end=bg_end)
+        bg = background_general(t, V, bg_start, bg_end=bg_end, **(bg_params or {}))
     else:
         bg = background_fit(t, V, bg_start, bg_end=bg_end, dim=dim, fit_dim=fit_dim)
     F = bg['form_factor']
@@ -1041,7 +1051,8 @@ def moment_error_apriori(eps, dt, n_points, n=1):
 
 def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                        fit_dim=False, nu_dd=NU_DD, delta=None, tau_max=30.0,
-                       n_tau=601, bg_engine='joint', n_mc=0, ci_z=1.96, seed=0,
+                       n_tau=601, bg_engine='joint', bg_params=None,
+                       n_mc=0, ci_z=1.96, seed=0,
                        taumax_method='penalty', noise_space='V',
                        wiener=0.0, taumax_extend=True, extend_short_frac=0.18,
                        fit_rmin_frac=0.18, signed_fit=True, taper_short=True,
@@ -1174,7 +1185,7 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         bg = joint_background(t, V, bg_start=bg_start, bg_end=bg_end,
                               dim=dim, fit_dim=fit_dim, nu_dd=nu_dd)
     elif bg_engine == 'general':
-        bg = background_general(t, V, bg_start, bg_end=bg_end)
+        bg = background_general(t, V, bg_start, bg_end=bg_end, **(bg_params or {}))
     else:
         bg = background_fit(t, V, bg_start, bg_end=bg_end, dim=dim, fit_dim=fit_dim)
     F = bg['form_factor']
@@ -1524,10 +1535,10 @@ def _gauss_seed_centers(r, P_seed, n):
 
 def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                       fit_dim=False, nu_dd=NU_DD, n_gauss=None, max_gauss=4,
-                      bg_engine='joint', ic='aicc', n_mc=0, ci_z=1.96, seed=0,
-                      sigma_min=None, sigma_max=None, ci_mode='linear',
-                      ci_level=0.95, prune_spurious=True, weight_min=0.02,
-                      **_ignored):
+                      bg_engine='joint', bg_params=None, ic='aicc', n_mc=0,
+                      ci_z=1.96, seed=0, sigma_min=None, sigma_max=None,
+                      ci_mode='linear', ci_level=0.95, prune_spurious=True,
+                      weight_min=0.02, **_ignored):
     """Parametric DEER inversion: model P(r) as a SUM OF N GAUSSIANS and fit their
     amplitudes / centres / widths to the form factor (the DeerAnalysis "Gaussian"
     mode / DeerLab `dd_gaussN` approach). Complements the regularized (`deer_invert`)
@@ -1605,7 +1616,7 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         bg = joint_background(t, V, bg_start=bg_start, bg_end=bg_end,
                               dim=dim, fit_dim=fit_dim, nu_dd=nu_dd)
     elif bg_engine == 'general':
-        bg = background_general(t, V, bg_start, bg_end=bg_end)
+        bg = background_general(t, V, bg_start, bg_end=bg_end, **(bg_params or {}))
     else:
         bg = background_fit(t, V, bg_start, bg_end=bg_end, dim=dim, fit_dim=fit_dim)
     F = bg['form_factor']
