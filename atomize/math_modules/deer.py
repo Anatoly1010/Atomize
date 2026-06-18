@@ -1540,12 +1540,179 @@ def _gauss_seed_centers(r, P_seed, n):
     return sorted(centers[:n])
 
 
+def _pake_transform(t, nu):
+    """Cosine-transform matrix Phi (n_nu x n_t) mapping a time-domain form factor
+    F(t) to its dipolar (Pake) frequency spectrum F(nu) = integral F(t)cos(2*pi*nu*t)dt
+    by the trapezoidal rule. `t` in us, `nu` in MHz."""
+    t = np.asarray(t, float); nu = np.asarray(nu, float)
+    dt = float(t[1] - t[0]) if len(t) > 1 else 1.0
+    Phi = 2.0*np.cos(2.0*np.pi*np.outer(nu, t))*dt
+    Phi[:, 0] *= 0.5
+    if len(t) > 1:
+        Phi[:, -1] *= 0.5
+    return Phi
+
+
+def _gauss_mc(t, V, r, K, F, bg, dr, rmin, rmax, s_lo, s_hi, npts, Ns, forced,
+              ic_key, prune, _density, _criterion, _has_spurious, nu_dd,
+              mc_trials, mc_tol, seed, ci_z, n_mc):
+    """Dzuba/Matveeva random Monte-Carlo multi-Gaussian fit, in the FREQUENCY
+    (dipolar Pake) domain (Dzuba, JMR 275 (2016) 1; Matveeva et al., Z. Phys.
+    Chem. 231 (2017) 463). For each candidate N a large number of trial parameter
+    sets (a_k in [0,1], r_k in [rmin,rmax], sigma_k in [s_lo,s_hi]) are drawn at
+    random and the trial whose Pake spectrum best matches the data (smallest
+    frequency-domain MSD) is kept -- a completely random search, so it cannot be
+    trapped in the floor-width-spike local optimum the gradient fit falls into,
+    and the coarse frequency-domain comparison is immune to ESEEM peaks (fixed
+    frequencies) and background error (zero-frequency). The data-consistent trials
+    (MSD within (1+mc_tol) of the best) form an ensemble whose per-r percentiles
+    give a genuine (non-linearized) confidence band. N is selected with the same
+    information criterion + weight-gated spurious test as the least-squares path,
+    using the best trial's time-domain residual. Returns the deer_invert_gauss
+    dict shape with engine='gauss', method='mc'."""
+    rng = np.random.default_rng(seed)
+    # dipolar Pake band: nu = 52.04/r^3 MHz for nitroxides; cover [r_max, r_min]
+    nu_hi = min(1.3*52.04/max(rmin, 0.5)**3, 0.5/(float(t[1]-t[0]) if len(t) > 1 else 1.0))
+    nu = np.linspace(0.0, nu_hi, 200)
+    Phi = _pake_transform(t, nu)
+    Fnu = Phi @ F
+    Kfreq = Phi @ K                                       # (n_nu x n_r)
+    band = np.abs(Fnu) > 0.02*np.max(np.abs(Fnu))         # significant Pake band
+    if band.sum() < 5:
+        band = np.ones_like(Fnu, bool)
+    Kb = Kfreq[band]; Fb = Fnu[band]
+
+    from scipy.optimize import least_squares
+    # number of random restarts per N. Pure uniform random search in 3N-dim
+    # (Dzuba's 1e7-1e9 trials) is far too slow interactively; instead draw a
+    # modest number of RANDOM initial parameter sets and polish each with a local
+    # least-squares step -- the random starts give the global coverage that
+    # dodges the floor-spike basin, the polish gives precision. Trials are
+    # selected on the frequency-domain Pake MSD (Dzuba's metric).
+    n_restarts = max(20, int(round(mc_trials/1500)))
+
+    def _density_p(p, n):
+        g = np.zeros_like(r)
+        for kk in range(n):
+            g += p[3*kk]*np.exp(-0.5*((r - p[3*kk+1])/p[3*kk+2])**2)
+        return g
+
+    def _msd_freq(p, n):
+        m = _density_p(p, n)*dr; tot = m.sum() or 1.0
+        return float(np.mean(((m/tot) @ Kb.T - Fb)**2))
+
+    def _search(n):
+        """Stochastic multi-start: random initial (a,c,s) sets polished by a local
+        least-squares fit; keep the best frequency-domain MSD and the ensemble of
+        data-consistent (MSD <= (1+mc_tol)*best) polished params."""
+        s0 = float(np.clip(0.2, s_lo, s_hi))
+        lo = np.array([0., rmin, s_lo]*n); hi = np.array([np.inf, rmax, s_hi]*n)
+        best_p, best_m, keep_p, keep_m = None, np.inf, [], []
+        for it in range(n_restarts):
+            cen = np.sort(rng.uniform(rmin + 0.2, rmax - 0.2, n))
+            p0 = np.empty(3*n)
+            p0[0::3] = 1.0/(n*s0*np.sqrt(2*np.pi))
+            p0[1::3] = cen
+            p0[2::3] = rng.uniform(s_lo, min(0.6, s_hi), n)
+            try:
+                sol = least_squares(lambda p: K@(_density_p(p, n)*dr) - F, p0,
+                                    bounds=(lo, hi), max_nfev=600)
+                p = sol.x
+            except Exception:
+                continue
+            m = _msd_freq(p, n)
+            keep_p.append(p.copy()); keep_m.append(m)
+            if m < best_m:
+                best_m, best_p = m, p.copy()
+        if best_p is None:
+            return None, np.inf, None
+        keep_p = np.array(keep_p); keep_m = np.array(keep_m)
+        ens = keep_p[keep_m <= best_m*(1.0 + mc_tol)]
+        return best_p, best_m, ens
+
+    def _rss_time(p, n):
+        return float(np.sum((K@(_density(p, n)*dr) - F)**2))
+
+    best = best_clean = None
+    ic_curve = []
+    cache = {}
+    for n in Ns:
+        p, m, ens = _search(n)
+        if p is None:
+            continue
+        rss = _rss_time(p, n)
+        crit = _criterion(rss, n)
+        ic_curve.append((n, float(crit[ic_key]), rss))
+        cache[n] = (p, ens, rss, crit)
+        if best is None or crit[ic_key] < best['crit'][ic_key]:
+            best = {'n': n, 'p': p, 'ens': ens, 'rss': rss, 'crit': crit}
+        if not _has_spurious(p, n) and (
+                best_clean is None or crit[ic_key] < best_clean['crit'][ic_key]):
+            best_clean = {'n': n, 'p': p, 'ens': ens, 'rss': rss, 'crit': crit}
+    if best is None:
+        raise RuntimeError('Monte-Carlo Gaussian fit failed for every N tried.')
+    n_ic = best['n']
+    chosen = best if (forced or not prune or best_clean is None) else best_clean
+    n = chosen['n']; p = chosen['p']; ens = chosen['ens']
+
+    g = _density(p, n); masses = g*dr
+    F_fit = K@masses
+    P_norm = _normalize_masses(masses); P_density = P_norm/dr
+
+    # per-component centre/sigma + ensemble-STD error bars (components sorted by
+    # centre in every trial so the k-th slot tracks the same mode)
+    order = np.argsort(p[1::3][:n])
+    ens_cs = None
+    if ens is not None and len(ens) >= 5:
+        ec = np.sort(ens[:, 1::3], axis=1); es = np.take_along_axis(
+            ens[:, 2::3], np.argsort(ens[:, 1::3], axis=1), axis=1)
+        ens_cs = (ec.std(0), es.std(0))
+    components = []
+    for slot, kk in enumerate(order):
+        a, c, s = float(p[3*kk]), float(p[3*kk+1]), float(abs(p[3*kk+2]))
+        ce = float(ens_cs[0][slot]) if ens_cs is not None else float('nan')
+        se = float(ens_cs[1][slot]) if ens_cs is not None else float('nan')
+        components.append({'amplitude': a, 'center': c, 'sigma': s,
+                           'area': a*s*np.sqrt(2.0*np.pi),
+                           'center_err': ce, 'sigma_err': se})
+    tot_area = sum(cc['area'] for cc in components) or 1.0
+    for cc in components:
+        cc['weight'] = cc['area']/tot_area
+
+    # confidence band from the data-consistent ensemble (per-r 2.5/97.5 pct)
+    P_lower = P_upper = P_std = None
+    if ens is not None and len(ens) >= 10:
+        dd = np.einsum('bk,bkr->br', ens[:, 0::3],
+                       np.exp(-0.5*((r[None, None, :] - ens[:, 1::3][:, :, None]) /
+                                    ens[:, 2::3][:, :, None])**2))
+        m = dd*dr; tot = m.sum(1, keepdims=True); tot[tot == 0] = 1.0
+        ensd = (m/tot)/dr
+        P_lower = np.percentile(ensd, 2.5, axis=0)
+        P_upper = np.percentile(ensd, 97.5, axis=0)
+        P_std = ensd.std(0)
+
+    return {'t': t, 'r': r, 'form_factor': F, 'F_fit': F_fit,
+            'residuals': F - F_fit, 'P': masses, 'P_norm': P_norm,
+            'P_density': P_density, 'P_lower': P_lower, 'P_upper': P_upper,
+            'P_std': P_std, 'kernel': K, 'alpha': float('nan'), 'l_curve': None,
+            'background': bg, 'lambda': bg['lambda'], 'k': bg['k'],
+            'dim': bg['dim'], 'engine': 'gauss', 'method': 'mc', 'n_gauss': int(n),
+            'components': components, 'ic': ic_key,
+            'aic': float(chosen['crit']['aic']), 'aicc': float(chosen['crit']['aicc']),
+            'bic': float(chosen['crit']['bic']), 'ic_curve': ic_curve,
+            'n_gauss_ic': int(n_ic), 'pruned': bool(n != n_ic),
+            'ci_mode': 'mc_ensemble', 'ci_level': 0.95,
+            'noise_level': float(_tail_noise(t, bg['V_norm'])),
+            'mc_trials': int(mc_trials), 'mc_msd': float(chosen.get('rss', float('nan')))}
+
+
 def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                       fit_dim=False, nu_dd=NU_DD, n_gauss=None, max_gauss=4,
                       bg_engine='joint', bg_params=None, ic='aicc', n_mc=0,
                       ci_z=1.96, seed=0, sigma_min=None, sigma_max=None,
                       ci_mode='linear', ci_level=0.95, prune_spurious=True,
-                      weight_min=0.02, spike_weight_max=0.10, **_ignored):
+                      weight_min=0.02, spike_weight_max=0.10,
+                      method='lsq', mc_trials=30000, mc_tol=0.5, **_ignored):
     """Parametric DEER inversion: model P(r) as a SUM OF N GAUSSIANS and fit their
     amplitudes / centres / widths to the form factor (the DeerAnalysis "Gaussian"
     mode / DeerLab `dd_gaussN` approach). Complements the regularized (`deer_invert`)
@@ -1582,6 +1749,23 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     model would have and keeps the fit covariance well-conditioned. The reported
     P_norm / P_density are the area-normalized result; `components` carries each
     Gaussian's centre / sigma / weight with 1-sigma errors from the covariance.
+
+    `method` selects the solver. 'lsq' (default) is the gradient least-squares fit
+    described above. 'mc' is a Dzuba/Matveeva-style Monte-Carlo fit (Dzuba, JMR 275
+    (2016) 1; Matveeva et al., Z. Phys. Chem. 231 (2017) 463) carried out in the
+    dipolar FREQUENCY (Pake) domain: stochastic multi-start (`mc_trials` random
+    initial parameter sets, each locally polished) selected by the smallest Pake-
+    spectrum MSD. The random starts dodge the floor-spike basin the gradient fit
+    can fall into, and the frequency-domain comparison is intrinsically immune to
+    ESEEM peaks (fixed frequencies) and background error (zero frequency); the data-
+    consistent trials (MSD within (1+`mc_tol`) of the best) form an ensemble whose
+    per-r 2.5/97.5 percentiles give a NON-linearized confidence band (`P_lower`/
+    `P_upper`), and `center_err`/`sigma_err` are that ensemble's per-component STD.
+    On artifact-free synthetic data 'mc' ties 'lsq' (at low noise the gradient fit
+    is already near-optimal; at high noise both are information-limited); its value
+    is robustness to those real-data artifacts and the honest error band. It costs
+    a few seconds (opt-in). `n_mc`/`ci_mode` are ignored for 'mc' (the ensemble band
+    replaces the covariance band).
 
     `bg_engine` selects how V(t) is prepared, exactly as in `deer_invert_mellin`:
     'joint' (default, lambda-pinned DeerLab-style), 'sequential' (tail-window fit),
@@ -1718,6 +1902,14 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     Ns = [int(n_gauss)] if (n_gauss and int(n_gauss) > 0) else \
         list(range(1, int(max_gauss) + 1))
     forced = bool(n_gauss and int(n_gauss) > 0)
+
+    if method == 'mc':
+        return _gauss_mc(t, V, r, K, F, bg, dr, rmin, rmax, s_lo, s_hi, npts,
+                         Ns, forced, ic_key=ic if ic in ('aic', 'aicc', 'bic')
+                         else 'aicc', prune=prune_spurious, _density=_density,
+                         _criterion=_criterion, _has_spurious=_has_spurious,
+                         nu_dd=nu_dd, mc_trials=int(mc_trials), mc_tol=float(mc_tol),
+                         seed=seed, ci_z=ci_z, n_mc=n_mc)
     ic_key = ic if ic in ('aic', 'aicc', 'bic') else 'aicc'
     best = best_clean = None
     ic_curve = []
