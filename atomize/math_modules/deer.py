@@ -212,25 +212,27 @@ def background_general(t, V, bg_start, bg_end=None,
     """General empirical intermolecular background on the tail window
     bg_start <= t (<= bg_end):
 
-        g(t) = a + b*t + c*d^t        (offset + linear drift + exponential, base d)
+        g(t) = a * exp( b * (t + c * d^t) )       (a, b, c, d free)
 
     A flexible alternative to the stretched-exponential `background_fit` for traces
     whose intermolecular decay is not well described by exp(-(k|t|)^(d/3)). Same
     convention as `background_fit`: V is normalized to V(0)=1, the tail baseline
     g(t) = (1-lambda)*B(t), so the background normalized to B(0)=1 is
-    B(t) = g(t)/g(0), the modulation depth is lambda = 1 - g(0) (g(0) = a + c,
-    since d^0 = 1), and  F(t) = (V(t)/B(t) - (1 - lambda)) / lambda .
+    B(t) = g(t)/g(0), the modulation depth is lambda = 1 - g(0) (g(0) = a*exp(b*c),
+    since d^0 = 1), and  F(t) = (V(t)/B(t) - (1 - lambda)) / lambda . The amplitude
+    `a` cancels in B = g/g(0), so b / c / d set the background SHAPE and `a` only
+    its t=0 level (hence lambda); B(t) = exp(b*(t + c*(d^t - 1))) stays positive.
 
     With `fit=True` (default) the four coefficients are fit on the tail; any of
     a / b / c / d that are supplied are used as the initial guess. With `fit=False`
     they are used DIRECTLY as the background (manual mode -- the GUI's hand-set
-    coefficients), no fitting. When fitting, `d` is constrained so the exponential
+    coefficients), no fitting. When fitting, `d` is constrained so the d^t term
     retains >= 5% of its t=0 amplitude across the fit window (d^span >= 0.05):
-    otherwise c and d are unconstrained by the tail and the g(0) extrapolation
-    blows up (a faster decay is not an intermolecular background anyway). Time `t`
-    is in microseconds, so the manual coefficients act on t in us. Returns the same
-    dict shape as `background_fit`, with k / dim = NaN and the coefficients in
-    `params` (a, b, c, d) and `model` = 'general'.
+    otherwise c and d are unconstrained by the tail (where d^t has vanished) and
+    the fit is degenerate; a faster decay is not an intermolecular background
+    anyway. Time `t` is in microseconds, so the manual coefficients act on t in us.
+    Returns the same dict shape as `background_fit`, with k / dim = NaN and the
+    coefficients in `params` (a, b, c, d) and `model` = 'general'.
     """
     _require_scipy()
     t = np.asarray(t, dtype=float)
@@ -244,33 +246,38 @@ def background_general(t, V, bg_start, bg_end=None,
 
     def _model(x, aa, bb, cc, dd):
         dd = min(max(float(dd), 1e-9), 1.0)
-        return aa + bb*x + cc*np.power(dd, x)
+        return aa*np.exp(bb*(x + cc*np.power(dd, x)))
 
     if fit:
         if int(mask.sum()) < 4:
             raise ValueError('Background region has too few points; widen [bg_start, bg_end].')
         tt, vv = t[mask], V[mask]
         span = float(tt[-1] - tt[0]) or 1.0
-        # bound d so the exponential stays data-constrained over the fit window
+        # bound d so the d^t term stays data-constrained over the fit window
         d_lo = float(np.clip(0.05**(1.0/span), 0.05, 0.95))
-        a0 = float(a) if a is not None else float(vv[-1])               # tail-end baseline
-        b0 = float(b) if b is not None else float((vv[-1] - vv[0])/span)  # gentle slope
-        c0 = float(c) if c is not None else float(np.clip(vv[0] - vv[-1], -1.0, 1.0))
+        # in the tail the d^t term has decayed, so g ~ a*exp(b*t): seed a / b from
+        # a log-linear fit of the (positive) tail, c from the early curvature.
+        lv = np.log(np.clip(vv, 1e-6, None))
+        b_lin = float(np.polyfit(tt, lv, 1)[0]) if span > 0 else -0.05
+        a_lin = float(np.exp(np.mean(lv - b_lin*tt)))
+        a0 = float(a) if a is not None else max(a_lin, 1e-6)
+        b0 = float(b) if b is not None else b_lin
+        c0 = float(c) if c is not None else 0.0
         d0 = float(np.clip(d if d is not None else np.sqrt(d_lo), d_lo, 1.0))
         p0 = [a0, b0, c0, d0]
-        bounds = ([-np.inf, -np.inf, -np.inf, d_lo], [np.inf, np.inf, np.inf, 1.0])
+        bounds = ([1e-9, -np.inf, -np.inf, d_lo], [np.inf, np.inf, np.inf, 1.0])
         try:
             popt, _ = curve_fit(_model, tt, vv, p0=p0, bounds=bounds, maxfev=10000)
         except Exception:
             popt = p0
         af, bf, cf, df = (float(x) for x in popt)
     else:                                              # manual: use the given coefficients
-        af = 0.0 if a is None else float(a)
+        af = 1.0 if a is None else float(a)
         bf = 0.0 if b is None else float(b)
         cf = 0.0 if c is None else float(c)
         df = float(np.clip(0.8 if d is None else float(d), 1e-6, 1.0))
     g = _model(t, af, bf, cf, df)                     # = (1-lambda)*B(t) baseline
-    g0 = af + cf                                       # g(0): d^0 = 1
+    g0 = af*np.exp(bf*cf)                              # g(0): d^0 = 1
     lam = float(np.clip(1.0 - g0, 0.02, 0.98))
     B = g/g0 if abs(g0) > 1e-9 else np.ones_like(t)
     F = (V/np.clip(B, 1e-3, None) - (1 - lam))/lam
