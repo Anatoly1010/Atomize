@@ -5,6 +5,7 @@ import os
 import gc
 import sys
 import pyvisa
+import numpy as np
 import pyqtgraph as pg
 from pyvisa.constants import StopBits, Parity
 import atomize.main.local_config as lconf
@@ -40,6 +41,14 @@ class SR_865a:
         self.ref_slope_dict = {'Sine': 0, 'PosTTL': 1, 'NegTTL': 2}
         self.sync_dict = {'Off': 0, 'On': 1}
         self.lp_fil_dict = {'6 dB': 0, '12 dB': 1, "18 dB": 2, "24 dB": 3}
+        # Internal capture-buffer settings (CAPTURE* subsystem)
+        self.capture_config_dict = {'X': 0, 'XY': 1, 'RT': 2, 'XYRT': 3}
+        self.capture_acq_dict = {'OneShot': 0, 'Continuous': 1}
+        self.capture_trig_dict = {'Immediate': 0, 'TrigStart': 1, 'SampPerTrig': 2}
+        self.capture_len_min = 1
+        self.capture_len_max = 4096
+        self.capture_rate_n_min = 0
+        self.capture_rate_n_max = 20
 
         # Ranges and limits
         self.ref_freq_min = 0.001
@@ -152,6 +161,13 @@ class SR_865a:
             self.test_sync = 'On'
             self.test_lp_filter = '6 dB'
             self.test_harmonic = 1
+            self.test_capture_length = 256
+            self.test_capture_config = 'XY'
+            self.test_capture_rate = 1250000.0
+            self.test_capture_rate_max = 1250000.0
+            self.test_capture_state = 0
+            self.test_capture_bytes = 0
+            self.test_capture_progress = 0
 
     def close_connection(self):
         if self.test_flag != 'test':
@@ -543,6 +559,185 @@ class SR_865a:
             else:
                 assert( 1 == 2 ), f"Incorrect argument; harmonic: int [{self.harm_min} {self.harm_max}]"
     
+    #### Internal capture-buffer functions (CAPTURE* subsystem)
+    def lock_in_capture_length(self, *length):
+        # CAPTURELEN: capture-buffer length in kB (256 data points per kB)
+        if self.test_flag != 'test':
+            if len(length) == 1:
+                n = int(length[0])
+                if n >= self.capture_len_min and n <= self.capture_len_max:
+                    self.device_write("CAPTURELEN " + str(n))
+                else:
+                    general.message(f"Incorrect capture length. The available range is from {self.capture_len_min} to {self.capture_len_max} kB")
+
+            elif len(length) == 0:
+                answer = int(self.device_query("CAPTURELEN?"))
+                return answer
+
+        elif self.test_flag == 'test':
+            if len(length) == 1:
+                n = int(length[0])
+                assert(n >= self.capture_len_min and n <= self.capture_len_max), \
+                    f"Incorrect capture length. The available range is from {self.capture_len_min} to {self.capture_len_max} kB"
+            elif len(length) == 0:
+                answer = self.test_capture_length
+                return answer
+            else:
+                assert( 1 == 2 ), "Incorrect argument; length: int (kB)"
+
+    def lock_in_capture_config(self, *config):
+        # CAPTURECFG: which quantities are captured ('X', 'XY', 'RT', 'XYRT')
+        if self.test_flag != 'test':
+            if len(config) == 1:
+                cfg = str(config[0])
+                if cfg in self.capture_config_dict:
+                    self.device_write("CAPTURECFG " + str(self.capture_config_dict[cfg]))
+                else:
+                    general.message(f"Incorrect capture config; config: {list(self.capture_config_dict.keys())}")
+
+            elif len(config) == 0:
+                raw_answer = int(self.device_query("CAPTURECFG?"))
+                answer = cutil.search_keys_dictionary(self.capture_config_dict, raw_answer)
+                return answer
+
+        elif self.test_flag == 'test':
+            if len(config) == 1:
+                cfg = str(config[0])
+                assert(cfg in self.capture_config_dict), \
+                    f"Incorrect capture config; config: {list(self.capture_config_dict.keys())}"
+            elif len(config) == 0:
+                answer = self.test_capture_config
+                return answer
+            else:
+                assert( 1 == 2 ), f"Incorrect argument; config: {list(self.capture_config_dict.keys())}"
+
+    def lock_in_capture_rate_max(self):
+        # CAPTURERATEMAX?: maximum allowed capture rate in Hz at the current time constant
+        if self.test_flag != 'test':
+            answer = float(self.device_query("CAPTURERATEMAX?"))
+            return answer
+        elif self.test_flag == 'test':
+            answer = self.test_capture_rate_max
+            return answer
+
+    def lock_in_capture_rate(self, *n):
+        # CAPTURERATE: set the rate to (max rate)/2**n, n in [0, 20]; the query returns the actual rate in Hz
+        if self.test_flag != 'test':
+            if len(n) == 1:
+                exponent = int(n[0])
+                if exponent >= self.capture_rate_n_min and exponent <= self.capture_rate_n_max:
+                    self.device_write("CAPTURERATE " + str(exponent))
+                else:
+                    general.message(f"Incorrect capture rate divisor. The available range is from {self.capture_rate_n_min} to {self.capture_rate_n_max}")
+
+            elif len(n) == 0:
+                answer = float(self.device_query("CAPTURERATE?"))
+                return answer
+
+        elif self.test_flag == 'test':
+            if len(n) == 1:
+                exponent = int(n[0])
+                assert(exponent >= self.capture_rate_n_min and exponent <= self.capture_rate_n_max), \
+                    f"Incorrect capture rate divisor. The available range is from {self.capture_rate_n_min} to {self.capture_rate_n_max}"
+            elif len(n) == 0:
+                answer = self.test_capture_rate
+                return answer
+            else:
+                assert( 1 == 2 ), "Incorrect argument; n: int [0, 20]"
+
+    def lock_in_capture_start(self, acquisition, trigger):
+        # CAPTURESTART: start a new capture; clears previously captured data
+        # acquisition: 'OneShot' / 'Continuous'; trigger: 'Immediate' / 'TrigStart' / 'SampPerTrig'
+        if self.test_flag != 'test':
+            acq = str(acquisition)
+            trg = str(trigger)
+            if acq in self.capture_acq_dict and trg in self.capture_trig_dict:
+                self.device_write("CAPTURESTART " + str(self.capture_acq_dict[acq]) + ',' + str(self.capture_trig_dict[trg]))
+            else:
+                general.message(f"Incorrect capture start; acquisition: {list(self.capture_acq_dict.keys())}, trigger: {list(self.capture_trig_dict.keys())}")
+
+        elif self.test_flag == 'test':
+            acq = str(acquisition)
+            trg = str(trigger)
+            assert(acq in self.capture_acq_dict), f"Incorrect acquisition; acquisition: {list(self.capture_acq_dict.keys())}"
+            assert(trg in self.capture_trig_dict), f"Incorrect trigger; trigger: {list(self.capture_trig_dict.keys())}"
+
+    def lock_in_capture_stop(self):
+        # CAPTURESTOP: stop data capture in any mode
+        if self.test_flag != 'test':
+            self.device_write("CAPTURESTOP")
+        elif self.test_flag == 'test':
+            pass
+
+    def lock_in_capture_state(self):
+        # CAPTURESTAT?: 3-bit state word (bit0 in progress, bit1 triggered, bit2 wrapped)
+        if self.test_flag != 'test':
+            answer = int(self.device_query("CAPTURESTAT?"))
+            return answer
+        elif self.test_flag == 'test':
+            answer = self.test_capture_state
+            return answer
+
+    def lock_in_capture_bytes(self):
+        # CAPTUREBYTES?: number of non-zero data bytes captured so far
+        if self.test_flag != 'test':
+            answer = int(self.device_query("CAPTUREBYTES?"))
+            return answer
+        elif self.test_flag == 'test':
+            answer = self.test_capture_bytes
+            return answer
+
+    def lock_in_capture_progress(self):
+        # CAPTUREPROG?: amount of captured data in kB (capture must be stopped)
+        if self.test_flag != 'test':
+            answer = int(self.device_query("CAPTUREPROG?"))
+            return answer
+        elif self.test_flag == 'test':
+            answer = self.test_capture_progress
+            return answer
+
+    def lock_in_capture_value(self, sample):
+        # CAPTUREVAL?: read the 1, 2 or 4 values (per CAPTURECFG) of sample number 'sample' in ASCII
+        if self.test_flag != 'test':
+            raw_answer = self.device_query("CAPTUREVAL? " + str(int(sample)))
+            data = np.array([float(item) for item in raw_answer.strip().rstrip(',').split(',')])
+            return data
+        elif self.test_flag == 'test':
+            return np.array([self.test_signal])
+
+    def lock_in_read_capture(self, offset, length):
+        # CAPTUREGET?: download 'length' kB of the capture buffer starting at offset 'offset' kB
+        # as a NumPy float32 array (little-endian binary block). Capture must be stopped.
+        # Not available over the RS-232 interface.
+        if self.test_flag != 'test':
+            off = int(offset)
+            ln = int(length)
+            assert(ln >= 1 and ln <= 64), "Invalid length; 1 <= length_kb <= 64"
+            command = "CAPTUREGET? " + str(off) + ',' + str(ln)
+            if self.config['interface'] == 'rs232':
+                general.message("CAPTUREGET? is not available over the RS-232 interface; use lock_in_capture_value()")
+                return np.array([], dtype = np.float32)
+            elif self.config['interface'] == 'gpib':
+                self.device.write(command)
+                general.wait('50 ms')
+                raw = self.device.read(ln * 1024 + 16)
+                if raw[0:1] != b'#':
+                    return np.array([], dtype = np.float32)
+                ndig = int(raw[1:2])
+                count = int(raw[2:2 + ndig])
+                start = 2 + ndig
+                data = np.frombuffer(raw[start:start + count], dtype = '<f4')
+                return data
+            else:
+                data = self.device.query_binary_values(command, datatype = 'f', is_big_endian = False, container = np.array)
+                return np.asarray(data, dtype = np.float32)
+
+        elif self.test_flag == 'test':
+            off = int(offset)
+            ln = int(length)
+            assert(ln >= 1 and ln <= 64), "Invalid length; 1 <= length_kb <= 64"
+            return np.array([self.test_signal], dtype = np.float32)
+
     def lock_in_command(self, command):
         if self.test_flag != 'test':
             self.device_write(command)

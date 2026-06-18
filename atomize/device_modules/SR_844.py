@@ -5,6 +5,7 @@ import os
 import gc
 import sys
 import pyvisa
+import numpy as np
 import pyqtgraph as pg
 from pyvisa.constants import StopBits, Parity
 import atomize.main.local_config as lconf
@@ -37,6 +38,13 @@ class SR_844:
         self.helper_tc_list = [1, 3, 10, 30, 100, 300, 1000]
         self.lp_fil_dict = {'No': 0, '6 dB': 1, '12 dB': 2, "18 dB": 3, "24 dB":4}
         self.ref_mode_dict = {'Internal': 0, 'External': 1}
+        # Internal data-buffer storage settings
+        self.sample_rate_dict = {'62.5 mHz': 0, '125 mHz': 1, '250 mHz': 2, '500 mHz': 3,
+                            '1 Hz': 4, '2 Hz': 5, '4 Hz': 6, '8 Hz': 7, '16 Hz': 8, '32 Hz': 9,
+                            '64 Hz': 10, '128 Hz': 11, '256 Hz': 12, '512 Hz': 13, 'Trigger': 14}
+        self.buffer_mode_dict = {'1 Shot': 0, 'Loop': 1}
+        self.trigger_start_dict = {'Off': 0, 'On': 1}
+        self.buffer_max = 16383
 
         # Ranges and limits
         self.ref_freq_min = 25000
@@ -108,6 +116,10 @@ class SR_844:
             self.test_sensitivity = '100 mV'
             self.test_lp_filter = '6 dB'
             self.test_ref_mode = 'Internal'
+            self.test_sample_rate = '512 Hz'
+            self.test_buffer_mode = 'Loop'
+            self.test_trigger_start = 'Off'
+            self.test_buffer_points = 0
 
     def close_connection(self):
         if self.test_flag != 'test':
@@ -441,6 +453,151 @@ class SR_844:
             else:
                 assert( 1 == 2 ), f"Incorrect argument; harmonic: int [{self.harm_min}-{self.harm_max}]"
     
+    #### Internal data-buffer functions
+    def lock_in_buffer_sample_rate(self, *rate):
+        if self.test_flag != 'test':
+            if len(rate) == 1:
+                rt = str(rate[0])
+                if rt in self.sample_rate_dict:
+                    self.device_write("SRAT " + str(self.sample_rate_dict[rt]))
+                else:
+                    general.message(f"Incorrect sample rate; rate: {list(self.sample_rate_dict.keys())}")
+
+            elif len(rate) == 0:
+                raw_answer = int(self.device_query("SRAT?"))
+                answer = cutil.search_keys_dictionary(self.sample_rate_dict, raw_answer)
+                return answer
+
+        elif self.test_flag == 'test':
+            if len(rate) == 1:
+                rt = str(rate[0])
+                assert(rt in self.sample_rate_dict), \
+                    f"Incorrect sample rate; rate: {list(self.sample_rate_dict.keys())}"
+            elif len(rate) == 0:
+                answer = self.test_sample_rate
+                return answer
+            else:
+                assert( 1 == 2 ), f"Incorrect argument; rate: {list(self.sample_rate_dict.keys())}"
+
+    def lock_in_buffer_mode(self, *mode):
+        if self.test_flag != 'test':
+            if len(mode) == 1:
+                md = str(mode[0])
+                if md in self.buffer_mode_dict:
+                    self.device_write("SEND " + str(self.buffer_mode_dict[md]))
+                else:
+                    general.message(f"Incorrect buffer mode; mode: {list(self.buffer_mode_dict.keys())}")
+
+            elif len(mode) == 0:
+                raw_answer = int(self.device_query("SEND?"))
+                answer = cutil.search_keys_dictionary(self.buffer_mode_dict, raw_answer)
+                return answer
+
+        elif self.test_flag == 'test':
+            if len(mode) == 1:
+                md = str(mode[0])
+                assert(md in self.buffer_mode_dict), \
+                    f"Incorrect buffer mode; mode: {list(self.buffer_mode_dict.keys())}"
+            elif len(mode) == 0:
+                answer = self.test_buffer_mode
+                return answer
+            else:
+                assert( 1 == 2 ), f"Incorrect argument; mode: {list(self.buffer_mode_dict.keys())}"
+
+    def lock_in_buffer_trigger_start(self, *mode):
+        if self.test_flag != 'test':
+            if len(mode) == 1:
+                md = str(mode[0])
+                if md in self.trigger_start_dict:
+                    self.device_write("TSTR " + str(self.trigger_start_dict[md]))
+                else:
+                    general.message(f"Incorrect trigger start mode; mode: {list(self.trigger_start_dict.keys())}")
+
+            elif len(mode) == 0:
+                raw_answer = int(self.device_query("TSTR?"))
+                answer = cutil.search_keys_dictionary(self.trigger_start_dict, raw_answer)
+                return answer
+
+        elif self.test_flag == 'test':
+            if len(mode) == 1:
+                md = str(mode[0])
+                assert(md in self.trigger_start_dict), \
+                    f"Incorrect trigger start mode; mode: {list(self.trigger_start_dict.keys())}"
+            elif len(mode) == 0:
+                answer = self.test_trigger_start
+                return answer
+            else:
+                assert( 1 == 2 ), f"Incorrect argument; mode: {list(self.trigger_start_dict.keys())}"
+
+    def lock_in_buffer_start(self):
+        # STRT: start or resume data storage in the internal buffer
+        if self.test_flag != 'test':
+            self.device_write("STRT")
+        elif self.test_flag == 'test':
+            pass
+
+    def lock_in_buffer_pause(self):
+        # PAUS: pause data storage; the buffer is not reset
+        if self.test_flag != 'test':
+            self.device_write("PAUS")
+        elif self.test_flag == 'test':
+            pass
+
+    def lock_in_buffer_reset(self):
+        # REST: stop data storage and erase the buffer
+        if self.test_flag != 'test':
+            self.device_write("REST")
+        elif self.test_flag == 'test':
+            pass
+
+    def lock_in_buffer_trigger(self):
+        # TRIG: software trigger, equivalent to a rear-panel trigger pulse
+        if self.test_flag != 'test':
+            self.device_write("TRIG")
+        elif self.test_flag == 'test':
+            pass
+
+    def lock_in_buffer_points(self):
+        # SPTS?: number of points currently stored in the buffer
+        if self.test_flag != 'test':
+            answer = int(self.device_query("SPTS?"))
+            return answer
+        elif self.test_flag == 'test':
+            answer = self.test_buffer_points
+            return answer
+
+    def lock_in_read_buffer(self, channel, *bins):
+        # TRCA?: read stored points from the Channel 1 or 2 display buffer
+        # channel: display buffer (1 or 2)
+        # bins (optional): start_bin, number_of_points; default reads the whole buffer
+        if self.test_flag != 'test':
+            ch = int(channel)
+            assert(ch == 1 or ch == 2), "Invalid channel; channel: [1, 2]"
+            if len(bins) == 0:
+                start = 0
+                number = int(self.device_query("SPTS?"))
+            elif len(bins) == 2:
+                start = int(bins[0])
+                number = int(bins[1])
+            else:
+                general.message("Incorrect argument; bins: start_bin, number_of_points")
+                return np.array([])
+
+            if number <= 0:
+                return np.array([])
+
+            raw_answer = self.device_query("TRCA? " + str(ch) + ',' + str(start) + ',' + str(number))
+            data = np.array([float(item) for item in raw_answer.strip().rstrip(',').split(',')])
+            return data
+
+        elif self.test_flag == 'test':
+            ch = int(channel)
+            assert(ch == 1 or ch == 2), "Invalid channel; channel: [1, 2]"
+            if len(bins) == 0 or len(bins) == 2:
+                return np.array([self.test_signal])
+            else:
+                assert( 1 == 2 ), "Incorrect argument; bins: start_bin, number_of_points"
+
     def lock_in_command(self, command):
         if self.test_flag != 'test':
             self.device_write(command)

@@ -275,6 +275,272 @@ For SR-844 the frequency range for the second harmonics detection is limited to 
 
 ---
 
+### Internal data buffer (SR-810, 830, 850, 844)
+
+These devices can store up to 16383 points from both the Channel 1 and Channel 2 displays in an internal data buffer. The buffer stores the quantities currently shown on the displays, sampled at a common rate. The functions below configure the storage, start/stop a scan, and read the stored points back. The SR-860 and SR-865a do not have this buffer; they use a different data-capture/streaming subsystem (`CAPTURE*` commands). A typical sequence is:
+
+```python
+sr830.lock_in_buffer_sample_rate('512 Hz')  # set the sample rate
+sr830.lock_in_buffer_mode('1 Shot')         # stop at the end of the buffer
+sr830.lock_in_buffer_reset()                # clear the buffer
+sr830.lock_in_buffer_start()                # start storage
+# ... acquire ...
+sr830.lock_in_buffer_pause()                # pause before reading
+n = sr830.lock_in_buffer_points()           # number of stored points
+ch1 = sr830.lock_in_read_buffer(1)          # read all points from Channel 1
+```
+
+---
+
+### lock_in_buffer_sample_rate(*rate) { #lock_in_buffer_sample_rate data-toc-label="lock_in_buffer_sample_rate" }
+
+```python
+lock_in_buffer_sample_rate()           # -> str (query)
+lock_in_buffer_sample_rate('512 Hz')   # set the sample rate
+```
+
+This function queries or sets the data-buffer sample rate, i.e. how often points are added to the storage buffer. Both displays are sampled at the same rate. The `'Trigger'` value records one sample on every rising edge of the rear-panel trigger input (see [`lock_in_buffer_trigger()`](#lock_in_buffer_trigger)).
+
+**Available values:** `'62.5 mHz'`, `'125 mHz'`, `'250 mHz'`, `'500 mHz'`, `'1 Hz'`, `'2 Hz'`, `'4 Hz'`, `'8 Hz'`, `'16 Hz'`, `'32 Hz'`, `'64 Hz'`, `'128 Hz'`, `'256 Hz'`, `'512 Hz'`, `'Trigger'`
+{: .enum }
+
+---
+
+### lock_in_buffer_mode(*mode) { #lock_in_buffer_mode data-toc-label="lock_in_buffer_mode" }
+
+```python
+lock_in_buffer_mode()           # -> str (query)
+lock_in_buffer_mode('Loop')     # continue storing at the end of the buffer
+```
+
+This function queries or sets the end-of-buffer mode. In `'1 Shot'` mode storage stops when the buffer is full. In `'Loop'` mode storage continues from the beginning, keeping the most recent 16383 points; pause storage before reading in this mode to avoid ambiguity about the most recent point.
+
+**Available values:** `'1 Shot'`, `'Loop'`
+{: .enum }
+
+---
+
+### lock_in_buffer_trigger_start(*mode) { #lock_in_buffer_trigger_start data-toc-label="lock_in_buffer_trigger_start" }
+
+```python
+lock_in_buffer_trigger_start()        # -> str (query)
+lock_in_buffer_trigger_start('On')    # start the scan on a rear-panel trigger
+```
+
+This function queries or sets the trigger-start mode. When `'On'`, a rising TTL edge on the rear-panel trigger input has the same effect as [`lock_in_buffer_start()`](#lock_in_buffer_start).
+
+**Available values:** `'Off'`, `'On'`
+{: .enum }
+
+---
+
+### lock_in_buffer_start() { #lock_in_buffer_start data-toc-label="lock_in_buffer_start" }
+
+```python
+lock_in_buffer_start()
+```
+
+This function starts or resumes data storage in the internal buffer. It is ignored if storage is already in progress.
+
+---
+
+### lock_in_buffer_pause() { #lock_in_buffer_pause data-toc-label="lock_in_buffer_pause" }
+
+```python
+lock_in_buffer_pause()
+```
+
+This function pauses data storage. The buffer is not reset.
+
+---
+
+### lock_in_buffer_reset() { #lock_in_buffer_reset data-toc-label="lock_in_buffer_reset" }
+
+```python
+lock_in_buffer_reset()
+```
+
+This function stops data storage and erases the buffer. It can be sent at any time.
+
+---
+
+### lock_in_buffer_trigger() { #lock_in_buffer_trigger data-toc-label="lock_in_buffer_trigger" }
+
+```python
+lock_in_buffer_trigger()
+```
+
+This function sends a software trigger, equivalent to a rising edge on the rear-panel trigger input. Useful with a `'Trigger'` sample rate or with trigger-start enabled.
+
+---
+
+### lock_in_buffer_points() { #lock_in_buffer_points data-toc-label="lock_in_buffer_points" }
+
+```python
+lock_in_buffer_points()    # -> int; number of stored points
+```
+
+This function returns the number of points currently stored in the buffer. Both displays have the same number of points. It can be sent at any time, even while storage is in progress.
+
+---
+
+### lock_in_read_buffer(channel, *bins) { #lock_in_read_buffer data-toc-label="lock_in_read_buffer" }
+
+```python
+lock_in_read_buffer(1)           # -> np.array; all points from Channel 1
+lock_in_read_buffer(2, 0, 100)   # -> np.array; 100 points from Channel 2 starting at bin 0
+```
+
+This function reads stored points from the Channel 1 or 2 display buffer and returns them as a NumPy array (the data are transferred in ASCII floating-point format). The `channel` argument selects the display buffer (`1` or `2`). The optional `bins` arguments are the start bin (`≥ 0`, where bin 0 is the oldest point) and the number of points to read (`≥ 1`); if omitted, the whole buffer is read. In `'Loop'` mode pause storage before reading, since the points are indexed relative to the continually changing most-recent point.
+
+---
+
+### Data capture (SR-860, 865a)
+
+The SR-860 and SR-865a do not have the `SRAT`/`TRCA` display buffer described above. Instead they capture data into an internal buffer (up to 4 MB) using the `CAPTURE*` subsystem. The buffer length is configured in kilobytes (256 data points per kB), the captured quantities are chosen with the configuration (`X`, `XY`, `RT`, `XYRT`), and the rate is set as the maximum rate divided by a power of two. A typical sequence is:
+
+```python
+sr865a.lock_in_capture_config('XY')          # capture X and Y
+sr865a.lock_in_capture_length(256)           # 256 kB buffer (64 k total points -> 32 k XY pairs)
+sr865a.lock_in_capture_rate(0)               # fastest rate (max rate / 2**0)
+sr865a.lock_in_capture_start('OneShot', 'Immediate')
+# ... wait for the buffer to fill, monitor with lock_in_capture_state()/lock_in_capture_bytes() ...
+sr865a.lock_in_capture_stop()
+n_kb = sr865a.lock_in_capture_progress()     # captured data in kB
+data = sr865a.lock_in_read_capture(0, 64)    # download the buffer as a NumPy float32 array
+```
+
+---
+
+### lock_in_capture_length(*length) { #lock_in_capture_length data-toc-label="lock_in_capture_length" }
+
+```python
+lock_in_capture_length()       # -> int; buffer length in kB (query)
+lock_in_capture_length(256)    # set the buffer length in kB
+```
+
+This function queries or sets the capture-buffer length in kilobytes (256 data points per kB). Because the internal blocks are 2 kB, the value must be even; an odd value is rounded up by the device.
+
+**Range:** `1` – `4096`
+{: .enum }
+
+---
+
+### lock_in_capture_config(*config) { #lock_in_capture_config data-toc-label="lock_in_capture_config" }
+
+```python
+lock_in_capture_config()        # -> str (query)
+lock_in_capture_config('XY')    # capture X and Y
+```
+
+This function queries or sets which quantities are captured. Capturing more quantities yields fewer points of each for a given buffer length.
+
+**Available values:** `'X'`, `'XY'`, `'RT'`, `'XYRT'`
+{: .enum }
+
+---
+
+### lock_in_capture_rate_max() { #lock_in_capture_rate_max data-toc-label="lock_in_capture_rate_max" }
+
+```python
+lock_in_capture_rate_max()    # -> float; maximum capture rate in Hz
+```
+
+This function returns the maximum allowed capture rate in Hz at the current time constant and sync-filter setting (query only).
+
+---
+
+### lock_in_capture_rate(*n) { #lock_in_capture_rate data-toc-label="lock_in_capture_rate" }
+
+```python
+lock_in_capture_rate()     # -> float; actual capture rate in Hz (query)
+lock_in_capture_rate(4)    # set the rate to (max rate) / 2**4
+```
+
+This function sets or queries the capture rate. When called with an argument `n` (`0` – `20`), the rate is set to the maximum rate divided by `2**n` (`n = 0` is the fastest). The query returns the *actual* rate in Hz, not `n`.
+
+**Range (set):** `0` – `20`
+{: .enum }
+
+---
+
+### lock_in_capture_start(acquisition, trigger) { #lock_in_capture_start data-toc-label="lock_in_capture_start" }
+
+```python
+lock_in_capture_start('OneShot', 'Immediate')
+lock_in_capture_start('Continuous', 'TrigStart')
+```
+
+This function starts a new capture, clearing any previously captured data. The `acquisition` argument selects `'OneShot'` (stop when the buffer fills) or `'Continuous'` (wrap around and keep capturing). The `trigger` argument selects `'Immediate'` (start now), `'TrigStart'` (a hardware trigger starts or stops capture), or `'SampPerTrig'` (one sample per hardware trigger). A triggered start requires `'OneShot'`; a triggered stop requires `'Continuous'`.
+
+**acquisition:** `'OneShot'`, `'Continuous'`
+{: .enum }
+
+**trigger:** `'Immediate'`, `'TrigStart'`, `'SampPerTrig'`
+{: .enum }
+
+---
+
+### lock_in_capture_stop() { #lock_in_capture_stop data-toc-label="lock_in_capture_stop" }
+
+```python
+lock_in_capture_stop()
+```
+
+This function stops data capture in any mode. Already-captured data is preserved; the remainder of the current 2 kB block is zero-filled.
+
+---
+
+### lock_in_capture_state() { #lock_in_capture_state data-toc-label="lock_in_capture_state" }
+
+```python
+lock_in_capture_state()    # -> int; 3-bit state word
+```
+
+This function returns the capture state as a 3-bit binary-encoded integer: bit 0 (weight 1) capture in progress, bit 1 (weight 2) capture triggered, bit 2 (weight 4) buffer wrapped.
+
+---
+
+### lock_in_capture_bytes() { #lock_in_capture_bytes data-toc-label="lock_in_capture_bytes" }
+
+```python
+lock_in_capture_bytes()    # -> int; bytes of captured data
+```
+
+This function returns the number of bytes of non-zero data captured so far. It is live and may be used to monitor the progress of a capture.
+
+---
+
+### lock_in_capture_progress() { #lock_in_capture_progress data-toc-label="lock_in_capture_progress" }
+
+```python
+lock_in_capture_progress()    # -> int; captured data in kB
+```
+
+This function returns the amount of data written during the most recent capture, in kilobytes. Capture must be stopped before this query.
+
+---
+
+### lock_in_capture_value(sample) { #lock_in_capture_value data-toc-label="lock_in_capture_value" }
+
+```python
+lock_in_capture_value(0)    # -> np.array; the 1, 2 or 4 values of the oldest sample
+```
+
+This function reads one sample from the capture buffer in ASCII format and returns its `1`, `2` or `4` values (depending on [`lock_in_capture_config()`](#lock_in_capture_config)) as a NumPy array. The `sample` argument is the sample index (`0` is the oldest). Works over all interfaces.
+
+---
+
+### lock_in_read_capture(offset, length) { #lock_in_read_capture data-toc-label="lock_in_read_capture" }
+
+```python
+lock_in_read_capture(0, 64)    # -> np.array; 64 kB of the buffer from offset 0
+```
+
+This function downloads part of the capture buffer as a binary block and returns it as a NumPy `float32` array. The `offset` and `length` arguments are in kilobytes; `length` is limited to `1` – `64` kB per call, so a large buffer is read in several calls. Capture must be stopped first. This binary download is **not available over the RS-232 interface** — use [`lock_in_capture_value()`](#lock_in_capture_value) there instead.
+
+---
+
 ### lock_in_command(command) { #lock_in_command data-toc-label="lock_in_command" }
 
 ```python
