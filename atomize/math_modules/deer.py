@@ -1453,7 +1453,8 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                       fit_dim=False, nu_dd=NU_DD, n_gauss=None, max_gauss=4,
                       bg_engine='joint', ic='aicc', n_mc=0, ci_z=1.96, seed=0,
                       sigma_min=None, sigma_max=None, ci_mode='linear',
-                      ci_level=0.95, **_ignored):
+                      ci_level=0.95, prune_spurious=True, weight_min=0.02,
+                      **_ignored):
     """Parametric DEER inversion: model P(r) as a SUM OF N GAUSSIANS and fit their
     amplitudes / centres / widths to the form factor (the DeerAnalysis "Gaussian"
     mode / DeerLab `dd_gaussN` approach). Complements the regularized (`deer_invert`)
@@ -1463,9 +1464,19 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
 
     The number of components N is chosen automatically by an information criterion
     (`ic`, default corrected Akaike 'aicc'; 'aic' / 'bic' also accepted): each
-    N = 1..`max_gauss` is fit and the N minimizing the criterion is kept, so noise
-    is not over-fit with spurious extra Gaussians. Pass an explicit `n_gauss` to
-    force a fixed N and skip model selection.
+    N = 1..`max_gauss` is fit and the N minimizing the criterion is kept. Pass an
+    explicit `n_gauss` to force a fixed N and skip model selection.
+
+    `prune_spurious` (default True) makes that selection robust against OVER-
+    fitting. DEER traces are heavily oversampled, so at low noise the criterion's
+    per-parameter penalty is negligible and it "explains" the small SYSTEMATIC
+    residual left by background / lambda / echo-top preparation (which it wrongly
+    treats as i.i.d. noise) by adding spurious Gaussians -- always recognizable as
+    pinned at the width-resolution floor (sigma ~ 1.5*dr) or carrying < `weight_min`
+    of the area. With pruning on, the chosen N is the criterion-best fit that
+    contains NO such component; this keeps simple bimodals from being reported as
+    3-4 Gaussians without an under-fitting global penalty. `n_gauss_ic` (the
+    unpruned criterion pick) and `pruned` are returned for transparency.
 
     Model (after background correction, F(0)=1):
         P(r) = sum_k a_k * exp(-(r - r_k)^2 / (2 sigma_k^2)),  a_k, sigma_k > 0.
@@ -1571,10 +1582,26 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         bic = npts*np.log(rss/npts) + kpar*np.log(npts) if rss > 0 else -np.inf
         return {'aic': aic, 'aicc': aicc, 'bic': bic}
 
+    def _has_spurious(pp, n):
+        """Flag a fit whose components include a SPURIOUS one: a Gaussian pinned
+        at the width-resolution floor (sigma ~ s_lo) or carrying negligible weight.
+        At low noise the information criterion over-fits the small SYSTEMATIC
+        residual left by background/lambda/echo-top preparation (not random noise,
+        which the criterion assumes) with exactly such floor-width / tiny spikes;
+        rejecting any N whose best fit contains one keeps the count parsimonious
+        without an under-fitting global penalty."""
+        sig = np.abs(pp[2::3][:n])
+        amp = pp[0::3][:n]
+        area = amp*sig*np.sqrt(2.0*np.pi)
+        tot = float(np.sum(area)) or 1.0
+        w = area/tot
+        return bool(np.any(sig <= s_lo*1.1) or np.any(w < weight_min))
+
     Ns = [int(n_gauss)] if (n_gauss and int(n_gauss) > 0) else \
         list(range(1, int(max_gauss) + 1))
+    forced = bool(n_gauss and int(n_gauss) > 0)
     ic_key = ic if ic in ('aic', 'aicc', 'bic') else 'aicc'
-    best = None
+    best = best_clean = None
     ic_curve = []
     for n in Ns:
         try:
@@ -1583,15 +1610,25 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
             continue
         crit = _criterion(rss, n)
         ic_curve.append((n, float(crit[ic_key]), rss))
+        cand = {'n': n, 'sol': sol, 'rss': rss, 'crit': crit, 'bounds': bounds}
         if best is None or crit[ic_key] < best['crit'][ic_key]:
-            best = {'n': n, 'sol': sol, 'rss': rss, 'crit': crit, 'bounds': bounds}
+            best = cand
+        if not _has_spurious(sol.x, n) and (
+                best_clean is None or crit[ic_key] < best_clean['crit'][ic_key]):
+            best_clean = cand
     if best is None:
         raise RuntimeError('Gaussian fit failed for every component count tried.')
 
-    n = best['n']
-    sol = best['sol']
+    # Prefer the criterion-best model with NO spurious (floor-width / negligible-
+    # weight) component; fall back to the plain criterion pick if every fit has one
+    # (or N was forced -- then honour the request).
+    n_ic = best['n']
+    chosen = best if (forced or not prune_spurious or best_clean is None) else best_clean
+    n = chosen['n']
+    sol = chosen['sol']
+    best = chosen                                          # downstream reads best['*']
     p = sol.x
-    lo_b, hi_b = best['bounds']
+    lo_b, hi_b = chosen['bounds']
     # covariance from the Jacobian: cov = (J^T J)^-1 * residual variance. pinv
     # guards the (near-)singular directions overlapping components produce.
     nparams = 3*n
@@ -1709,6 +1746,7 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
             'components': components, 'ic': ic_key,
             'aic': float(best['crit']['aic']), 'aicc': float(best['crit']['aicc']),
             'bic': float(best['crit']['bic']), 'ic_curve': ic_curve,
+            'n_gauss_ic': int(n_ic), 'pruned': bool(n != n_ic),
             'ci_mode': ci_mode, 'ci_level': float(ci_level),
             'noise_level': float(sig_e)}
 
