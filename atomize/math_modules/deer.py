@@ -1545,7 +1545,7 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                       bg_engine='joint', bg_params=None, ic='aicc', n_mc=0,
                       ci_z=1.96, seed=0, sigma_min=None, sigma_max=None,
                       ci_mode='linear', ci_level=0.95, prune_spurious=True,
-                      weight_min=0.02, **_ignored):
+                      weight_min=0.02, spike_weight_max=0.10, **_ignored):
     """Parametric DEER inversion: model P(r) as a SUM OF N GAUSSIANS and fit their
     amplitudes / centres / widths to the form factor (the DeerAnalysis "Gaussian"
     mode / DeerLab `dd_gaussN` approach). Complements the regularized (`deer_invert`)
@@ -1562,12 +1562,18 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     fitting. DEER traces are heavily oversampled, so at low noise the criterion's
     per-parameter penalty is negligible and it "explains" the small SYSTEMATIC
     residual left by background / lambda / echo-top preparation (which it wrongly
-    treats as i.i.d. noise) by adding spurious Gaussians -- always recognizable as
-    pinned at the width-resolution floor (sigma ~ 1.5*dr) or carrying < `weight_min`
-    of the area. With pruning on, the chosen N is the criterion-best fit that
-    contains NO such component; this keeps simple bimodals from being reported as
-    3-4 Gaussians without an under-fitting global penalty. `n_gauss_ic` (the
-    unpruned criterion pick) and `pruned` are returned for transparency.
+    treats as i.i.d. noise) by adding a spurious Gaussian -- recognizable as one
+    pinned at the width-resolution floor (sigma ~ s_lo) AND carrying little weight
+    (< `spike_weight_max`), or carrying negligible weight (< `weight_min`) at any
+    width. The weight gate is essential: a floor-width component with SUBSTANTIAL
+    weight is a real long-distance mode the solver narrowed (a near-delta is the
+    global least-squares optimum there, since the kernel modulates large r only
+    weakly), not an over-fit -- gating on width alone collapsed genuine 3-4
+    Gaussian distributions to N=1. With pruning on, the chosen N is the criterion-
+    best fit that contains NO such spurious component; this keeps simple bimodals
+    from being reported as 3-4 Gaussians without an under-fitting global penalty.
+    `n_gauss_ic` (the unpruned criterion pick) and `pruned` are returned for
+    transparency.
 
     Model (after background correction, F(0)=1):
         P(r) = sum_k a_k * exp(-(r - r_k)^2 / (2 sigma_k^2)),  a_k, sigma_k > 0.
@@ -1632,9 +1638,16 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     K = dipolar_kernel(t, r, nu_dd=nu_dd)
     dr = float(r[1] - r[0]) if len(r) > 1 else 1.0
     rmin, rmax = float(r[0]), float(r[-1])
-    # width bounds: a Gaussian narrower than the grid step cannot be resolved; the
-    # widest meaningful one spans the half-range. Defaults are overridable.
-    s_lo = float(sigma_min) if sigma_min else max(1.5*dr, 0.02)
+    # width bounds: the widest meaningful one spans the half-range. The LOWER
+    # bound regularizes via the distance-discretization length (Dzuba, JMR 275
+    # (2016) 1; Matveeva et al., Z. Phys. Chem. 231 (2017) 463) -- a component
+    # narrower than ~the resolvable distance step is unphysical and just over-
+    # fits a noise wiggle as a near-delta spike. A floor of a few grid steps
+    # (>= 0.05 nm, the practical PDS width resolution) blocks those spikes AND,
+    # by admitting fewer spurious narrow components, sharpens N selection (the
+    # benchmark improves on both N-accuracy and overlap going 0.03 -> 0.05 nm).
+    # The weight-gated spurious test handles the rest. Defaults are overridable.
+    s_lo = float(sigma_min) if sigma_min else max(2.5*dr, 0.05)
     s_hi = float(sigma_max) if sigma_max else max(0.5*(rmax - rmin), 4*s_lo)
     s0 = float(np.clip(0.2, s_lo, s_hi))
     # coarse Tikhonov pass to seed component centres (peak positions). A fixed
@@ -1676,19 +1689,31 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         return {'aic': aic, 'aicc': aicc, 'bic': bic}
 
     def _has_spurious(pp, n):
-        """Flag a fit whose components include a SPURIOUS one: a Gaussian pinned
-        at the width-resolution floor (sigma ~ s_lo) or carrying negligible weight.
-        At low noise the information criterion over-fits the small SYSTEMATIC
-        residual left by background/lambda/echo-top preparation (not random noise,
-        which the criterion assumes) with exactly such floor-width / tiny spikes;
-        rejecting any N whose best fit contains one keeps the count parsimonious
-        without an under-fitting global penalty."""
+        """Flag a fit whose components include a SPURIOUS one. At low noise the
+        information criterion over-fits the small SYSTEMATIC residual left by
+        background/lambda/echo-top preparation (not random noise, which the
+        criterion assumes) by adding an extra component that shows up as a
+        Gaussian pinned at the width-resolution floor (sigma ~ s_lo) carrying
+        LITTLE weight. Rejecting any N whose best fit contains one keeps the
+        count parsimonious without an under-fitting global penalty.
+
+        The weight gate is essential: a floor-width component that carries
+        SUBSTANTIAL weight is a REAL peak the least-squares solver narrowed (a
+        long-distance mode the kernel modulates only weakly is fit about as well
+        by a narrow spike as by its true broad shape -- the spike is the global
+        LS optimum, not a local-min artifact), NOT an over-fit. Flagging it on
+        width alone collapsed genuine 3-4 Gaussian distributions all the way to
+        N=1. So a floor-width component is spurious only when it ALSO carries
+        < `spike_weight_max` of the area; a negligible-weight component
+        (< `weight_min`, any width) is always spurious."""
         sig = np.abs(pp[2::3][:n])
         amp = pp[0::3][:n]
         area = amp*sig*np.sqrt(2.0*np.pi)
         tot = float(np.sum(area)) or 1.0
         w = area/tot
-        return bool(np.any(sig <= s_lo*1.1) or np.any(w < weight_min))
+        floor = sig <= s_lo*1.1
+        return bool(np.any(w < weight_min) or
+                    np.any(floor & (w < spike_weight_max)))
 
     Ns = [int(n_gauss)] if (n_gauss and int(n_gauss) > 0) else \
         list(range(1, int(max_gauss) + 1))
