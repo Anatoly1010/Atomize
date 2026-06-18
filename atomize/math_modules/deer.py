@@ -1452,7 +1452,8 @@ def _gauss_seed_centers(r, P_seed, n):
 def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                       fit_dim=False, nu_dd=NU_DD, n_gauss=None, max_gauss=4,
                       bg_engine='joint', ic='aicc', n_mc=0, ci_z=1.96, seed=0,
-                      sigma_min=None, sigma_max=None, **_ignored):
+                      sigma_min=None, sigma_max=None, ci_mode='linear',
+                      ci_level=0.95, **_ignored):
     """Parametric DEER inversion: model P(r) as a SUM OF N GAUSSIANS and fit their
     amplitudes / centres / widths to the form factor (the DeerAnalysis "Gaussian"
     mode / DeerLab `dd_gaussN` approach). Complements the regularized (`deer_invert`)
@@ -1482,11 +1483,28 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     parameter covariance `n_mc` times and re-evaluating the (re-normalized) density:
     P_lower/P_upper = P_density -/+ ci_z*std. This is cheap (no re-inversion).
 
+    `ci_mode` selects the per-component error bars on the centre and width:
+      'linear' (default) -- the 1-sigma diagonal of the linearized covariance
+          (J^T J)^-1 * resvar. Fast (no extra fits); symmetric; the local-quadratic
+          approximation. Good for live use.
+      'support' -- RIGOROUS support-plane / profile-likelihood intervals (Stein,
+          Beth & Hustedt, Methods Enzymol. 563 (2015) 531, doi 10.1016/bs.mie.
+          2015.07.031): for each centre / sigma, fix it on a grid and RE-FIT all
+          other parameters, then take the interval where the residual sum of
+          squares rises above its minimum by the F-test threshold
+          SSR <= SSR_min * (1 + F_{1, N-q}(ci_level)/(N-q)). This accounts for
+          parameter correlations and yields ASYMMETRIC intervals (center_ci_lo/hi,
+          sigma_ci_lo/hi on each component) -- the magnitudes the linearized bar
+          under-/over-states when the chi^2 surface is not parabolic. Costs a fit
+          per grid step per parameter (~1-4 s); opt-in. `ci_level` is the
+          confidence (default 0.95 ~ 2 sigma; 0.66 ~ 1 sigma).
+
     Returns the same dict shape as `deer_invert` (shared GUI / exporters): t, r,
     form_factor, F_fit, residuals, P / P_norm / P_density, P_lower / P_upper,
     kernel, background, lambda / k / dim. Gauss-specific extras: engine='gauss',
     n_gauss, components (list of {amplitude, center, sigma, weight, center_err,
-    sigma_err}), aicc / aic / bic (of the chosen N), ic ('aicc'|'aic'|'bic'),
+    sigma_err, and -- when ci_mode='support' -- center_ci_lo/hi, sigma_ci_lo/hi}),
+    aicc / aic / bic (of the chosen N), ic ('aicc'|'aic'|'bic'), ci_mode, ci_level,
     ic_curve (list of (N, criterion, rss)), noise_level. alpha is NaN and l_curve
     is None (no regularization), as for the Mellin engine.
     """
@@ -1539,10 +1557,11 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
             p0 += [a0, float(np.clip(c, rmin, rmax)), s0]
             lo += [0.0, rmin, s_lo]
             hi += [np.inf, rmax, s_hi]
+        lo, hi = np.array(lo), np.array(hi)
         sol = least_squares(lambda p: K@(_density(p, n)*dr) - F, p0,
-                            bounds=(np.array(lo), np.array(hi)), max_nfev=4000)
+                            bounds=(lo, hi), max_nfev=4000)
         rss = float(np.sum(sol.fun**2))
-        return sol, rss
+        return sol, rss, (lo, hi)
 
     def _criterion(rss, n):
         kpar = 3*n + 1                                    # +1 for the noise variance
@@ -1559,19 +1578,20 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     ic_curve = []
     for n in Ns:
         try:
-            sol, rss = _fit_n(n)
+            sol, rss, bounds = _fit_n(n)
         except Exception:
             continue
         crit = _criterion(rss, n)
         ic_curve.append((n, float(crit[ic_key]), rss))
         if best is None or crit[ic_key] < best['crit'][ic_key]:
-            best = {'n': n, 'sol': sol, 'rss': rss, 'crit': crit}
+            best = {'n': n, 'sol': sol, 'rss': rss, 'crit': crit, 'bounds': bounds}
     if best is None:
         raise RuntimeError('Gaussian fit failed for every component count tried.')
 
     n = best['n']
     sol = best['sol']
     p = sol.x
+    lo_b, hi_b = best['bounds']
     # covariance from the Jacobian: cov = (J^T J)^-1 * residual variance. pinv
     # guards the (near-)singular directions overlapping components produce.
     nparams = 3*n
@@ -1601,6 +1621,68 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         cc['weight'] = cc['area']/tot_area
     components.sort(key=lambda d: d['center'])
 
+    # Rigorous support-plane / profile-likelihood confidence intervals (Hustedt,
+    # Methods Enzymol. 2015): for each centre / sigma, fix it and RE-FIT the rest,
+    # and bound the interval where SSR exceeds SSR_min by the F-test threshold.
+    # Accounts for parameter correlations -> asymmetric, correctly-sized intervals.
+    if ci_mode == 'support' and npts > nparams:
+        from scipy.stats import f as _f_dist
+        ssr_min = best['rss']
+        Fq = float(_f_dist.ppf(ci_level, 1, npts - nparams))
+        target = ssr_min*(1.0 + Fq/(npts - nparams))
+
+        def _ssr_fixed(fix_i, val):
+            """Min SSR with parameter fix_i held at val, all others re-fit."""
+            free = [j for j in range(nparams) if j != fix_i]
+            base = p.copy(); base[fix_i] = val
+
+            def resid(pf):
+                pp = base.copy(); pp[free] = pf
+                return K@(_density(pp, n)*dr) - F
+            try:
+                s = least_squares(resid, p[free],
+                                  bounds=(lo_b[free], hi_b[free]), max_nfev=2000)
+                return float(np.sum(s.fun**2))
+            except Exception:
+                return np.inf
+
+        def _bound(fix_i, sign):
+            """Walk fix_i out from its best value (re-fitting the rest) until SSR
+            crosses `target`, then bisect; return the crossing (clamped to the
+            box bound, which it returns when the parameter is unbounded there)."""
+            th0 = float(p[fix_i]); lim = float(hi_b[fix_i] if sign > 0 else lo_b[fix_i])
+            step = perr[fix_i] if (np.isfinite(perr[fix_i]) and perr[fix_i] > 1e-6) \
+                else 0.05*abs(hi_b[fix_i] - lo_b[fix_i])
+            below, above, th = th0, None, th0
+            for _ in range(40):
+                th = th + sign*step
+                if (sign > 0 and th >= lim) or (sign < 0 and th <= lim):
+                    th = lim
+                if _ssr_fixed(fix_i, th) > target:
+                    above = th; break
+                below = th
+                step *= 1.6
+                if th == lim:
+                    break
+            if above is None:
+                return lim                                # CI runs to the box bound
+            a, b = below, above
+            for _ in range(16):                           # ~range/65000 precision
+                m = 0.5*(a + b)
+                if _ssr_fixed(fix_i, m) > target:
+                    b = m
+                else:
+                    a = m
+            return 0.5*(a + b)
+
+        # map sorted components back to their parameter block (sorted by centre)
+        order = sorted(range(n), key=lambda kk: float(p[3*kk + 1]))
+        for cc, kk in zip(components, order):
+            cc['center_ci_lo'] = _bound(3*kk + 1, -1)
+            cc['center_ci_hi'] = _bound(3*kk + 1, +1)
+            cc['sigma_ci_lo'] = _bound(3*kk + 2, -1)
+            cc['sigma_ci_hi'] = _bound(3*kk + 2, +1)
+
     P_lower = P_upper = P_std = None
     if n_mc and int(n_mc) > 0 and cov is not None and np.all(np.isfinite(cov)):
         rng = np.random.default_rng(seed)
@@ -1627,6 +1709,7 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
             'components': components, 'ic': ic_key,
             'aic': float(best['crit']['aic']), 'aicc': float(best['crit']['aicc']),
             'bic': float(best['crit']['bic']), 'ic_curve': ic_curve,
+            'ci_mode': ci_mode, 'ci_level': float(ci_level),
             'noise_level': float(sig_e)}
 
 
