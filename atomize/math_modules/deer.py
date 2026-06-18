@@ -207,6 +207,75 @@ def background_fit(t, V, bg_start, bg_end=None, dim=3.0, fit_dim=False):
             'bg_end': (None if bg_end is None else float(bg_end)), 'mask': mask}
 
 
+def background_general(t, V, bg_start, bg_end=None, **_ignored):
+    """General empirical intermolecular background fit on the tail window
+    bg_start <= t (<= bg_end):
+
+        g(t) = a + b*t + c*d^t        (offset + linear drift + exponential, base d)
+
+    A flexible alternative to the stretched-exponential `background_fit` for traces
+    whose intermolecular decay is not well described by exp(-(k|t|)^(d/3)) -- the
+    four parameters a, b, c, d are free. Same convention as `background_fit`: V is
+    normalized to V(0)=1, the fitted tail baseline g(t) = (1-lambda)*B(t), so the
+    background normalized to B(0)=1 is B(t) = g(t)/g(0), the modulation depth is
+    lambda = 1 - g(0) (g(0) = a + c, since d^0 = 1), and
+
+        F(t) = (V(t)/B(t) - (1 - lambda)) / lambda .
+
+    `d` is constrained to (0, 1] so the exponential term decays (a growing
+    background is unphysical for the intermolecular contribution). Returns the same
+    dict shape as `background_fit`, with k / dim = NaN (not applicable) and the
+    fitted coefficients in `params` (a, b, c, d) and `model` = 'general'.
+    """
+    _require_scipy()
+    t = np.asarray(t, dtype=float)
+    V = np.asarray(V, dtype=float)
+    V = V/_echo_top(t, V)                              # normalize at t = 0 (robust)
+    if bg_start is None:
+        bg_start = t[0] + 0.5*(t[-1] - t[0])
+    mask = t >= bg_start
+    if bg_end is not None:
+        mask = mask & (t <= bg_end)
+    if int(mask.sum()) < 4:
+        raise ValueError('Background region has too few points; widen [bg_start, bg_end].')
+    tt, vv = t[mask], V[mask]
+    span = float(tt[-1] - tt[0]) or 1.0
+
+    def _model(x, a, b, c, d):
+        d = min(max(float(d), 1e-9), 1.0)
+        return a + b*x + c*np.power(d, x)
+
+    # The exponential term must be a genuine (slow) BACKGROUND decay -- if d is so
+    # small that c*d^t has already collapsed before the fit window, c and d are
+    # unconstrained by the tail and the extrapolation to g(0) blows up. Bound d so
+    # the term still retains >= 5% of its t=0 amplitude at the END of the fit
+    # window (d^span >= 0.05), which keeps it data-constrained; a faster decay is
+    # not an intermolecular background anyway. The linear term carries any residual
+    # gentle drift.
+    d_lo = float(np.clip(0.05**(1.0/span), 0.05, 0.95))
+    a0 = float(vv[-1])                                 # tail-end baseline
+    b0 = float((vv[-1] - vv[0])/span)                  # gentle slope
+    c0 = float(np.clip(vv[0] - vv[-1], -1.0, 1.0))     # exp amplitude across the tail
+    d0 = float(np.sqrt(d_lo))
+    p0 = [a0, b0, c0, d0]
+    bounds = ([-np.inf, -np.inf, -np.inf, d_lo], [np.inf, np.inf, np.inf, 1.0])
+    try:
+        popt, _ = curve_fit(_model, tt, vv, p0=p0, bounds=bounds, maxfev=10000)
+    except Exception:
+        popt = p0
+    a, b, c, d = (float(x) for x in popt)
+    g = _model(t, a, b, c, d)                         # = (1-lambda)*B(t) baseline
+    g0 = a + c                                         # g(0): d^0 = 1
+    lam = float(np.clip(1.0 - g0, 0.02, 0.98))
+    B = g/g0 if abs(g0) > 1e-9 else np.ones_like(t)
+    F = (V/np.clip(B, 1e-3, None) - (1 - lam))/lam
+    return {'lambda': lam, 'k': float('nan'), 'dim': float('nan'), 'A': float(g0),
+            'B': B, 'form_factor': F, 'V_norm': V, 't': t,
+            'bg_start': float(bg_start),
+            'bg_end': (None if bg_end is None else float(bg_end)), 'mask': mask,
+            'model': 'general', 'params': {'a': a, 'b': b, 'c': c, 'd': d}}
+
+
 # --------------------------------------------------------------------------- #
 #  Tikhonov regularization + non-negativity
 # --------------------------------------------------------------------------- #
@@ -413,6 +482,8 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
         bg_start = t[0] + 0.5*(t[-1] - t[0])
     if engine == 'none':          # no intermolecular background (B=1); fit lambda only
         bg = _no_background(t, V, bg_start=bg_start, bg_end=bg_end)
+    elif engine == 'general':     # general empirical background a + b*t + c*d^t
+        bg = background_general(t, V, bg_start, bg_end=bg_end)
     else:
         bg = background_fit(t, V, bg_start, bg_end=bg_end, dim=dim, fit_dim=fit_dim)
     F = bg['form_factor']
@@ -439,7 +510,7 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
             'kernel': K, 'alpha': float(alpha),
             'l_curve': lc, 'background': bg, 'lambda': bg['lambda'],
             'k': bg['k'], 'dim': bg['dim'],
-            'engine': 'none' if engine == 'none' else 'sequential'}
+            'engine': engine if engine in ('none', 'general') else 'sequential'}
 
 
 def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
@@ -1102,6 +1173,8 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         # enough to also re-run per background-start during validation
         bg = joint_background(t, V, bg_start=bg_start, bg_end=bg_end,
                               dim=dim, fit_dim=fit_dim, nu_dd=nu_dd)
+    elif bg_engine == 'general':
+        bg = background_general(t, V, bg_start, bg_end=bg_end)
     else:
         bg = background_fit(t, V, bg_start, bg_end=bg_end, dim=dim, fit_dim=fit_dim)
     F = bg['form_factor']
@@ -1531,6 +1604,8 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     elif bg_engine == 'joint':
         bg = joint_background(t, V, bg_start=bg_start, bg_end=bg_end,
                               dim=dim, fit_dim=fit_dim, nu_dd=nu_dd)
+    elif bg_engine == 'general':
+        bg = background_general(t, V, bg_start, bg_end=bg_end)
     else:
         bg = background_fit(t, V, bg_start, bg_end=bg_end, dim=dim, fit_dim=fit_dim)
     F = bg['form_factor']
