@@ -1742,13 +1742,42 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     `n_gauss_ic` (the unpruned criterion pick) and `pruned` are returned for
     transparency.
 
-    Model (after background correction, F(0)=1):
+    Model (P(r) a sum of Gaussians):
         P(r) = sum_k a_k * exp(-(r - r_k)^2 / (2 sigma_k^2)),  a_k, sigma_k > 0.
-    The amplitudes are fit UN-normalized: the data anchor the overall scale through
-    F(0) = sum(masses) = 1, which removes the scale degeneracy a pre-normalized
-    model would have and keeps the fit covariance well-conditioned. The reported
-    P_norm / P_density are the area-normalized result; `components` carries each
-    Gaussian's centre / sigma / weight with 1-sigma errors from the covariance.
+    The 'lsq' solver fits this JOINTLY WITH the background and modulation depth in
+    V-space (DeerLab-style):
+        V(t) = A * [1 - S + K @ masses(a,r,sigma)] * B(t),   S = sum(masses) = lambda
+    rather than the older two-step "fit+divide the background, then fit Gaussians to
+    the form factor F". That separation BIASES compact multimodal P(r): when the
+    dipolar modulation has not decayed by the background window the tail fit absorbs
+    real signal into lambda/k, distorting F so that even the TRUE number of
+    Gaussians leaves a systematic residual -- which the criterion then "fixes" with
+    a spurious extra component. Fitting everything together removes that bias (an
+    ideal N-Gaussian trace is recovered to ~machine precision and the criterion
+    stops over-selecting). lambda emerges as the total Gaussian mass S, and the
+    free amplitude A absorbs the small echo-top normalization error, so there is no
+    redundant overall-scale parameter and the covariance stays well-conditioned.
+    The background is the jointly-fit stretched exponential B = exp(-(k|t|)^(d/3))
+    (d floated only when fit_dim=True); bg_engine='none' fixes B=1, and 'general'
+    holds an empirical background shape fixed while still co-fitting lambda + P. The
+    reported P_norm / P_density are the area-normalized result; `components` carries
+    each Gaussian's centre / sigma / weight with 1-sigma errors from the covariance.
+
+    Two robustness measures keep the 'lsq' fit from the classic multi-Gaussian
+    traps. (1) MULTI-START: the fit is run from both the Tikhonov-peak seed and an
+    even spread across the P(r) mass support, keeping the lower-RSS result. The peak
+    seed alone can pile every centre on the dominant mode (its tallest local maxima
+    are that peak's noise shoulders) -> a clustered start that splits the strong
+    mode and never finds a weak long-distance one, under-selecting N and leaving its
+    slow modulation as a coherent residual sine. (2) DISTANCE-RESOLUTION WIDTH
+    FLOOR: at long r the dipolar frequency f=nu_dd/r^3 is so low that a finite time
+    window T resolves a width only to ~r^4/(27 nu_dd T); below that the kernel can't
+    tell a Gaussian from a narrower one, so the (near-flat) width direction collapses
+    a weak long mode into a floor-width near-delta SPIKE -- a pure single-frequency
+    cosine that leaves the same residual sine. sigma is floored at that per-centre
+    resolution (re-applied at the fitted centres so a migrating mode can't keep a
+    stale floor), blocking the spike while leaving well-resolved short-r narrow peaks
+    free. `sigma_min` overrides the floor.
 
     `method` selects the solver. 'lsq' (default) is the gradient least-squares fit
     described above. 'mc' is a Dzuba/Matveeva-style Monte-Carlo fit (Dzuba, JMR 275
@@ -1816,8 +1845,9 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         bg = background_general(t, V, bg_start, bg_end=bg_end, **(bg_params or {}))
     else:
         bg = background_fit(t, V, bg_start, bg_end=bg_end, dim=dim, fit_dim=fit_dim)
-    F = bg['form_factor']
+    F = bg['form_factor']                                 # prepped F: seeds + 'mc' path
     Vn, B, lam = bg['V_norm'], bg['B'], bg['lambda']
+    k0, dim0 = float(bg.get('k', 0.05) or 0.0), float(bg.get('dim', dim))
     sig_e = _tail_noise(t, Vn)
     K = dipolar_kernel(t, r, nu_dd=nu_dd)
     dr = float(r[1] - r[0]) if len(r) > 1 else 1.0
@@ -1834,6 +1864,24 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     s_lo = float(sigma_min) if sigma_min else max(2.5*dr, 0.05)
     s_hi = float(sigma_max) if sigma_max else max(0.5*(rmax - rmin), 4*s_lo)
     s0 = float(np.clip(0.2, s_lo, s_hi))
+    # Distance-dependent width floor (PDS resolution limit). The dipolar frequency
+    # f(r) = nu_dd/r^3 falls steeply with r, so a finite time window T resolves a
+    # width only down to dr_res = (1/T)/|df/dr| = r^4/(3 nu_dd T) -- times a ~1/9
+    # fit-efficiency factor (a parametric fit resolves finer than the 1/T Rayleigh
+    # bin) => r^4/(27 nu_dd T). Below this the kernel cannot distinguish a Gaussian
+    # from a narrower one, so least_squares (for which width is a near-flat
+    # direction at long r -- forcing the true width costs <1% RSS) collapses a weak
+    # long-distance mode to a floor-width NEAR-DELTA SPIKE. That spike is a pure
+    # single-frequency cosine where the true broad mode is damped, leaving a
+    # coherent residual sine. Flooring sigma at dr_res(centre) blocks the spike
+    # (recovering ~the resolvable width) while leaving well-resolved short-r narrow
+    # peaks free; user-set sigma_min overrides it. T is the trace time span.
+    T_span = float(np.max(t) - np.min(t)) if len(t) > 1 else 1.0
+
+    def _sigma_floor(c):
+        if sigma_min:                                     # explicit override wins
+            return s_lo
+        return float(min(s_hi, max(s_lo, c**4/(27.0*nu_dd*max(T_span, 1e-6)))))
     # coarse Tikhonov pass to seed component centres (peak positions). A fixed
     # moderate alpha is enough just to place peaks; falls back to an even spread.
     try:
@@ -1850,22 +1898,139 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
             g = g + a*np.exp(-0.5*((r - c)/s)**2)
         return g
 
-    def _fit_n(n):
-        centers = _gauss_seed_centers(r, P_seed, n)
-        a0 = 1.0/(n*s0*np.sqrt(2.0*np.pi))                # so sum(masses) ~ 1 at seed
-        p0, lo, hi = [], [], []
-        for c in centers:
-            p0 += [a0, float(np.clip(c, rmin, rmax)), s0]
-            lo += [0.0, rmin, s_lo]
-            hi += [np.inf, rmax, s_hi]
-        lo, hi = np.array(lo), np.array(hi)
-        sol = least_squares(lambda p: K@(_density(p, n)*dr) - F, p0,
-                            bounds=(lo, hi), max_nfev=4000)
-        rss = float(np.sum(sol.fun**2))
-        return sol, rss, (lo, hi)
+    # --- V-space joint fit (background + lambda + Gaussians together) ----------
+    # The separable prep above (fit background+lambda on the tail, divide them out,
+    # then fit Gaussians to the resulting F) BIASES the result whenever a compact,
+    # multimodal P(r) still modulates inside the background window: the tail fit
+    # absorbs real dipolar signal into lambda/k, distorting F so that even the TRUE
+    # number of Gaussians can no longer match it -- a systematic form-factor
+    # residual plus a spurious extra component the criterion adds to mop it up. A
+    # parametric model needs no such separation: fit lambda, the background, and the
+    # Gaussian parameters JOINTLY against V(t) (DeerLab-style). lambda emerges as
+    # the total Gaussian mass, so V = [1 - sum(masses) + K@masses]*B(t) gives
+    # V(0)=1 with no redundant overall-scale parameter. The prepped 'bg' is kept
+    # only to seed the centres (Tikhonov) and as the 'mc' path's target.
+    #   bg_engine 'none'     -> B = 1                 (no background, k = 0)
+    #   bg_engine 'general'  -> B fixed from the one-shot general fit; fit on V/B
+    #   else (default/joint) -> stretched-exp B = exp(-(k|t|)^(d/3)) fit jointly
+    #                           (the dimension d is floated only when fit_dim=True)
+    # Leading (non-Gaussian) parameters of the joint vector, in order:
+    #   p[0]          = A, a free V(0) amplitude (absorbs the small echo-top scale
+    #                   error so an IDEAL trace fits to ~machine zero -- otherwise
+    #                   the residual normalization, not the data, sets the floor and
+    #                   the criterion chases it with a spurious component);
+    #   p[1]          = k         (stretched-exp background; 'exp'/'exp_d' only)
+    #   p[2]          = d         (background dimension; 'exp_d' only, i.e. fit_dim)
+    # 'none' carries B = 1; 'general' fixes B from the one-shot general fit (folded
+    # into V_tgt = Vn/B). lambda is NOT a leading parameter -- it emerges as the
+    # total Gaussian mass S = sum(masses): V = A*(1 - S + K@masses)*B, so A scales
+    # the whole trace while S sets the modulation depth (separately identifiable).
+    if bg_engine == 'none':
+        bg_mode, n_bg, B_gen = 'none', 1, np.ones_like(t)
+        V_tgt = Vn
+    elif bg_engine == 'general':
+        # empirical background can't be re-parametrized cheaply: hold its SHAPE
+        # fixed but APPLY it in the model (multiply), so lambda + the Gaussians are
+        # still fit jointly against V. (Dividing it into the target blows up where
+        # the extrapolated general background nears zero.)
+        bg_mode, n_bg, B_gen = 'general', 1, B
+        V_tgt = Vn
+    elif fit_dim:
+        bg_mode, n_bg, B_gen = 'exp_d', 3, None
+        V_tgt = Vn
+    else:
+        bg_mode, n_bg, B_gen = 'exp', 2, None
+        V_tgt = Vn
 
-    def _criterion(rss, n):
-        kpar = 3*n + 1                                    # +1 for the noise variance
+    def _bg_of(p):
+        """(B(t), dim) for the joint model from p's leading background parameters.
+        'none' has B=1; 'general' applies the fixed empirical background shape;
+        'exp'/'exp_d' build the stretched exponential from the fitted k (and d)."""
+        if bg_mode == 'none':
+            return np.ones_like(t), dim0
+        if bg_mode == 'general':
+            return B_gen, dim0
+        d = p[2] if bg_mode == 'exp_d' else dim
+        return np.exp(-(p[1]*np.abs(t))**(d/3.0)), d
+
+    def _vmodel(p, n):
+        """Joint V-space model and its (masses, B). lambda = sum(masses); p[0]=A."""
+        Bv = _bg_of(p)[0]
+        masses = _density(p[n_bg:], n)*dr
+        return p[0]*(1.0 - masses.sum() + K@masses)*Bv, masses, Bv
+
+    def _seed_sets(n):
+        """Candidate centre seeds for an n-Gaussian start. MULTI-START is needed
+        because the Tikhonov-peak seed alone can pile every centre onto the
+        dominant peak (its tallest local maxima are that peak's noise shoulders),
+        a clustered start from which least_squares splits the strong mode and never
+        reaches a weak long-distance one -- under-selecting N and leaving that
+        mode's slow modulation as a coherent residual sine. A spread seed across
+        the P_seed mass support escapes that basin (the basin is wide -- ANY
+        de-clustered seed converges to the right peaks)."""
+        sets = [_gauss_seed_centers(r, P_seed, n)]        # Tikhonov peaks
+        if n > 1:
+            Pp = np.clip(P_seed, 0.0, None); tot = float(Pp.sum())
+            if tot > 0:                                   # span the central mass
+                cdf = np.cumsum(Pp)/tot
+                a = float(r[int(np.searchsorted(cdf, 0.02))])
+                b = float(r[min(len(r) - 1, int(np.searchsorted(cdf, 0.98)))])
+            else:
+                a, b = rmin, rmax
+            if b - a < 1e-3:
+                a, b = rmin, rmax
+            spread = list(np.linspace(a, b, n))
+            if max(abs(x - y) for x, y in zip(sorted(sets[0]), spread)) > 0.05:
+                sets.append(spread)                       # only if it differs
+        return sets
+
+    def _fit_n(n):
+        lam_s = float(np.clip(lam if lam > 0 else 0.3, 0.02, 0.95))
+        a0 = (lam_s/n)/(s0*np.sqrt(2.0*np.pi))            # split lambda over n modes
+        lead0, leadlo, leadhi = [1.0], [0.1], [10.0]      # A: V(0) amplitude
+        if bg_mode in ('exp', 'exp_d'):
+            lead0.append(max(k0, 1e-3)); leadlo.append(0.0); leadhi.append(np.inf)
+        if bg_mode == 'exp_d':
+            lead0.append(float(np.clip(dim0, 1.0, 6.0)))
+            leadlo.append(1.0); leadhi.append(6.0)
+        def _solve(p0, lo, hi):
+            sol = least_squares(lambda p: _vmodel(p, n)[0] - V_tgt, p0,
+                                bounds=(lo, hi), max_nfev=6000)
+            # The distance-resolution width floor is seeded from the START centres,
+            # but a mode can MIGRATE to long r during the fit and keep its (stale,
+            # too-low) floor -> a residual spike survives. Re-apply the floor at the
+            # FITTED centres and refit until no component sits below its own floor
+            # (usually 0 or 1 extra fits; the width direction is near-flat so this
+            # barely moves RSS).
+            for _ in range(3):
+                x = sol.x; lo2 = lo.copy(); bumped = False
+                for kk in range(n):
+                    ci = float(x[n_bg + 3*kk + 1]); fl = _sigma_floor(ci)
+                    if abs(x[n_bg + 3*kk + 2]) < fl*0.99:
+                        lo2[n_bg + 3*kk + 2] = fl; bumped = True
+                if not bumped:
+                    break
+                lo = lo2
+                sol = least_squares(lambda p: _vmodel(p, n)[0] - V_tgt,
+                                    np.clip(x, lo, hi), bounds=(lo, hi), max_nfev=4000)
+            return sol, float(np.sum(sol.fun**2)), (lo, hi)
+
+        best = None
+        for centers in _seed_sets(n):
+            p0, lo, hi = list(lead0), list(leadlo), list(leadhi)
+            for c in centers:
+                cc = float(np.clip(c, rmin, rmax))
+                sig_lo = _sigma_floor(cc)                  # distance-resolution floor
+                p0 += [a0, cc, max(s0, sig_lo)]
+                lo += [0.0, rmin, sig_lo]
+                hi += [np.inf, rmax, s_hi]
+            sol, rss, bnds = _solve(p0, np.array(lo), np.array(hi))
+            if best is None or rss < best[1]:
+                best = (sol, rss, bnds)
+        return best
+
+    def _criterion(rss, n, n_extra=0):
+        kpar = 3*n + n_extra + 1                          # +1 for the noise variance
         aic = npts*np.log(rss/npts) + 2*kpar if rss > 0 else -np.inf
         denom = npts - kpar - 1
         aicc = aic + (2*kpar*(kpar + 1)/denom if denom > 0 else np.inf)
@@ -1918,12 +2083,12 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
             sol, rss, bounds = _fit_n(n)
         except Exception:
             continue
-        crit = _criterion(rss, n)
+        crit = _criterion(rss, n, n_bg)
         ic_curve.append((n, float(crit[ic_key]), rss))
         cand = {'n': n, 'sol': sol, 'rss': rss, 'crit': crit, 'bounds': bounds}
         if best is None or crit[ic_key] < best['crit'][ic_key]:
             best = cand
-        if not _has_spurious(sol.x, n) and (
+        if not _has_spurious(sol.x[n_bg:], n) and (
                 best_clean is None or crit[ic_key] < best_clean['crit'][ic_key]):
             best_clean = cand
     if best is None:
@@ -1938,10 +2103,11 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     sol = chosen['sol']
     best = chosen                                          # downstream reads best['*']
     p = sol.x
+    gp = p[n_bg:]                                          # gaussian-only parameters
     lo_b, hi_b = chosen['bounds']
     # covariance from the Jacobian: cov = (J^T J)^-1 * residual variance. pinv
     # guards the (near-)singular directions overlapping components produce.
-    nparams = 3*n
+    nparams = len(p)
     dof = max(npts - nparams, 1)
     resvar = best['rss']/dof
     try:
@@ -1950,19 +2116,33 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     except Exception:
         cov, perr = None, np.full(nparams, np.nan)
 
-    g = _density(p, n)
+    g = _density(gp, n)
     masses = g*dr
-    F_fit = K@masses                                      # fitted curve (~F(0)=1)
+    lam_fit = float(masses.sum())                         # modulation depth = total mass
+    A_fit = float(p[0])                                   # fitted V(0) amplitude
+    Bv, dim_fit = _bg_of(p)
+    if bg_mode == 'general':
+        Bv = B_gen
+    k_fit = float(p[1]) if bg_mode in ('exp', 'exp_d') else \
+        (float(bg['k']) if bg_engine == 'general' else 0.0)
+    D = K@masses
+    lam_safe = lam_fit if abs(lam_fit) > 1e-9 else 1e-9
+    Bsafe = np.where(Bv == 0.0, 1.0, Bv)
+    Vn_eff = Vn/(A_fit if abs(A_fit) > 1e-9 else 1.0)     # de-scale the fitted V(0)
+    F = (Vn_eff/Bsafe - (1.0 - lam_fit))/lam_safe         # data form factor (final bg)
+    F_fit = D/lam_safe                                    # model form factor, F(0)=1
     P_norm = _normalize_masses(masses)
     P_density = P_norm/dr
+    bg = dict(bg); bg.update({'lambda': lam_fit, 'k': k_fit, 'dim': float(dim_fit),
+                              'B': Bv, 'form_factor': F, 'V_norm': Vn_eff})
 
     components = []
     for kk in range(n):
-        a, c, s = float(p[3*kk]), float(p[3*kk + 1]), float(abs(p[3*kk + 2]))
+        a, c, s = float(gp[3*kk]), float(gp[3*kk + 1]), float(abs(gp[3*kk + 2]))
         components.append({'amplitude': a, 'center': c, 'sigma': s,
                            'area': a*s*np.sqrt(2.0*np.pi),
-                           'center_err': float(perr[3*kk + 1]),
-                           'sigma_err': float(perr[3*kk + 2])})
+                           'center_err': float(perr[n_bg + 3*kk + 1]),
+                           'sigma_err': float(perr[n_bg + 3*kk + 2])})
     tot_area = sum(cc['area'] for cc in components) or 1.0
     for cc in components:
         cc['weight'] = cc['area']/tot_area
@@ -1985,7 +2165,7 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
 
             def resid(pf):
                 pp = base.copy(); pp[free] = pf
-                return K@(_density(pp, n)*dr) - F
+                return _vmodel(pp, n)[0] - V_tgt
             try:
                 s = least_squares(resid, p[free],
                                   bounds=(lo_b[free], hi_b[free]), max_nfev=2000)
@@ -2022,13 +2202,14 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                     a = m
             return 0.5*(a + b)
 
-        # map sorted components back to their parameter block (sorted by centre)
-        order = sorted(range(n), key=lambda kk: float(p[3*kk + 1]))
+        # map sorted components back to their parameter block (sorted by centre);
+        # gaussian params are offset by the n_bg leading background parameters
+        order = sorted(range(n), key=lambda kk: float(gp[3*kk + 1]))
         for cc, kk in zip(components, order):
-            cc['center_ci_lo'] = _bound(3*kk + 1, -1)
-            cc['center_ci_hi'] = _bound(3*kk + 1, +1)
-            cc['sigma_ci_lo'] = _bound(3*kk + 2, -1)
-            cc['sigma_ci_hi'] = _bound(3*kk + 2, +1)
+            cc['center_ci_lo'] = _bound(n_bg + 3*kk + 1, -1)
+            cc['center_ci_hi'] = _bound(n_bg + 3*kk + 1, +1)
+            cc['sigma_ci_lo'] = _bound(n_bg + 3*kk + 2, -1)
+            cc['sigma_ci_hi'] = _bound(n_bg + 3*kk + 2, +1)
 
     P_lower = P_upper = P_std = None
     if n_mc and int(n_mc) > 0 and cov is not None and np.all(np.isfinite(cov)):
@@ -2037,10 +2218,10 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
             samples = rng.multivariate_normal(p, cov, size=int(n_mc))
             ens = np.empty((int(n_mc), len(r)))
             for j in range(int(n_mc)):
-                pj = samples[j].copy()
-                pj[0::3] = np.clip(pj[0::3], 0.0, None)    # amplitudes >= 0
-                pj[2::3] = np.clip(np.abs(pj[2::3]), s_lo, s_hi)
-                ens[j] = _normalize_masses(_density(pj, n)*dr)/dr
+                gj = samples[j][n_bg:].copy()             # gaussian params only
+                gj[0::3] = np.clip(gj[0::3], 0.0, None)    # amplitudes >= 0
+                gj[2::3] = np.clip(np.abs(gj[2::3]), s_lo, s_hi)
+                ens[j] = _normalize_masses(_density(gj, n)*dr)/dr
             P_std = ens.std(axis=0)
             P_lower = P_density - ci_z*P_std
             P_upper = P_density + ci_z*P_std
@@ -2059,169 +2240,6 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
             'n_gauss_ic': int(n_ic), 'pruned': bool(n != n_ic),
             'ci_mode': ci_mode, 'ci_level': float(ci_level),
             'noise_level': float(sig_e)}
-
-
-def deer_mellin_consensus(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
-                          fit_dim=False, nu_dd=NU_DD, n_t0=9, n_mc=6,
-                          chi_tol=1.05,
-                          taumax_window=(0.8, 0.86, 0.91, 0.97, 1.03, 1.09,
-                                         1.14, 1.19, 1.25),
-                          n_bg=5, bg_span_frac=0.05,
-                          gate_rel_noise=0.06, seed=0, percentiles=(2.5, 97.5),
-                          **kwargs):
-    """Robust ("consensus") Mellin inversion for NOISY traces: marginalize over the
-    data-consistent zero-time and tau_max (and noise) instead of committing to one
-    fragile point estimate.
-
-    SUPERSEDED (kept for explicit/diagnostic use; no longer in the GUI). The
-    noise-adaptive delta + short-r taper in `deer_invert_mellin` (both default-on)
-    make the single pick more accurate than this marginalization on the benchmark
-    (no-bg mean overlap 0.884 vs 0.861 -- the ensemble median over t0/tau-shifted
-    curves over-broadens), so prefer the plain single pick; use this only to inspect
-    the t0 x tau_max ambiguity explicitly.
-
-    Why: at high relative noise (sigma/lambda gtrsim 0.06) a DEER trace does not
-    determine the zero-time t0 OR the Mellin cutoff tau_max -- the V-space forward
-    residual is white (structureless) across a wide range of both, so they are
-    *unidentifiable* and a single auto-pick swings wildly per noise realization
-    (the recovered P(r) overlap can move 0.5->0.85 with t0 changes the residual
-    cannot even see). The honest answer there is not a sharper point estimate but a
-    CONSENSUS over everything the data cannot rule out, plus a band that shows the
-    real uncertainty -- the same logic as `deer_validate` for Tikhonov.
-
-    How: fit a reference t0 (`fit_zero_time`) and run the standard single-pick
-    `deer_invert_mellin` (auto tau_max) as `base`. Estimate the relative noise
-    sigma_e/lambda.
-      * IDENTIFIABLE (rel noise < `gate_rel_noise`): the single pick is reliable,
-        so just return it (with an `n_mc` Monte-Carlo band) -- consensus would only
-        add needless spread and broaden genuinely sharp distributions. consensus=False.
-      * UNIDENTIFIABLE (rel noise >= gate): build an ensemble that marginalizes
-        every uncertain knob, ADDITIVELY (not a full multiplied grid -- that mostly
-        triples the cost and makes the per-distance median jaggeder): the
-        data-consistent `n_t0` zero-times (forward-fit chi within `chi_tol` of the
-        best) x a `taumax_window` of cutoffs *around* the auto-pick (a fraction
-        tuple tracking the data -- high/sharp on cleaner traces, low on noisy ones),
-        PLUS an `n_bg`-point background-start sweep (+-`bg_span_frac` of the trace,
-        subsuming the `deer_validate` axis) and `n_mc` measurement-noise
-        realizations at the centre. The reported P(r) is the ensemble MEDIAN and the
-        band is the `percentiles` spread. consensus=True.
-
-    Returns the same dict shape as `deer_invert_mellin` (P_density = consensus
-    median or single pick; P_lower/P_upper = band), so the GUI/exporters are shared,
-    plus: consensus (bool), rel_noise, n_trials, t0 (reference), t0_consistent (the
-    accepted grid), tau_maxs, ensemble (n_trials x len(r)), base (the central
-    single-pick result, for the time-domain forward-fit display). `**kwargs` pass
-    through to `deer_invert_mellin` (delta, taumax_method, wiener, ...)."""
-    _require_scipy()
-    t = np.asarray(t, float)
-    V = np.asarray(V, float)
-    r = default_r_axis() if r is None else np.asarray(r, float)
-    dr = float(r[1] - r[0]) if len(r) > 1 else 1.0
-
-    # reference zero-time and single-pick inversion (auto tau_max)
-    t0_ref = float(fit_zero_time(t, V, bg_start=bg_start, bg_end=bg_end, dim=dim,
-                                 r=r, nu_dd=nu_dd))
-
-    def _invert(t0, tau_max, bgs=bg_start, Vx=None, n_mc_=0):
-        return deer_invert_mellin(
-            t - t0, (V if Vx is None else Vx), r=r,
-            bg_start=(None if bgs is None else bgs - t0),
-            bg_end=(None if bg_end is None else bg_end - t0), dim=dim,
-            fit_dim=fit_dim, nu_dd=nu_dd, tau_max=tau_max, n_mc=n_mc_, seed=seed,
-            **kwargs)
-
-    base = _invert(t0_ref, None)
-    sig_e = float(base['noise_level'])
-    lam = float(base['lambda']) or 1e-3
-    rel_noise = sig_e/max(lam, 1e-3)
-    pick = float(base['tau_max'])
-
-    # Identifiable regime: trust the single pick; add an MC band for honesty.
-    if rel_noise < gate_rel_noise:
-        res = _invert(t0_ref, None, n_mc_=n_mc) if n_mc else base
-        res = dict(res)
-        res.update({'engine': 'mellin_consensus', 'consensus': False,
-                    'rel_noise': rel_noise, 'n_trials': 1, 't0': t0_ref,
-                    't0_consistent': np.array([t0_ref]),
-                    'tau_maxs': np.array([pick]), 'ensemble': None, 'base': base})
-        return res
-
-    # Unidentifiable regime: marginalize. t0 grid biased slightly early (the
-    # parabola zero-time is biased LATE at high noise), chi-filtered to the
-    # data-consistent set; tau_max window tracks the auto-pick.
-    span = float(t[-1] - t[0]) or 1.0
-    t0_grid = np.linspace(t0_ref - 0.030*span, t0_ref + 0.012*span, int(max(3, n_t0)))
-    t0_grid = t0_grid[t0_grid >= t[0] - 1e-9]
-    if len(t0_grid) == 0:                              # t0 at/before the trace start
-        t0_grid = np.array([max(float(t0_ref), float(t[0]))])   # (e.g. known t0=0)
-    tmg = [round(pick*f, 2) for f in taumax_window]
-
-    def _chi(res):
-        bg = res['background']; lm = res['lambda']
-        Vn = bg['V_norm']; Vfit = bg['B']*((1 - lm) + lm*res['F_fit'])
-        pos = res['t'] > 0
-        rr = (Vn - Vfit)[pos]
-        return float(np.sqrt(np.mean(rr**2))/(res['noise_level'] or 1e-9))
-
-    chis = np.array([_chi(_invert(t0, pick)) for t0 in t0_grid])
-    cmin = float(np.min(chis))
-    ok = t0_grid[chis <= cmin*chi_tol]
-    if len(ok) == 0:
-        ok = np.array([t0_ref])
-
-    # background-start sweep (subsumes deer_validate's axis): the bg window is
-    # itself uncertain on noisy traces, so marginalize it too. The structural
-    # ensemble is the full bg x t0 x tau_max grid; measurement noise is added as a
-    # smaller set of perturbed realizations at the central bg / median-consistent
-    # t0 (so the band reflects both the model ambiguity and the electrical noise
-    # without the cost of noise-perturbing every grid point).
-    if bg_start is not None and n_bg and int(n_bg) > 1:
-        bg_grid = _bg_start_grid(t, bg_start, span_frac=bg_span_frac, n=int(n_bg))
-    else:
-        bg_grid = np.array([bg_start])
-
-    rng = np.random.default_rng(seed)
-    ens = []
-    t0c = float(ok[len(ok)//2])                         # median-consistent t0
-
-    def _add(res):
-        a = np.maximum(res['P_density'], 0.0)
-        s = float(_trapz(a, r))
-        ens.append(a/s if s > 0 else a)
-
-    # The ensemble is ADDITIVE across the uncertainty axes (not a full multiplied
-    # grid): t0 x tau_max core, plus a background-start sweep and a noise set at the
-    # centre. The bg-start contribution is small on these traces -- the joint
-    # background is well determined -- so a full bg x t0 x tau grid mostly triples
-    # the cost (and the per-distance median over many t0/tau-shifted curves only
-    # gets jaggeder), while the additive sweep still injects the bg-window spread.
-    for t0 in ok:                                       # data-consistent t0 x tau
-        for tm in tmg:
-            _add(_invert(t0, tm))
-    if bg_start is not None and n_bg and int(n_bg) > 1:  # background-start sweep
-        for bgs in bg_grid:
-            _add(_invert(t0c, float(pick), bgs=bgs))
-    if n_mc and int(n_mc) > 0 and sig_e > 0:            # measurement-noise set
-        for tm in tmg:
-            for _ in range(int(n_mc)):
-                Vk = V + sig_e*rng.standard_normal(V.shape)
-                _add(_invert(t0c, tm, Vx=Vk))
-    ens = np.vstack(ens)
-    P_density = np.median(ens, axis=0)
-    lo, hi = percentiles
-    P_lower = np.percentile(ens, lo, axis=0)
-    P_upper = np.percentile(ens, hi, axis=0)
-    P_mass = _normalize_masses(P_density*dr)
-    out = dict(base)
-    out.update({'r': r, 'P_density': P_density, 'P_norm': P_mass, 'P': P_mass,
-                'P_lower': P_lower, 'P_upper': P_upper, 'P_signed_density': P_density,
-                'engine': 'mellin_consensus', 'consensus': True,
-                'rel_noise': rel_noise, 'n_trials': int(ens.shape[0]),
-                't0': t0_ref, 't0_consistent': ok, 'tau_maxs': np.array(tmg),
-                'bg_starts': np.atleast_1d(bg_grid), 'ensemble': ens, 'base': base,
-                'peak': float(r[int(np.argmax(P_density))]),
-                'r_mean': float(np.sum(r*P_mass))})
-    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -2563,17 +2581,12 @@ if __name__ == '__main__':
     print(f'mellin: delta {mel["delta"]:.4g} us, peak {r_peak_m:.3f} nm, '
           f'forward R^2 {r2m:.4f}, mellin_ok {mellin_ok}')
 
-    # consensus engine: clean trace gates to the single pick; a noisy copy engages
-    # the marginalized median + band. Just exercise both branches and the peak.
-    con_c = deer_mellin_consensus(t, V, r=r, bg_start=1.0)
-    Vn2 = simulate(t, r, P_true, lam=0.35, k=0.10, dim=3.0, noise=0.08, seed=3)
-    con_n = deer_mellin_consensus(t, Vn2, r=r, bg_start=1.0, n_t0=7, n_mc=4)
-    consensus_ok = ((con_c['consensus'] is False) and (con_n['consensus'] is True)
-                    and con_n['ensemble'] is not None
-                    and abs(r[int(np.argmax(con_n['P_density']))] - r0) < 0.6)
-    print(f'consensus: clean gated={not con_c["consensus"]}, '
-          f'noisy n_trials {con_n["n_trials"]} peak '
-          f'{r[int(np.argmax(con_n["P_density"]))]:.3f} nm, ok {consensus_ok}')
+    # multi-Gaussian engine: parametric N-Gaussian fit recovers the single mode
+    gss = deer_invert_gauss(t, V, r=r, bg_start=1.0)
+    r_peak_g = r[int(np.argmax(gss['P_density']))]
+    gauss_ok = (gss['n_gauss'] == 1) and (abs(r_peak_g - r0) < 0.3)
+    print(f'gauss: N {gss["n_gauss"]}, peak {r_peak_g:.3f} nm, '
+          f'lambda {gss["lambda"]:.3f}, ok {gauss_ok}')
 
     print('SELF-TEST:', 'PASS' if (ok and smoother and band_ok and mellin_ok and
-          consensus_ok and abs(val['peak'] - r0) < 0.3) else 'FAIL')
+          gauss_ok and abs(val['peak'] - r0) < 0.3) else 'FAIL')
