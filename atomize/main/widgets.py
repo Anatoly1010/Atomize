@@ -95,6 +95,11 @@ class CrosshairPlotWidget(pg.PlotWidget):
         self.cross_section_enabled = False
         self.parametric = parametric
         self.search_mode = True
+        # When True, the cross-hair may land between samples (on the nearest
+        # point of the drawn polyline). Off by default: the cross-hair jumps
+        # to the nearest actual data point (vertex) instead of sliding smoothly
+        # along the curve.
+        self.snap_to_segments = False
         #self.label = None
         self.label2 = None
         self.image_operation = 0
@@ -261,6 +266,14 @@ class CrosshairPlotWidget(pg.PlotWidget):
 
         v_x, v_y = view_coords.x(), view_coords.y()
 
+        # Size of one screen pixel in view (already-log when an axis is in
+        # log mode) coordinates. Using this instead of the view-range span
+        # makes the nearest-point search measure true on-screen distance,
+        # so it is correct regardless of the widget's width/height aspect.
+        px, py = vb.viewPixelSize()
+        px = px if px > 0 else 1.0
+        py = py if py > 0 else 1.0
+
         best_guesses = []
         for data_item in item.items:
             if not (isinstance(data_item, pg.PlotDataItem) and data_item.isVisible()):
@@ -276,75 +289,122 @@ class CrosshairPlotWidget(pg.PlotWidget):
             local_v_x = v_x - offset.x()
             local_v_y = (v_y - offset.y()) / scale_y
 
-            try:
-                if data_item.opts['fftMode'] == True:
-                    xdata, ydata = self._fourierTransform(xdata_0, ydata_0)
-                    if data_item.opts['logMode'][0]:
-                        xdata = xdata[1:]
-                        ydata = ydata[1:]
-                elif data_item.opts['subtractMeanMode'] == True:
-                    xdata, ydata = xdata_0, ydata_0 - np.mean(ydata_0)
-                elif data_item.opts['derivativeMode'] == True:
-                    xdata, ydata = xdata_0[:-1], np.diff(ydata_0) / np.diff(xdata_0)
-                elif data_item.opts['phasemapMode'] == True:
-                    xdata, ydata = ydata_0[:-1], np.diff(ydata_0) / np.diff(xdata_0)
-                else:
-                    xdata, ydata = xdata_0, ydata_0
-            except KeyError:
-                if data_item.opts['fftMode'] == True:
-                    xdata, ydata = self._fourierTransform(xdata_0, ydata_0)
-                    if data_item.opts['logMode'][0]:
-                        xdata = xdata[1:]
-                        ydata = ydata[1:]
-                elif data_item.opts['derivativeMode'] == True:
-                    xdata, ydata = xdata_0[:-1], np.diff(ydata_0) / np.diff(xdata_0)
-                elif data_item.opts['phasemapMode'] == True:
-                    xdata, ydata = ydata_0[:-1], np.diff(ydata_0) / np.diff(xdata_0)
-                else:
-                    xdata, ydata = xdata_0, ydata_0
+            # --- per-curve transformed + search arrays, cached (#5) ---
+            # Recomputing the FFT / derivative / mean / log on every mouse
+            # move is wasteful. Cache the result on the curve and reuse it
+            # until its source data or a relevant mode changes. The cache lives
+            # on the PlotDataItem, so it is freed together with the curve and
+            # cannot collide across curves. opts.get(...) also removes the old
+            # KeyError dance for pyqtgraph builds without 'subtractMeanMode'.
+            opts = data_item.opts
+            fft_mode = bool(opts.get('fftMode', False))
+            submean_mode = bool(opts.get('subtractMeanMode', False))
+            deriv_mode = bool(opts.get('derivativeMode', False))
+            phasemap_mode = bool(opts.get('phasemapMode', False))
+            fft_logx = bool(opts.get('logMode', (False, False))[0])
+            flags = (fft_mode, submean_mode, deriv_mode, phasemap_mode,
+                     fft_logx, x_log_mode, y_log_mode)
 
-            search_x = np.log10(np.maximum(xdata, 1e-15)) if x_log_mode else xdata
-            search_y = np.log10(np.maximum(ydata, 1e-15)) if y_log_mode else ydata
-
-            view_range = vb.viewRange()
-            sx = view_range[0][1] - view_range[0][0]
-            sy = view_range[1][1] - view_range[1][0]
-            sx = sx if sx > 0 else 1
-            sy = sy if sy > 0 else 1
-
-            dist_sq = ((search_x - local_v_x) / sx)**2 + ((search_y - local_v_y) / sy)**2
-
-            if not self.parametric:
-                real_view_x = 10**v_x if x_log_mode else v_x
-                idx_near = np.searchsorted(xdata, real_view_x)
-                idx_near = np.clip(idx_near, 0, len(xdata)-1)
-                i_start = max(0, idx_near - 50)
-                i_end = min(len(xdata), idx_near + 50)
-                sub_dist = dist_sq[i_start:i_end]
-                local_idx = np.argmin(sub_dist)
-                index = i_start + local_idx
+            cache = getattr(data_item, '_snap_cache', None)
+            if (cache is not None and cache['x_src'] is xdata_0
+                    and cache['y_src'] is ydata_0 and cache['flags'] == flags):
+                search_x = cache['search_x']
+                search_y = cache['search_y']
             else:
-                index = np.argmin(dist_sq)
+                if fft_mode:
+                    xdata, ydata = self._fourierTransform(xdata_0, ydata_0)
+                    if fft_logx:
+                        xdata, ydata = xdata[1:], ydata[1:]
+                elif submean_mode:
+                    xdata, ydata = xdata_0, ydata_0 - np.mean(ydata_0)
+                elif deriv_mode:
+                    xdata, ydata = xdata_0[:-1], np.diff(ydata_0) / np.diff(xdata_0)
+                elif phasemap_mode:
+                    xdata, ydata = ydata_0[:-1], np.diff(ydata_0) / np.diff(xdata_0)
+                else:
+                    xdata, ydata = xdata_0, ydata_0
 
-            vis_x = xdata[index] + offset.x()
-            vis_y = (ydata[index] * scale_y) + offset.y()
+                # Build search arrays in the space the curve is drawn in. On a
+                # log axis, non-positive samples are hidden by pyqtgraph, so map
+                # them to NaN (excluded below) instead of clamping to a fake
+                # floor that used to make the cross-hair snap to ~1e-15 points.
+                if x_log_mode:
+                    with np.errstate(divide='ignore', invalid='ignore'):
+                        search_x = np.log10(xdata)
+                    search_x[~(xdata > 0)] = np.nan
+                else:
+                    search_x = np.asarray(xdata)
+                if y_log_mode:
+                    with np.errstate(divide='ignore', invalid='ignore'):
+                        search_y = np.log10(ydata)
+                    search_y[~(ydata > 0)] = np.nan
+                else:
+                    search_y = np.asarray(ydata)
+
+                data_item._snap_cache = {
+                    'x_src': xdata_0, 'y_src': ydata_0, 'flags': flags,
+                    'search_x': search_x, 'search_y': search_y,
+                }
+
+            dist_sq = ((search_x - local_v_x) / px)**2 + ((search_y - local_v_y) / py)**2
+            # NaN (hidden log-axis points) -> +inf so they can never be chosen.
+            dist_sq = np.where(np.isfinite(dist_sq), dist_sq, np.inf)
+
+            # Nearest vertex. Full argmin is O(n) and correct for ordered and
+            # parametric curves alike (the old ±50-index window assumed sorted
+            # x and could miss the true nearest point on steep/sparse data).
+            index = int(np.argmin(dist_sq))
+            if not np.isfinite(dist_sq[index]):
+                continue  # every point on this curve is hidden on the log axis
+
+            best_d = float(dist_sq[index])
+            ss_x = float(search_x[index])
+            ss_y = float(search_y[index])
+
+            # --- refine onto the nearest point of the drawn polyline (#6) ---
+            # Project the cursor onto the two segments adjacent to the nearest
+            # vertex (in pixel-normalised space) so the cross-hair can land
+            # between samples. Segments touching a hidden log point are skipped.
+            if self.snap_to_segments:
+                ax, ay = search_x[index], search_y[index]
+                for j in (index - 1, index + 1):
+                    if not (0 <= j < len(search_x)):
+                        continue
+                    bx, by = search_x[j], search_y[j]
+                    if not (np.isfinite(bx) and np.isfinite(by)):
+                        continue
+                    dx = (bx - ax) / px
+                    dy = (by - ay) / py
+                    seg_len_sq = dx * dx + dy * dy
+                    if seg_len_sq == 0:
+                        continue
+                    t = (((local_v_x - ax) / px) * dx +
+                         ((local_v_y - ay) / py) * dy) / seg_len_sq
+                    if t <= 0.0 or t >= 1.0:
+                        continue  # projection lands outside -> vertex already wins
+                    projx = ax + t * (bx - ax)
+                    projy = ay + t * (by - ay)
+                    d = (((local_v_x - projx) / px) ** 2 +
+                         ((local_v_y - projy) / py) ** 2)
+                    if d < best_d:
+                        best_d = float(d)
+                        ss_x, ss_y = float(projx), float(projy)
 
             best_guesses.append({
-                'point': (vis_x, vis_y),
-                'raw_point': (xdata[index], ydata[index]),
-                'dist': dist_sq[index],
-                'item': data_item
+                'dist': best_d,
+                'ss_x': ss_x, 'ss_y': ss_y,
+                'offset': offset, 'scale_y': scale_y,
+                'item': data_item,
             })
 
         if not best_guesses:
             return None
 
-        best_res = min(best_guesses, key=lambda x: x['dist'])
-        (v_pos, h_pos) = best_res['point']
-        (raw_x, raw_y) = best_res['raw_point']
+        best_res = min(best_guesses, key=lambda g: g['dist'])
         target_item = best_res['item']
-        offset = target_item.pos()
-        scale_y = target_item.transform().m22()
+        offset = best_res['offset']
+        scale_y = best_res['scale_y']
+        ss_x, ss_y = best_res['ss_x'], best_res['ss_y']
 
         raw_pen = target_item.opts.get('pen')
         if isinstance(raw_pen, tuple):
@@ -354,19 +414,16 @@ class CrosshairPlotWidget(pg.PlotWidget):
         else:
             curve_color = pg.mkColor(raw_pen)
 
-        if x_log_mode:
-            v_pos = math.log10(max(raw_x, 1e-15)) + offset.x()
-            x_parsed = pg.siFormat(10**v_pos, suffix=self.x_units, precision=5)
-        else:
-            x_parsed = pg.siFormat(v_pos, suffix=self.x_units, precision=5)
-            v_pos = raw_x + offset.x()
-
-        if y_log_mode:
-            h_pos = (math.log10(max(raw_y, 1e-15)) * scale_y) + offset.y()
-            y_parsed = pg.siFormat(10**h_pos, suffix=self.y_units, precision=5)
-        else:
-            y_parsed = pg.siFormat(h_pos, suffix=self.y_units, precision=5)
-            h_pos = (raw_y * scale_y) + offset.y()
+        # ss_x / ss_y are in the curve's local display space (already log when
+        # the axis is log). Map back to the view position and to the data value
+        # shown in the label. This one path covers both vertex and interpolated
+        # (segment) snaps, in linear and log modes alike.
+        v_pos = ss_x + offset.x()
+        h_pos = ss_y * scale_y + offset.y()
+        x_val = 10 ** v_pos if x_log_mode else v_pos
+        y_val = 10 ** h_pos if y_log_mode else h_pos
+        x_parsed = pg.siFormat(x_val, suffix=self.x_units, precision=5)
+        y_parsed = pg.siFormat(y_val, suffix=self.y_units, precision=5)
 
         return {
             'view_x': v_pos,
@@ -1063,19 +1120,33 @@ class CrosshairDock(CloseableDock):
                 
                 if modifiers == QtCore.Qt.KeyboardModifier.ControlModifier:
                     x_data, y_data = curve.getData()
-                    if len(y_data) > 0:
-                        first_y_before = y_data[-1] * curve.transform().m22() + curve.y()
+                    if y_data is not None and len(y_data) > 0:
+                        # Vertical scaling pivots about the point grabbed at the
+                        # start of the drag, so whatever the user puts the cursor
+                        # on (typically the baseline) stays fixed while the curve
+                        # scales. Capture, once per drag, the data value sitting
+                        # under the cursor and the view-y it occupies. Both are
+                        # in the curve's display space, so this is correct in log
+                        # mode as well (view_y = data_y * m22 + curve.y()).
+                        vb = curve.getViewBox()
+                        if vb is not None and (ev.isStart() or
+                                               not hasattr(curve, '_scale_pivot_view_y')):
+                            pivot_view_y = vb.mapSceneToView(ev.buttonDownScenePos()).y()
+                            m22_0 = curve.transform().m22() or 1.0
+                            curve._scale_pivot_view_y = pivot_view_y
+                            curve._scale_pivot_data_y = (pivot_view_y - curve.y()) / m22_0
 
                         sensitivity = 0.005
                         factor = 1.0 - (delta_scene.y() * sensitivity)
                         factor = max(0.1, min(factor, 10.0))
-                        
+
                         new_sy = curve.transform().m22() * factor
                         curve.setTransform(QtGui.QTransform().scale(1.0, new_sy))
 
-                        first_y_after = y_data[-1] * new_sy + curve.y()
-                        diff_y = first_y_before - first_y_after
-                        curve.setY(curve.y() + diff_y)
+                        # Re-translate so the grabbed point keeps its screen y.
+                        if hasattr(curve, '_scale_pivot_view_y'):
+                            curve.setY(curve._scale_pivot_view_y
+                                       - curve._scale_pivot_data_y * new_sy)
 
                 elif modifiers == QtCore.Qt.KeyboardModifier.NoModifier:
                     p1 = curve.mapToParent(ev.pos())
@@ -1087,9 +1158,13 @@ class CrosshairDock(CloseableDock):
 
             if ev.isFinish():
                 p = pg.mkPen(curve.opts['pen'])
-                p.setWidth(1) 
+                p.setWidth(1)
                 curve.setPen(p)
                 curve.setZValue(0)
+                # forget the per-drag pivot so the next Ctrl-drag re-grabs
+                if hasattr(curve, '_scale_pivot_view_y'):
+                    del curve._scale_pivot_view_y
+                    del curve._scale_pivot_data_y
 
         else:
             ev.ignore()
