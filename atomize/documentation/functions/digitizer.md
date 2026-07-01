@@ -447,7 +447,7 @@ digitizer_decimation(2)    # 0.8 ns/point
 digitizer_decimation(4)    # 1.6 ns/point
 ```
 
-This function queries or sets the decimation coefficient for Insys FM214x3GDA. If there is no argument the function will return the decimation coefficient of the digitizer. If there is an argument the specified decimation will be set. It can be used instead of the function [`digitizer_sample_rate()`](#digitizer_sample_rate). The values 1, 2, 4 correspond to 0.4 ns/point, 0.8 ns/point, and 1.6 ns/point. The decimation coefficient is also used by the [`digitizer_iq()`](#digitizer_iq) function to build the time axis. This function should be called before [`pulser_open()`](pulse_programmer.md#pulser_open).
+This function queries or sets the decimation coefficient for Insys FM214x3GDA. If there is no argument the function will return the decimation coefficient of the digitizer. If there is an argument the specified decimation will be set. It can be used instead of the function [`digitizer_sample_rate()`](#digitizer_sample_rate). The values 1, 2, 4 correspond to 0.4 ns/point, 0.8 ns/point, and 1.6 ns/point. Decimation is performed by boxcar-averaging: each output point is the mean of a group of `dec` consecutive samples, so the effective SNR / anti-aliasing improves. Because the mean is used, the amplitude scale is identical to `dec = 1`, so no additional calibration change is needed. The decimation coefficient is also used by the [`digitizer_iq()`](#digitizer_iq) function to build the time axis. This function should be called before [`pulser_open()`](pulse_programmer.md#pulser_open).
 
 **Allowed:** `1`, `2`, `4`
 {: .enum }

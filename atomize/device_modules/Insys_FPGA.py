@@ -1850,10 +1850,19 @@ class Insys_FPGA:
             ].reshape(n_nid, counts_adc_full)
 
             norm = self.adc_sens / (self.gimSum_brd * phases)
-            data_i = (data_2d[:, 0::2 * self.dec_coef].astype(np.float64)
-                      * norm / safe_counts[:, None])
-            data_q = (data_2d[:, 1::2 * self.dec_coef].astype(np.float64)
-                      * norm / safe_counts[:, None])
+            # Decimation: boxcar-average each group of `dec` consecutive samples
+            # instead of keeping only the first and discarding the rest. Taking
+            # the mean (not the sum) keeps the same amplitude scale as dec=1, so
+            # adc_sens and the 0.4*dec_coef integral scaling stay valid, while
+            # using every sample improves SNR / anti-aliasing. dec=1 is a no-op.
+            dec = self.dec_coef
+            all_i = data_2d[:, 0::2].astype(np.float64)
+            all_q = data_2d[:, 1::2].astype(np.float64)
+            if dec > 1:
+                all_i = all_i.reshape(n_nid, counts_adc, dec).mean(axis=2)
+                all_q = all_q.reshape(n_nid, counts_adc, dec).mean(axis=2)
+            data_i = all_i * norm / safe_counts[:, None]
+            data_q = all_q * norm / safe_counts[:, None]
 
             new_slice = np.zeros((j_pt - i_pt, counts_adc), dtype=np.complex64)
             for phase_idx, label in enumerate(acq_cycle):
