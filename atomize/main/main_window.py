@@ -1186,8 +1186,10 @@ class MainWindow(QMainWindow):
     def open_directory(self, path):
         if os.name == 'nt':
             os.startfile(path)
-        elif os.name == 'posix': 
-            subprocess.Popen(['open', path]) 
+        elif sys.platform == 'darwin':
+            subprocess.Popen(['open', path])
+        elif os.name == 'posix':
+            subprocess.Popen(['xdg-open', path])
         else:
             print(f"Unsupported operating system: {os.name}")
 
