@@ -107,6 +107,8 @@ class QueueList(QDockWidget):
     def delete_item(self):
         index = self.namelist_view.currentIndex()
         item = self.namelist_model.itemFromIndex(index)
+        if item is None:            # empty queue / nothing selected
+            return
         del self[str(item.text())]
 
     def __getitem__(self, item):

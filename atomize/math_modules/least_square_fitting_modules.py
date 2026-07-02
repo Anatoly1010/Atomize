@@ -112,6 +112,40 @@ class math():
     def param_names(self, model):
         return self._models()[model][1]
 
+    # Human-readable formula for each model, as Qt rich text (HTML) so the GUI
+    # can show the equation being fitted next to the parameter table. Kept here
+    # (beside the model functions) so the two never drift.
+    def _formulas(self):
+        return {
+            'Linear':                'y = a·x + b',
+            'Exponential':           'y = a·exp(&minus;x/k) + b',
+            'Bi-exponential':        'y = a<sub>1</sub>·exp(&minus;x/k<sub>1</sub>) '
+                                     '+ a<sub>2</sub>·exp(&minus;x/k<sub>2</sub>) + b',
+            'Stretched exponential': 'y = a·exp(&minus;(x/k)<sup>&beta;</sup>) + b',
+            'Gaussian':              'y = a·exp(&minus;(x&minus;x<sub>0</sub>)<sup>2</sup>'
+                                     ' / 2&sigma;<sup>2</sup>) + b',
+            'Lorentzian':            'y = a / (1 + ((x&minus;x<sub>0</sub>)/&gamma;)<sup>2</sup>) + b',
+            'Damped sine':           'y = a·exp(&minus;x/k)·sin(2&pi;f·x + &phi;) + b',
+            'Tm + ESEEM (stretched, 1 freq)':
+                'y = a·exp(&minus;(|x|/T<sub>m</sub>)<sup>&beta;</sup>)·'
+                '[1 + m·cos(2&pi;f·x + &phi;)·exp(&minus;|x|/&tau;<sub>m</sub>)] + c',
+            'Tm + ESEEM (stretched, 2 freq)':
+                'y = a·exp(&minus;(|x|/T<sub>m</sub>)<sup>&beta;</sup>)·'
+                '[1 + &Sigma;<sub>i=1,2</sub> m<sub>i</sub>·cos(2&pi;f<sub>i</sub>·x + &phi;<sub>i</sub>)'
+                '·exp(&minus;|x|/&tau;<sub>m,i</sub>)] + c',
+            'Tm + ESEEM (mono-exp, 1 freq)':
+                'y = a·exp(&minus;|x|/T<sub>m</sub>)·'
+                '[1 + m·cos(2&pi;f·x + &phi;)·exp(&minus;|x|/&tau;<sub>m</sub>)] + c',
+            'Tm + ESEEM (mono-exp, 2 freq)':
+                'y = a·exp(&minus;|x|/T<sub>m</sub>)·'
+                '[1 + &Sigma;<sub>i=1,2</sub> m<sub>i</sub>·cos(2&pi;f<sub>i</sub>·x + &phi;<sub>i</sub>)'
+                '·exp(&minus;|x|/&tau;<sub>m,i</sub>)] + c',
+        }
+
+    def model_formula(self, model):
+        """Qt-rich-text equation for the named model ('' if unknown)."""
+        return self._formulas().get(model, '')
+
     def default_guess(self, model, x, y):
         """Build a reasonable initial guess for the requested model."""
         return list(self._models()[model][2](x, y))

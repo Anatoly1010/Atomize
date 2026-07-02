@@ -1454,6 +1454,21 @@ class CrosshairDock(CloseableDock):
         else:
             return [], []
 
+    def get_raw_data(self, label):
+        # Original, untransformed samples (.xData/.yData) rather than getData(),
+        # which returns the DISPLAY data — log10-mapped on a log axis, or
+        # FFT/derivative-transformed in those modes. Used when exporting the
+        # underlying data (e.g. "Send to Data Treatment"), so a log-scaled plot
+        # doesn't ship log-space x values that break the axis and the fit.
+        if label in self.curves:
+            x = self.curves[label].xData
+            y = self.curves[label].yData
+            if x is None or y is None:
+                return [], []
+            return x, y
+        else:
+            return [], []
+
     def redraw(self):
         xs_ys = []
         for name in self.curves:
