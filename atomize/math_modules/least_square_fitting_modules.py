@@ -37,6 +37,12 @@ class math():
     def stretched_exponential(self, x, a, k, beta, b):
         return a*np.exp(-(x/k)**beta) + b
 
+    def stretched_plus_exponential(self, x, a1, k1, beta, a2, k2, b):
+        # abs() guards curve_fit excursions into k1<0 (non-integer power of a
+        # negative base -> NaN) without changing the physical (k1>0) solution
+        return (a1*np.exp(-(np.abs(x)/np.abs(k1))**beta)
+                + a2*np.exp(-x/k2) + b)
+
     def gaussian(self, x, a, x0, sigma, b):
         return a*np.exp(-(x - x0)**2/(2.0*sigma**2)) + b
 
@@ -86,6 +92,8 @@ class math():
             'Exponential':           (self.exponential,          ['a', 'k', 'b'],             self._guess_exponential),
             'Bi-exponential':        (self.biexponential,        ['a1', 'k1', 'a2', 'k2', 'b'], self._guess_biexponential),
             'Stretched exponential': (self.stretched_exponential,['a', 'k', 'beta', 'b'],     self._guess_stretched),
+            'Stretched exponential + exponential': (self.stretched_plus_exponential,
+                ['a1', 'k1', 'beta', 'a2', 'k2', 'b'],           self._guess_stretched_plus_exp),
             'Gaussian':              (self.gaussian,             ['a', 'x0', 'sigma', 'b'],   self._guess_peak),
             'Lorentzian':            (self.lorentzian,           ['a', 'x0', 'gamma', 'b'],   self._guess_peak),
             'Damped sine':          (self.damped_sine,          ['a', 'k', 'f', 'phi', 'b'], self._guess_damped_sine),
@@ -122,6 +130,8 @@ class math():
             'Bi-exponential':        'y = a<sub>1</sub>·exp(&minus;x/k<sub>1</sub>) '
                                      '+ a<sub>2</sub>·exp(&minus;x/k<sub>2</sub>) + b',
             'Stretched exponential': 'y = a·exp(&minus;(x/k)<sup>&beta;</sup>) + b',
+            'Stretched exponential + exponential': 'y = a<sub>1</sub>·exp(&minus;(x/k<sub>1</sub>)<sup>&beta;</sup>) '
+                                     '+ a<sub>2</sub>·exp(&minus;x/k<sub>2</sub>) + b',
             'Gaussian':              'y = a·exp(&minus;(x&minus;x<sub>0</sub>)<sup>2</sup>'
                                      ' / 2&sigma;<sup>2</sup>) + b',
             'Lorentzian':            'y = a / (1 + ((x&minus;x<sub>0</sub>)/&gamma;)<sup>2</sup>) + b',
@@ -177,6 +187,13 @@ class math():
         a = float(y[0] - b)
         span = float(x[-1] - x[0]) or 1.0
         return [a, span/3.0, 1.0, b]
+
+    def _guess_stretched_plus_exp(self, x, y):
+        b = float(y[-1])
+        a = float(y[0] - b)
+        span = float(x[-1] - x[0]) or 1.0
+        #      a1,     k1,       beta, a2,     k2,       b
+        return [a/2.0, span/2.0, 1.0,  a/2.0, span/8.0, b]
 
     def _guess_peak(self, x, y):
         b = float(np.median(y))

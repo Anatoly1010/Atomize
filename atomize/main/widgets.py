@@ -1,5 +1,6 @@
 import warnings
 import os
+import colorsys
 import configparser
 import pyqtgraph as pg
 import numpy as np
@@ -740,6 +741,52 @@ class CrosshairPlotWidget(pg.PlotWidget):
             self.cursor_label.setVisible(not self.hide_action.isChecked())
 
 class CrosshairDock(CloseableDock):
+    # Distinct, background-legible curve colours (see self.avail_colors). Same
+    # aesthetic as data_treatment's BATCH_COLORS: mid-to-high luminance and
+    # saturated so each reads clearly on the dark (63,63,97) plot background.
+    # Order = draw order (white, yellow pinned first). Chosen by a farthest-point
+    # search in CIELAB with saturation capped soft (<=0.78) and every colour kept
+    # above a 3:1 WCAG contrast on the (63,63,97) background: the closest pair sits
+    # at CIEDE2000 ~17 (vs ~10 for the old set), so overlapping traces stay easy to
+    # tell apart without going neon.
+    CURVE_PALETTE = [
+        (255, 255, 255),   # white
+        (255, 255,   0),   # yellow
+        (228,  56, 255),   # magenta
+        (255,  83,  56),   # red-orange
+        ( 50, 146, 230),   # blue
+        ( 50, 230, 146),   # green
+        (230, 158,  50),   # amber
+        ( 50, 218, 230),   # cyan
+        (255, 153, 187),   # pink
+        (167, 153, 255),   # violet
+        (255, 180, 153),   # peach
+        (153, 207, 255),   # sky
+        (255, 221, 153),   # sand
+    ]
+
+    @staticmethod
+    def _overflow_color(n):
+        """A distinct bright colour for the n-th curve past the palette.
+
+        Golden-angle hue spacing keeps successive colours far apart, at a fixed
+        high value/saturation so they stay legible on the dark background — far
+        better than the old behaviour of collapsing every extra curve to white.
+        """
+        h = (0.618033988749895 * n + 0.12) % 1.0
+        r, g, b = colorsys.hsv_to_rgb(h, 0.62, 1.0)
+        return (int(r * 255), int(g * 255), int(b * 255))
+
+    def _take_color(self):
+        """Next curve pen: a recycled/palette colour while any remain, else a
+        freshly generated distinct hue. Never exhausts, never collapses to a
+        single indistinguishable pen."""
+        if self.avail_colors:
+            return self.avail_colors.pop()
+        pen = pg.mkPen(color=self._overflow_color(self._overflow_index), width=1)
+        self._overflow_index += 1
+        return pen
+
     def __init__(self, **kwargs):
         # open directory
         #path_to_main = os.path.abspath(os.getcwd())
@@ -780,7 +827,15 @@ class CrosshairDock(CloseableDock):
         open_action.triggered.connect(self.file_dialog)
         plot_item.vb.menu.addAction(open_action)
 
-        self.avail_colors = [pg.mkPen(color=(47,79,79),width=1), pg.mkPen(color=(255,153,0),width=1), pg.mkPen(color=(255,0,255),width=1), pg.mkPen(color=(0,0,255),width=1), pg.mkPen(color=(0,0,0),width=1), pg.mkPen(color=(255,0,0),width=1), pg.mkPen(color=(95,158,160),width=1), pg.mkPen(color=(0,128,0),width=1), pg.mkPen(color=(255,255,0),width=1), pg.mkPen(color=(255,255,255),width=1)]
+        # Curve palette tuned for the dark (63,63,97) plot background: bright,
+        # saturated hues that all stay legible. The old list held near-black
+        # (0,0,0) / pure-blue (0,0,255) / dark-slate (47,79,79) colours that
+        # vanish on the indigo background. Stored as a stack popped from the end
+        # (so CURVE_PALETTE[0] is the first curve) and refilled by del_item.
+        self.avail_colors = [pg.mkPen(color=c, width=1)
+                             for c in reversed(self.CURVE_PALETTE)]
+        # cursor for the golden-angle overflow generator (>len(palette) curves)
+        self._overflow_index = 0
         self.avail_symbols= ['x','p','star','s','o','+']
         self.avail_sym_pens = [ pg.mkPen(color=(0, 0, 0), width=0), pg.mkPen(color=(255, 255, 255), width=0), pg.mkPen(color=(0, 255, 0), width=0), pg.mkPen(color=(0, 0, 255), width=0),pg.mkPen(color=(255, 0, 0), width=0),pg.mkPen(color=(255, 0, 255), width=0)]
         self.avail_sym_brush = [pg.mkBrush(0, 0, 0, 255), pg.mkBrush(255, 255, 255, 255),pg.mkBrush(0, 255, 0, 255),pg.mkBrush(0, 0, 255, 255), pg.mkBrush(255, 0, 0, 255),pg.mkBrush(255, 0, 255, 255)]
@@ -863,10 +918,7 @@ class CrosshairDock(CloseableDock):
                                     self.setTitle( temp )
                             else:
                                 kwargs['name'] = name
-                                try:
-                                    kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
-                                except IndexError:
-                                    kwargs['pen'] = self.used_colors[name] = self.white_pen
+                                kwargs['pen'] = self.used_colors[name] = self._take_color()
                                 args_mod = (args[0][i], args[1][i])
 
                                 curve = self.plot_widget.plot(*args_mod, **kwargs)
@@ -931,10 +983,7 @@ class CrosshairDock(CloseableDock):
                     # simultaneous plot of two curves
                     for i in range( len( args[0] )):
                         if i == 0:
-                            try:
-                                kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
-                            except IndexError:
-                                kwargs['pen'] = self.used_colors[name] = self.white_pen
+                            kwargs['pen'] = self.used_colors[name] = self._take_color()
                             args_mod = (args[0][i], args[1][i])
                             curve = self.plot_widget.plot(*args_mod, **kwargs)
 
@@ -977,10 +1026,7 @@ class CrosshairDock(CloseableDock):
                                 self.qaction_added = 1
                             else:
                                 kwargs['name'] = name
-                                try:
-                                    kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
-                                except IndexError:
-                                    kwargs['pen'] = self.used_colors[name] = self.yellow_pen
+                                kwargs['pen'] = self.used_colors[name] = self._take_color()
                                 args_mod = (args[0][i], args[1][i])
                                 # the second curve is a new one
                                 #self.curves[name] = self.plot_widget.plot(*args_mod, **kwargs)
@@ -1007,10 +1053,7 @@ class CrosshairDock(CloseableDock):
                                     self.setTitle( temp )
 
                 else:
-                    try:
-                        kwargs['pen'] = self.used_colors[name] = self.avail_colors.pop()
-                    except IndexError:
-                        kwargs['pen'] = self.used_colors[name] = self.white_pen
+                    kwargs['pen'] = self.used_colors[name] = self._take_color()
 
                     curve = self.plot_widget.plot(*args, **kwargs)
 
@@ -1500,14 +1543,40 @@ class CrossSectionDock(CloseableDock):
         self.line.setPen(pg.mkPen('y', width=3))
         self.line.setHoverPen(pg.mkPen('w', width=3))
 
-        # Define positions and corresponding colors
-        pos = np.array([0.0, 0.5, 1.0])
-        color = np.array([
-            [0, 0, 255, 255],       # Blue
-            [255, 255, 255, 255],   # White
-            [255, 0, 0, 255]        # Red
-        ], dtype = np.ubyte)
-        cmap = pg.ColorMap(pos, color)
+        # Two colormaps, picked per-signal (see _auto_levels_cmap):
+        #  * bipolar blue-white-red for two-sided signals, WHITE centred on the
+        #    baseline so a non-zero offset reads neutral;
+        #  * sequential viridis for one-sided signals, so an all-positive (or
+        #    all-negative) map never shows a spurious opposite-sign colour.
+        self.cmap_bipolar = pg.ColorMap(
+            np.array([0.0, 0.5, 1.0]),
+            np.array([[0, 0, 255, 255], [255, 255, 255, 255], [255, 0, 0, 255]],
+                     dtype=np.ubyte))
+        self.cmap_sequential = pg.ColorMap(
+            np.array([0.0, 0.25, 0.5, 0.75, 1.0]),
+            np.array([[68, 1, 84, 255], [59, 82, 139, 255], [33, 145, 140, 255],
+                      [94, 201, 98, 255], [253, 231, 37, 255]], dtype=np.ubyte))
+        cmap = self.cmap_bipolar
+        self._active_cmap = cmap
+        # Colour mode. 'default' reproduces the original build exactly (pyqtgraph
+        # autoLevels + the fixed bipolar map, zero extra cost) and is the default;
+        # the smart modes 'auto' | 'bipolar' | 'sequential' are opt-in from the
+        # menu. center_baseline pins the bipolar white to the estimated baseline.
+        self.color_mode = 'default'
+        self.center_baseline = True
+        # Auto mode locks its first non-trivial polarity decision here so a
+        # dynamically re-pushed plot can't flip sequential<->bipolar mid-run.
+        # Reset on a new dataset (geometry change) or when Auto is re-selected.
+        self._auto_locked = None
+        # subsample size for the baseline (median) estimate: the full-array median
+        # is the costly part, so a representative sample keeps a smart mode's
+        # per-push cost close to the default build's subsampled autoLevels.
+        self._stat_sample = 100000
+        # For a multi-frame stack, level+colormap each frame on its own stats
+        # (so a raw non-zero-baseline frame and a baseline-subtracted frame in
+        # the same stack each display correctly). Off = one fixed scaling from
+        # the whole stack, keeping frames directly comparable.
+        self.per_frame_levels = True
 
         # plot options menu
         #self.plot_item.getViewBox().menu.setStyleSheet("QMenu::item:selected {background-color: rgb(40, 40, 40); } QMenu::item { color: rgb(211, 194, 78); } QMenu {background-color: rgb(42, 42, 64); }")
@@ -1540,6 +1609,32 @@ class CrossSectionDock(CloseableDock):
         save_action.triggered.connect(self.fileSaveDialog)
         self.plot_item.vb.menu.addAction(save_action)
 
+        # Colormap control: auto-pick per signal, or force bipolar/sequential,
+        # plus a toggle for baseline-centred bipolar levels.
+        cmap_menu = self.plot_item.vb.menu.addMenu('Colormap')
+        grp = QtGui.QActionGroup(self)
+        grp.setExclusive(True)
+        for label, key in (('Default (build autoLevels)', 'default'),
+                           ('Auto', 'auto'),
+                           ('Bipolar (blue-white-red)', 'bipolar'),
+                           ('Sequential (viridis)', 'sequential')):
+            act = QtGui.QAction(label, self, checkable=True)
+            act.setChecked(key == self.color_mode)
+            act.triggered.connect(lambda _checked, k=key: self._set_color_mode(k))
+            grp.addAction(act)
+            cmap_menu.addAction(act)
+        cmap_menu.addSeparator()
+        self.center_action = QtGui.QAction('Center bipolar on baseline', self,
+                                           checkable=True)
+        self.center_action.setChecked(self.center_baseline)
+        self.center_action.triggered.connect(self._set_center_baseline)
+        cmap_menu.addAction(self.center_action)
+        self.per_frame_action = QtGui.QAction('Per-frame auto-levels (stacks)',
+                                              self, checkable=True)
+        self.per_frame_action.setChecked(self.per_frame_levels)
+        self.per_frame_action.triggered.connect(self._set_per_frame)
+        cmap_menu.addAction(self.per_frame_action)
+
         #self.autolevels_action = QtGui.QAction('Autoscale Levels', self)
         #self.autolevels_action.setCheckable(True)
         #self.autolevels_action.setChecked(True)
@@ -1550,7 +1645,10 @@ class CrossSectionDock(CloseableDock):
         #self.clear_action = QtGui.QAction('Clear Contents', self)
         #self.clear_action.triggered.connect(self.clear)
         #self.img_view.scene.contextMenu.append(self.clear_action)
-        self.ui.histogram.gradient.setColorMap(cmap) #loadPreset('bipolar')
+        self.ui.histogram.gradient.setColorMap(cmap)
+        self._active_cmap = cmap
+        # re-level per frame when scrolling a stack (see per_frame_levels)
+        self.img_view.sigTimeChanged.connect(self._on_frame_changed)
 
         try:
             self.connect_signal()
@@ -1694,6 +1792,112 @@ class CrossSectionDock(CloseableDock):
         self.h_cross_section_widget.axis = [kwargs.get('xname', ''), kwargs.get('xscale', '')] 
         self.v_cross_section_widget.axis = [kwargs.get('yname', ''), kwargs.get('yscale', '')] 
 
+    def _auto_levels_cmap(self, img):
+        """Choose (levels, colormap) for a 2D map, centred on its baseline.
+
+        Baseline = median (robust to sparse signal on a flat background). We
+        measure the swing below/above it: a two-sided (bimodal) signal gets the
+        blue-white-red map with WHITE pinned to the baseline and symmetric
+        levels, so a non-zero offset reads neutral and +/- lobes are comparable;
+        a one-sided signal gets sequential viridis over min..max, so it never
+        shows a spurious opposite-sign colour. Returns (None, None) to fall back
+        to plain autoLevels (degenerate / non-numeric data).
+        """
+        try:
+            arr = np.asarray(img)
+        except Exception:
+            return None, None
+        if arr.size < 2:
+            return None, None
+        # baseline from a strided subsample (median's full-array partition is the
+        # costly part); levels from nan-safe full min/max so a real peak/dip in a
+        # sparse map is never clipped by subsampling
+        flat = arr.ravel()
+        step = max(1, flat.size // self._stat_sample)
+        base = float(np.nanmedian(flat[::step]))
+        lo, hi = float(np.nanmin(arr)), float(np.nanmax(arr))
+        if not (np.isfinite(base) and np.isfinite(lo) and np.isfinite(hi)):
+            return None, None
+        neg, pos = base - lo, hi - base            # both >= 0
+        span = max(neg, pos)
+        if span <= 0:
+            return None, None
+        mode = self.color_mode
+        if mode == 'auto':
+            if self._auto_locked is not None:
+                mode = self._auto_locked            # frozen for the rest of the run
+            else:
+                # two-sided when the smaller excursion is a real fraction of the
+                # larger; freeze this first non-trivial (span>0) decision so a
+                # live re-push can't recolour mid-acquisition
+                mode = 'bipolar' if (min(neg, pos) / span) > 0.15 else 'sequential'
+                self._auto_locked = mode
+        if mode == 'bipolar':
+            if self.center_baseline:
+                return (base - span, base + span), self.cmap_bipolar
+            return (lo, hi), self.cmap_bipolar
+        return (lo, hi), self.cmap_sequential
+
+    def _apply_cmap(self, cmap):
+        """Swap the histogram gradient only when it actually changes, so a user's
+        manual gradient/level edits aren't reset on every live re-push."""
+        if cmap is not None and cmap is not self._active_cmap:
+            self.ui.histogram.gradient.setColorMap(cmap)
+            self._active_cmap = cmap
+
+    def _auto_apply(self, arr):
+        """Compute + apply levels and colormap from a single array."""
+        if arr is None:
+            return
+        levels, cmap = self._auto_levels_cmap(np.asarray(arr))
+        self._apply_cmap(cmap)
+        if levels is not None:
+            self.img_view.setLevels(*levels)
+
+    def _level_source(self):
+        """The array the levels/colormap are computed from: the current frame
+        when per_frame_levels is on, else the whole (possibly 3D) stack."""
+        if self.per_frame_levels:
+            return self.img_view.imageItem.image        # current 2D frame
+        return self.img_view.image                       # whole stack
+
+    def _reapply_colormap(self):
+        """Recompute levels + colormap for what's on screen (menu toggles,
+        frame scroll)."""
+        if self.img_view.image is None:
+            return
+        self._auto_apply(self._level_source())
+
+    def _on_frame_changed(self, *args):
+        # scrolling to another frame of a stack: re-level it on its own stats
+        # (only in the opt-in smart modes)
+        if self.color_mode != 'default' and self.per_frame_levels:
+            self._auto_apply(self.img_view.imageItem.image)
+
+    def _set_color_mode(self, mode):
+        self.color_mode = mode
+        if mode == 'auto':
+            self._auto_locked = None            # (re)selecting Auto re-decides
+        if mode == 'default':
+            # restore the original build's look: fixed bipolar map + plain
+            # (nan-safe) min/max levels on the current frame
+            self._apply_cmap(self.cmap_bipolar)
+            img = self.img_view.imageItem.image
+            if img is not None:
+                lo, hi = float(np.nanmin(img)), float(np.nanmax(img))
+                if np.isfinite(lo) and np.isfinite(hi):
+                    self.img_view.setLevels(lo, hi)
+        else:
+            self._reapply_colormap()
+
+    def _set_center_baseline(self, enabled):
+        self.center_baseline = bool(enabled)
+        self._reapply_colormap()
+
+    def _set_per_frame(self, enabled):
+        self.per_frame_levels = bool(enabled)
+        self._reapply_colormap()
+
     def setImage(self, *args, **kwargs):
         item = self.plot_item.getViewBox()
 
@@ -1722,6 +1926,8 @@ class CrossSectionDock(CloseableDock):
                 # view range is meaningless, so refit the data this push.
                 kwargs['autoRange'] = True
                 item.enableAutoRange(pg.ViewBox.XYAxes)
+                # a new dataset starts a fresh run: let Auto re-decide polarity
+                self._auto_locked = None
 
         self._x0_prev = self._x0
         self._y0_prev = self._y0
@@ -1731,11 +1937,15 @@ class CrossSectionDock(CloseableDock):
         #autorange = self.img_view.getView().vb.autoRangeEnabled()[0]
         #kwargs['autoRange'] = autorange
 
-        if self.auto_levels == 0:
-            kwargs['autoLevels'] = True
+        # do_auto=False means the caller pinned manual levels. In 'default' mode
+        # we defer entirely to pyqtgraph's autoLevels (original build, zero extra
+        # cost); in a smart mode we set levels ourselves after the image is in.
+        do_auto = (self.auto_levels == 0)
+        self.auto_levels = 0
+        if self.color_mode == 'default':
+            kwargs['autoLevels'] = do_auto
         else:
             kwargs['autoLevels'] = False
-        self.auto_levels = 0
 
         # remember which frame of a multi-frame stack (e.g. real/imag) the user
         # is viewing; ImageView.setImage resets it to 0 on every call, which
@@ -1749,6 +1959,12 @@ class CrossSectionDock(CloseableDock):
             nframes = img.shape[0] if (img is not None and img.ndim == 3) else 1
             if prev_index < nframes:
                 self.img_view.setCurrentIndex(prev_index)
+
+        # smart modes only: baseline-centred levels + polarity-appropriate
+        # colormap on the frame now shown (or whole stack when per-frame is off);
+        # skipped in 'default' mode and when the caller pinned manual levels
+        if do_auto and self.color_mode != 'default':
+            self._reapply_colormap()
 
         if self.set_image == 0:
             item.autoRange(padding = 0.05 )
