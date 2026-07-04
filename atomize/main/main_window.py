@@ -330,7 +330,7 @@ class MainWindow(QMainWindow):
             taxis = meta['TimeAxis']
             verline = meta['Vline']
             
-            xs, ys = pw.get_data(label)
+            xs, ys = pw.get_raw_data(label)
             new_ys = list(ys)
             new_ys.append(meta['value'])
             start_step = meta['start_step']
@@ -347,7 +347,7 @@ class MainWindow(QMainWindow):
 
         elif operation == 'append_xy':
             label = meta['label']
-            xs, ys = pw.get_data(label)
+            xs, ys = pw.get_raw_data(label)
             xn, yn = meta['value']
             new_xs = list(xs)
             new_xs.append(xn)
@@ -924,7 +924,7 @@ class MainWindow(QMainWindow):
         filedialog = QFileDialog(self, 'Open File', directory = ldir.load('script', self.path), filter = "python (*.py)",options = QFileDialog.Option.DontUseNativeDialog)
 
         filedialog.setIconProvider(QFileIconProvider())
-        filedialog.resize(800, 450) 
+        filedialog.resize(1100, 450) 
         # use QFileDialog.Option.DontUseNativeDialog to change directory
 
         tree = filedialog.findChild(QTreeView)
@@ -1405,7 +1405,7 @@ class NameList(QDockWidget):
         filedialog = QFileDialog(self, 'Open File', directory = ldir.load('data', self.open_dir), filter = "CSV (*.csv)", options = QFileDialog.Option.DontUseNativeDialog )
 
         filedialog.setIconProvider(QFileIconProvider())
-        filedialog.resize(800, 450) 
+        filedialog.resize(1100, 450) 
 
         tree = filedialog.findChild(QTreeView)
         header = tree.header()
@@ -1650,7 +1650,7 @@ class NameList(QDockWidget):
         filedialog = QFileDialog(self, 'Open File', directory = ldir.load('data', self.open_dir), filter = "CSV (*.csv)", options = QFileDialog.Option.DontUseNativeDialog )
 
         filedialog.setIconProvider(QFileIconProvider())
-        filedialog.resize(800, 450) 
+        filedialog.resize(1100, 450) 
         # use QFileDialog.Option.DontUseNativeDialog to change directory
 
         tree = filedialog.findChild(QTreeView)

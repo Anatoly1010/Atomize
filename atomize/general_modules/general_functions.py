@@ -3,6 +3,8 @@
 
 import sys
 import time
+import atexit
+import threading
 from threading import Thread
 import configparser
 import numpy as np
@@ -14,12 +16,28 @@ test_flag = sys.argv[1] if len(sys.argv) > 1 else 'None'
 
 _plotter_instance = None
 
+# When True, plot_1d / plot_2d default to the non-blocking coalescing worker even
+# without an explicit `pr=` handle (see set_plotting_async). Per-process: a
+# control-center acquisition worker flips it on at entry so its whole plot path
+# is the "thread version"; experimental scripts leave it off and opt in per call.
+_async_default = False
+
 def _plotter():
     """Lazy LivePlotClient singleton. Connects on first call, not at import."""
     global _plotter_instance
     if _plotter_instance is None:
         _plotter_instance = LivePlotClient()
     return _plotter_instance
+
+def set_plotting_async(enabled=True):
+    """Make plot_1d / plot_2d default to the non-blocking coalescing worker for
+    THIS process, so callers don't have to thread a `pr=` handle through every
+    call. Frames coalesce per plot name (only the freshest is drawn) and the
+    measurement loop is no longer paced by the GUI. Call once at the start of an
+    acquisition worker. append_1d stays synchronous regardless — it is
+    incremental, so a dropped frame would drop points. Explicit `pr=` still wins."""
+    global _async_default
+    _async_default = bool(enabled)
 
 def _in_test():
     return test_flag == 'test'
@@ -104,6 +122,85 @@ def _safe_call(target, args, kwargs):
     except Exception as e:
         _notify(f"plot failed: {e!r}")
 
+
+class _AsyncPlotHandle:
+    """Returned by the async (`pr=`) plot path. The coalescing worker owns
+    ordering now, so join() is a no-op kept only for API compatibility with the
+    old per-call Thread return (a script may still call `pr.join()`)."""
+    __slots__ = ()
+    def join(self, *args, **kwargs):
+        return None
+
+_ASYNC_HANDLE = _AsyncPlotHandle()
+
+
+class _PlotWorker:
+    """One daemon thread that serialises the async (`pr=`) plot sends and
+    *coalesces per plot name*: if a frame for a given plot name is still pending
+    when a newer one arrives, the newer replaces it. So a slow GUI can no longer
+    pace the experiment — the measurement thread just drops the frame into a slot
+    (~microseconds) and moves on, and only the freshest state of each live plot
+    is drawn. Superseded intermediate frames are skipped; this is safe because
+    the `pr=` path only does full-array replots (plot_1d / plot_2d / label) whose
+    data lives in the script arrays and on disk. The incremental append_1d path
+    has no `pr=` and stays synchronous, so no appended points are ever dropped."""
+
+    def __init__(self):
+        self._cond = threading.Condition()
+        self._pending = {}      # name -> (target, args, kwargs); dict keeps
+                                # insertion order and coalesces on re-key
+        self._busy = False
+        self._closed = False
+        self._thread = threading.Thread(target=self._run,
+                                        name='AtomizePlotWorker', daemon=True)
+        self._thread.start()
+
+    def submit(self, key, target, args, kwargs):
+        with self._cond:
+            # Re-assigning an existing key updates the value without moving its
+            # position, so distinct plots stay FIFO while same-name frames merge.
+            self._pending[key] = (target, args, kwargs)
+            self._cond.notify()
+
+    def _run(self):
+        while True:
+            with self._cond:
+                while not self._pending and not self._closed:
+                    self._cond.wait()
+                if self._closed and not self._pending:
+                    return
+                key = next(iter(self._pending))
+                target, args, kwargs = self._pending.pop(key)
+                self._busy = True
+            _safe_call(target, args, kwargs)
+            with self._cond:
+                self._busy = False
+                self._cond.notify_all()   # wake flush() waiters
+
+    def flush(self, timeout=5.0):
+        """Block until the queue has drained and the in-flight send finished, so
+        the final frame of a run is actually drawn. Bounded by `timeout` (each
+        send is itself bounded by the client's socket timeout), so a dead GUI
+        can't hang process exit."""
+        deadline = time.monotonic() + timeout if timeout is not None else None
+        with self._cond:
+            while self._pending or self._busy:
+                remaining = None if deadline is None else deadline - time.monotonic()
+                if remaining is not None and remaining <= 0:
+                    return
+                self._cond.wait(remaining)
+
+_plot_worker = None
+
+def _get_plot_worker():
+    """Lazy singleton worker; registers a flush at interpreter exit so the last
+    live-plot frame is not lost when the script ends."""
+    global _plot_worker
+    if _plot_worker is None:
+        _plot_worker = _PlotWorker()
+        atexit.register(_plot_worker.flush)
+    return _plot_worker
+
 def _downsample_1d(xd, yd, max_points):
     """Stride (xd, yd) down so each curve has <= max_points samples. Returns
     (xd, yd, step); step == 1 leaves the inputs untouched. yd may be 1D (one
@@ -145,19 +242,21 @@ def _downsample_2d(data, start_step, max_cells):
 
 def _dispatch_plot(target, args, kwargs, pr, get_first=None):
     """
-    Call `target(*args, **kwargs)` synchronously, or on a background Thread
-    when `pr` is not the sentinel string 'None' (joining the prior Thread first).
-    Both paths go through `_safe_call`, so a plotter error becomes a log line
-    rather than crashing the script or being swallowed by a Thread.
-    If `get_first` is provided, skip the call when it returns NaN or raises
-    IndexError/TypeError. Returns the Thread (when async) or None.
-    """
-    if pr != 'None':
-        try:
-            pr.join()
-        except (AttributeError, NameError, TypeError):
-            pass
+    Call `target(*args, **kwargs)` synchronously (`pr == 'None'`), or hand it to
+    the coalescing plot worker when `pr` is anything else. Both paths go through
+    `_safe_call`, so a plotter error becomes a log line rather than crashing the
+    script or being swallowed by a thread.
 
+    The async path is non-blocking: the frame is dropped into a per-name slot and
+    the worker draws the freshest one, so a slow GUI never paces the experiment.
+    Superseded intermediate frames are skipped (safe — see `_PlotWorker`).
+
+    If `get_first` is provided, skip the call when it returns NaN or raises
+    IndexError/TypeError — this is what makes a live `digitizer_get_curve` that
+    returns None (no new buffer this call) skip the replot. The check runs here,
+    on the caller's thread, so a None frame is never queued. Returns an async
+    handle (when async) or None.
+    """
     if get_first is not None:
         try:
             if np.isnan(get_first()):
@@ -170,9 +269,11 @@ def _dispatch_plot(target, args, kwargs, pr, get_first=None):
         _safe_call(target, args, kwargs)
         return None
 
-    p1 = Thread(target=_safe_call, args=(target, args, kwargs))
-    p1.start()
-    return p1
+    # Coalesce per plot name (args[0] is the plot id for plot_xy/plot_z/label);
+    # fall back to the target name for anything without a string id.
+    key = args[0] if args and isinstance(args[0], str) else getattr(target, '__name__', 'plot')
+    _get_plot_worker().submit(key, target, args, kwargs)
+    return _ASYNC_HANDLE
 
 def _plot_1d_impl(strname, xd, yd, label, xname, xscale, yname, yscale,
                   scatter, timeaxis, vline, pr, text):
@@ -192,6 +293,8 @@ def plot_1d(strname, xd, yd, label='label', xname='X',
 
     if _in_test():
         return None
+    if pr == 'None' and _async_default:
+        pr = _ASYNC_HANDLE
     return _plot_1d_impl(strname, xd, yd, label, xname, xscale, yname, yscale,
                          scatter, timeaxis, vline, pr, text)
 
@@ -232,6 +335,8 @@ def plot_2d(strname, data, start_step=None,
 
     if _in_test():
         return None
+    if pr == 'None' and _async_default:
+        pr = _ASYNC_HANDLE
     return _plot_2d_impl(strname, data, start_step, xname, xscale, yname,
                          yscale, zname, zscale, pr, text)
 

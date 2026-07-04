@@ -238,7 +238,7 @@ class Saver_Opener():
         self.dialog = QFileDialog( options = QFileDialog.Option.DontUseNativeDialog )
         self.dialog.setIconProvider(QFileIconProvider())
 
-        self.dialog.resize(800, 450)
+        self.dialog.resize(1100, 450)
         self.dialog.setFileMode(QFileDialog.FileMode.AnyFile)
         # multi-select open: a list of existing files instead of a single one
         if multiple and mode == 'Open':
