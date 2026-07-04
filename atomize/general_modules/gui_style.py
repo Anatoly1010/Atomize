@@ -285,6 +285,16 @@ _TEMPLATES = {
     QScrollBar::handle:vertical:hover { background: $accent; }
     QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
     QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
+    QScrollBar:horizontal {
+        border: none; background: $track; height: 10px; margin: 0px;
+    }
+    QScrollBar::handle:horizontal {
+        background: $fg; min-width: 20px; border-radius: 5px;
+    }
+    QScrollBar::handle:horizontal:hover { background: $accent; }
+    QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; }
+    QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { background: none; }
+    QScrollBar::corner { background: $track; }
 """),
 
     'TAB_STYLE': Template("""
