@@ -16,14 +16,21 @@ class Fast_Fourier():
 
     @staticmethod
     def auto_phase_zero(spectrum, threshold=0.1):
-        """Zero-order phase (degrees) that maximises the magnitude-weighted real
-        part of a complex spectrum.
+        """Zero-order phase (degrees) that rotates a complex spectrum onto the
+        real axis.
 
-        Each bin S_k = |S_k|·e^{iθ_k}; we want one φ₀ with θ_k + φ₀ ≈ 0 over the
-        significant bins. Maximising Σ |S_k|·Re(S_k·e^{iφ₀}) is closed form:
-        φ₀ = -angle( Σ |S_k|·S_k ). The |S_k| weighting plus a magnitude
-        threshold (default 10 % of the peak) keep noise and baseline bins from
-        biasing the result. Returns a value in [0, 360); feed it to
+        Uses the principal-axis ("square-the-signal") estimator φ₀ =
+        -½·angle( Σ S_k² ). Each bin S_k = |S_k|·e^{iθ_k}, so S_k² has phase
+        2θ_k weighted by |S_k|²; halving its angle recovers the common axis the
+        significant bins lie on. This is sign-blind, so it handles **bipolar**
+        data — an inversion-recovery T1 (echo negative at short delay, positive
+        after recovery) or any trace that crosses zero — where the older
+        magnitude-weighted vector sum Σ|S_k|·S_k fails: opposite-sign bins
+        cancel in that sum and bias φ₀. For unipolar data (an FFT peak, a plain
+        FID) the two agree. The ±180° ambiguity of the axis is resolved by
+        flipping to the orientation that makes the magnitude-weighted real part
+        positive. A magnitude threshold (default 10 % of the peak) keeps noise
+        and baseline bins out. Returns a value in [0, 360); feed it to
         ph_correction as cor1 = φ₀·π/180.
         """
         s = np.asarray(spectrum, dtype=complex).ravel()
@@ -32,10 +39,18 @@ class Fast_Fourier():
         if peak <= 0:
             return 0.0
         keep = mag >= threshold*peak
-        acc = np.sum(mag[keep]*s[keep])      # |S_k| weighting → peak-focused
-        if acc == 0:
-            return 0.0
-        return float(np.degrees(-np.angle(acc)) % 360.0)
+        sk = s[keep]
+        acc2 = np.sum(sk*sk)                 # Σ S_k² : phase 2θ, |S_k|²-weighted
+        if acc2 == 0:
+            # degenerate (e.g. a single real point); fall back to the vector sum
+            acc = np.sum(mag[keep]*sk)
+            if acc == 0:
+                return 0.0
+            return float(np.degrees(-np.angle(acc)) % 360.0)
+        phi = -0.5*np.angle(acc2)            # principal axis, ±180° ambiguous
+        if np.sum(mag[keep]*np.real(sk*np.exp(1j*phi))) < 0:
+            phi += np.pi                     # flip so the real part is positive
+        return float(np.degrees(phi) % 360.0)
 
     def ph_correction(self, freq, data_i, data_q, cor1, cor2, cor3):
         if self.test_flag != 'test':
