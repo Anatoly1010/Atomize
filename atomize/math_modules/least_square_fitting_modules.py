@@ -170,30 +170,47 @@ class math():
             a, b = 1.0, float(np.mean(y))
         return [a, b]
 
-    def _guess_exponential(self, x, y):
-        b = float(y[-1])
-        a = float(y[0] - b)
+    # Baseline (plateau) + amplitude + characteristic decay time, estimated
+    # directly from the data. The characteristic time is the x-distance from
+    # x[0] to where the signal first covers half of its total (y[0] -> y[-1])
+    # change. Unlike a fixed fraction of the x-span, this stays sensible on
+    # LOG-spaced, multi-decade axes (e.g. saturation/inversion-recovery T1),
+    # where span/3 would seed the time constant orders of magnitude too slow
+    # and push curve_fit into a degenerate local minimum.
+    def _decay_scale(self, x, y):
+        n = len(x)
+        m = max(3, n // 20)                      # endpoint window (~5% of pts)
+        b = float(np.median(y[-m:]))             # plateau
+        a = float(np.median(y[:m]) - b)          # amplitude (signed)
         span = float(x[-1] - x[0]) or 1.0
-        return [a, span/3.0, b]
+        dy = np.asarray(y, dtype=float) - float(y[0])
+        tot = float(y[-1] - y[0])
+        if tot == 0.0:
+            return a, b, span/3.0
+        frac = dy/tot
+        idx = int(np.argmax(frac >= 0.5))        # first half-recovery crossing
+        if idx <= 0:
+            return a, b, span/3.0
+        step = float(x[1] - x[0]) if n > 1 else 1.0
+        tc = float(x[idx] - x[0])
+        return a, b, max(tc, abs(step))
+
+    def _guess_exponential(self, x, y):
+        a, b, tc = self._decay_scale(x, y)
+        return [a, tc, b]
 
     def _guess_biexponential(self, x, y):
-        b = float(y[-1])
-        a = float(y[0] - b)
-        span = float(x[-1] - x[0]) or 1.0
-        return [a/2.0, span/2.0, a/2.0, span/8.0, b]
+        a, b, tc = self._decay_scale(x, y)
+        return [a/2.0, tc*3.0, a/2.0, tc/3.0, b]
 
     def _guess_stretched(self, x, y):
-        b = float(y[-1])
-        a = float(y[0] - b)
-        span = float(x[-1] - x[0]) or 1.0
-        return [a, span/3.0, 1.0, b]
+        a, b, tc = self._decay_scale(x, y)
+        return [a, tc, 0.8, b]
 
     def _guess_stretched_plus_exp(self, x, y):
-        b = float(y[-1])
-        a = float(y[0] - b)
-        span = float(x[-1] - x[0]) or 1.0
-        #      a1,     k1,       beta, a2,     k2,       b
-        return [a/2.0, span/2.0, 1.0,  a/2.0, span/8.0, b]
+        a, b, tc = self._decay_scale(x, y)
+        #      a1,     k1(slow), beta, a2,     k2(fast), b
+        return [a/2.0, tc*2.0,   0.7,  a/2.0, tc/3.0,    b]
 
     def _guess_peak(self, x, y):
         b = float(np.median(y))
@@ -334,6 +351,9 @@ class math():
         ss_tot = float(np.sum((y - np.mean(y))**2)) or 1.0
         r_squared = 1.0 - ss_res/ss_tot
 
+        stats = self._goodness_of_fit(y, residuals, ss_res, r_squared,
+                                      n_params=len(popt))
+
         return {
             'y_fit': y_fit,
             'residuals': residuals,
@@ -341,6 +361,53 @@ class math():
             'perr': perr,
             'r_squared': r_squared,
             'param_names': names,
+            'stats': stats,
+        }
+
+    @staticmethod
+    def _goodness_of_fit(y, residuals, ss_res, r_squared, n_params):
+        """Goodness-of-fit / model-selection diagnostics from the residuals.
+
+        No per-point measurement errors are available, so the noise variance is
+        estimated from the residuals themselves (sigma^2 = ss_res / dof). That
+        makes reduced chi-square == 1 by construction; it is reported anyway for
+        completeness, while RMSE gives the scatter in signal units and AICc/BIC
+        (which only compare consistently across models on the SAME data) drive
+        model selection. Durbin-Watson flags serially-correlated residuals -
+        the fingerprint of a wrong model shape even when R^2 looks excellent.
+
+        Returns a dict of plain floats (dof may be <= 0 for tiny datasets, in
+        which case the affected entries are NaN).
+        """
+        n = int(len(y))
+        p = int(n_params)
+        dof = n - p
+        eps = ss_res if ss_res > 0 else 1e-300     # guard log(0) on a perfect fit
+
+        rmse = float(np.sqrt(ss_res/n)) if n else float('nan')
+        if dof > 0:
+            red_chi2 = float(ss_res/dof)
+            adj_r2 = float(1.0 - (1.0 - r_squared)*(n - 1)/dof)
+        else:
+            red_chi2 = float('nan')
+            adj_r2 = float('nan')
+
+        # Information criteria (Gaussian-likelihood form, up to a shared const).
+        aic = float(n*np.log(eps/n) + 2*p)
+        if n - p - 1 > 0:
+            aicc = float(aic + 2*p*(p + 1)/(n - p - 1))
+        else:
+            aicc = float('nan')
+        bic = float(n*np.log(eps/n) + p*np.log(n)) if n > 0 else float('nan')
+
+        # Durbin-Watson: ~2 => uncorrelated residuals; <<2 positive, >>2 negative.
+        dr = np.diff(residuals)
+        dw = float(np.sum(dr*dr)/ss_res) if ss_res > 0 else float('nan')
+
+        return {
+            'n_points': n, 'n_params': p, 'dof': dof,
+            'rmse': rmse, 'red_chi2': red_chi2, 'adj_r_squared': adj_r2,
+            'aic': aic, 'aicc': aicc, 'bic': bic, 'durbin_watson': dw,
         }
 
     ###############################################################

@@ -166,6 +166,40 @@ class CrosshairPlotWidget(pg.PlotWidget):
 
         self._install_ruler_drag()
 
+    def plot(self, *args, **kwargs):
+        """Create a curve and correct its auto-range bounds.
+
+        With auto-downsampling on (above), a PlotDataItem's dataBounds are read
+        from the *decimated* curve, so on log-spaced / multi-decade data the
+        sparse extreme samples are dropped and the view auto-scales short of the
+        true extent. Patch dataBounds to report the RAW data range for a plain
+        full-range query (frac == 1, no ortho window), which is what ViewBox
+        auto-scaling uses. FFT display (transformed X) falls back to the
+        decimated bounds; log axes are handled by log-scaling the raw range."""
+        item = self.plot_item.plot(*args, **kwargs)
+        try:
+            orig = item.dataBounds
+
+            def _raw_bounds(ax, frac=1.0, orthoRange=None, _it=item, _orig=orig):
+                if frac == 1.0 and orthoRange is None and not _it.opts.get('fftMode', False):
+                    data = _it.xData if ax == 0 else _it.yData
+                    if data is not None and len(data):
+                        d = np.asarray(data, dtype=float)
+                        if _it.opts.get('logMode', [False, False])[ax]:
+                            d = d[d > 0]
+                            if d.size:
+                                d = np.log10(d)
+                        else:
+                            d = d[np.isfinite(d)]
+                        if d.size:
+                            return (float(np.min(d)), float(np.max(d)))
+                return _orig(ax, frac, orthoRange)
+
+            item.dataBounds = _raw_bounds
+        except Exception:
+            pass
+        return item
+
     def on_fft_toggled(self, enabled):
         if enabled:
             self.hide_cross_hair()
