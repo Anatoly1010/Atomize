@@ -39,6 +39,7 @@ build a custom :class:`Theme`, pass it to :func:`apply_app_style`, and read its
 sheets from :func:`build_styles`.
 """
 
+import os
 import sys
 import ctypes
 from string import Template
@@ -71,6 +72,14 @@ DEFAULT_THEME = Theme()
 def _css(rgb):
     """``(r, g, b)`` -> ``'rgb(r, g, b)'`` for use inside a stylesheet."""
     return 'rgb(%d, %d, %d)' % rgb
+
+
+# Absolute path to the checkmark glyph drawn inside a ticked QCheckBox. Kept
+# next to this module and resolved from ``__file__`` so it survives the
+# ``os.chdir(libs)`` the main window does at startup and works from any cwd.
+# Forward slashes: Qt stylesheet ``url(...)`` wants '/', including on Windows.
+_CHECK_ICON = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 'check.svg').replace('\\', '/')
 
 
 def _qcolor(rgb):
@@ -227,6 +236,9 @@ _TEMPLATES = {
         "QLineEdit { color: $accent; selection-background-color: $accent; "
         "selection-color: $base; }"),
 
+    # Flat, unbulky tick: a hollow rounded outline when off, an accent fill with
+    # a drawn checkmark ($check SVG) when on. One source of truth for every
+    # control-center tool's checkboxes.
     'CHECKBOX_STYLE': Template("""
     QCheckBox {
         color: $fg;
@@ -235,21 +247,28 @@ _TEMPLATES = {
         spacing: 8px;
     }
     QCheckBox::indicator {
-        width: 14px;
-        height: 14px;
-        background-color: $base;
+        width: 15px;
+        height: 15px;
+        background-color: transparent;
         border: 1px solid $border;
-        border-radius: 3px;
+        border-radius: 4px;
     }
     QCheckBox::indicator:hover {
         border: 1px solid $accent;
     }
     QCheckBox::indicator:pressed {
-        background-color: $border;
+        background-color: $hover;
     }
     QCheckBox::indicator:checked {
         background-color: $accent;
-        border: 3px solid $base;
+        border: 1px solid $accent;
+        image: url($check);
+    }
+    QCheckBox::indicator:checked:hover {
+        border: 1px solid $fg;
+    }
+    QCheckBox::indicator:disabled {
+        border: 1px solid $base;
     }
 """),
 
@@ -312,6 +331,7 @@ def build_styles(theme=DEFAULT_THEME):
         'accent': _css(theme.accent),
         'track':  _css(theme.track),
         'hover':  _css(theme.hover),
+        'check':  _CHECK_ICON,
     }
     return {name: tmpl.substitute(subs) for name, tmpl in _TEMPLATES.items()}
 
