@@ -22,8 +22,10 @@ Design
 The look is described once by a :class:`Theme` (plain RGB tuples). From a theme
 we derive both a ``QPalette`` and a set of per-widget stylesheet strings, so a
 single source of truth drives the whole UI and re-skinning means editing one
-dataclass. Everything is framework-only (PyQt6) with no Atomize dependencies,
-so the file can be dropped into upstream Atomize's ``general_modules`` verbatim.
+dataclass. The module is framework-only (PyQt6) with no Atomize imports, so it
+can be dropped into upstream Atomize's ``general_modules`` — together with the
+``check.svg`` glyph that ``CHECKBOX_STYLE`` renders (it lives next to this file
+and is referenced by an absolute ``url(...)`` resolved from ``__file__``).
 
 Typical use, right after creating the ``QApplication``::
 
