@@ -898,15 +898,15 @@ class Spectrum_M4I_6631_X8:
                         assert(p_freq >= self.min_freq), 'Frequency is lower than minimum available (' + str(self.min_freq) +' MHz)'
                         assert(p_freq < self.max_freq), 'Frequency is longer than minimum available (' + str(self.max_freq) +' MHz)'
                     else:
-                        temp_freq_st = frequency[0].split(" ")
-                        temp_freq_end = frequency[1].split(" ")
+                        temp_freq_st = freq[0].split(" ")
+                        temp_freq_end = freq[1].split(" ")
                         coef_st = temp_freq_st[1]
                         coef_end = temp_freq_end[1]
                         p_freq_st = float(temp_freq_st[0])
                         p_freq_end = float(temp_freq_end[0])
                         assert (coef_st == 'MHz' and coef_end == 'MHz'), 'Incorrect frequency dimension. Only MHz is possible'
                         assert(p_freq_st >= self.min_freq and p_freq_end >= self.min_freq), 'Frequency is lower than minimum available (' + str(self.min_freq) +' MHz)'
-                        assert(p_freq_st < self.max_freq and p_freq_end < self.max_freq), 'Frequency is longer than minimum available (' + str(self.max_freq) +' MHz)'
+                        assert(p_freq_st < self.max_freq and p_freq_end < self.max_freq), 'Frequency is higher than maximum available (' + str(self.max_freq) +' MHz)'
 
                     self.pulse_array[i]['frequency'] = freq
                     self.shift_count = 1
