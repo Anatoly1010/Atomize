@@ -165,6 +165,7 @@ class CrosshairPlotWidget(pg.PlotWidget):
         self.plot_item.vb.menu.addAction(self.clear_ruler_action)
 
         self._install_ruler_drag()
+        self._install_ruler_key_toggle()
 
     def plot(self, *args, **kwargs):
         """Create a curve and correct its auto-range bounds.
@@ -216,7 +217,7 @@ class CrosshairPlotWidget(pg.PlotWidget):
     def toggle_search(self, mouse_event):
         if mouse_event.double():
             if self.cross_section_enabled:
-                self.hide_cross_hair()
+                self.hide_cross_hair(keep_ruler=True)
             else:
                 #if memorize the last mode; please comment
                 self.image_operation = 0
@@ -501,6 +502,26 @@ class CrosshairPlotWidget(pg.PlotWidget):
 
         vb.mouseDragEvent = wrapper
 
+    def _install_ruler_key_toggle(self):
+        # A lone Shift key-press (no drag) hides a ruler that's already drawn, so
+        # Shift acts as a toggle: first Shift+drag draws it, the next Shift press
+        # clears it. Ignore auto-repeat so holding Shift while dragging (the draw
+        # gesture itself) doesn't wipe the ruler mid-stroke.
+        scene = self.scene()
+        orig = scene.keyPressEvent
+        widget = self
+
+        def wrapper(ev):
+            if (ev.key() == QtCore.Qt.Key.Key_Shift and not ev.isAutoRepeat()
+                    and widget._ruler_line is not None
+                    and widget._ruler_line.isVisible()):
+                widget._clear_ruler()
+                ev.accept()
+                return
+            orig(ev)
+
+        scene.keyPressEvent = wrapper
+
     def _on_ruler_drag(self, ev):
         modifiers = QtGui.QGuiApplication.keyboardModifiers()
         # Shift alone = snap to data; Shift+Ctrl = free coordinates
@@ -748,7 +769,7 @@ class CrosshairPlotWidget(pg.PlotWidget):
         self.y_cross_index = 0
         self.cross_section_enabled = True
 
-    def hide_cross_hair(self, *enabled):
+    def hide_cross_hair(self, *enabled, keep_ruler=False):
         try:
             self.cursor_label.hide()
             self.h_line.hide()
@@ -762,7 +783,11 @@ class CrosshairPlotWidget(pg.PlotWidget):
             self.click_count = (self.click_count + 1 ) % 2
         if len(enabled) != 0:
             self.click_count_1d ^= 1
-        self._clear_ruler()
+        # The ruler is decoupled from the cross-hair: a plain toggle-off keeps it
+        # (keep_ruler=True). Axis transforms (FFT / log / derivative / phasemap /
+        # subtractMean) still drop it, since they invalidate its stored coords.
+        if not keep_ruler:
+            self._clear_ruler()
 
     def _fourierTransform(self, x, y):
         # Perform Fourier transform. If x values are not sampled uniformly,
@@ -1762,6 +1787,7 @@ class CrossSectionDock(CloseableDock):
         self.plot_item.vb.menu.addAction(self.clear_ruler_action)
 
         self._install_ruler_drag()
+        self._install_ruler_key_toggle()
 
         # Refresh ruler Z when the time line moves (dragging the yellow line
         # changes the displayed frame; make_line_discrete handles the click
@@ -2385,7 +2411,9 @@ class CrossSectionDock(CloseableDock):
             self.v_cross_dock.close()
 
             self.cursor_label.hide()
-            self._clear_ruler()
+            # Ruler is decoupled from the cross-section: toggling/closing it keeps
+            # the ruler. Genuine geometry changes still clear it via the explicit
+            # _clear_ruler() call on the new-dataset path (see set_data).
 
     def connect_signal(self):
         """This can only be run after the item has been embedded in a scene"""
@@ -2683,6 +2711,26 @@ class CrossSectionDock(CloseableDock):
             orig(ev, axis=axis)
 
         vb.mouseDragEvent = wrapper
+
+    def _install_ruler_key_toggle(self):
+        # A lone Shift key-press (no drag) hides a ruler that's already drawn, so
+        # Shift acts as a toggle: first Shift+drag draws it, the next Shift press
+        # clears it. Ignore auto-repeat so holding Shift while dragging (the draw
+        # gesture itself) doesn't wipe the ruler mid-stroke.
+        scene = self.plot_item.scene()
+        orig = scene.keyPressEvent
+        dock = self
+
+        def wrapper(ev):
+            if (ev.key() == QtCore.Qt.Key.Key_Shift and not ev.isAutoRepeat()
+                    and dock._ruler_line is not None
+                    and dock._ruler_line.isVisible()):
+                dock._clear_ruler()
+                ev.accept()
+                return
+            orig(ev)
+
+        scene.keyPressEvent = wrapper
 
     def _on_ruler_drag(self, ev):
         modifiers = QtGui.QGuiApplication.keyboardModifiers()
