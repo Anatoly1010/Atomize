@@ -213,8 +213,15 @@ class MainWindow(QMainWindow):
                     # interpreted as the correct dtype
                     arr = np.frombuffer(ba, dtype = self.meta['dtype'])
                     # Reshape first, THEN copy while still LOCKED to ensure data integrity
-                    arr = arr.reshape(self.meta['shape']).copy() 
+                    arr = arr.reshape(self.meta['shape']).copy()
                     conn.write(b'ok')
+                    # Flush the ack now, while the frame is already copied out of
+                    # shared memory, so the sender's handshake no longer waits on
+                    # the (potentially >2 s) do_operation() render below. Without
+                    # this the 2 bytes sit in Qt's write buffer until the event
+                    # loop resumes after the render, tripping the client-side
+                    # "Receiver did not send 'ok'" timeout on big 2D frames.
+                    conn.flush()
                 else:
                     arr = None
             finally:
