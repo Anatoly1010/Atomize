@@ -50,8 +50,14 @@ class LivePlotClient(object):
             meta["name"] = "*"
             
         if arr is not None:
-            arrbytes = arr.tobytes()
-            arrsize = len(arrbytes)
+            # Normalize to a contiguous float64 array without an extra copy when the
+            # caller already handed us one (the live-plot case), then transfer it into
+            # the shared block with a single np.copyto. This replaces the former
+            # np.array + .astype + .tobytes + slice-assign chain (four ~20 MB copies of
+            # a 2D frame, three of them holding the GIL) that was stalling the
+            # measurement thread; np.copyto releases the GIL for the memcpy.
+            arr = np.ascontiguousarray(arr, dtype=np.float64)
+            arrsize = arr.nbytes
             if arrsize > self.shared_mem.size():
                 raise ValueError("Array too big %s > %s" % (arrsize, self.shared_mem.size()))
             
@@ -62,8 +68,8 @@ class LivePlotClient(object):
             if self.shared_mem.lock():
                 try:
                     ptr = self.shared_mem.data()
-                    region = memoryview(ptr).cast('B') 
-                    region[:arrsize] = arrbytes
+                    dst = np.frombuffer(memoryview(ptr).cast('B')[:arrsize], dtype=np.float64)
+                    np.copyto(dst, arr.reshape(-1))
                 finally:
                     self.shared_mem.unlock()
         else:
@@ -86,7 +92,7 @@ class LivePlotClient(object):
         self.sock.waitForBytesWritten(1000)
 
     def plot_y(self, name, arr, extent=None, start_step=(0, 1), label=''):
-        arr = np.array(arr)
+        arr = np.asarray(arr)
         if extent is not None and start_step is not None:
             raise ValueError('extent and start_step provide the same info and are thus mutually exclusive')
         if extent is not None:
@@ -100,7 +106,7 @@ class LivePlotClient(object):
             'rank': 1,
             'label': label,
         }
-        self.send_to_plotter(meta, arr.astype('float64'))
+        self.send_to_plotter(meta, arr)
         #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def plot_z(self, name, arr, extent=None, start_step=None, xname='X axis',\
@@ -109,7 +115,7 @@ class LivePlotClient(object):
         extent is ((initial x, final x), (initial y, final y))
         start_step is ((initial x, delta x), (initial_y, final_y))
         '''
-        arr = np.array(arr)
+        arr = np.asarray(arr)
         if extent is not None and start_step is not None:
             raise ValueError('extent and start_step provide the same info and are thus mutually exclusive')
         if extent is not None:
@@ -129,7 +135,7 @@ class LivePlotClient(object):
             'Zname': zname,
             'value': text,
         }
-        self.send_to_plotter(meta, arr.astype('float64'))
+        self.send_to_plotter(meta, arr)
         #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def plot_xy(self, name, xs, ys, label='', xname='X axis', xscale='arb. u.',\
@@ -152,11 +158,11 @@ class LivePlotClient(object):
 
 
         if len( np.shape( ys ) ) == 1:
-            self.send_to_plotter(meta, np.array([xs, ys]).astype('float64'))
+            self.send_to_plotter(meta, np.array([xs, ys]))
             #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))        
         elif len( np.shape( ys ) ) == 2:
             # simultaneous plot of two curves
-            self.send_to_plotter(meta, np.array([[xs, xs], ys]).astype('float64'))
+            self.send_to_plotter(meta, np.array([[xs, xs], ys]))
             #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def append_y(self, name, point, start_step=(0, 1), label='', xname='X axis',\
@@ -190,7 +196,7 @@ class LivePlotClient(object):
 
     def append_z(self, name, arr, start_step=None, xname='X axis',\
      xscale='arb. u.', yname='Y axis', yscale='arb. u.', zname='Y axis', zscale='arb. u.'):
-        arr = np.array(arr)
+        arr = np.asarray(arr)
         meta = {
             'name': name,
             'operation':'append_z',
@@ -203,7 +209,7 @@ class LivePlotClient(object):
             'Yname': yname,
             'Zname': zname,
             }
-        self.send_to_plotter(meta, arr.astype('float64'))
+        self.send_to_plotter(meta, arr)
         #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
     def label(self, name, text):
