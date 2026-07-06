@@ -1,4 +1,5 @@
 import atexit
+import threading
 import json
 import uuid
 import warnings
@@ -36,6 +37,10 @@ class LivePlotClient(object):
         self.sock.waitForBytesWritten()
         self.is_connected = True
         self.timeout = timeout
+        # Serialises send_to_plotter across the two threads that reach it on
+        # this one client (the AtomizePlotWorker daemon and the caller's own
+        # thread); see send_to_plotter for why.
+        self._send_lock = threading.Lock()
         
         atexit.register(self.close)
 
@@ -45,7 +50,17 @@ class LivePlotClient(object):
     def send_to_plotter(self, meta, arr=None):
         if not self.is_connected:
             return
-            
+        # Both the AtomizePlotWorker daemon thread (async pr= plots) and the
+        # caller's own thread (synchronous plot / incremental append) reach
+        # this method on the SAME LivePlotClient. Serialise the whole
+        # shared-memory copy + meta/'ok' socket handshake so the two never
+        # race: concurrent QSharedMemory.lock() ("QSharedMemory::lock: already
+        # locked") and interleaved 320-byte meta writes that steal each
+        # other's ack ("Receiver did not send 'ok'").
+        with self._send_lock:
+            self._send_to_plotter_locked(meta, arr)
+
+    def _send_to_plotter_locked(self, meta, arr=None):
         if meta.get("name") is None:
             meta["name"] = "*"
             
