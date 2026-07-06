@@ -27,6 +27,14 @@ _HEADER_SIG = np.int32(-1437269761)
 # Max time to wait for the GIM "switch complete" status before raising.
 _GIM_SWCOMP_TIMEOUT_S = 30.0
 _GIM_SWCOMP_POLL_S = 0.0001
+# Hybrid swComp wait: busy-poll only the last _GIM_BUSY_TAIL_S before the
+# cadence-predicted pack completion (time.sleep() overshoots its argument by
+# the hrtimer slack, ~0.1-0.2 ms per call, which costs ~100 ms per
+# 1000-phase scan if the wait ends on a sleep). If the bit is still not set
+# _GIM_ESTIMATE_SLACK_S past the prediction, the estimate is wrong (first
+# pack, settings change) — fall back to sleep-polling to not burn CPU.
+_GIM_BUSY_TAIL_S = 0.0008
+_GIM_ESTIMATE_SLACK_S = 0.002
 
 _PHASE_SIGN = {
     '+x': 1,  '+': 1,
@@ -1318,16 +1326,33 @@ class Insys_FPGA:
                 self.nIP_No_brd += 1
                 self.start_brd()
                 self.start = 1
+                self._t_last_switch = time.monotonic()
             else:
-                # wait for the switch-complete bit with a timeout
+                # Wait for the switch-complete bit with a timeout.
+                # The current pack runs for gimSum_brd triggers at rep_time
+                # each, so the bit cannot be set before roughly
+                # _t_last_switch + that cadence: sleep in coarse chunks while
+                # far from that instant (yields CPU/GIL), busy-poll the tail
+                # so the exit latency is one driver call, not a sleep quantum.
                 deadline = time.monotonic() + _GIM_SWCOMP_TIMEOUT_S
+                try:
+                    _pack_s = self.gimSum_brd * self._rep_time_ns() / 1e9
+                except Exception:
+                    _pack_s = 0.0
+                _target = getattr(self, '_t_last_switch', 0.0) + _pack_s
                 while self.getGIM_swComp_GIM_status() != 1:
-                    if time.monotonic() > deadline:
+                    now = time.monotonic()
+                    if now > deadline:
                         raise TimeoutError(
                             f"GIM switch did not complete within {_GIM_SWCOMP_TIMEOUT_S}s "
                             f"(nIP_No_brd={self.nIP_No_brd})"
                         )
-                    time.sleep(_GIM_SWCOMP_POLL_S)
+                    remaining = _target - now
+                    if remaining > _GIM_BUSY_TAIL_S:
+                        time.sleep(min(remaining - _GIM_BUSY_TAIL_S, 0.001))
+                    elif remaining < -_GIM_ESTIMATE_SLACK_S:
+                        time.sleep(_GIM_SWCOMP_POLL_S)
+                self._t_last_switch = time.monotonic()
                 self.nIP_No_brd += 1
 
             self.reset_count_pulser = 1
@@ -1850,27 +1875,53 @@ class Insys_FPGA:
             ].reshape(n_nid, counts_adc_full)
 
             norm = self.adc_sens / (self.gimSum_brd * phases)
+            fac32 = (norm / safe_counts).astype(np.float32)[:, None, None]
             # Decimation: boxcar-average each group of `dec` consecutive samples
             # instead of keeping only the first and discarding the rest. Taking
             # the mean (not the sum) keeps the same amplitude scale as dec=1, so
             # adc_sens and the 0.4*dec_coef integral scaling stay valid, while
-            # using every sample improves SNR / anti-aliasing. dec=1 is a no-op.
+            # using every sample improves SNR / anti-aliasing.
+            # Everything downstream runs in float32 packed [I, Q] pairs: the
+            # answer is stored as complex64 (= float32 pairs) anyway, and
+            # data_raw values are bounded by count_nip * gimSum * 2^13 << 2^24,
+            # so float32 arithmetic is exact enough end to end.
             dec = self.dec_coef
-            all_i = data_2d[:, 0::2].astype(np.float64)
-            all_q = data_2d[:, 1::2].astype(np.float64)
             if dec > 1:
-                all_i = all_i.reshape(n_nid, counts_adc, dec).mean(axis=2)
-                all_q = all_q.reshape(n_nid, counts_adc, dec).mean(axis=2)
-            data_i = all_i * norm / safe_counts[:, None]
-            data_q = all_q * norm / safe_counts[:, None]
+                # astype->reshape->mean in float64 benchmarks fastest for the
+                # grouped mean (numpy middle-axis reductions in int32/float32
+                # are several times slower); pack the channels afterwards.
+                iq = np.empty((n_nid, counts_adc, 2), dtype=np.float32)
+                iq[..., 0] = (data_2d[:, 0::2].astype(np.float64)
+                              .reshape(n_nid, counts_adc, dec).mean(axis=2))
+                iq[..., 1] = (data_2d[:, 1::2].astype(np.float64)
+                              .reshape(n_nid, counts_adc, dec).mean(axis=2))
+                iq *= fac32
+            else:
+                # One contiguous pass over the interleaved [I Q I Q ...] rows.
+                iq = np.multiply(data_2d.reshape(n_nid, counts_adc, 2), fac32,
+                                 dtype=np.float32)
 
-            new_slice = np.zeros((j_pt - i_pt, counts_adc), dtype=np.complex64)
+            # Phase-combine straight into the answer slice viewed as float32
+            # [re, im] pairs (the complex64 memory layout): one or two real
+            # adds per phase -- no complex128 temporaries, no final cast pass.
+            out = self.answer[i_pt:j_pt].view(np.float32).reshape(
+                j_pt - i_pt, counts_adc, 2)
+            out[:] = 0.0
             for phase_idx, label in enumerate(acq_cycle):
-                s = _PHASE_SIGN[label]
-                new_slice += s * (data_i[phase_idx::phases]
-                                  + 1j * data_q[phase_idx::phases])
+                sub = iq[phase_idx::phases]
+                if label in ('+x', '+'):        # s = +1
+                    out += sub
+                elif label in ('-x', '-'):      # s = -1
+                    out -= sub
+                elif label in ('+y', '+i'):     # s = +1j: re -= Q, im += I
+                    out[..., 0] -= sub[..., 1]
+                    out[..., 1] += sub[..., 0]
+                elif label in ('-y', '-i'):     # s = -1j: re += Q, im -= I
+                    out[..., 0] += sub[..., 1]
+                    out[..., 1] -= sub[..., 0]
+                else:
+                    raise KeyError(f'Unknown acquisition cycle phase: {label}')
 
-            self.answer[i_pt:j_pt] = new_slice
             return self.answer.real, self.answer.imag
 
         elif self.test_flag == 'test':
@@ -2937,47 +2988,53 @@ class Insys_FPGA:
         def func(*, name1, name2): defines a function without default values of key arguments
         """
 
+        # Normalize the batch shape from ``name`` (not ``freq``): a WURST / SECH-TANH
+        # pulse carries its frequency as a two-element [f_start, f_end] sweep pair,
+        # which is itself a list. Deciding single-vs-batch from ``freq`` would mistake
+        # that pair for two separate pulses; keying off ``name`` keeps a lone swept
+        # pulse intact.
+        if isinstance(name, str):
+            names_list = [name]
+            freq_list = [freq]
+        else:
+            names_list = list(name)
+            freq_list = list(freq)
+
         if self.test_flag != 'test':
-            names_list = [name] if isinstance(name, str) else name
-            freq_list = [freq] if isinstance(freq, str) else freq
-
-            for name, fr in zip(names_list, freq_list):
-            
-                for i, pulse in enumerate(self.pulse_array_awg):                     
-
-                    if pulse['name'] == name:
+            for nm, fr in zip(names_list, freq_list):
+                for pulse in self.pulse_array_awg:
+                    if pulse['name'] == nm:
                         pulse['frequency'] = fr
                         self.shift_count_awg = 1
+                        break
 
         elif self.test_flag == 'test':
-            names_list = [name] if isinstance(name, str) else name
-            freq_list = [freq] if isinstance(freq, str) else freq
+            for nm, fr in zip(names_list, freq_list):
+                assert( nm in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
 
-            for name, fr in zip(names_list, freq_list):
-                assert( name in self.pulse_name_array_awg ), 'Pulse with the specified name is not defined'
-            
-                for i, pulse in enumerate(self.pulse_array_awg):
-                    if pulse['function'] != 'WURST' and pulse['function'] != 'SECH/TANH':
-                        temp_freq = fr.split(" ")
-                        coef = temp_freq[1]
-                        p_freq = float(temp_freq[0])
-                        assert (coef == 'MHz'), 'Incorrect frequency dimension. Only MHz is possible'
-                        assert(p_freq >= self.min_freq_awg), 'Frequency is lower than minimum available (' + str(self.min_freq_awg) +' MHz)'
-                        assert(p_freq < self.max_freq_awg), 'Frequency is longer than minimum available (' + str(self.max_freq_awg) +' MHz)'
-                    else:
-                        temp_freq_st = fr[0].split(" ")
-                        temp_freq_end = fr[1].split(" ")
-                        coef_st = temp_freq_st[1]
-                        coef_end = temp_freq_end[1]
-                        p_freq_st = float(temp_freq_st[0])
-                        p_freq_end = float(temp_freq_end[0])
-                        assert (coef_st == 'MHz' and coef_end == 'MHz'), 'Incorrect frequency dimension. Only MHz is possible'
-                        assert(p_freq_st >= self.min_freq_awg and p_freq_end >= self.min_freq_awg), 'Frequency is lower than minimum available (' + str(self.min_freq_awg) +' MHz)'
-                        assert(p_freq_st < self.max_freq_awg and p_freq_end < self.max_freq_awg), 'Frequency is longer than minimum available (' + str(self.max_freq_awg) +' MHz)'                        
+                for pulse in self.pulse_array_awg:
+                    if pulse['name'] == nm:
+                        if pulse['function'] != 'WURST' and pulse['function'] != 'SECH/TANH':
+                            temp_freq = fr.split(" ")
+                            coef = temp_freq[1]
+                            p_freq = float(temp_freq[0])
+                            assert (coef == 'MHz'), 'Incorrect frequency dimension. Only MHz is possible'
+                            assert(p_freq >= self.min_freq_awg), 'Frequency is lower than minimum available (' + str(self.min_freq_awg) +' MHz)'
+                            assert(p_freq < self.max_freq_awg), 'Frequency is higher than maximum available (' + str(self.max_freq_awg) +' MHz)'
+                        else:
+                            temp_freq_st = fr[0].split(" ")
+                            temp_freq_end = fr[1].split(" ")
+                            coef_st = temp_freq_st[1]
+                            coef_end = temp_freq_end[1]
+                            p_freq_st = float(temp_freq_st[0])
+                            p_freq_end = float(temp_freq_end[0])
+                            assert (coef_st == 'MHz' and coef_end == 'MHz'), 'Incorrect frequency dimension. Only MHz is possible'
+                            assert(p_freq_st >= self.min_freq_awg and p_freq_end >= self.min_freq_awg), 'Frequency is lower than minimum available (' + str(self.min_freq_awg) +' MHz)'
+                            assert(p_freq_st < self.max_freq_awg and p_freq_end < self.max_freq_awg), 'Frequency is higher than maximum available (' + str(self.max_freq_awg) +' MHz)'
 
-                    if pulse['name'] == name:
                         pulse['frequency'] = fr
                         self.shift_count_awg = 1
+                        break
 
     def awg_redefine_amplitude(self, *, name, amplitude):
         """
@@ -3851,27 +3908,38 @@ class Insys_FPGA:
             data = data[:data_len]
 
         if self.tail_carry.size:
-            stream = np.concatenate((self.tail_carry, data))
+            data = np.concatenate((self.tail_carry, data))
         else:
             # Fix 2: when tail_carry is empty the buffer may start mid-
             # packet (live-mode streaming continuation, OR the very first
-            # exp-mode call where data does start with a header — which
-            # is also handled because first_hdr[0] = 0 in that case).
-            # Find the first HEADER_SIG and start parsing there.
-            first_hdr = np.where(data == _HEADER_SIG)[0]
-            if first_hdr.size == 0:
+            # exp-mode call where data does start with a header — argmax
+            # is 0 in that case). Anchor parsing on the first HEADER_SIG.
+            if data.size == 0:
                 return None, None
-            if first_hdr[0] > 0:
-                data = data[first_hdr[0]:]
-            stream = data
+            is_hdr = data == _HEADER_SIG
+            first = int(np.argmax(is_hdr))
+            if not is_hdr[first]:
+                return None, None
+            if first > 0:
+                data = data[first:]
 
+        return self._process_packet_stream(
+            data, full_adc, pkt_size, total_points, skip_redundant)
+
+    def _process_packet_stream(self, stream, full_adc, pkt_size, total_points,
+                               skip_redundant):
+        """
+        Vectorised core of gen_2d_array_from_buffer: parse one contiguous
+        int32 stream of whole packets, accumulate into self.data_raw /
+        self.count_nip in place, and set self.tail_carry from the leftover.
+        Returns the touched (lo_nid, hi_nid), or (None, None).
+        """
         n_complete = len(stream) // pkt_size
         if n_complete == 0:
             # Stream shorter than one packet — only worth carrying if it
             # looks like the head of a packet.
             if stream.size > 0 and stream[0] == _HEADER_SIG:
-                self.tail_carry = (stream.copy()
-                                   if stream is data else stream)
+                self.tail_carry = stream.copy()
             else:
                 self.tail_carry = np.empty(0, dtype=np.int32)
             return None, None
@@ -3933,20 +4001,32 @@ class Insys_FPGA:
         self.count_nip += np.bincount(
             nids, minlength=total_points).astype(np.int32)
 
-        # data_raw[nid] += sum of all this-buffer's payloads of that nid.
-        # In real ops a buffer holds ~5 unique nids out of ~100 packets,
-        # so iterating unique nids and summing the sub-mask is much
-        # faster than a per-packet Python loop.
-        unique_nids, inverse = np.unique(nids, return_inverse=True)
-        for k, nid in enumerate(unique_nids):
-            mask = inverse == k
-            self.data_raw[nid * full_adc:(nid + 1) * full_adc] += \
-                payloads[mask].sum(axis=0, dtype=np.int32)
+        # data_raw[nid] += per-nid sum of this stream's payloads.
+        d = np.diff(nids)
+        if d.size == 0 or (d == 1).all():
+            # Standard experiment-mode stream: strictly consecutive nids,
+            # one packet each — a single vectorised block add into the
+            # contiguous data_raw range (no masks, no fancy-index copies).
+            n0 = int(nids[0])
+            dst = self.data_raw[
+                n0 * full_adc:(n0 + nids.size) * full_adc
+            ].reshape(nids.size, full_adc)
+            dst += payloads
+        else:
+            # Repeated / non-consecutive nids (live mode, multi-packet
+            # runs): a stream holds few unique nids, so iterating unique
+            # nids and summing the sub-mask is much faster than a
+            # per-packet Python loop (and than reduceat on strided rows).
+            unique_nids, inverse = np.unique(nids, return_inverse=True)
+            for k in range(unique_nids.size):
+                nid = int(unique_nids[k])
+                mask = inverse == k
+                self.data_raw[nid * full_adc:(nid + 1) * full_adc] += \
+                    payloads[mask].sum(axis=0, dtype=np.int32)
 
-        last_nid = int(unique_nids[-1])
-        self.N_IP = last_nid
+        self.N_IP = int(nids.max())
         self._last_processed_nid = int(nids[-1])
-        return int(unique_nids[0]), last_nid
+        return int(nids.min()), self.N_IP
 
     def overflow_check(self, BufNum, BufTot, BufCnt, StreamBufTot):
         """
