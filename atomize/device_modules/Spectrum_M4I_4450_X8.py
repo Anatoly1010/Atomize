@@ -1581,7 +1581,7 @@ class Spectrum_M4I_4450_X8:
         """
         return ( self.win_right - self.win_left ) * 1000 / self.sample_rate
 
-    def digitizer_iq(self, arr_i, arr_q, freq, ph, ph1, ph2, integral = False):
+    def digitizer_iq(self, arr_i, arr_q, freq, ph = None, ph1 = None, ph2 = None, integral = False):
         """
         IQ demodulation + phase correction of the acquired data (ported from
         Insys_FPGA.digitizer_iq, adapted to the NIOCH timebase: the sampling
@@ -1593,7 +1593,18 @@ class Spectrum_M4I_4450_X8:
                         second order phase-correction coefficients.
         Returns the demodulated (I, Q); with integral = True (2D input) returns
         the windowed integral over [win_left:win_right] for each delay column.
+
+        When ph/ph1/ph2 are omitted they fall back to the phase corrections read
+        from digitizer.param by digitizer_read_settings() (0.0 if never read),
+        so a script can pick up the values dialled in the phasing GUI.
         """
+        if ph is None:
+            ph = getattr(self, 'zero_order', 0.0)
+        if ph1 is None:
+            ph1 = getattr(self, 'first_order', 0.0)
+        if ph2 is None:
+            ph2 = getattr(self, 'second_order', 0.0)
+
         if np.isnan(arr_i).any() or np.isnan(arr_q).any():
             return arr_i, arr_q
 
@@ -1667,6 +1678,15 @@ class Spectrum_M4I_4450_X8:
             self.win_left = int( text_from_file[6].split(' ')[2] )
             self.win_right = 1 + int( text_from_file[7].split(' ')[2] )
 
+            # phase corrections written by the phasing GUI (dig_stop); worker
+            # units rad, rad/s, rad/s^2. Guard for old param files that predate
+            # these lines -> default 0.0
+            self.zero_order, self.first_order, self.second_order = 0.0, 0.0, 0.0
+            if len( text_from_file ) > 8 and text_from_file[8].startswith('Zero order:'):
+                self.zero_order = float( text_from_file[8].split(' ')[2] )
+                self.first_order = float( text_from_file[9].split(' ')[2] )
+                self.second_order = float( text_from_file[10].split(' ')[2] )
+
             self.digitizer_setup()
 
         elif self.test_flag == 'test':
@@ -1703,6 +1723,15 @@ class Spectrum_M4I_4450_X8:
 
             self.win_left = int( text_from_file[6].split(' ')[2] )
             self.win_right = 1 + int( text_from_file[7].split(' ')[2] )
+
+            # phase corrections written by the phasing GUI (dig_stop); worker
+            # units rad, rad/s, rad/s^2. Guard for old param files that predate
+            # these lines -> default 0.0
+            self.zero_order, self.first_order, self.second_order = 0.0, 0.0, 0.0
+            if len( text_from_file ) > 8 and text_from_file[8].startswith('Zero order:'):
+                self.zero_order = float( text_from_file[8].split(' ')[2] )
+                self.first_order = float( text_from_file[9].split(' ')[2] )
+                self.second_order = float( text_from_file[10].split(' ')[2] )
 
     # Auxilary functions
     def round_to_closest(self, x, y):

@@ -458,7 +458,7 @@ class Keysight_3000_Xseries:
                     xs = np.arange( len(array_y) ) * ( pg.siEval(self.oscilloscope_time_resolution()) )
                     return xs, array_y, integ
     
-    def oscilloscope_iq(self, arr_i, arr_q, freq, ph, ph1, ph2, integral = False):
+    def oscilloscope_iq(self, arr_i, arr_q, freq, ph = None, ph1 = None, ph2 = None, integral = False):
         """
         IQ demodulation + phase correction of the acquired data. Mirrors
         Spectrum_M4I_4450_X8.digitizer_iq; the sampling step comes from the
@@ -470,7 +470,18 @@ class Keysight_3000_Xseries:
                         first/second order phase-correction coefficients.
         Returns the demodulated (I, Q); with integral = True (2D input) returns
         the windowed integral over [win_left:win_right] for each delay column.
+
+        When ph/ph1/ph2 are omitted they fall back to the phase corrections read
+        from digitizer.param by oscilloscope_read_settings() (0.0 if never read),
+        so a script can pick up the values dialled in the phasing GUI.
         """
+        if ph is None:
+            ph = getattr(self, 'zero_order', 0.0)
+        if ph1 is None:
+            ph1 = getattr(self, 'first_order', 0.0)
+        if ph2 is None:
+            ph2 = getattr(self, 'second_order', 0.0)
+
         if np.isnan(arr_i).any() or np.isnan(arr_q).any():
             return arr_i, arr_q
 
@@ -853,7 +864,7 @@ class Keysight_3000_Xseries:
         if self.test_flag != 'test':
 
             path_to_main = os.path.abspath( os.getcwd() )
-            path_file = os.path.join(path_to_main, 'atomize/control_center/digitizer.param')
+            path_file = os.path.join(path_to_main, '../atomize/control_center/digitizer.param')
             file_to_read = open(path_file, 'r')
 
             text_from_file = file_to_read.read().split('\n')
@@ -875,12 +886,21 @@ class Keysight_3000_Xseries:
             self.win_left = int( text_from_file[6].split(' ')[2] )
             self.win_right = 1 + int( text_from_file[7].split(' ')[2] )
 
+            # phase corrections written by the phasing GUI (dig_stop); worker
+            # units rad, rad/s, rad/s^2. Guard for old param files that predate
+            # these lines -> default 0.0
+            self.zero_order, self.first_order, self.second_order = 0.0, 0.0, 0.0
+            if len( text_from_file ) > 8 and text_from_file[8].startswith('Zero order:'):
+                self.zero_order = float( text_from_file[8].split(' ')[2] )
+                self.first_order = float( text_from_file[9].split(' ')[2] )
+                self.second_order = float( text_from_file[10].split(' ')[2] )
+
             #self.digitizer_setup()
 
         elif self.test_flag == 'test':
             
             path_to_main = os.path.abspath( os.getcwd() )
-            path_file = os.path.join(path_to_main, 'atomize/control_center/digitizer.param')
+            path_file = os.path.join(path_to_main, '../atomize/control_center/digitizer.param')
             file_to_read = open(path_file, 'r')
 
             text_from_file = file_to_read.read().split('\n')
@@ -905,7 +925,16 @@ class Keysight_3000_Xseries:
 
             self.win_left = int( text_from_file[6].split(' ')[2] )
             self.win_right = 1 + int( text_from_file[7].split(' ')[2] )
-            
+
+            # phase corrections written by the phasing GUI (dig_stop); worker
+            # units rad, rad/s, rad/s^2. Guard for old param files that predate
+            # these lines -> default 0.0
+            self.zero_order, self.first_order, self.second_order = 0.0, 0.0, 0.0
+            if len( text_from_file ) > 8 and text_from_file[8].startswith('Zero order:'):
+                self.zero_order = float( text_from_file[8].split(' ')[2] )
+                self.first_order = float( text_from_file[9].split(' ')[2] )
+                self.second_order = float( text_from_file[10].split(' ')[2] )
+
     #### Functions of waveform generator
     def wave_gen_name(self):
         if self.test_flag != 'test':
