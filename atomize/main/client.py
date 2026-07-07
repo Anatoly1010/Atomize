@@ -1,5 +1,6 @@
 import atexit
 import threading
+import time
 import json
 import uuid
 import warnings
@@ -33,14 +34,32 @@ class LivePlotClient(object):
             raise Exception("Couldn't create shared memory %s" % self.shared_mem.errorString())
         logging.debug('Memory created with key %s and size %s' % (key, self.shared_mem.size()))
         
-        self.sock.write(key.encode())      
+        self.sock.write(key.encode())
         self.sock.waitForBytesWritten()
-        self.is_connected = True
         self.timeout = timeout
+        # Consume the connect-handshake 'ok' the server writes in accept().
+        # Left unread, it satisfies the FIRST frame's ack wait instead, and
+        # from then on every wait is satisfied by the PREVIOUS frame's ack:
+        # the client runs one frame ahead of the receiver and overwrites the
+        # shared-memory block before the receiver has copied it, so frames
+        # render under the previous frame's meta (data jumping between two
+        # plots that alternate sends).
+        if self.sock.bytesAvailable() == 0:
+            self.sock.waitForReadyRead(self.timeout)
+        self.sock.readAll()
+        self.is_connected = True
         # Serialises send_to_plotter across the two threads that reach it on
         # this one client (the AtomizePlotWorker daemon and the caller's own
         # thread); see send_to_plotter for why.
         self._send_lock = threading.Lock()
+        # The receiver answers every 320-byte meta frame with one 2-byte 'ok'
+        # AFTER copying the frame's array out of shared memory. Count the
+        # outstanding acks so a late ack (one that missed its 2 s window) can
+        # never be taken for the current frame's ack — that mispairing is
+        # exactly what mixes data between plots. _ack_carry holds an odd
+        # leftover byte should an 'ok' ever arrive split across reads.
+        self._acks_pending = 0
+        self._ack_carry = 0
         
         atexit.register(self.close)
 
@@ -60,10 +79,34 @@ class LivePlotClient(object):
         with self._send_lock:
             self._send_to_plotter_locked(meta, arr)
 
+    def _drain_acks(self):
+        """Wait until every sent frame has been acked ('ok', 2 bytes each) or
+        the timeout runs out. On timeout the debt is kept: when the stale ack
+        finally arrives it pays off the OLD frame instead of being mistaken
+        for the ack of the frame currently being sent."""
+        deadline = time.monotonic() + self.timeout / 1000.0
+        while self._acks_pending > 0:
+            if self.sock.bytesAvailable() == 0:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0 or not self.sock.waitForReadyRead(max(1, int(remaining * 1000))):
+                    logging.warning("Timeout: Receiver did not send 'ok' for %s ms" % self.timeout)
+                    return
+            n = self._ack_carry + len(bytes(self.sock.readAll()))
+            self._acks_pending -= n // 2
+            self._ack_carry = n % 2
+        if self._acks_pending < 0:
+            self._acks_pending = 0
+
     def _send_to_plotter_locked(self, meta, arr=None):
         if meta.get("name") is None:
             meta["name"] = "*"
-            
+
+        # If the previous frame's ack timed out, the receiver may still be
+        # copying that frame out of shared memory. Never overwrite the block
+        # while an ack is outstanding, or the old meta gets rendered with this
+        # frame's array.
+        self._drain_acks()
+
         if arr is not None:
             # Normalize to a contiguous float64 array without an extra copy when the
             # caller already handed us one (the live-plot case), then transfer it into
@@ -99,11 +142,9 @@ class LivePlotClient(object):
         self.sock.write(meta_bytes)
         self.sock.flush()
 
-        if not self.sock.waitForReadyRead(2000):
-            logging.warning("Timeout: Receiver did not send 'ok' for 2 seconds")
-        else:
-            self.sock.readAll()
-            
+        self._acks_pending += 1
+        self._drain_acks()
+
         self.sock.waitForBytesWritten(1000)
 
     def plot_y(self, name, arr, extent=None, start_step=(0, 1), label=''):

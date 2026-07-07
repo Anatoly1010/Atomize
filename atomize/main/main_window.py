@@ -79,6 +79,7 @@ class MainWindow(QMainWindow):
         self.insert_dock_right = True
         self.conns = []
         self.shared_mems = []
+        self.recv_buffers = {}   # id(conn) -> bytearray of un-parsed meta-frame bytes
         signal.signal(signal.SIGINT, self.close)
         self.system = platform.system()
         self.system_encoding = locale.getpreferredencoding()
@@ -190,47 +191,81 @@ class MainWindow(QMainWindow):
         #atexit.register(memory.detach)
         self.conns.append(conn)
         self.shared_mems.append(memory)
+        self.recv_buffers[id(conn)] = bytearray()
         conn.readyRead.connect(lambda: self.read_from(conn, memory))
         conn.disconnected.connect(memory.detach)
+        conn.disconnected.connect(lambda: self.recv_buffers.pop(id(conn), None))
         conn.write(b'ok')
 
     def read_from(self, conn, memory):
         logging.debug('reading data')
 
-        try:
-            self.meta = json.loads(conn.read(320).decode())
-        except json.decoder.JSONDecodeError:
-            #print('error')
-            pass
+        # QLocalSocket is a byte STREAM with no message boundaries, but every meta
+        # header is exactly 320 bytes. A single read(320) could therefore return a
+        # fragment (split/coalesced delivery), which used to parse as truncated
+        # JSON, reuse the previous frame's self.meta, and reshape the NEW array
+        # with the OLD shape (wrong x-axis on 'ch', garbled 'ch_1', broken FFT) --
+        # and, because 'ok' was still sent, desync every later frame until restart.
+        # Instead: append all available bytes to a persistent per-connection buffer
+        # and only parse WHOLE 320-byte frames, keeping any remainder for the next
+        # readyRead. Non-blocking (never waits on the event loop) and self-resyncs
+        # across fragment boundaries. EVERY 320-byte frame is acked with exactly one
+        # 'ok' (the client counts them), so the per-frame handshake keeps the client
+        # at most one frame ahead and the array in shared memory always pairs with
+        # the meta being processed.
+        buf = self.recv_buffers.get(id(conn))
+        if buf is None:
+            buf = bytearray()
+            self.recv_buffers[id(conn)] = buf
+        buf += bytes(conn.readAll())
 
-        if self.meta['arrsize'] != 0:
-            memory.lock()
+        while len(buf) >= 320:
+            frame = bytes(buf[:320])
+            del buf[:320]
+
             try:
-                raw_data = memory.data()
-                if raw_data is not None:
-                    # Slice and create a view directly without copying yet
-                    ba = raw_data[:self.meta['arrsize']]
-                    # interpreted as the correct dtype
-                    arr = np.frombuffer(ba, dtype = self.meta['dtype'])
-                    # Reshape first, THEN copy while still LOCKED to ensure data integrity
-                    arr = arr.reshape(self.meta['shape']).copy()
-                    conn.write(b'ok')
-                    # Flush the ack now, while the frame is already copied out of
-                    # shared memory, so the sender's handshake no longer waits on
-                    # the (potentially >2 s) do_operation() render below. Without
-                    # this the 2 bytes sit in Qt's write buffer until the event
-                    # loop resumes after the render, tripping the client-side
-                    # "Receiver did not send 'ok'" timeout on big 2D frames.
-                    conn.flush()
-                else:
-                    arr = None
-            finally:
-                # Using finally ensures the lock is released even if reshape/copy fails
-                memory.unlock()
-        else:
-            arr = None
+                self.meta = json.loads(frame.decode())
+            except (json.decoder.JSONDecodeError, UnicodeDecodeError):
+                #print('error')
+                # Still ack the unparseable frame: the client counts one 'ok'
+                # per frame sent, and a silently dropped ack would leave it
+                # waiting out its full timeout on every later frame.
+                conn.write(b'ok')
+                conn.flush()
+                continue
 
-        self.do_operation(arr)
+            if self.meta['arrsize'] != 0:
+                memory.lock()
+                try:
+                    raw_data = memory.data()
+                    if raw_data is not None:
+                        # Slice and create a view directly without copying yet
+                        ba = raw_data[:self.meta['arrsize']]
+                        # interpreted as the correct dtype
+                        arr = np.frombuffer(ba, dtype = self.meta['dtype'])
+                        # Reshape first, THEN copy while still LOCKED to ensure data integrity
+                        arr = arr.reshape(self.meta['shape']).copy()
+                    else:
+                        arr = None
+                finally:
+                    # Using finally ensures the lock is released even if reshape/copy fails
+                    memory.unlock()
+            else:
+                arr = None
+
+            # Ack EVERY parsed frame, and only after the array (if any) has been
+            # copied out of shared memory -- 'ok' means "the block is free to
+            # overwrite". Frames without an array (append_y / label / clear ...)
+            # used to get no ack at all, leaving the client to wait out its full
+            # timeout on each one. Flush now, before the render, so the sender's
+            # handshake never waits on the (potentially >2 s) do_operation()
+            # below: without the flush the 2 bytes sit in Qt's write buffer until
+            # the event loop resumes after the render, tripping the client-side
+            # "Receiver did not send 'ok'" timeout on big 2D frames.
+            conn.write(b'ok')
+            conn.flush()
+
+            self.do_operation(arr)
 
     def do_operation(self, arr = None):
         def clear(name):
