@@ -1458,7 +1458,7 @@ class Spectrum_M4I_2211_X8:
             #self.digitizer_reference_clock(100)
 
             path_to_main = os.path.abspath( os.getcwd() )
-            path_file = os.path.join(path_to_main, 'atomize/control_center/digitizer.param')
+            path_file = os.path.join(path_to_main, '../atomize/control_center/digitizer.param')
             #path_file = os.path.join(path_to_main, 'digitizer.param')
             file_to_read = open(path_file, 'r')
 
@@ -1496,7 +1496,7 @@ class Spectrum_M4I_2211_X8:
             #self.digitizer_reference_clock(100)
             
             path_to_main = os.path.abspath( os.getcwd() )
-            path_file = os.path.join(path_to_main, 'atomize/control_center/digitizer.param')
+            path_file = os.path.join(path_to_main, '../atomize/control_center/digitizer.param')
             #path_file = os.path.join(path_to_main, 'digitizer.param')
             file_to_read = open(path_file, 'r')
 
