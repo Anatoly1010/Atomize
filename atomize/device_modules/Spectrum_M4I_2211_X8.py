@@ -169,6 +169,38 @@ class Spectrum_M4I_2211_X8:
         answer = 'Spectrum M4I.2211-X8'
         return answer
 
+    def _clock_setup_guarded(self):
+        """
+        Write the clock registers (SPC_CLOCKMODE / SPC_REFERENCECLOCK /
+        SPC_SAMPLERATE) only if the card does not already hold the requested
+        values. Writing these registers relocks the sample-clock PLL; the AWG
+        and digitizer PLLs relock independently, so every relock re-draws
+        their relative clock phase (seen as a sporadic 4 ns AWG<->digitizer
+        shift between restarts). The card keeps its clock configuration across
+        spcm_vClose / spcm_hOpen (no CARD_RESET is issued anywhere), so a new
+        process can skip the writes and keep the PLL phase of the previous run.
+        """
+        target_rate = int( 1000000 * self.sample_rate )
+
+        cur_mode = int32 (0)
+        cur_rate = int64 (0)
+        err = spcm_dwGetParam_i32 (self.hCard, SPC_CLOCKMODE, byref(cur_mode))
+        err += spcm_dwGetParam_i64 (self.hCard, SPC_SAMPLERATE, byref(cur_rate))
+
+        if self.clock_mode == 1:
+            if err == 0 and cur_mode.value == 1 and cur_rate.value == target_rate:
+                return
+            spcm_dwSetParam_i64 (self.hCard, SPC_SAMPLERATE, target_rate)
+        elif self.clock_mode == 32:
+            cur_ref = int64 (0)
+            err += spcm_dwGetParam_i64 (self.hCard, SPC_REFERENCECLOCK, byref(cur_ref))
+            if err == 0 and cur_mode.value == 32 and cur_ref.value == MEGA(self.reference_clock) and \
+               cur_rate.value == target_rate:
+                return
+            spcm_dwSetParam_i32 (self.hCard, SPC_CLOCKMODE, self.clock_mode)
+            spcm_dwSetParam_i64 (self.hCard, SPC_REFERENCECLOCK, MEGA(self.reference_clock))
+            spcm_dwSetParam_i64 (self.hCard, SPC_SAMPLERATE, target_rate)
+
     def digitizer_setup(self):
         """
         Write settings to the digitizer. No argument; No output
@@ -188,14 +220,10 @@ class Spectrum_M4I_2211_X8:
             else:
                 pass
 
-            spcm_dwSetParam_i32 (self.hCard, SPC_TIMEOUT, 10000) 
+            spcm_dwSetParam_i32 (self.hCard, SPC_TIMEOUT, 10000)
             # general parameters of the card; internal/external clock
-            if self.clock_mode == 1:
-                spcm_dwSetParam_i64 (self.hCard, SPC_SAMPLERATE, int( 1000000 * self.sample_rate ))
-            elif self.clock_mode == 32:
-                spcm_dwSetParam_i32 (self.hCard, SPC_CLOCKMODE, self.clock_mode)
-                spcm_dwSetParam_i64 (self.hCard, SPC_REFERENCECLOCK, MEGA(self.reference_clock))
-                spcm_dwSetParam_i64 (self.hCard, SPC_SAMPLERATE, int( 1000000 * self.sample_rate ) )
+            # (skipped when unchanged -- avoids a PLL relock; see _clock_setup_guarded)
+            self._clock_setup_guarded()
 
             # change card mode and memory
             if self.card_mode == 1:

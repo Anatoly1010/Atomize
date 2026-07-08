@@ -86,6 +86,7 @@ class Spectrum_M4I_6631_X8:
             self.sample_rate = 1250 # MHz
             self.clock_mode = 1 # 1 is Internal; 32 is External
             self.reference_clock = 100 # MHz
+            self.clock_output = 0 # 1 means ON (Clock Out = sampling clock / 4); 0 means OFF
             self.card_mode = 32768 # 32768 is Single; 512 is Multi; 262144 is Sequence
             self.trigger_ch = 2 # 1 is Software; 2 is External
             self.trigger_mode = 1 # 1 is Positive; 2 is Negative; 8 is High; 10 is Low
@@ -175,9 +176,10 @@ class Spectrum_M4I_6631_X8:
             self.test_num_segments = 1
             
             # Collect all parameters for AWG settings
-            self.sample_rate = 1250 
+            self.sample_rate = 1250
             self.clock_mode = 1
             self.reference_clock = 100
+            self.clock_output = 0
             self.card_mode = 32768
             self.trigger_ch = 2
             self.trigger_mode = 1
@@ -249,6 +251,38 @@ class Spectrum_M4I_6631_X8:
         answer = 'Spectrum M4I.6631-X8'
         return answer
 
+    def _clock_setup_guarded(self):
+        """
+        Write the clock registers (SPC_CLOCKMODE / SPC_REFERENCECLOCK /
+        SPC_SAMPLERATE) only if the card does not already hold the requested
+        values. Writing these registers relocks the sample-clock PLL; the AWG
+        and digitizer PLLs relock independently, so every relock re-draws
+        their relative clock phase (seen as a sporadic 4 ns AWG<->digitizer
+        shift between restarts). The card keeps its clock configuration across
+        spcm_vClose / spcm_hOpen (no CARD_RESET is issued anywhere), so a new
+        process can skip the writes and keep the PLL phase of the previous run.
+        """
+        target_rate = MEGA(self.sample_rate)
+
+        cur_mode = int32 (0)
+        cur_rate = int64 (0)
+        err = spcm_dwGetParam_i32 (self.hCard, SPC_CLOCKMODE, byref(cur_mode))
+        err += spcm_dwGetParam_i64 (self.hCard, SPC_SAMPLERATE, byref(cur_rate))
+
+        if self.clock_mode == 1:
+            if err == 0 and cur_mode.value == 1 and cur_rate.value == target_rate:
+                return
+            spcm_dwSetParam_i64 (self.hCard, SPC_SAMPLERATE, target_rate)
+        elif self.clock_mode == 32:
+            cur_ref = int64 (0)
+            err += spcm_dwGetParam_i64 (self.hCard, SPC_REFERENCECLOCK, byref(cur_ref))
+            if err == 0 and cur_mode.value == 32 and cur_ref.value == MEGA(self.reference_clock) and \
+               cur_rate.value == target_rate:
+                return
+            spcm_dwSetParam_i32 (self.hCard, SPC_CLOCKMODE, self.clock_mode)
+            spcm_dwSetParam_i64 (self.hCard, SPC_REFERENCECLOCK, MEGA(self.reference_clock))
+            spcm_dwSetParam_i64 (self.hCard, SPC_SAMPLERATE, target_rate)
+
     def awg_setup(self):
         """
         Write settings to the AWG card. No argument; No output
@@ -270,12 +304,11 @@ class Spectrum_M4I_6631_X8:
 
             spcm_dwSetParam_i32 (self.hCard, SPC_TIMEOUT, 10000)
             # general parameters of the card; internal/external clock
-            if self.clock_mode == 1:
-                spcm_dwSetParam_i64 (self.hCard, SPC_SAMPLERATE, MEGA(self.sample_rate))
-            elif self.clock_mode == 32:
-                spcm_dwSetParam_i32 (self.hCard, SPC_CLOCKMODE, self.clock_mode)
-                spcm_dwSetParam_i64 (self.hCard, SPC_REFERENCECLOCK, MEGA(self.reference_clock))
-                spcm_dwSetParam_i64 (self.hCard, SPC_SAMPLERATE, MEGA(self.sample_rate))
+            # (skipped when unchanged -- avoids a PLL relock; see _clock_setup_guarded)
+            self._clock_setup_guarded()
+
+            # sampling-clock output (Clock Out connector; sampling clock / 4)
+            spcm_dwSetParam_i32 (self.hCard, SPC_CLOCKOUT, self.clock_output)
 
             # change card mode and memory
             if self.card_mode == 32768 and self.sequence_mode == 0 and self.single_joined == 0:
@@ -1808,6 +1841,58 @@ class Spectrum_M4I_6631_X8:
                 return self.test_ref_clock
             else:
                 assert( 1 == 2 ), 'Incorrect argument'
+
+    def awg_clock_output(self, *mode):
+        """
+        Set or query the sampling-clock output (Clock Out connector). The M4i.66xx
+        outputs sampling clock / 4 (250 MHz at 1 GS/s); it can be used as the
+        external reference clock of the digitizer so that both cards derive their
+        sample clocks from one source (removes the independent PLL-relock phase
+        between the cards; see _clock_setup_guarded)
+        Input: awg_clock_output('On'); Clock output is 'On' or 'Off'
+        Default: 'Off';
+        Output: 'On'
+        """
+        if self.test_flag != 'test':
+            self.setting_change_count = 1
+
+            if len(mode) == 1:
+                md = str(mode[0])
+                if md == 'On':
+                    self.clock_output = 1
+                elif md == 'Off':
+                    self.clock_output = 0
+                else:
+                    general.message('Incorrect clock output; Only On and Off are available')
+                    sys.exit()
+
+                # to update on-the-fly
+                if self.state == 1:
+                    spcm_dwSetParam_i32 (self.hCard, SPC_CLOCKOUT, self.clock_output)
+                    spcm_dwSetParam_i32 (self.hCard, SPC_M2CMD, M2CMD_CARD_WRITESETUP)
+
+            elif len(mode) == 0:
+                if self.clock_output == 1:
+                    return 'On'
+                else:
+                    return 'Off'
+
+        elif self.test_flag == 'test':
+            self.setting_change_count = 1
+
+            if len(mode) == 1:
+                md = str(mode[0])
+                assert(md == 'On' or md == 'Off'), "Incorrect clock output; Only On and Off are available"
+                if md == 'On':
+                    self.clock_output = 1
+                elif md == 'Off':
+                    self.clock_output = 0
+
+            elif len(mode) == 0:
+                if self.clock_output == 1:
+                    return 'On'
+                else:
+                    return 'Off'
 
     def awg_card_mode(self, *mode):
         """
