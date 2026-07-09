@@ -86,7 +86,7 @@ class Spectrum_M4I_6631_X8:
             self.sample_rate = 1250 # MHz
             self.clock_mode = 1 # 1 is Internal; 32 is External
             self.reference_clock = 100 # MHz
-            self.clock_output = 0 # 1 means ON (Clock Out = sampling clock / 4); 0 means OFF
+            self.clock_output = 0 # 1 means ON (Clock Out = sampling clock / 8 above 71.68 MHz, / 4 below); 0 means OFF
             self.card_mode = 32768 # 32768 is Single; 512 is Multi; 262144 is Sequence
             self.trigger_ch = 2 # 1 is Software; 2 is External
             self.trigger_mode = 1 # 1 is Positive; 2 is Negative; 8 is High; 10 is Low
@@ -307,7 +307,7 @@ class Spectrum_M4I_6631_X8:
             # (skipped when unchanged -- avoids a PLL relock; see _clock_setup_guarded)
             self._clock_setup_guarded()
 
-            # sampling-clock output (Clock Out connector; sampling clock / 4)
+            # sampling-clock output (Clock Out connector; sampling clock / 8 above 71.68 MHz)
             spcm_dwSetParam_i32 (self.hCard, SPC_CLOCKOUT, self.clock_output)
 
             # change card mode and memory
@@ -1845,7 +1845,8 @@ class Spectrum_M4I_6631_X8:
     def awg_clock_output(self, *mode):
         """
         Set or query the sampling-clock output (Clock Out connector). The M4i.66xx
-        outputs sampling clock / 4 (250 MHz at 1 GS/s); it can be used as the
+        outputs sampling clock / 8 for sampling clocks above 71.68 MHz, else
+        sampling clock / 4 (datasheet); 125 MHz at 1 GS/s. It can be used as the
         external reference clock of the digitizer so that both cards derive their
         sample clocks from one source (removes the independent PLL-relock phase
         between the cards; see _clock_setup_guarded)
