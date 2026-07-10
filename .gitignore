@@ -14,3 +14,4 @@ atomize/device_modules/config/Metrolab_PT2025_config.ini
 atomize/temp.param
 atomize/temp.csv
 INSYS_OPTIMIZATION_START.md
+PARTIAL_READOUT_MIGRATION.md
