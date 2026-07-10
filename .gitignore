@@ -13,3 +13,4 @@ atomize/device_modules/Metrolab_PT2025.py
 atomize/device_modules/config/Metrolab_PT2025_config.ini
 atomize/temp.param
 atomize/temp.csv
+INSYS_OPTIMIZATION_START.md

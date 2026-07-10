@@ -91,11 +91,18 @@ data_i, data_q = digitizer_get_curve(100, 2)
 data_i, data_q = digitizer_get_curve(
     100, 2, live_mode=0, integral=False,
     current_scan=1, total_scan=1, skip_redundant=False)
+
+# Partial-range readout: only the point range updated by this call
+# comes back, together with its bounds
+data_i, data_q, (i, j) = digitizer_get_curve(
+    100, 2, current_scan=1, total_scan=1, partial=True)
 ```
 
 This function starts the data acquisition and [phase cycling](pulse_programmer.md#pulser_acquisition_cycle) the data. The argument `points` indicates the total number of points in the pulse experiment and the argument `phases` corresponds to the total number of phases in the pulse experiment. The data will be phase cycled according to the phase list given in the [`DETECTION` pulse](pulse_programmer.md#pulser_pulse). The details of phase cycling are given in the function [`pulser_acquisition_cycle()`](pulse_programmer.md#pulser_acquisition_cycle). A keyword `integral` allows integrating the data over a given [window](#digitizer_read_settings). The keywords `current_scan` and `total_scan` indicate the current and total number of repetitive scans in the experiment to maximize the efficiency of the Insys FM214x3GDA. The value of the keyword `current_scan` should increase during the experiment.
 
 The keyword `live_mode` controls the accumulation behaviour. In the default mode (`live_mode=0`) every transferred buffer is summed into the running on-board average, so the returned arrays correspond to all the data accumulated so far. In `live_mode=1` the running accumulators are reset on entry and the function returns a snapshot of only the buffers that arrived since the previous call; this is intended for live plotting. The keyword `skip_redundant` affects how repeated packets of the same point are treated: with the default `False` every parsed packet contributes to the running average (correct on-board-averaging semantics), while `True` makes only the first packet of each consecutive run of the same point contribute. If no new buffer has been transferred from the card at the time of execution the function returns `None, None` (see also [`digitizer_at_exit()`](#digitizer_at_exit)).
+
+The keyword `partial` (default `False`) enables the **partial-range readout**. With `partial=True` the function returns three values instead of two: only the point range recomputed from the buffers of *this* call and its bounds — `(data_i[:, i:j].T, data_q[:, i:j].T, (i, j))` for a curve, or the length-`(j - i)` integral arrays plus `(i, j)` with `integral=True`; `(None, None, None)` is returned when no new buffer has arrived. The script patches the slice into its own persistent full-size array (`data[..., i:j] = a`) instead of copying the whole `points × window` frame on every readout, which makes the per-readout overhead independent of the detection-window length and the number of points. The returned values always reflect the full running average for the touched points, so assignment (not accumulation) is the correct way to apply them. For live plotting of a partial curve use [`general.update_2d()`](plotting_functions/usage.md#2d-partial-updates), which pushes only the changed columns; the integral form returns plain 1D slices, so the usual [`plot_1d()`](plotting_functions/usage.md#1d-plotting) of the persistent arrays needs no change. The full-array form (default) is unaffected.
 
 !!! note "Performance tip"
     Since the function returns `None, None` when no new buffer has been transferred,
@@ -111,7 +118,20 @@ The keyword `live_mode` controls the accumulation behaviour. In the default mode
     ```
 
     Skipping the plot call on empty acquisitions avoids redundant work and keeps
-    the acquisition loop fast.
+    the acquisition loop fast. For long detection windows or large point counts,
+    prefer the partial-range form — it removes the remaining full-array copy and
+    redraw entirely:
+
+    ```python
+    a, b, rng = digitizer_get_curve(POINTS, PHASES, current_scan = k,
+                                    total_scan = SCANS, partial = True)
+
+    if a is not None:
+        i0, i1 = rng
+        data[0][:, i0:i1] = a
+        data[1][:, i0:i1] = b
+        process = general.update_2d(EXP_NAME, data, i0, i1, ..., pr = process)
+    ```
 
 ---
 
@@ -245,9 +265,9 @@ digitizer_reference_clock()       # -> int, MHz (query)
 digitizer_reference_clock(100)    # default: 100 MHz
 ```
 
-This function queries or sets the digitizer reference clock (in MHz) for `External` mode of the [`digitizer_clock_mode()`](#digitizer_clock_mode) function. If there is no argument the function will return the current reference clock. If there is an argument the specified reference clock will be set. Default value is 100 MHz.
+This function queries or sets the digitizer reference clock (in MHz) for `External` mode of the [`digitizer_clock_mode()`](#digitizer_clock_mode) function. If there is no argument the function will return the current reference clock. If there is an argument the specified reference clock will be set. The reference clock can also be taken from the Clock Out connector of the AWG card (see [`awg_clock_output()`](awg.md#awg_clock_output)), so that the digitizer and the AWG derive their sampling clocks from one source. Default value is 100 MHz.
 
-**Range:** `10 MHz` – `100 MHz`
+**Range:** `10 MHz` – `1000 MHz`
 {: .enum }
 
 !!! note
@@ -474,7 +494,7 @@ This function sets or queries enabled flows of data. If there is no argument the
 digitizer_read_settings()    # read settings from digitizer.param
 ```
 
-This function reads all the settings from a special text file [`digitizer.param`](https://github.com/Anatoly1010/Atomize_ITC/tree/master/atomize/control_center) and writes them to the digitizer using the [`digitizer_setup()`](#digitizer_setup) function.
+This function reads all the settings from a special text file [`digitizer.param`](https://github.com/Anatoly1010/Atomize_ITC/tree/master/atomize/control_center) and writes them to the digitizer using the [`digitizer_setup()`](#digitizer_setup) function. It also reads the zero-, first-, and second-order phase-correction coefficients stored in the file (set in the phasing control center); these become the default phase corrections used by the [`digitizer_iq()`](#digitizer_iq) function when its corresponding arguments are omitted.
 
 !!! note
     This function is not available for L card L-502.
@@ -518,20 +538,25 @@ This function is available only for Insys FM214x3GDA and is similar to the [`dig
 
 ---
 
-### digitizer_iq(arr_i, arr_q, freq, ph, ph1, ph2, integral=False) { #digitizer_iq data-toc-label="digitizer_iq" }
+### digitizer_iq(arr_i, arr_q, freq, ph=None, ph1=None, ph2=None, integral=False) { #digitizer_iq data-toc-label="digitizer_iq" }
 
 ```python
 # Software down-conversion of the quadrature data
 data_i, data_q = digitizer_iq(data_i, data_q, freq, ph, ph1, ph2)
+
+# Phase corrections taken from digitizer_read_settings()
+data_i, data_q = digitizer_iq(data_i, data_q, freq)
 
 # With integration over the window
 res_i, res_q = digitizer_iq(
     data_i, data_q, freq, ph, ph1, ph2, integral=True)
 ```
 
-This function performs a software digital down-conversion (IQ demodulation) with phase correction of the quadrature data returned by the [`digitizer_get_curve()`](#digitizer_get_curve-points) function. The arguments `arr_i` and `arr_q` are the in-phase and quadrature arrays (both 1D and 2D arrays are accepted). The complex signal `arr_i + 1j*arr_q` is multiplied by `exp(-1j*(2*pi*freq*t + ph + ph1*t + ph2*t**2))`, where `t` is the time axis built from the current sampling frequency. For Insys FM214x3GDA this frequency is `2.5 GHz` divided by the [decimation](#digitizer_decimation) coefficient; for the Spectrum M4I.4450-X8 and M4I.2211-X8 digitizers it is the configured [sample rate](#digitizer_sample_rate). The argument `freq` (in MHz) is the down-conversion frequency offset, `ph` is the zero-order (constant) phase correction in radians, while `ph1` and `ph2` are the first- and second-order phase-correction coefficients. The first- and second-order terms are applied only if at least one of them is nonzero.
+This function performs a software digital down-conversion (IQ demodulation) with phase correction of the quadrature data returned by the [`digitizer_get_curve()`](#digitizer_get_curve-points) function. The arguments `arr_i` and `arr_q` are the in-phase and quadrature arrays (both 1D and 2D arrays are accepted). The complex signal `arr_i + 1j*arr_q` is multiplied by `exp(-1j*(2*pi*freq*t + ph + ph1*t + ph2*t**2))`, where `t` is the time axis built from the current sampling frequency. For Insys FM214x3GDA this frequency is `2.5 GHz` divided by the [decimation](#digitizer_decimation) coefficient; for the Spectrum M4I.4450-X8 and M4I.2211-X8 digitizers it is the configured [sample rate](#digitizer_sample_rate). The argument `freq` (in MHz) is the down-conversion frequency offset, `ph` is the zero-order (constant) phase correction in radians, while `ph1` and `ph2` are the first- and second-order phase-correction coefficients. The first- and second-order terms are applied only if at least one of them is nonzero. If `ph`, `ph1`, or `ph2` is omitted (or `None`), the corresponding coefficient falls back to the value read from `digitizer.param` by [`digitizer_read_settings()`](#digitizer_read_settings) (or `0.0` if it was never called), so the phase corrections dialed in the phasing control center are applied automatically.
 
 If the keyword `integral` is `True` and the input arrays are 2D, the corrected data is integrated over the [window](#digitizer_window) and two 1D arrays (`res_i`, `res_q`) are returned; otherwise the corrected in-phase and quadrature arrays are returned. If the input arrays contain `np.nan` (no new data) they are returned unchanged.
+
+Since the phase correction depends only on the time axis (the first axis of the input arrays), the function can equally be applied to a column subset of the full result — e.g. the slice returned by the [partial-range readout](#digitizer_get_curve-points) — and gives exactly the same per-point integrals as slicing the full-array result. This is how the phasing control-center tools keep the per-readout correction cost proportional to the update size.
 
 !!! note
     This function is available for Insys FM214x3GDA and the Spectrum M4I.4450-X8 / M4I.2211-X8 digitizers.

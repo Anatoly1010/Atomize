@@ -268,6 +268,34 @@ class LivePlotClient(object):
         self.send_to_plotter(meta, arr)
         #self.send_to_plotter({'name':'none', 'operation':'none'}, np.array([0]))
 
+    def update_z(self, name, arr, index, full_shape, start_step=None, xname='X axis',\
+     xscale='arb. u.', yname='Y axis', yscale='arb. u.', zname='Z axis', zscale='arb. u.', text=''):
+        '''
+        Partial rank-2 update: replace the columns
+        [index : index + arr.shape[-1]) along the LAST axis of the image
+        `name`, leaving every other column as it is. The receiver keeps a
+        full-size array of shape `full_shape` (allocated zero on the first
+        update or whenever the shape changes) and redraws it with the slice
+        applied, so only the changed columns cross the shared memory.
+        '''
+        arr = np.asarray(arr)
+        meta = {
+            'name': name,
+            'operation':'update_z',
+            'rank': 2,
+            'start_step': start_step,
+            'index': int(index),
+            'full_shape': [int(s) for s in full_shape],
+            'X': xscale,
+            'Y': yscale,
+            'Z': zscale,
+            'Xname': xname,
+            'Yname': yname,
+            'Zname': zname,
+            'value': text,
+            }
+        self.send_to_plotter(meta, arr)
+
     def label(self, name, text):
         self.send_to_plotter({
             'name': name,

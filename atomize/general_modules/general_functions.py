@@ -142,7 +142,9 @@ class _PlotWorker:
     (~microseconds) and moves on, and only the freshest state of each live plot
     is drawn. Superseded intermediate frames are skipped; this is safe because
     the `pr=` path only does full-array replots (plot_1d / plot_2d / label) whose
-    data lives in the script arrays and on disk. The incremental append_1d path
+    data lives in the script arrays and on disk, or update_2d drain jobs, which
+    re-read their pending dirty-column union at send time (so a surviving job
+    covers every superseded one — see update_2d). The incremental append_1d path
     has no `pr=` and stays synchronous, so no appended points are ever dropped."""
 
     def __init__(self):
@@ -358,6 +360,76 @@ def append_2d(strname, data, start_step=None,
     _plotter().append_z(strname, data, start_step=start_step,
             xname=xname, xscale=xscale, yname=yname, yscale=yscale,
             zname=zname, zscale=zscale)
+
+# Pending dirty column ranges for update_2d, keyed by plot name. update_2d
+# merges each call's [lo, hi) into the pending union under the lock; the
+# (name-coalesced) drain job pops the union and slices those columns FRESH
+# from the caller's live array at send time. So when the plot worker collapses
+# several queued updates of one plot into a single job, no columns are lost —
+# the surviving job covers the union of every superseded range.
+_update_2d_lock = threading.Lock()
+_update_2d_ranges = {}
+
+def _drain_update_2d(strname, data, start_step=None,
+                     xname='X', xscale='arb. u.', yname='Y',
+                     yscale='arb. u.', zname='Z', zscale='arb. u.', text=''):
+    with _update_2d_lock:
+        rng = _update_2d_ranges.pop(strname, None)
+    if rng is None:
+        return
+    lo, hi = rng
+    arr = np.asarray(data)
+    _plotter().update_z(strname, arr[..., lo:hi], lo, arr.shape,
+                        start_step=start_step, xname=xname, xscale=xscale,
+                        yname=yname, yscale=yscale, zname=zname, zscale=zscale,
+                        text=text)
+
+def update_2d(strname, data, lo, hi, start_step=None,
+    xname='X', xscale='arb. u.', yname='Y', yscale='arb. u.', zname='Z',
+    zscale='arb. u.', pr='None', text=''):
+    """
+    Incremental counterpart of plot_2d for partial-range readouts (e.g.
+    digitizer_get_curve(..., partial=True)): redraw only the columns [lo:hi)
+    along the LAST axis of `data`; the plotter keeps the rest of the image.
+
+    `data` must be the script's live full-frame array, updated in place
+    (data[..., lo:hi] = a) before each call — the columns are sliced out of it
+    at send time, so consecutive updates of one plot coalesce into a single
+    frame covering the union of their ranges: a slow GUI drops no columns and
+    never paces the measurement loop. Per readout this moves O(window × slice)
+    instead of O(window × points), making the plot cost independent of the
+    total array size.
+    """
+    if _in_test():
+        return None
+    arr = np.asarray(data)
+    lo, hi = int(lo), int(hi)
+    if lo >= hi:
+        return None if pr == 'None' and not _async_default else _ASYNC_HANDLE
+    # Above the display cap the full-frame path stride-downsamples the image,
+    # which a column-range patch cannot represent — fall back to a full replot.
+    if int(np.prod(arr.shape[-2:])) > _PLOT_MAX_CELLS_2D:
+        return plot_2d(strname, data, start_step=start_step, xname=xname,
+                       xscale=xscale, yname=yname, yscale=yscale, zname=zname,
+                       zscale=zscale, pr=pr, text=text)
+    if pr == 'None' and _async_default:
+        pr = _ASYNC_HANDLE
+    with _update_2d_lock:
+        rng = _update_2d_ranges.get(strname)
+        if rng is None:
+            _update_2d_ranges[strname] = [lo, hi]
+        else:
+            rng[0] = min(rng[0], lo)
+            rng[1] = max(rng[1], hi)
+    args = (strname, data)
+    kwargs = {'start_step': start_step, 'xname': xname, 'xscale': xscale,
+              'yname': yname, 'yscale': yscale, 'zname': zname,
+              'zscale': zscale, 'text': text}
+    if pr == 'None':
+        _safe_call(_drain_update_2d, args, kwargs)
+        return None
+    _get_plot_worker().submit(strname, _drain_update_2d, args, kwargs)
+    return _ASYNC_HANDLE
 
 def text_label(strlabel, text, value, pr='None'):
     if _in_test():

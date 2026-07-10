@@ -345,6 +345,10 @@ class MainWindow(QMainWindow):
             znam = meta['Zname']
             zscal = meta['Z']
             tex = meta['value']
+            # Full frame: refresh the store update_z patches into. (The
+            # displayed imageItem.image cannot serve as the store — for a 3D
+            # stack it only holds the currently shown frame.)
+            pw._z_store = arr
             if start_step is not None:
                 (x0, dx), (y0, dy) = start_step
                 pw.setAxisLabels(xname=xnam, xscale =xscal, yname=ynam, yscale =yscal,\
@@ -396,6 +400,42 @@ class MainWindow(QMainWindow):
             new_ys = list(ys)
             new_ys.append(yn)
             pw.plot(new_xs, new_ys, parametric=True, name=label, scatter='False')
+
+
+        elif operation == 'update_z':
+            # Partial rank-2 update: arr holds only the columns
+            # [i0 : i0 + arr.shape[-1]) along the last axis. Patch them into
+            # the full-size store kept on the widget and redraw exactly like
+            # plot_z. A missing / wrong-shape store (first frame after a
+            # dropped full plot, or a geometry change) is re-allocated to
+            # zeros — the untouched columns fill in as later updates arrive.
+            full_shape = tuple(meta['full_shape'])
+            i0 = meta['index']
+            store = getattr(pw, '_z_store', None)
+            if store is None or store.shape != full_shape:
+                store = np.zeros(full_shape, dtype=arr.dtype)
+                pw._z_store = store
+            store[..., i0:i0 + arr.shape[-1]] = arr
+            start_step = meta['start_step']
+            xnam = meta['Xname']
+            xscal = meta['X']
+            ynam = meta['Yname']
+            yscal = meta['Y']
+            znam = meta['Zname']
+            zscal = meta['Z']
+            tex = meta.get('value', '')
+            if start_step is not None:
+                (x0, dx), (y0, dy) = start_step
+                pw.setAxisLabels(xname=xnam, xscale =xscal, yname=ynam, yscale =yscal,\
+                zname=znam, zscale =zscal)
+                pw.setImage(store, pos=(x0, y0), scale=(dx, dy), autoLevels=False)
+            else:
+                pw.setAxisLabels(xname=xnam, xscale =xscal, yname=ynam, yscale =yscal,\
+                 zname=znam, zscale =zscal)
+                pw.setImage(store, autoLevels=False)
+            # Graph title (scan / point counter), same as plot_z
+            if tex != '':
+                pw.setTitle(tex)
 
 
         elif operation == 'append_z':

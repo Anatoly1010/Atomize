@@ -1867,6 +1867,9 @@ class Insys_FPGA:
             i_pt = i_nid // phases
             j_pt = j_nid // phases
             n_nid = j_nid - i_nid
+            # Point range recomputed by THIS call; read by digitizer_get_curve
+            # when the caller asked for a partial (slice-only) return.
+            self._touched_pt_range = (i_pt, j_pt)
 
             counts = self.count_nip[i_nid:j_nid]
             safe_counts = np.where(counts > 0, counts, 1)
@@ -2087,7 +2090,7 @@ class Insys_FPGA:
 
     def digitizer_get_curve(self, p, ph, live_mode=0, integral=False,
                             current_scan=1, total_scan=1,
-                            skip_redundant=False):
+                            skip_redundant=False, partial=False):
         """
         p - points
         ph - phases
@@ -2105,6 +2108,17 @@ class Insys_FPGA:
         skip_redundant=True: matches the old digitizer_get_curve2
             behaviour — only the first packet of each consecutive
             same-nid run contributes.
+
+        partial=False (default): return the FULL result, exactly as before —
+            (di.T, dq.T) of shape (window-samples, points), or the full
+            integral pair. (None, None) when no buffer arrived this call.
+        partial=True: return only the point range recomputed this call plus
+            its bounds — (di[i:j].T, dq[i:j].T, (i, j)) (integral: the
+            length-(j-i) sums plus (i, j)); (None, None, None) when no
+            buffer arrived. The caller assigns the slice into its own
+            full-size array (data[..., i:j] = a) instead of copying the
+            whole frame, which keeps the per-readout cost independent of
+            the detection-window length and the number of points.
         """
         self.l_mode = live_mode
 
@@ -2191,7 +2205,7 @@ class Insys_FPGA:
                     time.sleep(_GIM_SWCOMP_POLL_S)
 
             if not any_processed:
-                return None, None
+                return (None, None, None) if partial else (None, None)
 
             di, dq = self.pulser_acquisition_cycle(
                 None, None, p, ph, adc_window,
@@ -2204,14 +2218,36 @@ class Insys_FPGA:
 
             if integral:
                 scale = 0.4 * self.dec_coef
+                if partial:
+                    i_pt, j_pt = self._touched_pt_range
+                    res_i = np.sum(di[i_pt:j_pt, self.win_left:self.win_right],
+                                   axis=1) * scale
+                    res_q = np.sum(dq[i_pt:j_pt, self.win_left:self.win_right],
+                                   axis=1) * scale
+                    return res_i, res_q, (i_pt, j_pt)
                 res_i = np.sum(di[:, self.win_left:self.win_right],
                                axis=1) * scale
                 res_q = np.sum(dq[:, self.win_left:self.win_right],
                                axis=1) * scale
                 return res_i, res_q
+            if partial:
+                i_pt, j_pt = self._touched_pt_range
+                return di[i_pt:j_pt].T, dq[i_pt:j_pt].T, (i_pt, j_pt)
             return di.T, dq.T
 
         elif self.test_flag == 'test':
+
+            # Partial mode in test: run the normal test-mode path once and
+            # report the full point range as "touched".
+            if partial:
+                res = self.digitizer_get_curve(
+                    p, ph, live_mode=live_mode, integral=integral,
+                    current_scan=current_scan, total_scan=total_scan,
+                    skip_redundant=skip_redundant)
+                a, b = res if res is not None else (None, None)
+                if a is None:
+                    return None, None, None
+                return a, b, (0, int(p))
 
             self.count_nip = np.ones( (int(p * ph)), dtype = np.int32 )
             #####
