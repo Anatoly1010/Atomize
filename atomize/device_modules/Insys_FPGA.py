@@ -6,8 +6,10 @@ import sys
 import re
 import math
 import time
+import queue
 import ctypes
 import fileinput
+import threading
 from copy import deepcopy
 from operator import iconcat
 from functools import reduce
@@ -533,6 +535,19 @@ class Insys_FPGA:
             self.win_left                          = 0
             self.win_right                         = 2
             self.dec_coef                          = 1
+            self._acc_dec                          = 1
+            # v6 background buffer processing (see _acq_worker_loop):
+            # 1 = parse/accumulate/finalize in a worker thread (default),
+            # 0 = synchronous v5 path. Toggle via digitizer_processing_thread().
+            self.proc_thread                       = 1
+            self._acq_worker                       = None
+            self._acq_queue                        = None
+            self._acq_pool                         = None
+            self._acq_pool_bufsize                 = 0
+            self._acq_lock                         = threading.Lock()
+            self._acq_dirty                        = None
+            self._acq_pending                      = 0
+            self._acq_error                        = None
             self.awg_start                         = 0
 
             self.mes                               = 0
@@ -593,6 +608,19 @@ class Insys_FPGA:
             self.win_left                          = 0
             self.win_right                         = 2
             self.dec_coef                          = 1
+            self._acc_dec                          = 1
+            # v6 background buffer processing (see _acq_worker_loop):
+            # 1 = parse/accumulate/finalize in a worker thread (default),
+            # 0 = synchronous v5 path. Toggle via digitizer_processing_thread().
+            self.proc_thread                       = 1
+            self._acq_worker                       = None
+            self._acq_queue                        = None
+            self._acq_pool                         = None
+            self._acq_pool_bufsize                 = 0
+            self._acq_lock                         = threading.Lock()
+            self._acq_dirty                        = None
+            self._acq_pending                      = 0
+            self._acq_error                        = None
             self.awg_start                         = 0
 
             self.mes                               = 0
@@ -1827,11 +1855,18 @@ class Insys_FPGA:
     def pulser_acquisition_cycle(self, data1, data2, points, phases, adc_window,
                                  acq_cycle=['+x'], lo=None, hi=None):
         """
-        v4 slice-only phase-combine. Recomputes the answer for the point-range
+        v5 slice-only fused finalize. Recomputes the answer for the point-range
         whose nids span [lo, hi] (inclusive). Direct ASSIGN to
         self.answer[i_pt:j_pt] — no accumulation across calls, no zeroing pass
         for multi-scan: the running data_raw[nid] / count_nip[nid] already
         encodes every scan so far.
+
+        v5: normalization and phase-combine are fused into one multiply pass
+        per phase straight from the accumulator into the answer memory (no
+        full-size float temporary, persistent scratch). Decimation happens
+        at accumulate time (dec-summed accumulator, layout locked as
+        self._acc_dec when data_raw is allocated), so this function only
+        divides the normalization by dec.
 
         Legacy `data1` / `data2` arguments are accepted (so any external
         caller using v1's signature still works) but ignored; the inputs come
@@ -1844,8 +1879,12 @@ class Insys_FPGA:
         """
         if self.test_flag != 'test':
 
-            counts_adc = int(adc_window * 8 / self.dec_coef)
-            counts_adc_full = int(adc_window * 16)
+            # Use the decimation the accumulator was allocated with (v5
+            # decimate-on-accumulate) — not the current dec_coef, which the
+            # user may have changed since the acquisition started.
+            dec = int(getattr(self, '_acc_dec', self.dec_coef))
+            counts_adc = int(adc_window * 8 / dec)
+            counts_adc_full = int(adc_window * 16 // dec)
             total_points = int(points * phases)
 
             # (Re-)allocate the answer array if its shape / dtype changes.
@@ -1877,51 +1916,65 @@ class Insys_FPGA:
                 i_nid * counts_adc_full:j_nid * counts_adc_full
             ].reshape(n_nid, counts_adc_full)
 
-            norm = self.adc_sens / (self.gimSum_brd * phases)
+            # Decimation happened at accumulate time (dec-SUM per group of
+            # `dec` consecutive complex samples, see _process_packet_stream);
+            # dividing the normalization by dec turns the sum into the boxcar
+            # mean, so adc_sens and the 0.4*dec_coef integral scaling stay
+            # valid and every sample still contributes (SNR/anti-aliasing
+            # exactly as before).
+            norm = self.adc_sens / (self.gimSum_brd * phases * dec)
             fac32 = (norm / safe_counts).astype(np.float32)[:, None, None]
-            # Decimation: boxcar-average each group of `dec` consecutive samples
-            # instead of keeping only the first and discarding the rest. Taking
-            # the mean (not the sum) keeps the same amplitude scale as dec=1, so
-            # adc_sens and the 0.4*dec_coef integral scaling stay valid, while
-            # using every sample improves SNR / anti-aliasing.
-            # Everything downstream runs in float32 packed [I, Q] pairs: the
-            # answer is stored as complex64 (= float32 pairs) anyway, and
-            # data_raw values are bounded by count_nip * gimSum * 2^13 << 2^24,
-            # so float32 arithmetic is exact enough end to end.
-            dec = self.dec_coef
-            if dec > 1:
-                # astype->reshape->mean in float64 benchmarks fastest for the
-                # grouped mean (numpy middle-axis reductions in int32/float32
-                # are several times slower); pack the channels afterwards.
-                iq = np.empty((n_nid, counts_adc, 2), dtype=np.float32)
-                iq[..., 0] = (data_2d[:, 0::2].astype(np.float64)
-                              .reshape(n_nid, counts_adc, dec).mean(axis=2))
-                iq[..., 1] = (data_2d[:, 1::2].astype(np.float64)
-                              .reshape(n_nid, counts_adc, dec).mean(axis=2))
-                iq *= fac32
-            else:
-                # One contiguous pass over the interleaved [I Q I Q ...] rows.
-                iq = np.multiply(data_2d.reshape(n_nid, counts_adc, 2), fac32,
-                                 dtype=np.float32)
 
-            # Phase-combine straight into the answer slice viewed as float32
-            # [re, im] pairs (the complex64 memory layout): one or two real
-            # adds per phase -- no complex128 temporaries, no final cast pass.
+            # v5 fused normalize + phase-combine: one multiply pass per
+            # phase straight from the (int) accumulator slice into float32
+            # [re, im] pairs (the complex64 memory layout of the answer) —
+            # no full-size iq temporary and no per-call allocation (the
+            # scratch persists and grows on demand). data_raw values are
+            # bounded by count_nip * gimSum * 2^13 * dec, so float32
+            # arithmetic is exact enough end to end.
+            d3 = data_2d.reshape(n_nid, counts_adc, 2)
+            n_pts_slice = j_pt - i_pt
             out = self.answer[i_pt:j_pt].view(np.float32).reshape(
-                j_pt - i_pt, counts_adc, 2)
-            out[:] = 0.0
+                n_pts_slice, counts_adc, 2)
+
+            scr = getattr(self, '_fin_scratch', None)
+            if (scr is None or scr.shape[1] != counts_adc
+                    or scr.shape[0] < n_pts_slice):
+                scr = np.empty((n_pts_slice, counts_adc, 2),
+                               dtype=np.float32)
+                self._fin_scratch = scr
+            tmp = scr[:n_pts_slice]
+
             for phase_idx, label in enumerate(acq_cycle):
-                sub = iq[phase_idx::phases]
+                sub = d3[phase_idx::phases]
+                fk = fac32[phase_idx::phases]
+                first = phase_idx == 0
                 if label in ('+x', '+'):        # s = +1
-                    out += sub
+                    np.multiply(sub, fk, out=out if first else tmp,
+                                dtype=np.float32)
+                    if not first:
+                        out += tmp
                 elif label in ('-x', '-'):      # s = -1
-                    out -= sub
+                    np.multiply(sub, -fk, out=out if first else tmp,
+                                dtype=np.float32)
+                    if not first:
+                        out += tmp
                 elif label in ('+y', '+i'):     # s = +1j: re -= Q, im += I
-                    out[..., 0] -= sub[..., 1]
-                    out[..., 1] += sub[..., 0]
+                    np.multiply(sub, fk, out=tmp, dtype=np.float32)
+                    if first:
+                        out[..., 0] = -tmp[..., 1]
+                        out[..., 1] = tmp[..., 0]
+                    else:
+                        out[..., 0] -= tmp[..., 1]
+                        out[..., 1] += tmp[..., 0]
                 elif label in ('-y', '-i'):     # s = -1j: re += Q, im -= I
-                    out[..., 0] += sub[..., 1]
-                    out[..., 1] -= sub[..., 0]
+                    np.multiply(sub, fk, out=tmp, dtype=np.float32)
+                    if first:
+                        out[..., 0] = tmp[..., 1]
+                        out[..., 1] = -tmp[..., 0]
+                    else:
+                        out[..., 0] += tmp[..., 1]
+                        out[..., 1] -= tmp[..., 0]
                 else:
                     raise KeyError(f'Unknown acquisition cycle phase: {label}')
 
@@ -2046,6 +2099,14 @@ class Insys_FPGA:
         """
         if self.test_flag != 'test':
 
+            # Stop the background processing thread first (bounded join;
+            # the worker never touches the board, so a hung worker cannot
+            # block the card release below).
+            try:
+                self._acq_worker_stop()
+            except Exception:
+                pass
+
             if getattr(self, '_brd_open', False):
                 # reverse of start_brd(): stop GIM sequencing, DAC output and the
                 # input switch, then release the board. Order matches the firmware
@@ -2088,6 +2149,157 @@ class Insys_FPGA:
         answer = 'Insys 2.5 GHz 14 bit ADC'
         return answer
 
+    # ---------------- v6 background buffer processing ----------------
+    #
+    # Threading model (exp mode only; live mode stays fully synchronous):
+    #   MAIN thread : the only thread that ever touches the card. It drains
+    #       ready DMA buffers into a rotating pool of ctypes buffers and
+    #       enqueues them; it never parses. It reads self.answer slices for
+    #       the point-ranges the worker reports as freshly finalized.
+    #   WORKER thread: single consumer, FIFO — packet continuation across
+    #       buffer boundaries (tail_carry) makes parsing inherently
+    #       sequential, and arrival order preserves exactly the synchronous
+    #       semantics. Sole owner of data_raw / count_nip / tail_carry /
+    #       answer; runs the same gen_2d_array_from_buffer +
+    #       pulser_acquisition_cycle as the synchronous path and merges the
+    #       touched point-range into _acq_dirty under _acq_lock.
+    #
+    # Consistency: intermediate reads may transiently mix counts at a
+    # phase-boundary column (float32 stores are atomic, values differ by
+    # one count of the running average); the range stays dirty and is
+    # redelivered, and the drain call of the last scan flushes the queue
+    # before returning, so the final data is exact. digitizer_at_exit
+    # additionally flushes + recomputes the full answer (Stop mid-scan).
+    #
+    # Teardown: pulser_close() stops the worker via sentinel with a bounded
+    # join (daemon thread — a hung worker can never block card release).
+    # Worker exceptions are re-raised in the main thread from
+    # digitizer_get_curve; exit paths flush best-effort without raising.
+
+    def _acq_worker_start(self, n_pool=4):
+        """(Re)create the buffer pool and worker thread if needed."""
+        if (self._acq_worker is not None and self._acq_worker.is_alive()
+                and self._acq_pool_bufsize == self.nStrmBufSizeb_brd):
+            return
+        self._acq_worker_stop()
+        self._acq_queue = queue.Queue()
+        self._acq_pool = queue.Queue()
+        for _ in range(n_pool):
+            self._acq_pool.put((ctypes.c_int * self.nStrmBufSizeb_brd)())
+        self._acq_pool_bufsize = self.nStrmBufSizeb_brd
+        self._acq_error = None
+        self._acq_dirty = None
+        self._acq_pending = 0
+        self._acq_worker = threading.Thread(
+            target=self._acq_worker_loop, name='InsysADCProcessing',
+            daemon=True)
+        self._acq_worker.start()
+
+    def _acq_worker_loop(self):
+        """Worker: parse + accumulate + finalize each queued buffer."""
+        while True:
+            item = self._acq_queue.get()
+            if item is None:
+                return
+            buf, p, ph, adc_window, skip_redundant = item
+            try:
+                # After an error, keep draining items (returning their
+                # buffers) so the main thread never deadlocks on the pool,
+                # but stop processing — the error is re-raised there.
+                if self._acq_error is None:
+                    lo, hi = self.gen_2d_array_from_buffer(
+                        np.frombuffer(buf, dtype=np.int32),
+                        adc_window, p, ph, 0,
+                        skip_redundant=skip_redundant)
+                    if lo is not None:
+                        self.pulser_acquisition_cycle(
+                            None, None, p, ph, adc_window,
+                            acq_cycle=self.detection_phase_list,
+                            lo=lo, hi=hi)
+                        i_pt, j_pt = self._touched_pt_range
+                        with self._acq_lock:
+                            d = self._acq_dirty
+                            self._acq_dirty = (
+                                (i_pt, j_pt) if d is None
+                                else (min(d[0], i_pt), max(d[1], j_pt)))
+            except Exception as exc:
+                self._acq_error = exc
+            finally:
+                self._acq_pool.put(buf)
+                with self._acq_lock:
+                    self._acq_pending -= 1
+
+    def _acq_get_pool_buffer(self):
+        """Take a free pool buffer (backpressure if the worker lags),
+        raising instead of blocking forever if the worker died."""
+        while True:
+            try:
+                return self._acq_pool.get(timeout=1.0)
+            except queue.Empty:
+                self._acq_check_error()
+                if not self._acq_worker.is_alive():
+                    raise RuntimeError(
+                        'Insys ADC processing thread died unexpectedly.')
+
+    def _acq_flush(self, raise_error=True, timeout=None):
+        """Wait until the worker has processed every queued buffer."""
+        if self._acq_worker is None:
+            return
+        t0 = time.monotonic()
+        while True:
+            with self._acq_lock:
+                pending = self._acq_pending
+            if pending <= 0:
+                break
+            if not self._acq_worker.is_alive():
+                break
+            if timeout is not None and time.monotonic() - t0 > timeout:
+                break
+            time.sleep(_GIM_SWCOMP_POLL_S)
+        if raise_error:
+            self._acq_check_error()
+
+    def _acq_check_error(self):
+        """Re-raise a worker exception in the main thread."""
+        exc = self._acq_error
+        if exc is not None:
+            self._acq_error = None
+            raise exc
+
+    def _acq_worker_stop(self, timeout=5.0):
+        """Stop the worker (bounded — must never block card release)."""
+        w = self._acq_worker
+        if w is None:
+            return
+        try:
+            self._acq_queue.put(None)
+            w.join(timeout)
+        except Exception:
+            pass
+        self._acq_worker = None
+        self._acq_queue = None
+        self._acq_pool = None
+        self._acq_pool_bufsize = 0
+
+    def digitizer_processing_thread(self, *state):
+        """
+        Enable (1, default) or disable (0) the background processing
+        thread; query with no arguments. Takes effect from the next
+        acquisition. With 0 the digitizer runs the synchronous v5 path.
+        """
+        if self.test_flag != 'test':
+            if len(state) == 1:
+                self.proc_thread = int(state[0])
+            else:
+                return self.proc_thread
+        elif self.test_flag == 'test':
+            if len(state) == 1:
+                assert int(state[0]) in (0, 1), \
+                    'Incorrect processing thread state; only 0 or 1 is available'
+                self.proc_thread = int(state[0])
+            else:
+                return self.proc_thread
+
     def digitizer_get_curve(self, p, ph, live_mode=0, integral=False,
                             current_scan=1, total_scan=1,
                             skip_redundant=False, partial=False):
@@ -2095,13 +2307,19 @@ class Insys_FPGA:
         p - points
         ph - phases
 
-        v4 streaming parser. Drains ready driver buffers via the in-place
-        gen_2d_array_from_buffer, then recomputes the answer for whichever
-        point range was touched this call.
+        v6: in experiment mode the ready driver buffers are drained into a
+        rotating buffer pool and processed (parse + accumulate + finalize)
+        by a single background worker thread, so the processing overlaps
+        the acquisition instead of blocking this call; the call returns
+        whichever point range the worker finalized since the previous
+        call. The drain call of the last scan waits for the worker, so the
+        final data is exact. Disable with digitizer_processing_thread(0)
+        to get the synchronous v5 path (identical results).
 
         In live mode (live_mode=1), self.data_raw / self.count_nip /
         self.tail_carry are reset on entry so the call returns a snapshot
-        of just the buffers that arrived since the previous call.
+        of just the buffers that arrived since the previous call; live
+        mode always processes synchronously.
 
         skip_redundant=False (default): every parsed packet is summed into
             the running average — correct on-board-averaging semantics.
@@ -2129,8 +2347,28 @@ class Insys_FPGA:
 
             # Lazy allocate on first non-test call (or every live-mode call).
             if (self.flag_adc_buffer == 0 and live_mode == 0) or live_mode == 1:
-                self.data_raw = np.zeros(int(total_points * adc_window * 16),
-                                         dtype=np.int32)
+                # A previous acquisition (or a mode switch) may still have
+                # buffers queued to the background worker: wait for them
+                # BEFORE resetting the accumulators the worker writes into.
+                if self._acq_worker is not None:
+                    self._acq_flush(raise_error=False)
+                    with self._acq_lock:
+                        self._acq_dirty = None
+                # v5 decimate-on-accumulate: with dec_coef > 1 data_raw
+                # stores dec-SUMMED samples, dec times fewer of them, in
+                # int64 (headroom: values are bounded by
+                # scans * gimSum * 2^13 * dec, which can overflow int32).
+                # The layout is locked here as _acc_dec: changing the
+                # decimation mid-experiment has no effect until the next
+                # allocation (live mode re-allocates every call).
+                self._acc_dec = int(self.dec_coef)
+                if self._acc_dec > 1:
+                    self.data_raw = np.zeros(
+                        int(total_points * adc_window * 16
+                            // self._acc_dec), dtype=np.int64)
+                else:
+                    self.data_raw = np.zeros(
+                        int(total_points * adc_window * 16), dtype=np.int32)
                 self.count_nip = np.zeros(total_points, dtype=np.int32)
                 self.tail_carry = np.empty(0, dtype=np.int32)
                 self._last_processed_nid = -1
@@ -2143,6 +2381,13 @@ class Insys_FPGA:
             is_drain = (self.nIP_No_brd == total_points
                         and current_scan == total_scan
                         and live_mode == 0)
+
+            # v6: hand the buffers to the background worker (exp mode only;
+            # live mode keeps the synchronous snapshot semantics).
+            threaded = (self.proc_thread == 1 and live_mode == 0
+                        and self.flag_sum_brd == 1)
+            if threaded:
+                self._acq_worker_start()
 
             lo, hi = None, None
             any_processed = False
@@ -2162,6 +2407,8 @@ class Insys_FPGA:
             _last_progress_t = time.monotonic()
 
             while True:
+                if threaded:
+                    self._acq_check_error()
                 BufCnt = self.AdcStreamGetBufState()
                 new_bufs = BufCnt - self.nStrmBufTotalCnt_brd
                 new_bufs = self.overflow_check(self.strmBufNum_brd, new_bufs,
@@ -2171,6 +2418,19 @@ class Insys_FPGA:
                 if new_bufs > 0:
                     _last_progress_t = time.monotonic()
                     for _ in range(new_bufs):
+                        if threaded:
+                            # Rotate pool buffers: the driver copies into a
+                            # buffer the worker is NOT reading (the shared
+                            # brdDataBuf_brd would be overwritten while the
+                            # worker still parses it). pool.get() blocks if
+                            # the worker lags — natural backpressure.
+                            buf = self._acq_get_pool_buffer()
+                            self.AdcStreamGetBuf_buf(buf)
+                            with self._acq_lock:
+                                self._acq_pending += 1
+                            self._acq_queue.put(
+                                (buf, p, ph, adc_window, skip_redundant))
+                            continue
                         self.AdcStreamGetBuf_buf(self.brdDataBuf_brd)
                         if self.flag_sum_brd == 1:
                             buf_lo, buf_hi = self.gen_2d_array_from_buffer(
@@ -2189,6 +2449,11 @@ class Insys_FPGA:
                 if not is_drain:
                     break
                 # Drain exit: any packet of the last nid has been observed.
+                # (In threaded mode count_nip / N_IP are worker-updated;
+                # FIFO order means the last nid implies all earlier buffers
+                # were processed. Plain attribute/element reads are safe
+                # under the GIL; the loop just polls until the worker gets
+                # there.)
                 if (self.count_nip[-1] >= 1
                         and self.N_IP == total_points - 1):
                     break
@@ -2204,12 +2469,30 @@ class Insys_FPGA:
                         )
                     time.sleep(_GIM_SWCOMP_POLL_S)
 
-            if not any_processed:
-                return (None, None, None) if partial else (None, None)
+            if threaded:
+                # The drain call of the last scan must return the EXACT
+                # final state: wait for the worker to finish the queue.
+                if is_drain:
+                    self._acq_flush()
+                # Collect the union of point-ranges the worker finalized
+                # since the previous call (ranges finalized after this swap
+                # stay dirty and are delivered next call).
+                with self._acq_lock:
+                    rng = self._acq_dirty
+                    self._acq_dirty = None
+                if rng is None:
+                    return (None, None, None) if partial else (None, None)
+                i_pt, j_pt = rng
+                di = self.answer.real
+                dq = self.answer.imag
+            else:
+                if not any_processed:
+                    return (None, None, None) if partial else (None, None)
 
-            di, dq = self.pulser_acquisition_cycle(
-                None, None, p, ph, adc_window,
-                acq_cycle=self.detection_phase_list, lo=lo, hi=hi)
+                di, dq = self.pulser_acquisition_cycle(
+                    None, None, p, ph, adc_window,
+                    acq_cycle=self.detection_phase_list, lo=lo, hi=hi)
+                i_pt, j_pt = self._touched_pt_range
 
             # digitizer_at_exit() and any downstream caller reading the
             # last-computed answer expect these attributes.
@@ -2217,9 +2500,8 @@ class Insys_FPGA:
             self.data_q_ph = dq
 
             if integral:
-                scale = 0.4 * self.dec_coef
+                scale = 0.4 * self._acc_dec
                 if partial:
-                    i_pt, j_pt = self._touched_pt_range
                     res_i = np.sum(di[i_pt:j_pt, self.win_left:self.win_right],
                                    axis=1) * scale
                     res_q = np.sum(dq[i_pt:j_pt, self.win_left:self.win_right],
@@ -2230,8 +2512,14 @@ class Insys_FPGA:
                 res_q = np.sum(dq[:, self.win_left:self.win_right],
                                axis=1) * scale
                 return res_i, res_q
+            # The returned slices are VIEWS of self.answer (same as the
+            # synchronous path). In threaded mode the worker may rewrite a
+            # touched column with a fresher running average while the
+            # caller reads it — each float32 store is atomic, the affected
+            # range is re-marked dirty and redelivered next call, and the
+            # drain flush / digitizer_at_exit recompute make the final
+            # data exact.
             if partial:
-                i_pt, j_pt = self._touched_pt_range
                 return di[i_pt:j_pt].T, dq[i_pt:j_pt].T, (i_pt, j_pt)
             return di.T, dq.T
 
@@ -2378,6 +2666,13 @@ class Insys_FPGA:
     def digitizer_decimation(self, *dec):
         """
         Special function for decimation
+
+        Since v5 the decimation is applied while the data is accumulated
+        (decimate-on-accumulate), so the coefficient is locked when the
+        first acquisition call allocates the accumulator: set it BEFORE
+        starting the experiment. Changing it mid-experiment takes effect
+        from the next allocation (next experiment; in live mode from the
+        next call, since live mode re-allocates every call).
         """
         if self.test_flag != 'test':
             if  len(dec) == 1:
@@ -2505,12 +2800,33 @@ class Insys_FPGA:
 
     def digitizer_at_exit(self, integral = False):
         if self.test_flag != 'test':
+            # v6: make the final data exact regardless of how the
+            # experiment ended (normal drain or Stop mid-scan): wait for
+            # the background worker to finish any queued buffers, then
+            # recompute the full answer from the accumulators. Best-effort
+            # (never raises) — this runs on script teardown paths.
+            try:
+                if (getattr(self, '_acq_worker', None) is not None
+                        and self.flag_adc_buffer == 1
+                        and hasattr(self, 'answer')):
+                    self._acq_flush(raise_error=False)
+                    phases = len(self.detection_phase_list)
+                    total = int(self.count_nip.size)
+                    self.pulser_acquisition_cycle(
+                        None, None, total // phases, phases,
+                        self.adc_window,
+                        acq_cycle=self.detection_phase_list,
+                        lo=0, hi=total - 1)
+                    self.data_i_ph = self.answer.real
+                    self.data_q_ph = self.answer.imag
+            except Exception:
+                pass
             if integral == False:
                 #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
                 return self.data_i_ph.T, self.data_q_ph.T
             elif integral == True:
                 #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
-                return 1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ), 1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )
+                return 1 * 0.4 * self._acc_dec * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ), 1 * 0.4 * self._acc_dec * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )
 
         elif self.test_flag == 'test':
             if integral == False:
@@ -3899,9 +4215,17 @@ class Insys_FPGA:
     def gen_2d_array_from_buffer(self, data, adc_window, p, ph, live_mode,
                                  skip_redundant=False):
         """
-        v4 streaming parser. Parses one driver-buffer worth of int32 data
+        v5 streaming parser. Parses one driver-buffer worth of int32 data
         IN PLACE into self.data_raw / self.count_nip (no per-buffer
         intermediate allocation), with vectorised per-nid grouping.
+
+        v5 changes: (1) a non-empty tail_carry no longer triggers a
+        whole-buffer np.concatenate — only the boundary packet is completed
+        and processed separately, the rest of the buffer is parsed as a
+        zero-copy view; (2) with dec_coef > 1 the payloads are dec-summed
+        while accumulating (decimate-on-accumulate, see
+        _process_packet_stream), shrinking data_raw and the finalize by the
+        decimation factor.
 
         Fixes carried from the v3 -> v4 hardware-test cycles:
           1. Slice `data` to data[:int(nStrmBufSizeb_brd/4)] — the c_int
@@ -3944,20 +4268,47 @@ class Insys_FPGA:
             data = data[:data_len]
 
         if self.tail_carry.size:
-            data = np.concatenate((self.tail_carry, data))
-        else:
-            # Fix 2: when tail_carry is empty the buffer may start mid-
-            # packet (live-mode streaming continuation, OR the very first
-            # exp-mode call where data does start with a header — argmax
-            # is 0 in that case). Anchor parsing on the first HEADER_SIG.
+            # v5: complete ONLY the boundary packet (tail_carry is always
+            # the head of a packet, < pkt_size) with the first ints of this
+            # buffer and process it separately; the rest of the buffer is
+            # then parsed as a zero-copy view. This replaces the former
+            # np.concatenate((tail_carry, data)) which copied the whole
+            # ~2 MB buffer on every call (~0.4 ms/buffer).
+            tail = self.tail_carry
+            self.tail_carry = np.empty(0, dtype=np.int32)
+            need = pkt_size - tail.size
+            if need > data.size:
+                # Buffer shorter than the rest of one packet: keep carrying.
+                self.tail_carry = np.concatenate((tail, data))
+                return None, None
+            head = np.concatenate((tail, data[:need]))
+            lo1, hi1 = self._process_packet_stream(
+                head, full_adc, pkt_size, total_points, skip_redundant)
+            # head is exactly one packet, so _process_packet_stream left
+            # tail_carry empty; parsing continues at the next packet.
+            data = data[need:]
             if data.size == 0:
-                return None, None
-            is_hdr = data == _HEADER_SIG
-            first = int(np.argmax(is_hdr))
-            if not is_hdr[first]:
-                return None, None
-            if first > 0:
-                data = data[first:]
+                return lo1, hi1
+            lo2, hi2 = self._process_packet_stream(
+                data, full_adc, pkt_size, total_points, skip_redundant)
+            if lo1 is None:
+                return lo2, hi2
+            if lo2 is None:
+                return lo1, hi1
+            return min(lo1, lo2), max(hi1, hi2)
+
+        # Fix 2: when tail_carry is empty the buffer may start mid-
+        # packet (live-mode streaming continuation, OR the very first
+        # exp-mode call where data does start with a header — argmax
+        # is 0 in that case). Anchor parsing on the first HEADER_SIG.
+        if data.size == 0:
+            return None, None
+        is_hdr = data == _HEADER_SIG
+        first = int(np.argmax(is_hdr))
+        if not is_hdr[first]:
+            return None, None
+        if first > 0:
+            data = data[first:]
 
         return self._process_packet_stream(
             data, full_adc, pkt_size, total_points, skip_redundant)
@@ -4033,21 +4384,50 @@ class Insys_FPGA:
                 # Whole buffer was a continuation of the previous run.
                 return None, None
 
+        # Remember whether this nid block is untouched so far (first scan):
+        # count_nip[nid] == 0 implies the data_raw block is still all
+        # zeros, so the accumulate below can ASSIGN instead of ADD,
+        # saving one full read pass over the accumulator.
+        fresh = not self.count_nip[int(nids[0]):int(nids[-1]) + 1].any()
+
         # count_nip += bincount of nids in this buffer (one numpy call).
         self.count_nip += np.bincount(
             nids, minlength=total_points).astype(np.int32)
 
         # data_raw[nid] += per-nid sum of this stream's payloads.
+        # v5 decimate-on-accumulate: with dec_coef > 1 the accumulator
+        # stores dec-SUMMED samples (int64, allocated in
+        # digitizer_get_curve; layout locked as self._acc_dec), so both
+        # data_raw and every later finalize pass shrink by the decimation
+        # factor. The group sum is done as `dec` strided adds — several
+        # times faster than a middle-axis reshape().sum() in numpy.
+        dec = getattr(self, '_acc_dec', 1)
+        acc_adc = full_adc // dec         # values stored per nid
         d = np.diff(nids)
         if d.size == 0 or (d == 1).all():
             # Standard experiment-mode stream: strictly consecutive nids,
             # one packet each — a single vectorised block add into the
             # contiguous data_raw range (no masks, no fancy-index copies).
             n0 = int(nids[0])
-            dst = self.data_raw[
-                n0 * full_adc:(n0 + nids.size) * full_adc
-            ].reshape(nids.size, full_adc)
-            dst += payloads
+            dst = self.data_raw[n0 * acc_adc:(n0 + nids.size) * acc_adc]
+            if dec == 1:
+                dst = dst.reshape(nids.size, full_adc)
+                if fresh:
+                    dst[...] = payloads
+                else:
+                    dst += payloads
+            else:
+                # [I Q I Q ...] interleaving: group `dec` consecutive
+                # complex samples per channel.
+                dst = dst.reshape(nids.size, acc_adc // 2, 2)
+                p4 = payloads.reshape(nids.size, acc_adc // 2, dec, 2)
+                if fresh:
+                    dst[...] = p4[:, :, 0, :]
+                    for k in range(1, dec):
+                        dst += p4[:, :, k, :]
+                else:
+                    for k in range(dec):
+                        dst += p4[:, :, k, :]
         else:
             # Repeated / non-consecutive nids (live mode, multi-packet
             # runs): a stream holds few unique nids, so iterating unique
@@ -4057,8 +4437,15 @@ class Insys_FPGA:
             for k in range(unique_nids.size):
                 nid = int(unique_nids[k])
                 mask = inverse == k
-                self.data_raw[nid * full_adc:(nid + 1) * full_adc] += \
-                    payloads[mask].sum(axis=0, dtype=np.int32)
+                row = payloads[mask].sum(axis=0, dtype=self.data_raw.dtype)
+                acc = self.data_raw[nid * acc_adc:(nid + 1) * acc_adc]
+                if dec == 1:
+                    acc += row
+                else:
+                    acc = acc.reshape(acc_adc // 2, 2)
+                    p3 = row.reshape(acc_adc // 2, dec, 2)
+                    for j in range(dec):
+                        acc += p3[:, j, :]
 
         self.N_IP = int(nids.max())
         self._last_processed_nid = int(nids[-1])
