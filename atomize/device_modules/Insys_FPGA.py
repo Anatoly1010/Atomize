@@ -2149,33 +2149,6 @@ class Insys_FPGA:
         answer = 'Insys 2.5 GHz 14 bit ADC'
         return answer
 
-    # ---------------- v6 background buffer processing ----------------
-    #
-    # Threading model (exp mode only; live mode stays fully synchronous):
-    #   MAIN thread : the only thread that ever touches the card. It drains
-    #       ready DMA buffers into a rotating pool of ctypes buffers and
-    #       enqueues them; it never parses. It reads self.answer slices for
-    #       the point-ranges the worker reports as freshly finalized.
-    #   WORKER thread: single consumer, FIFO — packet continuation across
-    #       buffer boundaries (tail_carry) makes parsing inherently
-    #       sequential, and arrival order preserves exactly the synchronous
-    #       semantics. Sole owner of data_raw / count_nip / tail_carry /
-    #       answer; runs the same gen_2d_array_from_buffer +
-    #       pulser_acquisition_cycle as the synchronous path and merges the
-    #       touched point-range into _acq_dirty under _acq_lock.
-    #
-    # Consistency: intermediate reads may transiently mix counts at a
-    # phase-boundary column (float32 stores are atomic, values differ by
-    # one count of the running average); the range stays dirty and is
-    # redelivered, and the drain call of the last scan flushes the queue
-    # before returning, so the final data is exact. digitizer_at_exit
-    # additionally flushes + recomputes the full answer (Stop mid-scan).
-    #
-    # Teardown: pulser_close() stops the worker via sentinel with a bounded
-    # join (daemon thread — a hung worker can never block card release).
-    # Worker exceptions are re-raised in the main thread from
-    # digitizer_get_curve; exit paths flush best-effort without raising.
-
     def _acq_worker_start(self, n_pool=4):
         """(Re)create the buffer pool and worker thread if needed."""
         if (self._acq_worker is not None and self._acq_worker.is_alive()
