@@ -113,12 +113,14 @@ class MainWindow(QMainWindow):
         # for running different processes using QProcess
         self.process_text_editor = QtCore.QProcess(self)
         self.process_python = QtCore.QProcess(self)
-        self.process_python.readyReadStandardOutput.connect( 
-            lambda: self.handle_output(self.process_python) 
+        self.process_python.readyReadStandardOutput.connect(
+            lambda: self.handle_output(self.process_python)
             )
+        self.process_python.finished.connect(lambda: self._clear_output_buffer(self.process_python))
 
         self.process_test = QtCore.QProcess(self)
         self.process_test.readyReadStandardOutput.connect( lambda: self.handle_output(self.process_test) )
+        self.process_test.finished.connect(lambda: self._clear_output_buffer(self.process_test))
 
         self.pid = 0
 
@@ -149,8 +151,19 @@ class MainWindow(QMainWindow):
     def handle_output(self, process):
         raw_data = process.readAllStandardOutput().data().decode(self.system_encoding, errors='replace')
 
-        lines = raw_data.strip().split('\n')
-        
+        # Buffer a trailing partial line (a message split across reads) so a
+        # command or print is never truncated; every child line ends with '\n'.
+        bufs = self.__dict__.setdefault('_out_linebuf', {})
+        key = id(process)
+        pending = bufs.get(key, '') + raw_data
+        *lines, tail = pending.split('\n')
+        # Defensive backstop: never let a pathological newline-free stream grow
+        # the buffer without bound -- force-flush it once it passes 64 KB.
+        if len(tail) > 65536:
+            lines.append(tail)
+            tail = ''
+        bufs[key] = tail
+
         for line in lines:
             line = line.strip()
             if not line:
@@ -167,6 +180,15 @@ class MainWindow(QMainWindow):
             elif line.startswith("print "):
                 msg = line[6:].strip()
                 self.text_errors.appendPlainText(msg)
+
+    def _clear_output_buffer(self, process):
+        """Flush a buffered final line (child exited without a trailing '\n')
+        and drop the per-process line buffer so a new run starts clean and the
+        buffer dict does not retain dead-process entries. Display-only: a
+        partial file-dialog command is never re-fired."""
+        leftover = self.__dict__.get('_out_linebuf', {}).pop(id(process), '').strip()
+        if leftover.startswith("print "):
+            self.text_errors.appendPlainText(leftover[6:].strip())
 
     ##### Liveplot Functions
     def close(self, sig = None, frame = None):
