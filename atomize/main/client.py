@@ -134,6 +134,17 @@ class LivePlotClient(object):
             meta['arrsize'] = 0
 
         meta_json = json.dumps(meta).encode('utf-8')
+        # The descriptive label ('value') is the only user-controlled
+        # variable-length field. update_z carries extra 'index'/'full_shape'
+        # keys, so it has less headroom under the fixed 320-byte cap than
+        # plot_z; trim the label to fit rather than raising, since _safe_call
+        # would otherwise swallow the error into a repeated 'plot failed' log
+        # line and freeze the live plot for the rest of the run.
+        if len(meta_json) > 320 and isinstance(meta.get('value'), str) and meta['value']:
+            meta = dict(meta)
+            while len(meta_json) > 320 and meta['value']:
+                meta['value'] = meta['value'][:-(len(meta_json) - 320)]
+                meta_json = json.dumps(meta).encode('utf-8')
         if len(meta_json) > 320:
             raise ValueError("meta object is too large (> 320 char)")
 

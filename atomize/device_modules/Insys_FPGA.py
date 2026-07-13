@@ -2171,7 +2171,14 @@ class Insys_FPGA:
     def _acq_worker_loop(self):
         """Worker: parse + accumulate + finalize each queued buffer."""
         while True:
-            item = self._acq_queue.get()
+            # Capture the queue/pool refs each iteration: _acq_worker_stop may
+            # null them out after a bounded join() that returned while we were
+            # still mid-item, and dereferencing None here would kill the daemon
+            # with an unhandled AttributeError on the teardown path.
+            q = self._acq_queue
+            if q is None:
+                return
+            item = q.get()
             if item is None:
                 return
             buf, p, ph, adc_window, skip_redundant = item
@@ -2198,7 +2205,9 @@ class Insys_FPGA:
             except Exception as exc:
                 self._acq_error = exc
             finally:
-                self._acq_pool.put(buf)
+                pool = self._acq_pool
+                if pool is not None:
+                    pool.put(buf)
                 with self._acq_lock:
                     self._acq_pending -= 1
 
