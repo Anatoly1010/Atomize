@@ -287,7 +287,15 @@ class MainWindow(QMainWindow):
             conn.write(b'ok')
             conn.flush()
 
-            self.do_operation(arr)
+            # The frame is already acked and its array already copied out of
+            # shared memory, so a render failure here must NOT abort the parse
+            # loop: any sibling frame already coalesced into buf would otherwise
+            # go unparsed and unacked, stalling the sending client for its full
+            # timeout. Catch, log, and keep draining the buffer.
+            try:
+                self.do_operation(arr)
+            except Exception:
+                logging.exception('LivePlot do_operation failed on a frame')
 
     def do_operation(self, arr = None):
         def clear(name):
