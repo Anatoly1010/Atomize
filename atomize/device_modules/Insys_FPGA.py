@@ -254,6 +254,15 @@ class Insys_FPGA:
         # all waveform-defining parameters (see define_buffer_single_joined_awg)
         self.waveform_cache_awg = {}
         self.cor_version_awg = 0 # bumped on every correction-settings change
+        # active time grid (ns) for AWG-related timing: start / length /
+        # delta_start / length_increment of TRIGGER_AWG (+ its 'AWG' pair) and
+        # awg_pulse(). 3.2 ns (default, one pulser tick) or 0.8 ns (one DAC
+        # sample) via awg_time_resolution(). With 0.8 ns the TTL trigger/gate
+        # stays on the 3.2 ns pulser grid (hardware) and the sub-tick part is
+        # realized as leading zero samples inside the pulse's DAC gate segment
+        # (see _trigger_gate_ticks / define_buffer_single_joined_awg).
+        # All non-AWG channels always stay on the 3.2 ns grid.
+        self.awg_grid_ns = 3.2
 
         if self.test_flag != 'test':
             # Collect all parameters for AWG settings
@@ -497,6 +506,14 @@ class Insys_FPGA:
             self.nStrmBufTotalCnt_brd              = 0
             self.nBufToClcNum_brd                  = 0
             self.nIP_NoKeeper_brd                  = -1
+            # detection sub-tick residual (DAC samples 0..3) per pack id;
+            # filled by write_data_GIM_brd. Data rows after the phase-combine
+            # are POINT indices: row -> pack id = row * _det_rows_phases
+            # (the residual is constant across the phases of a point).
+            self.det_residual_by_nid               = {}
+            self._det_rows_phases                  = 1
+            self._det_fine_warned                  = 0
+            self._det_fine_edge_warned             = 0
             
             self.data_buf_IP_GIM_brd               = []
             self.flag_sum_brd                      = 1 # 1 - average mode; 0 - single mode
@@ -569,6 +586,14 @@ class Insys_FPGA:
             self.nStrmBufTotalCnt_brd              = 0
             self.nBufToClcNum_brd                  = 0
             self.nIP_NoKeeper_brd                  = -1
+            # detection sub-tick residual (DAC samples 0..3) per pack id;
+            # filled by write_data_GIM_brd. Data rows after the phase-combine
+            # are POINT indices: row -> pack id = row * _det_rows_phases
+            # (the residual is constant across the phases of a point).
+            self.det_residual_by_nid               = {}
+            self._det_rows_phases                  = 1
+            self._det_fine_warned                  = 0
+            self._det_fine_edge_warned             = 0
             
             self.data_buf_IP_GIM_brd               = []
             self.flag_sum_brd                      = 1
@@ -649,14 +674,21 @@ class Insys_FPGA:
             #mod
             #, 'default_source': default_source
 
+            # TRIGGER_AWG timing lives on the (possibly 0.8 ns) AWG grid;
+            # every other channel stays on the 3.2 ns pulser grid -- except
+            # the DETECTION start/delta_start, which may move on the AWG grid
+            # (the sub-tick window residual is corrected at readout)
+            time_grid = self.awg_grid_ns if channel == 'TRIGGER_AWG' else self.timebase_pulser
+            move_grid = self.awg_grid_ns if channel in ('TRIGGER_AWG', 'DETECTION') else self.timebase_pulser
+
             temp_length = length.split(" ")
             if temp_length[1] in self.timebase_dict:
                 coef = self.timebase_dict[temp_length[1]]
                 p_length_raw = coef*float(temp_length[0])
-                
-                p_length = self.round_to_closest(p_length_raw, 3.2)
+
+                p_length = self.round_to_closest(p_length_raw, time_grid)
                 if p_length != p_length_raw:
-                    general.message(f"Pulse Length of {p_length_raw} is not divisible by 3.2. The closest available Pulse Length of {p_length} ns is used")
+                    general.message(f"Pulse Length of {p_length_raw} is not divisible by {time_grid}. The closest available Pulse Length of {p_length} ns is used")
 
                 pulse['length'] = str(p_length) + ' ns'
 
@@ -665,7 +697,10 @@ class Insys_FPGA:
                     self.detection_phase_list = list(phase_list)
                     #self.win_right = self.adc_window - 1
                 elif channel == 'TRIGGER_AWG':
-                    self.dac_window = int( self.dac_window + ceil(p_length / self.timebase_pulser) )
+                    # dac_window (gate length in 3.2 ns ticks) is accumulated
+                    # after the start block below: with a sub-tick start the
+                    # gate is floor(start)..ceil(start + length) and can span
+                    # one tick more than ceil(length / 3.2)
                     pulse_awg = {'name': name + 'AWG', 'channel': 'AWG', 'start': start, 'length': length, 'delta_start' : delta_start, 'length_increment': length_increment, 'phase_list': phase_list}
                     self.pulse_array_pulser.append( pulse_awg )
                     self.pulse_name_array_pulser.append( pulse['name'] )
@@ -680,22 +715,30 @@ class Insys_FPGA:
                 p_start_raw = coef*float(temp_start[0])
 
                 if channel != 'TRIGGER_AWG':
-                    p_start = self.round_to_closest(p_start_raw, 3.2)
+                    start_grid = self.awg_grid_ns if channel == 'DETECTION' else 3.2
+                    p_start = self.round_to_closest(p_start_raw, start_grid)
                     if p_start != p_start_raw:
                         general.message(f"Pulse Start of {p_start_raw} is not divisible by 3.2. The closest available Pulse Start of {p_start} ns is used")
                 else:
-                    p_start = self.round_to_closest(p_start_raw - self.trigger_awg_shift, 3.2)
+                    p_start = self.round_to_closest(p_start_raw - self.trigger_awg_shift, time_grid)
 
                 pulse['start'] = str(p_start) + ' ns'
+
+                # gate accounting needs a valid length too (p_length is only
+                # bound when the length unit parsed); guarding it keeps the
+                # historical silent skip on a malformed length string
+                if channel == 'TRIGGER_AWG' and temp_length[1] in self.timebase_dict:
+                    t0, t1, k_pad = self._trigger_gate_ticks(f'{p_start} ns', f'{p_length} ns')
+                    self.dac_window = int( self.dac_window + (t1 - t0) )
 
             temp_delta_start = delta_start.split(" ")
             if temp_delta_start[1] in self.timebase_dict:
                 coef = self.timebase_dict[temp_delta_start[1]]
                 p_delta_start_raw = coef*float(temp_delta_start[0])
 
-                p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
+                p_delta_start = self.round_to_closest(p_delta_start_raw, move_grid)
                 if p_delta_start != p_delta_start_raw:
-                    general.message(f"Pulse Delta Start of {p_delta_start_raw} is not divisible by 3.2. The closest available Pulse Delta Start of {p_delta_start} ns is used")
+                    general.message(f"Pulse Delta Start of {p_delta_start_raw} is not divisible by {move_grid}. The closest available Pulse Delta Start of {p_delta_start} ns is used")
 
                 pulse['delta_start'] = str(p_delta_start) + ' ns'
 
@@ -704,9 +747,9 @@ class Insys_FPGA:
                 coef = self.timebase_dict[temp_length_increment[1]]
                 p_length_increment_raw = coef*float(temp_length_increment[0])
 
-                p_length_increment = self.round_to_closest(p_length_increment_raw, 3.2)
+                p_length_increment = self.round_to_closest(p_length_increment_raw, time_grid)
                 if p_length_increment != p_length_increment_raw:
-                    general.message(f"Pulse Length Increment of {p_length_increment_raw} is not divisible by 3.2. The closest available Pulse Length Increment of {p_length_increment} ns is used")
+                    general.message(f"Pulse Length Increment of {p_length_increment_raw} is not divisible by {time_grid}. The closest available Pulse Length Increment of {p_length_increment} ns is used")
 
                 pulse['length_increment'] = str(p_length_increment) + ' ns'
 
@@ -746,25 +789,33 @@ class Insys_FPGA:
 
             self.pulse_name_array_pulser.append( pulse['name'] )
 
+            # TRIGGER_AWG timing lives on the (possibly 0.8 ns) AWG grid;
+            # every other channel stays on the 3.2 ns pulser grid -- except
+            # the DETECTION start/delta_start, which may move on the AWG grid
+            # (the sub-tick window residual is corrected at readout)
+            time_grid = self.awg_grid_ns if channel == 'TRIGGER_AWG' else self.timebase_pulser
+            move_grid = self.awg_grid_ns if channel in ('TRIGGER_AWG', 'DETECTION') else self.timebase_pulser
+
             temp_length = length.split(" ")
             if temp_length[1] in self.timebase_dict:
                 coef = self.timebase_dict[temp_length[1]]
                 p_length_raw = coef*float(temp_length[0])
-                
-                p_length = self.round_to_closest(p_length_raw, 3.2)
+
+                p_length = self.round_to_closest(p_length_raw, time_grid)
                 if p_length != p_length_raw:
-                    general.message(f"Pulse Length is not divisible by 3.2. The closest available Pulse Length of {p_length} is used")
+                    general.message(f"Pulse Length is not divisible by {time_grid}. The closest available Pulse Length of {p_length} is used")
 
                 pulse['length'] = str(p_length) + ' ns'
 
-                assert( round(remainder(p_length, 3.2), 2) == 0), 'Pulse length should be divisible by 3.2'
+                assert( round(remainder(p_length, time_grid), 2) == 0), f'Pulse length should be divisible by {time_grid}'
 
                 if channel == 'DETECTION':
                     self.adc_window = int( self.adc_window + ceil(p_length / self.timebase_pulser) )
                     assert( self.adc_window <= 4000 ), 'Maximum DETECTION WINDOW is 12800 ns'
                     #self.win_right = self.adc_window - 1
                 elif channel == 'TRIGGER_AWG':
-                    self.dac_window = int( self.dac_window + ceil(p_length / self.timebase_pulser) )
+                    # dac_window is accumulated after the start block below
+                    # (the gate is floor(start)..ceil(start + length) ticks)
                     pulse_awg = {'name': name + 'AWG', 'channel': 'AWG', 'start': start, 'length': length, 'delta_start' : delta_start,\
                             'length_increment': length_increment, 'phase_list': phase_list}
                     self.pulse_array_pulser.append( pulse_awg )
@@ -784,22 +835,27 @@ class Insys_FPGA:
             if temp_start[1] in self.timebase_dict:
                 coef = self.timebase_dict[temp_start[1]]
                 p_start_raw = coef*float(temp_start[0])
-                
+
                 if channel != 'TRIGGER_AWG':
-                    p_start = self.round_to_closest(p_start_raw, 3.2)
+                    start_grid = self.awg_grid_ns if channel == 'DETECTION' else 3.2
+                    p_start = self.round_to_closest(p_start_raw, start_grid)
                     if p_start != p_start_raw:
                         general.message(f"Pulse Start of {p_start_raw} is not divisible by 3.2. The closest available Pulse Start of {p_start} ns is used")
                 else:
-                    p_start = self.round_to_closest(p_start_raw - self.trigger_awg_shift, 3.2)
+                    p_start = self.round_to_closest(p_start_raw - self.trigger_awg_shift, time_grid)
 
                 pulse['start'] = str(p_start) + ' ns'
                 if p_start != p_start_raw:
-                    general.message(f"Pulse Start is not divisible by 3.2. The closest available Pulse Start of {p_start} ns is used")
+                    general.message(f"Pulse Start is not divisible by {move_grid}. The closest available Pulse Start of {p_start} ns is used")
 
                 pulse['start'] = str(p_start) + ' ns'
 
-                assert(round(remainder(p_start, 3.2), 2) == 0), 'Pulse start should be divisible by 3.2'
+                assert(round(remainder(p_start, move_grid), 2) == 0), f'Pulse start should be divisible by {move_grid}'
                 #assert(p_start >= 0), 'Pulse start is a negative number'
+
+                if channel == 'TRIGGER_AWG':
+                    t0, t1, k_pad = self._trigger_gate_ticks(f'{p_start} ns', f'{p_length} ns')
+                    self.dac_window = int( self.dac_window + (t1 - t0) )
             else:
                 assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
 
@@ -808,13 +864,13 @@ class Insys_FPGA:
                 coef = self.timebase_dict[temp_delta_start[1]]
                 p_delta_start_raw = coef*float(temp_delta_start[0])
 
-                p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
+                p_delta_start = self.round_to_closest(p_delta_start_raw, move_grid)
                 if p_delta_start != p_delta_start_raw:
-                    general.message(f"Pulse Delta Start is not divisible by 3.2. The closest available Pulse Delta Start of {p_delta_start} ns is used")
+                    general.message(f"Pulse Delta Start is not divisible by {move_grid}. The closest available Pulse Delta Start of {p_delta_start} ns is used")
 
                 pulse['delta_start'] = str(p_delta_start) + ' ns'
 
-                assert(round(remainder(p_delta_start, 3.2), 2) == 0), 'Pulse delta start should be divisible by 3.2'
+                assert(round(remainder(p_delta_start, move_grid), 2) == 0), f'Pulse delta start should be divisible by {move_grid}'
                 assert(p_delta_start >= 0), 'Pulse delta start is a negative number'
             else:
                 assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
@@ -824,13 +880,13 @@ class Insys_FPGA:
                 coef = self.timebase_dict[temp_length_increment[1]]
                 p_length_increment_raw = coef*float(temp_length_increment[0])
 
-                p_length_increment = self.round_to_closest(p_length_increment_raw, 3.2)
+                p_length_increment = self.round_to_closest(p_length_increment_raw, time_grid)
                 if p_length_increment != p_length_increment_raw:
-                    general.message(f"Pulse Length Increment is not divisible by 3.2. The closest available Pulse Length Increment of {p_length_increment} ns is used")
+                    general.message(f"Pulse Length Increment is not divisible by {time_grid}. The closest available Pulse Length Increment of {p_length_increment} ns is used")
 
                 pulse['length_increment'] = str(p_length_increment) + ' ns'
 
-                assert(round(remainder(p_length_increment, 3.2), 2) == 0), 'Pulse length increment should be divisible by 3.2'
+                assert(round(remainder(p_length_increment, time_grid), 2) == 0), f'Pulse length increment should be divisible by {time_grid}'
                 assert (p_length_increment >= 0 and p_length_increment < self.max_pulse_length_pulser), \
                 'Pulse length increment is longer than maximum available length or negative'
             else:
@@ -874,17 +930,23 @@ class Insys_FPGA:
                 if len(temp_start) < 2 or temp_start[1] not in self.timebase_dict:
                     continue
                 
+                time_grid = self._pulser_name_grid(name)
                 coef = self.timebase_dict[temp_start[1]]
                 p_start_raw = coef * float(temp_start[0])
-                p_start = self.round_to_closest(p_start_raw, 3.2)
-                
+                p_start = self.round_to_closest(p_start_raw, time_grid)
+
                 if p_start != p_start_raw:
-                    general.message(f"Pulse Start of {p_start_raw} is not divisible by 3.2. The closest available {p_start} ns is used")
-                
+                    general.message(f"Pulse Start of {p_start_raw} is not divisible by {time_grid}. The closest available {p_start} ns is used")
+
 
                 for i, pulse in enumerate(self.pulse_array_pulser):
                     if pulse['name'] == name:
                         new_val = f"{p_start} ns"
+                        if pulse['channel'] == 'TRIGGER_AWG' and \
+                           self._sub_tick_residue(new_val) != self._sub_tick_residue(pulse['start']):
+                            # sub-tick padding in the DAC buffer changed ->
+                            # force a buffer rebuild on the next awg_update()
+                            self.shift_count_awg = 1
                         pulse['start'] = new_val
                         self.shift_count_pulser = 1
 
@@ -903,19 +965,25 @@ class Insys_FPGA:
                 if len(temp_start) < 2 or temp_start[1] not in self.timebase_dict:
                     assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
                 
+                time_grid = self._pulser_name_grid(name)
                 coef = self.timebase_dict[temp_start[1]]
                 p_start_raw = coef * float(temp_start[0])
-                p_start = self.round_to_closest(p_start_raw, 3.2)
-                
+                p_start = self.round_to_closest(p_start_raw, time_grid)
+
                 if p_start != p_start_raw:
-                    general.message(f"Pulse Start of {p_start_raw} is not divisible by 3.2. The closest available Pulse Start {p_start} ns is used")
-                
-                assert(round(remainder(p_start, 3.2), 2) == 0), 'Pulse Start should be divisible by 3.2'
+                    general.message(f"Pulse Start of {p_start_raw} is not divisible by {time_grid}. The closest available Pulse Start {p_start} ns is used")
+
+                assert(round(remainder(p_start, time_grid), 2) == 0), f'Pulse Start should be divisible by {time_grid}'
                 assert(p_start >= 0), 'Pulse Start is a negative number'
 
                 for i, pulse in enumerate(self.pulse_array_pulser):
                     if pulse['name'] == name:
                         new_val = f"{p_start} ns"
+                        if pulse['channel'] == 'TRIGGER_AWG' and \
+                           self._sub_tick_residue(new_val) != self._sub_tick_residue(pulse['start']):
+                            # sub-tick padding in the DAC buffer changed ->
+                            # force a buffer rebuild on the next awg_update()
+                            self.shift_count_awg = 1
                         pulse['start'] = new_val
                         self.shift_count_pulser = 1
 
@@ -941,13 +1009,14 @@ class Insys_FPGA:
                 if len(temp_delta_start) < 2 or temp_delta_start[1] not in self.timebase_dict:
                     continue
                 
+                time_grid = self._pulser_name_grid(name)
                 coef = self.timebase_dict[temp_delta_start[1]]
                 p_delta_start_raw = coef * float(temp_delta_start[0])
-                p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
-                
+                p_delta_start = self.round_to_closest(p_delta_start_raw, time_grid)
+
                 if p_delta_start != p_delta_start_raw:
-                    general.message(f"Pulse Delta Start of {p_delta_start_raw} is not divisible by 3.2. The closest available Pulse Delta Start {p_delta_start} ns is used")
-                
+                    general.message(f"Pulse Delta Start of {p_delta_start_raw} is not divisible by {time_grid}. The closest available Pulse Delta Start {p_delta_start} ns is used")
+
 
                 for i, pulse in enumerate(self.pulse_array_pulser):
                     if pulse['name'] == name:
@@ -969,15 +1038,16 @@ class Insys_FPGA:
                 temp_delta_start = d_start.split(" ")
                 if len(temp_delta_start) < 2 or temp_delta_start[1] not in self.timebase_dict:
                     assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
-                
+
+                time_grid = self._pulser_name_grid(name)
                 coef = self.timebase_dict[temp_delta_start[1]]
                 p_delta_start_raw = coef * float(temp_delta_start[0])
-                p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
-                
+                p_delta_start = self.round_to_closest(p_delta_start_raw, time_grid)
+
                 if p_delta_start != p_delta_start_raw:
-                    general.message(f"Pulse Delta Start of {p_delta_start_raw} is not divisible by 3.2. The closest available Pulse Delta Start {p_delta_start} ns is used")
-                
-                assert(round(remainder(p_delta_start, 3.2), 2) == 0), 'Pulse Delta Start should be divisible by 3.2'
+                    general.message(f"Pulse Delta Start of {p_delta_start_raw} is not divisible by {time_grid}. The closest available Pulse Delta Start {p_delta_start} ns is used")
+
+                assert(round(remainder(p_delta_start, time_grid), 2) == 0), f'Pulse Delta Start should be divisible by {time_grid}'
                 assert(p_delta_start >= 0), 'Pulse Delta Start is a negative number'
 
                 for i, pulse in enumerate(self.pulse_array_pulser):
@@ -1008,13 +1078,14 @@ class Insys_FPGA:
                 if len(temp_length_increment) < 2 or temp_length_increment[1] not in self.timebase_dict:
                     continue
                 
+                time_grid = self._pulser_name_grid(name, move = False)
                 coef = self.timebase_dict[temp_length_increment[1]]
                 p_length_increment_raw = coef * float(temp_length_increment[0])
-                p_length_increment = self.round_to_closest(p_length_increment_raw, 3.2)
-                
+                p_length_increment = self.round_to_closest(p_length_increment_raw, time_grid)
+
                 if p_length_increment != p_length_increment_raw:
-                    general.message(f"Pulse Length Increment of {p_length_increment_raw} is not divisible by 3.2. The closest available Pulse length Increment of {p_length_increment} ns is used")
-                
+                    general.message(f"Pulse Length Increment of {p_length_increment_raw} is not divisible by {time_grid}. The closest available Pulse length Increment of {p_length_increment} ns is used")
+
 
                 for i, pulse in enumerate(self.pulse_array_pulser):
                     if pulse['name'] == name:
@@ -1037,14 +1108,15 @@ class Insys_FPGA:
                 if len(temp_length_increment) < 2 or temp_length_increment[1] not in self.timebase_dict:
                     assert( 1 == 2 ), 'Incorrect time dimension (s, ms, us, ns)'
                 
+                time_grid = self._pulser_name_grid(name, move = False)
                 coef = self.timebase_dict[temp_length_increment[1]]
                 p_length_increment_raw = coef * float(temp_length_increment[0])
-                p_length_increment = self.round_to_closest(p_length_increment_raw, 3.2)
-                
+                p_length_increment = self.round_to_closest(p_length_increment_raw, time_grid)
+
                 if p_length_increment != p_length_increment_raw:
-                    general.message(f"Pulse Length Increment of {p_length_increment_raw} is not divisible by 3.2. The closest available Pulse length Increment of {p_length_increment} ns is used")
-                
-                assert(round(remainder(p_length_increment, 3.2), 2) == 0), 'Pulse Length Increment should be divisible by 3.2'
+                    general.message(f"Pulse Length Increment of {p_length_increment_raw} is not divisible by {time_grid}. The closest available Pulse length Increment of {p_length_increment} ns is used")
+
+                assert(round(remainder(p_length_increment, time_grid), 2) == 0), f'Pulse Length Increment should be divisible by {time_grid}'
                 assert (p_length_increment >= 0 and p_length_increment < self.max_pulse_length_pulser), 'Pulse Length Increment is longer than maximum available length or negative'
                 assert(p_length_increment >= 0), 'Pulse Length Increment is a negative number'
 
@@ -1473,7 +1545,14 @@ class Insys_FPGA:
                         else:
                             pass
                                 
-                        self.pulse_array_pulser[i]['start'] = str( self.round_to_closest(st + d_start, 3.2) ) + ' ns'
+                        time_grid = self.awg_grid_ns if self.pulse_array_pulser[i]['channel'] in ('TRIGGER_AWG', 'AWG', 'DETECTION') else self.timebase_pulser
+                        new_val = str( self.round_to_closest(st + d_start, time_grid) ) + ' ns'
+                        if self.pulse_array_pulser[i]['channel'] == 'TRIGGER_AWG' and \
+                           self._sub_tick_residue(new_val) != self._sub_tick_residue(self.pulse_array_pulser[i]['start']):
+                            # sub-tick padding in the DAC buffer changed ->
+                            # force a buffer rebuild on the next awg_update()
+                            self.shift_count_awg = 1
+                        self.pulse_array_pulser[i]['start'] = new_val
  
                     i += 1
 
@@ -1504,7 +1583,14 @@ class Insys_FPGA:
                             else:
                                 pass
                                     
-                            self.pulse_array_pulser[pulse_index]['start'] = str( self.round_to_closest(st + d_start, 3.2) ) + ' ns'
+                            time_grid = self.awg_grid_ns if self.pulse_array_pulser[pulse_index]['channel'] in ('TRIGGER_AWG', 'AWG', 'DETECTION') else self.timebase_pulser
+                            new_val = str( self.round_to_closest(st + d_start, time_grid) ) + ' ns'
+                            if self.pulse_array_pulser[pulse_index]['channel'] == 'TRIGGER_AWG' and \
+                               self._sub_tick_residue(new_val) != self._sub_tick_residue(self.pulse_array_pulser[pulse_index]['start']):
+                                # sub-tick padding changed -> rebuild the DAC
+                                # buffer on the next awg_update()
+                                self.shift_count_awg = 1
+                            self.pulse_array_pulser[pulse_index]['start'] = new_val
 
                         self.shift_count_pulser = 1
                         self.current_phase_index_pulser = 0
@@ -1531,7 +1617,14 @@ class Insys_FPGA:
                         else:
                             assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
                                 
-                        self.pulse_array_pulser[i]['start'] = str( self.round_to_closest(st + d_start, 3.2) ) + ' ns'
+                        time_grid = self.awg_grid_ns if self.pulse_array_pulser[i]['channel'] in ('TRIGGER_AWG', 'AWG', 'DETECTION') else self.timebase_pulser
+                        new_val = str( self.round_to_closest(st + d_start, time_grid) ) + ' ns'
+                        if self.pulse_array_pulser[i]['channel'] == 'TRIGGER_AWG' and \
+                           self._sub_tick_residue(new_val) != self._sub_tick_residue(self.pulse_array_pulser[i]['start']):
+                            # sub-tick padding in the DAC buffer changed ->
+                            # force a buffer rebuild on the next awg_update()
+                            self.shift_count_awg = 1
+                        self.pulse_array_pulser[i]['start'] = new_val
 
                     i += 1
 
@@ -1563,7 +1656,14 @@ class Insys_FPGA:
                             else:
                                 assert(1 == 2), "Incorrect time dimension (ns, us, ms, s)"
                                     
-                            self.pulse_array_pulser[pulse_index]['start'] = str( self.round_to_closest(st + d_start, 3.2) ) + ' ns'
+                            time_grid = self.awg_grid_ns if self.pulse_array_pulser[pulse_index]['channel'] in ('TRIGGER_AWG', 'AWG', 'DETECTION') else self.timebase_pulser
+                            new_val = str( self.round_to_closest(st + d_start, time_grid) ) + ' ns'
+                            if self.pulse_array_pulser[pulse_index]['channel'] == 'TRIGGER_AWG' and \
+                               self._sub_tick_residue(new_val) != self._sub_tick_residue(self.pulse_array_pulser[pulse_index]['start']):
+                                # sub-tick padding changed -> rebuild the DAC
+                                # buffer on the next awg_update()
+                                self.shift_count_awg = 1
+                            self.pulse_array_pulser[pulse_index]['start'] = new_val
 
                         self.shift_count_pulser = 1
                         self.current_phase_index_pulser = 0
@@ -2031,6 +2131,12 @@ class Insys_FPGA:
             return self.answer, self.answer
 
     def pulser_open(self):
+        # Each experiment starts with a clean detection sub-tick residual map
+        # (pack ids restart at 0 per run). Because only nonzero residues are
+        # recorded, a stale entry from a prior fine run on a reused instance
+        # would otherwise leak into a later (e.g. coarse) run.
+        self.det_residual_by_nid = {}
+        self._det_rows_phases = 1
         if self.test_flag != 'test':
             initRet                = self.initBrd() # Функция открывает плату для использования.
 
@@ -2321,6 +2427,7 @@ class Insys_FPGA:
             the detection-window length and the number of points.
         """
         self.l_mode = live_mode
+        self._det_rows_phases = max(1, int(ph))
 
         if self.test_flag != 'test':
 
@@ -2484,15 +2591,9 @@ class Insys_FPGA:
             if integral:
                 scale = 0.4 * self._acc_dec
                 if partial:
-                    res_i = np.sum(di[i_pt:j_pt, self.win_left:self.win_right],
-                                   axis=1) * scale
-                    res_q = np.sum(dq[i_pt:j_pt, self.win_left:self.win_right],
-                                   axis=1) * scale
+                    res_i, res_q = self._window_sum(di, dq, i_pt, j_pt, scale)
                     return res_i, res_q, (i_pt, j_pt)
-                res_i = np.sum(di[:, self.win_left:self.win_right],
-                               axis=1) * scale
-                res_q = np.sum(dq[:, self.win_left:self.win_right],
-                               axis=1) * scale
+                res_i, res_q = self._window_sum(di, dq, 0, di.shape[0], scale)
                 return res_i, res_q
             # The returned slices are VIEWS of self.answer (same as the
             # synchronous path). In threaded mode the worker may rewrite a
@@ -2502,8 +2603,10 @@ class Insys_FPGA:
             # drain flush / digitizer_at_exit recompute make the final
             # data exact.
             if partial:
-                return di[i_pt:j_pt].T, dq[i_pt:j_pt].T, (i_pt, j_pt)
-            return di.T, dq.T
+                ai, aq = self._align_det_rows(di[i_pt:j_pt], dq[i_pt:j_pt], lo = i_pt)
+                return ai.T, aq.T, (i_pt, j_pt)
+            ai, aq = self._align_det_rows(di, dq)
+            return ai.T, aq.T
 
         elif self.test_flag == 'test':
 
@@ -2519,6 +2622,9 @@ class Insys_FPGA:
                     return None, None, None
                 return a, b, (0, int(p))
 
+            # keep _acc_dec (used by the detection-residual shift) consistent
+            # with the test-mode integration scale, which uses dec_coef
+            self._acc_dec = int(self.dec_coef)
             self.count_nip = np.ones( (int(p * ph)), dtype = np.int32 )
             #####
             rep_rate_pulser = self.rep_rate_pulser[0]
@@ -2564,7 +2670,8 @@ class Insys_FPGA:
                     #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.zeros( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.zeros( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), p, ph, adc_window, acq_cycle = self.detection_phase_list)
 
                     self.buffer_ready = 0
-                    return self.data_i_ph.T, self.data_q_ph.T #, None#, self.buffer_ready + 1
+                    ai, aq = self._align_det_rows(self.data_i_ph, self.data_q_ph)
+                    return ai.T, aq.T #, None#, self.buffer_ready + 1
                 elif integral == True:
                     #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(np.zeros( ( int(p * ph), int( adc_window * 8 / self.dec_coef  ) ) ), np.zeros( ( int(p * ph), int( adc_window * 8 / self.dec_coef ) ) ), p, ph, adc_window, acq_cycle = self.detection_phase_list)
                     #general.message( len(np.sum( ((self.data_i_ph))[:, self.win_left:self.win_right], axis = 1 )) )
@@ -2572,8 +2679,8 @@ class Insys_FPGA:
                     self.buffer_ready = 0
 
                     scale = 0.4 * self.dec_coef
-                    res_i = np.sum(self.data_i_ph[:, self.win_left:self.win_right], axis=1) * scale
-                    res_q = np.sum(self.data_q_ph[:, self.win_left:self.win_right], axis=1) * scale
+                    res_i, res_q = self._window_sum(self.data_i_ph, self.data_q_ph,
+                                                    0, self.data_i_ph.shape[0], scale)
 
                     return  res_i, res_q#, self.buffer_ready + 1
 
@@ -2801,22 +2908,29 @@ class Insys_FPGA:
                         lo=0, hi=total - 1)
                     self.data_i_ph = self.answer.real
                     self.data_q_ph = self.answer.imag
+                    self._det_rows_phases = max(1, int(phases))
             except Exception:
                 pass
             if integral == False:
                 #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
-                return self.data_i_ph.T, self.data_q_ph.T
+                ai, aq = self._align_det_rows(self.data_i_ph, self.data_q_ph)
+                return ai.T, aq.T
             elif integral == True:
                 #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
-                return 1 * 0.4 * self._acc_dec * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ), 1 * 0.4 * self._acc_dec * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )
+                res_i, res_q = self._window_sum(self.data_i_ph, self.data_q_ph,
+                                                0, self.data_i_ph.shape[0], 1 * 0.4 * self._acc_dec)
+                return res_i, res_q
 
         elif self.test_flag == 'test':
             if integral == False:
                 #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
-                return self.data_i_ph.T, self.data_q_ph.T 
+                ai, aq = self._align_det_rows(self.data_i_ph, self.data_q_ph)
+                return ai.T, aq.T
             elif integral == True:
                 #self.data_i_ph, self.data_q_ph = self.pulser_acquisition_cycle(1, 1, p, ph, adc_window, acq_cycle = self.detection_phase_list)
-                return  1 * 0.4 * self.dec_coef * np.sum( (self.data_i_ph)[:, self.win_left:self.win_right], axis = 1 ),  1 * 0.4 * self.dec_coef * np.sum( (self.data_q_ph)[:, self.win_left:self.win_right], axis = 1 )
+                res_i, res_q = self._window_sum(self.data_i_ph, self.data_q_ph,
+                                                0, self.data_i_ph.shape[0], 1 * 0.4 * self.dec_coef)
+                return res_i, res_q
 
     ####################DAC#######################
     def awg_name(self):
@@ -2900,7 +3014,7 @@ class Insys_FPGA:
                 coef = self.timebase_dict[temp_length[1]]
                 p_length_raw = coef*float(temp_length[0])
 
-                p_length = self.round_to_closest(p_length_raw, 3.2)
+                p_length = self.round_to_closest(p_length_raw, self.awg_grid_ns)
                 if p_length != p_length_raw:
                     general.message(f"Pulse length is not divisible by 3.2. The closest available Pulse length of {p_length} is used")
 
@@ -2912,7 +3026,7 @@ class Insys_FPGA:
                 coef = self.timebase_dict[temp_sigma[1]]
                 p_sigma_raw = coef*float(temp_sigma[0])
 
-                p_sigma = self.round_to_closest(p_sigma_raw, 3.2)
+                p_sigma = self.round_to_closest(p_sigma_raw, self.awg_grid_ns)
                 if p_sigma != p_sigma_raw:
                     general.message(f"Pulse sigma is not divisible by 3.2. The closest available Pulse sigma of {p_sigma} is used")
 
@@ -2926,7 +3040,7 @@ class Insys_FPGA:
             if temp_increment[1] in self.timebase_dict:
                 coef = self.timebase_dict[temp_increment[1]]
                 p_increment_raw = coef*float(temp_increment[0])
-                p_increment = self.round_to_closest(p_increment_raw, 3.2)
+                p_increment = self.round_to_closest(p_increment_raw, self.awg_grid_ns)
                 if p_increment != p_increment_raw:
                     general.message(f"Pulse increment is not divisible by 3.2. The closest available Pulse increment of {p_increment} ns is used")
 
@@ -2937,7 +3051,7 @@ class Insys_FPGA:
             if temp_start[1] in self.timebase_dict:
                 coef = self.timebase_dict[temp_start[1]]
                 p_start_raw = coef*float(temp_start[0])
-                p_start = self.round_to_closest(p_start_raw, 3.2)
+                p_start = self.round_to_closest(p_start_raw, self.awg_grid_ns)
                 if p_start != p_start_raw:
                     general.message(f"Pulse start is not divisible by 3.2. The closest available Pulse start of {p_start} ns is used")
 
@@ -2948,7 +3062,7 @@ class Insys_FPGA:
             if temp_delta_start[1] in self.timebase_dict:
                 coef = self.timebase_dict[temp_delta_start[1]]
                 p_delta_start_raw = coef*float(temp_delta_start[0])
-                p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
+                p_delta_start = self.round_to_closest(p_delta_start_raw, self.awg_grid_ns)
                 if p_delta_start != p_delta_start_raw:
                     general.message(f"Pulse delta start is not divisible by 3.2. The closest available Pulse delta start of {p_delta_start} ns is used")
 
@@ -3033,12 +3147,12 @@ class Insys_FPGA:
                 coef = self.timebase_dict[temp_length[1]]
                 p_length_raw = coef*float(temp_length[0])
 
-                p_length = self.round_to_closest(p_length_raw, 3.2)
+                p_length = self.round_to_closest(p_length_raw, self.awg_grid_ns)
                 if p_length != p_length_raw:
                     general.message(f"Pulse length is not divisible by 3.2. The closest available Pulse length of {p_length} is used")
 
                 pulse['length'] = str(p_length) + ' ns'
-                assert( round(remainder(p_length, 3.2), 2) == 0), 'Pulse length should be divisible by 3.2'
+                assert( round(remainder(p_length, self.awg_grid_ns), 2) == 0), f'Pulse length should be divisible by {self.awg_grid_ns}'
 
                 assert(p_length >= self.min_pulse_length_awg), 'Pulse is shorter than minimum available length (' + str(self.min_pulse_length_awg) +' ns)'
                 assert(p_length < self.max_pulse_length_awg), 'Pulse is longer than maximum available length (' + str(self.max_pulse_length_awg) +' ns)'
@@ -3051,7 +3165,7 @@ class Insys_FPGA:
                 coef = self.timebase_dict[temp_sigma[1]]
                 p_sigma_raw = coef*float(temp_sigma[0])
 
-                p_sigma = self.round_to_closest(p_sigma_raw, 3.2)
+                p_sigma = self.round_to_closest(p_sigma_raw, self.awg_grid_ns)
                 if p_sigma != p_sigma_raw:
                     general.message(f"Pulse sigma is not divisible by 3.2. The closest available Pulse sigma of {p_sigma} is used")
 
@@ -3060,7 +3174,7 @@ class Insys_FPGA:
 
                 pulse['sigma'] = str(p_sigma) + ' ns'
 
-                assert( round(remainder(p_sigma, 3.2), 2) == 0), 'Pulse sigma should be divisible by 3.2'
+                assert( round(remainder(p_sigma, self.awg_grid_ns), 2) == 0), f'Pulse sigma should be divisible by {self.awg_grid_ns}'
 
                 assert(p_sigma >= self.min_pulse_length_awg), 'Sigma is shorter than minimum available length (' + str(self.min_pulse_length_awg) +' ns)'
                 assert(p_sigma < self.max_pulse_length_awg), 'Sigma is longer than maximum available length (' + str(self.max_pulse_length_awg) +' ns)'
@@ -3075,12 +3189,12 @@ class Insys_FPGA:
             if temp_increment[1] in self.timebase_dict:
                 coef = self.timebase_dict[temp_increment[1]]
                 p_increment_raw = coef*float(temp_increment[0])
-                p_increment = self.round_to_closest(p_increment_raw, 3.2)
+                p_increment = self.round_to_closest(p_increment_raw, self.awg_grid_ns)
                 if p_increment != p_increment_raw:
                     general.message(f"Pulse increment is not divisible by 3.2. The closest available Pulse increment of {p_increment} ns is used")
 
                 pulse['length_increment'] = str(p_increment) + ' ns'
-                assert( round(remainder(p_increment, 3.2), 2) == 0), 'Pulse increment should be divisible by 3.2'
+                assert( round(remainder(p_increment, self.awg_grid_ns), 2) == 0), f'Pulse increment should be divisible by {self.awg_grid_ns}'
 
                 assert (p_increment >= 0 and p_increment < self.max_pulse_length_awg), \
                 'Length and sigma increment is longer than maximum available length or negative'
@@ -3092,14 +3206,14 @@ class Insys_FPGA:
             if temp_start[1] in self.timebase_dict:
                 coef = self.timebase_dict[temp_start[1]]
                 p_start_raw = coef*float(temp_start[0])
-                p_start = self.round_to_closest(p_start_raw, 3.2)
+                p_start = self.round_to_closest(p_start_raw, self.awg_grid_ns)
                 if p_start != p_start_raw:
                     general.message(f"Pulse start is not divisible by 3.2. The closest available Pulse start of {p_start} ns is used")
 
                 pulse['start'] = str(p_start) + ' ns'
 
                 assert(p_start >= 0), 'Pulse start should be a positive number'
-                assert( round(remainder(p_start, 3.2), 2) == 0), 'Pulse start should be divisible by 3.2'
+                assert( round(remainder(p_start, self.awg_grid_ns), 2) == 0), f'Pulse start should be divisible by {self.awg_grid_ns}'
             else:
                 assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
 
@@ -3108,14 +3222,14 @@ class Insys_FPGA:
             if temp_delta_start[1] in self.timebase_dict:
                 coef = self.timebase_dict[temp_delta_start[1]]
                 p_delta_start_raw = coef*float(temp_delta_start[0])
-                p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
+                p_delta_start = self.round_to_closest(p_delta_start_raw, self.awg_grid_ns)
                 if p_delta_start != p_delta_start_raw:
                     general.message(f"Pulse delta start is not divisible by 3.2. The closest available Pulse delta start of {p_delta_start} ns is used")
 
                 pulse['delta_start'] = str(p_delta_start) + ' ns'
 
                 assert(p_delta_start >= 0), 'Pulse delta start should be a positive number'
-                assert( round(remainder(p_delta_start, 3.2), 2) == 0), 'Pulse delta start should be divisible by 3.2'
+                assert( round(remainder(p_delta_start, self.awg_grid_ns), 2) == 0), f'Pulse delta start should be divisible by {self.awg_grid_ns}'
             else:
                 assert( 1 == 2 ), 'Incorrect time dimension (ms, us, ns)'
 
@@ -3274,7 +3388,7 @@ class Insys_FPGA:
                 
                 coef = self.timebase_dict[temp_delta_start[1]]
                 p_delta_start_raw = coef * float(temp_delta_start[0])
-                p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
+                p_delta_start = self.round_to_closest(p_delta_start_raw, self.awg_grid_ns)
                 
                 if p_delta_start != p_delta_start_raw:
                     general.message(f"Pulse Delta Start of {p_delta_start_raw} is not divisible by 3.2. The closest available Pulse Delta Start {p_delta_start} ns is used")
@@ -3300,12 +3414,12 @@ class Insys_FPGA:
                 
                 coef = self.timebase_dict[temp_delta_start[1]]
                 p_delta_start_raw = coef * float(temp_delta_start[0])
-                p_delta_start = self.round_to_closest(p_delta_start_raw, 3.2)
+                p_delta_start = self.round_to_closest(p_delta_start_raw, self.awg_grid_ns)
                 
                 if p_delta_start != p_delta_start_raw:
                     general.message(f"Pulse Delta Start of {p_delta_start_raw} is not divisible by 3.2. The closest available Pulse Delta Start {p_delta_start} ns is used")
                 
-                assert(round(remainder(p_delta_start, 3.2), 2) == 0), 'Pulse Delta Start should be divisible by 3.2'
+                assert(round(remainder(p_delta_start, self.awg_grid_ns), 2) == 0), f'Pulse Delta Start should be divisible by {self.awg_grid_ns}'
                 assert(p_delta_start >= 0), 'Pulse Delta Start is a negative number'
 
                 for i, pulse in enumerate(self.pulse_array_awg):
@@ -3521,7 +3635,7 @@ class Insys_FPGA:
                 
                 coef = self.timebase_dict[temp_length_increment[1]]
                 p_length_increment_raw = coef * float(temp_length_increment[0])
-                p_length_increment = self.round_to_closest(p_length_increment_raw, 3.2)
+                p_length_increment = self.round_to_closest(p_length_increment_raw, self.awg_grid_ns)
                 
                 if p_length_increment != p_length_increment_raw:
                     general.message(f"Pulse Length Increment of {p_length_increment_raw} is not divisible by 3.2. The closest available Pulse length Increment of {p_length_increment} ns is used")
@@ -3547,12 +3661,12 @@ class Insys_FPGA:
                 
                 coef = self.timebase_dict[temp_length_increment[1]]
                 p_length_increment_raw = coef * float(temp_length_increment[0])
-                p_length_increment = self.round_to_closest(p_length_increment_raw, 3.2)
+                p_length_increment = self.round_to_closest(p_length_increment_raw, self.awg_grid_ns)
                 
                 if p_length_increment != p_length_increment_raw:
                     general.message(f"Pulse Length Increment of {p_length_increment_raw} is not divisible by 3.2. The closest available Pulse length Increment of {p_length_increment} ns is used")
                 
-                assert(round(remainder(p_length_increment, 3.2), 2) == 0), 'Pulse Length Increment should be divisible by 3.2'
+                assert(round(remainder(p_length_increment, self.awg_grid_ns), 2) == 0), f'Pulse Length Increment should be divisible by {self.awg_grid_ns}'
                 assert (p_length_increment >= 0 and p_length_increment < self.max_pulse_length_awg), 'Pulse Length Increment is longer than maximum available length or negative'
                 assert(p_length_increment >= 0), 'Pulse Length Increment is a negative number'
 
@@ -4493,8 +4607,6 @@ class Insys_FPGA:
                     st = self.change_pulse_settings_pulser(p_array[i]['start'], -self.rect_awg_switch_delay_pulser)
                     self.awg_pulses_pulser = 1
 
-                st_time = self.time_to_ticks_pulser(st)
-                
                 # get length
                 #mod
                 if (ch != 'AWG'):# and (ch != 'SYNT2'):
@@ -4504,7 +4616,21 @@ class Insys_FPGA:
                     leng = self.change_pulse_settings_pulser(p_array[i]['length'], self.rect_awg_switch_delay_pulser + self.rect_awg_delay_pulser)
                     self.awg_pulses_pulser = 1
 
-                leng_time = self.time_to_ticks_pulser(leng)
+                if ch == 'TRIGGER_AWG':
+                    # gate = floor(start)..ceil(start + length) ticks, so a
+                    # sub-tick (0.8 ns grid) start stays covered by the gate;
+                    # on the 3.2 ns grid this equals the ceil/ceil path below
+                    st_time, t1, k_pad = self._trigger_gate_ticks(st, leng)
+                    leng_time = t1 - st_time
+                elif ch == 'DETECTION':
+                    # ADC window: floor a (possibly sub-tick) start, keep the
+                    # historical length; the residue*0.8 ns content shift is
+                    # corrected at readout (_window_sum / _align_det_rows)
+                    st_time = int(round(self.time_to_ns_pulser(st) * self.sample_rate_awg / 1000)) // 4
+                    leng_time = self.time_to_ticks_pulser(leng)
+                else:
+                    st_time = self.time_to_ticks_pulser(st)
+                    leng_time = self.time_to_ticks_pulser(leng)
 
                 # delta_start and length_increment are not part of the
                 # [channel, start, end] rows built below, so they are
@@ -4541,8 +4667,6 @@ class Insys_FPGA:
                     st = self.change_pulse_settings_pulser(p_array[i]['start'], -self.rect_awg_switch_delay_pulser)
                     self.awg_pulses_pulser = 1
 
-                st_time = self.time_to_ticks_pulser(st)
-
                 # get length
                 #mod
                 if (ch != 'AWG'):# and (ch != 'SYNT2'):
@@ -4552,7 +4676,18 @@ class Insys_FPGA:
                     leng = self.change_pulse_settings_pulser(p_array[i]['length'], self.rect_awg_switch_delay_pulser + self.rect_awg_delay_pulser)
                     self.awg_pulses_pulser = 1
 
-                leng_time = self.time_to_ticks_pulser(leng)
+                if ch == 'TRIGGER_AWG':
+                    # gate = floor(start)..ceil(start + length) ticks (see
+                    # the non-test branch)
+                    st_time, t1, k_pad = self._trigger_gate_ticks(st, leng)
+                    leng_time = t1 - st_time
+                elif ch == 'DETECTION':
+                    # ADC window: floored sub-tick start (see non-test branch)
+                    st_time = int(round(self.time_to_ns_pulser(st) * self.sample_rate_awg / 1000)) // 4
+                    leng_time = self.time_to_ticks_pulser(leng)
+                else:
+                    st_time = self.time_to_ticks_pulser(st)
+                    leng_time = self.time_to_ticks_pulser(leng)
 
                 # delta_start and length_increment are not part of the
                 # [channel, start, end] rows built below, so they are
@@ -5803,6 +5938,171 @@ class Insys_FPGA:
         """
         return round(( y * ( ( x // y ) + (round(x % y, 2) > 0) ) ), 1)
 
+    def awg_time_resolution(self, resolution = '3.2 ns'):
+        """
+        Set the effective time grid for AWG pulse timing (start / length /
+        delta_start / length_increment of TRIGGER_AWG and awg_pulse() pulses).
+        awg_time_resolution('0.8 ns') enables one-DAC-sample steps: the TTL
+        trigger/gate stays on the 3.2 ns pulser grid and the sub-tick
+        remainder is produced by leading zero samples in the DAC buffer.
+        Call it BEFORE defining pulses. Default is '3.2 ns'.
+        """
+        if self.test_flag != 'test':
+            if resolution in ('3.2 ns', '0.8 ns'):
+                self.awg_grid_ns = float(resolution.split(' ')[0])
+            else:
+                general.message('Incorrect AWG time resolution; only 3.2 ns and 0.8 ns are available')
+        elif self.test_flag == 'test':
+            assert resolution in ('3.2 ns', '0.8 ns'), 'Incorrect AWG time resolution; only 3.2 ns and 0.8 ns are available'
+            self.awg_grid_ns = float(resolution.split(' ')[0])
+
+    def time_to_ns_pulser(self, time_str):
+        """
+        Convert a '<float> <unit>' time string to a ns float
+        """
+        temp = time_str.split(' ')
+        return float(temp[0]) * self.timebase_dict[temp[1]]
+
+    def _trigger_gate_ticks(self, start_str, length_str):
+        """
+        Decompose a TRIGGER_AWG pulse (start already trigger_awg_shift-
+        subtracted, as stored in pulse_array_pulser) into the TTL gate and
+        the DAC front pad:
+          t0 = floor(start / 3.2)          gate start, 3.2 ns ticks
+          t1 = ceil((start + length)/3.2)  gate end, 3.2 ns ticks
+          k  = start_samples - 4*t0        leading zero DAC samples, 0..3
+        On the 3.2 ns grid this reproduces time_to_ticks_pulser() exactly
+        (k = 0, t1 - t0 = ceil(length/3.2)); ns values on the 0.8 ns grid
+        convert to integer DAC samples exactly (x1.25).
+        """
+        s_smp = int(round(self.time_to_ns_pulser(start_str) * self.sample_rate_awg / 1000))
+        l_smp = int(round(self.time_to_ns_pulser(length_str) * self.sample_rate_awg / 1000))
+        t0 = s_smp // 4
+        t1 = -((-(s_smp + l_smp)) // 4)
+        return t0, t1, s_smp - 4 * t0
+
+    def _sub_tick_residue(self, time_str):
+        """
+        DAC-sample residue (0..3) of a time string relative to the 3.2 ns
+        tick grid; 0 for every on-grid value. A change of this residue means
+        the DAC buffer padding must be rebuilt (see pulser_shift /
+        pulser_redefine_start).
+        """
+        return int(round(self.time_to_ns_pulser(time_str) * self.sample_rate_awg / 1000)) % 4
+
+    def _pulser_name_grid(self, name, move = True):
+        """
+        Active snap grid (ns) for a named pulser pulse: the AWG grid for
+        TRIGGER_AWG / 'AWG' entries (and, for values that MOVE the pulse —
+        start / delta_start — also DETECTION, whose sub-tick window start is
+        corrected at readout), the 3.2 ns pulser grid otherwise
+        """
+        channels = ('TRIGGER_AWG', 'AWG', 'DETECTION') if move else ('TRIGGER_AWG', 'AWG')
+        for pulse in self.pulse_array_pulser:
+            if pulse['name'] == name:
+                if pulse['channel'] in channels:
+                    return self.awg_grid_ns
+                break
+        return self.timebase_pulser
+
+    def _det_residue_samples(self):
+        """
+        Current DETECTION-pulse sub-tick residue in DAC samples (0..3);
+        0 whenever the detection start sits on the 3.2 ns grid
+        """
+        for pulse in self.pulse_array_pulser:
+            if pulse['channel'] == 'DETECTION':
+                return self._sub_tick_residue(pulse['start'])
+        return 0
+
+    def _det_shifts_pts(self, lo, hi):
+        """
+        Per-row window shift (in points of 0.4 * decimation ns) for data rows
+        lo..hi. The detection TTL window start is floored to the 3.2 ns grid,
+        so the nominal window content sits residue*0.8 ns LATER in the
+        captured row; the readout compensates by shifting the integration
+        slice / trace by this many points. Returns None when every shift is
+        zero — the historical, correction-free path.
+        """
+        if not self.det_residual_by_nid:
+            return None
+        dec = int(getattr(self, '_acc_dec', self.dec_coef))
+        shifts = np.zeros(hi - lo, dtype=np.intp)
+        warn = False
+        if getattr(self, 'l_mode', 0) == 1:
+            # live mode: the sequence is static within a call and pack ids
+            # do not map onto snapshot rows -- use the current residue
+            r = self._det_residue_samples()
+            if r:
+                pts2 = 2 * r
+                warn = bool(pts2 % dec)
+                shifts[:] = (pts2 + dec // 2) // dec
+        else:
+            for row in range(lo, hi):
+                # rows are phase-combined POINT indices; packs are per phase
+                r = self.det_residual_by_nid.get(row * self._det_rows_phases, 0)
+                if r:
+                    pts2 = 2 * r  # residue * 0.8 ns in 0.4 ns ADC points
+                    if pts2 % dec:
+                        warn = True
+                    shifts[row - lo] = (pts2 + dec // 2) // dec
+        if warn and not self._det_fine_warned:
+            self._det_fine_warned = 1
+            general.message('Decimation 4 cannot represent a 0.8/2.4 ns detection residual exactly; the window shift is rounded to the 1.6 ns point grid. Use decimation 1 or 2 for 0.8 ns detection sweeps')
+        if not shifts.any():
+            return None
+        return shifts
+
+    def _window_sum(self, di, dq, lo, hi, scale):
+        """
+        Integration over [win_left:win_right] for rows lo..hi, per-row
+        shifted by the detection sub-tick residual. Byte-identical to the
+        historical np.sum when no residual is present.
+        """
+        wl, wr = self.win_left, self.win_right
+        shifts = self._det_shifts_pts(lo, hi)
+        if shifts is None:
+            return (np.sum(di[lo:hi, wl:wr], axis=1) * scale,
+                    np.sum(dq[lo:hi, wl:wr], axis=1) * scale)
+        n = di.shape[1]
+        res_i = np.empty(hi - lo, dtype=np.float64)
+        res_q = np.empty(hi - lo, dtype=np.float64)
+        for s in np.unique(shifts):
+            m = np.nonzero(shifts == s)[0]
+            l = min(wl + int(s), n)
+            r = min(wr + int(s), n)
+            if (r - l) < (wr - wl) and not self._det_fine_edge_warned:
+                self._det_fine_edge_warned = 1
+                general.message('Integration window shifted past the detection window edge; keep at least 2.4 ns of margin between Window right and the detection pulse length')
+            res_i[m] = np.sum(di[lo:hi][m][:, l:r], axis=1) * scale
+            res_q[m] = np.sum(dq[lo:hi][m][:, l:r], axis=1) * scale
+        return res_i, res_q
+
+    def _align_det_rows(self, di, dq, lo = 0):
+        """
+        Full-trace mode: shift each row LEFT by its detection sub-tick
+        residual so the echo sits where an un-floored window would put it
+        (rows di/dq are the slice starting at absolute row `lo`). The last
+        (residue*0.8 ns) points were never captured and are zero-filled.
+        Returns the inputs unchanged when no residual is present.
+        """
+        shifts = self._det_shifts_pts(lo, lo + di.shape[0])
+        if shifts is None:
+            return di, dq
+        ai = np.zeros_like(di)
+        aq = np.zeros_like(dq)
+        n = di.shape[1]
+        for s in np.unique(shifts):
+            m = np.nonzero(shifts == s)[0]
+            s = int(s)
+            if s == 0:
+                ai[m] = di[m]
+                aq[m] = dq[m]
+            else:
+                ai[m, :n - s] = di[m][:, s:]
+                aq[m, :n - s] = dq[m][:, s:]
+        return ai, aq
+
     def gen_GIM_words(self, spinapi):
         """
         A function to create GIM words from old PB_ESR_Pro instructions
@@ -6140,6 +6440,29 @@ class Insys_FPGA:
         #general.message_test(tr_awg_array)
         # TRIGGER_AWG pulses: [[   1,   0, 400], [   1, 400, 456], [   1, 680, 700], [   1,2760,2816]]
 
+        # Per-gate segment layout. With the 0.8 ns AWG grid a waveform sits
+        # k (0..3) DAC samples inside its TTL gate (leading zero samples) and
+        # the gate segment is padded to whole 3.2 ns ticks at the back, so
+        # each segment stays 4*ticks samples long. trig_info rows are
+        # (gate_start_samples, k_pad, waveform_samples, segment_samples),
+        # sorted by the gate start IN SAMPLES so the order matches the AWG
+        # waveforms below (which convertion_to_numpy_awg sorts by start — the
+        # same monotonic quantity, offset by a constant trigger_awg_shift;
+        # sorting by samples, not the floored tick, avoids a mispairing when
+        # two gates share a tick but start at different sub-tick offsets).
+        # Only built on the fine grid: on the 3.2 ns grid k_pad = 0 and
+        # segment == length for every pulse, so an empty trig_info takes the
+        # historical back-to-back fallback below (byte-identical output).
+        trig_info = []
+        if self.awg_grid_ns != self.timebase_pulser:
+            for p in self.pulse_array_pulser:
+                if p['channel'] == 'TRIGGER_AWG':
+                    t0, t1, k_pad = self._trigger_gate_ticks(p['start'], p['length'])
+                    s_smp = int(round(self.time_to_ns_pulser(p['start']) * self.sample_rate_awg / 1000))
+                    l_smp = int(round(self.time_to_ns_pulser(p['length']) * self.sample_rate_awg / 1000))
+                    trig_info.append((s_smp, k_pad, l_smp, 4 * (t1 - t0)))
+            trig_info.sort(key = lambda r: r[0])
+
         pulses = self.preparing_buffer_single_awg() # 0.2-0.3 ms
         # only ch0 pulses are analyzed
         # ch1 will be generated automatically with shifted phase
@@ -6171,7 +6494,21 @@ class Insys_FPGA:
         # for ch1 phase is automatically shifted by self.phase_shift_ch1_seq_mode_awg
         norm_c = self.maxCAD_awg / self.amplitude_max_awg  # 32767 - 260 mV MAX
 
-        total_samples = np.sum(pulse_length_smp)
+        # the gates pair with the waveforms only when they match 1:1 in count
+        # and length; otherwise fall back to the historical layout, which can
+        # not represent sub-tick (0.8 ns grid) offsets
+        trig_ok = ( len(trig_info) == len(pulse_length_smp) and
+                    all(r[2] == int(l) for r, l in zip(trig_info, pulse_length_smp)) )
+        if not trig_ok and any(r[1] != 0 or r[2] != r[3] for r in trig_info):
+            if self.test_flag == 'test':
+                assert (1 == 2), 'Sub-tick (0.8 ns grid) AWG timing requires a one-to-one TRIGGER_AWG/AWG pulse pairing with equal lengths'
+            else:
+                general.message('Sub-tick (0.8 ns grid) AWG timing requires a one-to-one TRIGGER_AWG/AWG pulse pairing; falling back to the 3.2 ns buffer layout')
+
+        if trig_ok:
+            total_samples = int(sum(r[3] for r in trig_info))
+        else:
+            total_samples = np.sum(pulse_length_smp)
         channel_1 = np.zeros(total_samples, dtype=np.int16)
         channel_2 = np.zeros(total_samples, dtype=np.int16)
         current_pos = 0
@@ -6179,6 +6516,10 @@ class Insys_FPGA:
         for index, element in enumerate(arguments_array[0]):
 
             length = int(pulse_length_smp[index])
+            if trig_ok:
+                k_pad, segment = trig_info[index][1], trig_info[index][3]
+            else:
+                k_pad, segment = 0, length
 
             # A pulse's waveform does not depend on its position in the packed
             # buffer, but across phase cycling / delay sweeps the same samples
@@ -6197,9 +6538,9 @@ class Insys_FPGA:
                        self.sample_rate_awg, self.amplitude_0_awg, self.amplitude_1_awg, self.cor_version_awg)
                 cached = self.waveform_cache_awg.get(key)
                 if cached is not None:
-                    channel_1[current_pos : current_pos + length] = cached[0]
-                    channel_2[current_pos : current_pos + length] = cached[1]
-                    current_pos += length
+                    channel_1[current_pos + k_pad : current_pos + k_pad + length] = cached[0]
+                    channel_2[current_pos + k_pad : current_pos + k_pad + length] = cached[1]
+                    current_pos += segment
                     continue
 
             y1 = y2 = None
@@ -6317,14 +6658,14 @@ class Insys_FPGA:
             if y1 is not None:
                 y1 = np.round(y1).astype(np.int16)
                 y2 = np.round(y2).astype(np.int16)
-                channel_1[current_pos : current_pos + length] = y1
-                channel_2[current_pos : current_pos + length] = y2
+                channel_1[current_pos + k_pad : current_pos + k_pad + length] = y1
+                channel_2[current_pos + k_pad : current_pos + k_pad + length] = y2
                 if key is not None:
                     if len(self.waveform_cache_awg) > 1024:
                         self.waveform_cache_awg.clear()
                     self.waveform_cache_awg[key] = ( y1, y2 )
 
-            current_pos += length
+            current_pos += segment
 
         # overlap merging always runs on the freshly assembled buffer with the
         # current TRIGGER_AWG intervals, whether the waveforms came from the
@@ -6414,7 +6755,13 @@ class Insys_FPGA:
         if self.test_flag != 'test':
             size , data             = self.data_buf_IP_GIM_brd
             len_2st_ch              = self.adc_window
-            
+            # detection sub-tick residual bookkeeping: pack id == data row.
+            # Only nonzero residues are recorded, so a coarse (3.2 ns) run
+            # leaves the dict empty and the readout keeps its no-op fast path.
+            _det_res = self._det_residue_samples()
+            if _det_res:
+                self.det_residual_by_nid[int(self.nIP_No_brd)] = _det_res
+
             setSwitchEn_GIMRet      = self.setSwitchEn_GIM     (0                                                )
             
             rstFIFO_GIMRet          = self.rstFIFO_GIM         ((self.nIP_No_brd&1)                              )
@@ -6435,6 +6782,12 @@ class Insys_FPGA:
         elif self.test_flag == 'test':
             size , data             = self.data_buf_IP_GIM_brd
             len_2st_ch              = self.adc_window
+            # detection sub-tick residual bookkeeping: pack id == data row.
+            # Only nonzero residues are recorded, so a coarse (3.2 ns) run
+            # leaves the dict empty and the readout keeps its no-op fast path.
+            _det_res = self._det_residue_samples()
+            if _det_res:
+                self.det_residual_by_nid[int(self.nIP_No_brd)] = _det_res
 
     def start_brd(self):
         if self.test_flag != 'test':
