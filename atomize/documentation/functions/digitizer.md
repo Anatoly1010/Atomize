@@ -467,7 +467,7 @@ digitizer_decimation(2)    # 0.8 ns/point
 digitizer_decimation(4)    # 1.6 ns/point
 ```
 
-This function queries or sets the decimation coefficient for Insys FM214x3GDA. If there is no argument the function will return the decimation coefficient of the digitizer. If there is an argument the specified decimation will be set. It can be used instead of the function [`digitizer_sample_rate()`](#digitizer_sample_rate). The values 1, 2, 4 correspond to 0.4 ns/point, 0.8 ns/point, and 1.6 ns/point. Decimation is performed by boxcar-averaging: each output point is the mean of a group of `dec` consecutive samples, so the effective SNR / anti-aliasing improves. Because the mean is used, the amplitude scale is identical to `dec = 1`, so no additional calibration change is needed. The decimation coefficient is also used by the [`digitizer_iq()`](#digitizer_iq) function to build the time axis. This function should be called before [`pulser_open()`](pulse_programmer.md#pulser_open).
+This function queries or sets the decimation coefficient for Insys FM214x3GDA. If there is no argument the function will return the decimation coefficient of the digitizer. If there is an argument the specified decimation will be set. It can be used instead of the function [`digitizer_sample_rate()`](#digitizer_sample_rate). The values 1, 2, 4 correspond to 0.4 ns/point, 0.8 ns/point, and 1.6 ns/point. Decimation is performed by boxcar-averaging: each output point is the mean of a group of `dec` consecutive samples, so the effective SNR / anti-aliasing improves. Because the mean is used, the amplitude scale is identical to `dec = 1`, so no additional calibration change is needed. The decimation coefficient is also used by the [`digitizer_demodulate()`](#digitizer_demodulate) function to build the time axis. This function should be called before [`pulser_open()`](pulse_programmer.md#pulser_open).
 
 **Allowed:** `1`, `2`, `4`
 {: .enum }
@@ -494,7 +494,7 @@ This function sets or queries enabled flows of data. If there is no argument the
 digitizer_read_settings()    # read settings from digitizer.param
 ```
 
-This function reads all the settings from a special text file [`digitizer.param`](https://github.com/Anatoly1010/Atomize_ITC/tree/master/atomize/control_center) and writes them to the digitizer using the [`digitizer_setup()`](#digitizer_setup) function. It also reads the zero-, first-, and second-order phase-correction coefficients stored in the file (set in the phasing control center); these become the default phase corrections used by the [`digitizer_iq()`](#digitizer_iq) function when its corresponding arguments are omitted.
+This function reads all the settings from a special text file [`digitizer.param`](https://github.com/Anatoly1010/Atomize_ITC/tree/master/atomize/control_center) and writes them to the digitizer using the [`digitizer_setup()`](#digitizer_setup) function. It also reads the zero-, first-, and second-order phase-correction coefficients stored in the file (set in the phasing control center); these become the default phase corrections used by the [`digitizer_demodulate()`](#digitizer_demodulate) function when its corresponding arguments are omitted.
 
 !!! note
     This function is not available for L card L-502.
@@ -538,17 +538,17 @@ This function is available only for Insys FM214x3GDA and is similar to the [`dig
 
 ---
 
-### digitizer_iq(arr_i, arr_q, freq, ph=None, ph1=None, ph2=None, integral=False) { #digitizer_iq data-toc-label="digitizer_iq" }
+### digitizer_demodulate(arr_i, arr_q, freq, ph=None, ph1=None, ph2=None, integral=False) { #digitizer_demodulate data-toc-label="digitizer_demodulate" }
 
 ```python
 # Software down-conversion of the quadrature data
-data_i, data_q = digitizer_iq(data_i, data_q, freq, ph, ph1, ph2)
+data_i, data_q = digitizer_demodulate(data_i, data_q, freq, ph, ph1, ph2)
 
 # Phase corrections taken from digitizer_read_settings()
-data_i, data_q = digitizer_iq(data_i, data_q, freq)
+data_i, data_q = digitizer_demodulate(data_i, data_q, freq)
 
 # With integration over the window
-res_i, res_q = digitizer_iq(
+res_i, res_q = digitizer_demodulate(
     data_i, data_q, freq, ph, ph1, ph2, integral=True)
 ```
 

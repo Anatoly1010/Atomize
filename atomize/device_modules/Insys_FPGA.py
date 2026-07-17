@@ -6888,7 +6888,12 @@ class Insys_FPGA:
     def number_adc_window_in_buffer(self):
         return int( self.nStrmBufSizeb_brd / ( self.adc_window * 64 + 32 ) )
 
-    def digitizer_iq(self, arr_i, arr_q, freq, ph = None, ph1 = None, ph2 = None, integral = False):
+    def digitizer_iq(self, *args, **kwargs):
+        # Deprecated alias for digitizer_demodulate (renamed 2026-07); kept
+        # so existing user scripts keep working.
+        return self.digitizer_demodulate(*args, **kwargs)
+
+    def digitizer_demodulate(self, arr_i, arr_q, freq, ph = None, ph1 = None, ph2 = None, integral = False):
 
         # fall back to the phase corrections read from digitizer_insys.param by
         # digitizer_read_settings() (worker units: rad, rad/s, rad/s^2) whenever a

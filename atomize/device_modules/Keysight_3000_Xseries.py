@@ -458,10 +458,15 @@ class Keysight_3000_Xseries:
                     xs = np.arange( len(array_y) ) * ( pg.siEval(self.oscilloscope_time_resolution()) )
                     return xs, array_y, integ
     
-    def oscilloscope_iq(self, arr_i, arr_q, freq, ph = None, ph1 = None, ph2 = None, integral = False):
+    def oscilloscope_iq(self, *args, **kwargs):
+        # Deprecated alias for oscilloscope_demodulate (renamed 2026-07); kept
+        # so existing user scripts keep working.
+        return self.oscilloscope_demodulate(*args, **kwargs)
+
+    def oscilloscope_demodulate(self, arr_i, arr_q, freq, ph = None, ph1 = None, ph2 = None, integral = False):
         """
         IQ demodulation + phase correction of the acquired data. Mirrors
-        Spectrum_M4I_4450_X8.digitizer_iq; the sampling step comes from the
+        Spectrum_M4I_4450_X8.digitizer_demodulate; the sampling step comes from the
         scope timebase (oscilloscope_time_resolution() -> SI string, eval'd to
         seconds/point) instead of a fixed digitizer sample rate.
 

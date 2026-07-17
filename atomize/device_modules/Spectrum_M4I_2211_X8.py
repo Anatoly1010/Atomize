@@ -1428,10 +1428,15 @@ class Spectrum_M4I_2211_X8:
         """
         return ( self.win_right - self.win_left ) * 1000 / self.sample_rate
 
-    def digitizer_iq(self, arr_i, arr_q, freq, ph = None, ph1 = None, ph2 = None, integral = False):
+    def digitizer_iq(self, *args, **kwargs):
+        # Deprecated alias for digitizer_demodulate (renamed 2026-07); kept
+        # so existing user scripts keep working.
+        return self.digitizer_demodulate(*args, **kwargs)
+
+    def digitizer_demodulate(self, arr_i, arr_q, freq, ph = None, ph1 = None, ph2 = None, integral = False):
         """
         IQ demodulation + phase correction of the acquired data (ported from
-        Insys_FPGA.digitizer_iq, adapted to the NIOCH timebase: the sampling
+        Insys_FPGA.digitizer_demodulate, adapted to the NIOCH timebase: the sampling
         frequency and time step come from self.sample_rate instead of the Insys
         decimation coefficient).
 
