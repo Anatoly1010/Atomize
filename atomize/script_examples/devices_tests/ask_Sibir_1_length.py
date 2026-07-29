@@ -9,7 +9,7 @@ NMR_SIBIR.gaussmeter_sensor_number(3)
 NMR_SIBIR.gaussmeter_gain(25)
 NMR_SIBIR.gaussmeter_points(4500)
 NMR_SIBIR.gaussmeter_pulse_length(6.75)
-NMR_SIBIR.gaussmeter_number_of_averges(2048)
+NMR_SIBIR.gaussmeter_number_of_averages(2048)
 #set_b0 = NMR_SIBIR.gaussmeter_search(2900,3100,5)
 G = []
 set_b0 = 2999

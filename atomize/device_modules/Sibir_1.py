@@ -20,6 +20,22 @@ def bytes_to_int(a):
     return int(a.hex(), 16)
 
 class Sibir_1():
+
+    # Number of accumulations N_A corresponding to the nav codes 0 - 5
+    # (manual, Table 6)
+    NAV_TO_NA = (1, 8, 16, 32, 64, 128)
+
+    # Divisor of the accumulated ADC sum, see convert_arr_data_to_np_array().
+    # Manual, Sec. 3.2: U_A = u/(N_A + 1) - 2048.
+    # NB: u is an unsigned short (16 bit), while the raw sum of N_A samples of
+    # the 12-bit ADC overflows it already at N_A = 16. The block therefore has
+    # to rescale internally and the divisor most likely saturates, which is what
+    # the second table assumes. The divisor is directly measurable on the
+    # hardware: with no NMR signal the ADC baseline is 2048, so the mean of the
+    # raw array u_f (before scaling) equals divisor*2048
+    NAV_TO_DIV = (2, 9, 17, 33, 65, 129)     # literally as in the manual
+    #NAV_TO_DIV = (1, 8, 16, 16, 16, 16)     # if the block saturates at 16 accumulations
+
     def __init__(self):
         
         # setting path to *.ini file
@@ -82,12 +98,27 @@ class Sibir_1():
             #-----------SETTING----------------
             self.Fref = 32767.846
             self.N    = 8192
-            self.T    = 1/2048 # хз 
+            self.T    = 1/2048 # ms; ADC sampling frequency is Fref/16 = 2.048 MHz
+                               # (manual, Sec. 3.2), so the frequency axis is in kHz
             self.Fr   = 42.57637
             self.num_exp = 1
+            #----------NMR---LINE---WINDOW-----
+            self.IF         = 480.0  # kHz; F2 = F1 + 480 kHz (manual, Sec. 5)
+            self.band_width =  50.0  # kHz; half-width of the search window around IF
+            self.sn_min     =   5.0  # S/N_MIN, usually 5 - 20 (manual, Sec. 6, Stage 2)
+            self.N_fft      = 524288 # zero padding used for the field determination
+                                     # (manual, Sec. 6, Stage 3); 3.9 Hz per bin
+            self.N_disp     =  53248 # zero padding of the spectrum returned to the
+                                     # user; kept small enough to be plotted live
+            self.verify_synt = False # read the synthesizer frequencies back after
+                                     # every setting (manual, Sec. 5)
             #----------FIND---NOIZE-----------
             self.NOIZE = 1
-            
+            self.noize_state = None  # acquisition settings NOIZE was measured at
+            self.noize_each_time = False # re-measure the noise before every single
+                                     # field measurement instead of only after a
+                                     # change of the acquisition settings
+
             # problem with connection?!
             # 2025-04-17
             self.NOIZE = self.NMR_find_noize(3000)
@@ -119,11 +150,20 @@ class Sibir_1():
             self.N    = 53248
             self.T    = 1/2048
             self.num_exp = 1
+            self.IF         = 480.0
+            self.band_width =  50.0
+            self.sn_min     =   5.0
+            self.N_fft      = 524288
+            self.N_disp     =  53248
+            self.verify_synt = False
             self.NOIZE = 0
+            self.noize_state = None
+            self.noize_each_time = False
             self.NOIZE = self.NMR_find_noize(3000)
             self.B = 100.0
 
-    def gaussmeter_name():
+    #def gaussmeter_name():
+    def gaussmeter_name(self):
         if self.test_flag != 'test':
             answer = 'Sibir 1 NMR Gaussmeter'
             return answer
@@ -139,22 +179,22 @@ class Sibir_1():
                         self.num_point = int(points[0])
                         self.NMR_number_point(0)
                         if int(points[0]) != 8192:
-                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {8192}")
+                            general.message(f"Np is set to {8192} points on the device; the first {int(points[0])} points of the FID will be used.")
                     elif int(points[0])>=8193 and int(points[0]) <= 16384:
                         self.num_point = int(points[0])
                         self.NMR_number_point(1)
                         if int(points[0]) != 16384:
-                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {16384}")                        
+                            general.message(f"Np is set to {16384} points on the device; the first {int(points[0])} points of the FID will be used.")                        
                     elif int(points[0])>=16385 and int(points[0]) <= 32768:
                         self.num_point = int(points[0])
                         self.NMR_number_point(2)
                         if int(points[0]) != 32768:
-                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {32768}")                        
+                            general.message(f"Np is set to {32768} points on the device; the first {int(points[0])} points of the FID will be used.")                        
                     elif int(points[0])>=32769 and int(points[0]) <= 53248:
                         self.num_point = int(points[0])
                         self.NMR_number_point(3)
                         if int(points[0]) != 53248:
-                            general.message(f"The specified number of averages cannot be set. The following number was set instead: {53248}")                        
+                            general.message(f"Np is set to {53248} points on the device; the first {int(points[0])} points of the FID will be used.")                        
 
             elif len(points) == 0:       
                 return self.num_point
@@ -226,8 +266,11 @@ class Sibir_1():
                         if _nav != 2048:
                             general.message(f"The specified number of averages cannot be set. The following number was set instead: {2048}")                        
                     
-            elif len(nav) == 0:   
-                return self.NMR_nav() * self.num_exp
+            elif len(nav) == 0:
+                # NMR_nav() returns the code nav (0 - 5), not the number of
+                # accumulations N_A itself (manual, Table 6)
+                #return self.NMR_nav() * self.num_exp
+                return self.NAV_TO_NA[self.NMR_nav()] * self.num_exp
 
         elif self.test_flag == 'test':
             if len(nav) == 1:
@@ -236,16 +279,24 @@ class Sibir_1():
                     pass 
                 else:
                     assert(1 == 2), 'Invalid number of averages, number: [1, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]'
-            elif len(nav) == 0:   
-                return self.mode_nav * self.num_exp
+            elif len(nav) == 0:
+                #return self.mode_nav * self.num_exp
+                return self.NAV_TO_NA[self.mode_nav] * self.num_exp
             else:
                 assert(1 == 2), 'Invalid number of averages, number: [1, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]'
 
     def gaussmeter_search(self, B_lower, B_upper, step):
         B1   = int(B_lower)
-        B2   = int(B_upper)  
+        B2   = int(B_upper)
         st   = int(step)
         N    = int((B2-B1)/st)
+        # Manual, Sec. 6, Stage 4: the excitation pulse only covers B_STEP =
+        # 10/T90 mT = 100/T90 G, a wider step can step over the NMR signal
+        if self.time_90_deg_pulse > 0:
+            st_max = 100 / self.time_90_deg_pulse
+            if st > st_max:
+                general.message('The scan step of ' + str(st) + ' G is wider than 100/T90 = ' \
+                                 + str(round(st_max, 2)) + ' G, the NMR signal can be missed')
         Bref = self.NMR_search(B1,B2,N)
         #self.B = Bref
         return Bref
@@ -265,22 +316,48 @@ class Sibir_1():
         if self.test_flag != 'test':
             Fref = int(self.Fr *  self.B/10)
             self.NMR_freq_synthesizer(Fref)
-            all_arr = np.zeros(self.num_point)
-            for i in range(self.num_exp):
-                self.NMR_start_experiment()
-                arr = self.NMR_FID_array().T
-                all_arr=all_arr + arr[:self.num_point]
-            all_arr= all_arr / self.num_exp
-            arr = all_arr - np.mean(all_arr)
-            arr=np.append(arr,np.zeros(53248 - arr.shape[0]))
-            W,I = self.get_rfft_FID(arr)
-            S_n = np.max(I[2:])/self.NOIZE
-            if S_n > 0:
-                F_cl = self.z(W[2:], I[2:],Fref)
-                B_cl = (-F_cl+Fref+480)/self.Fr*10
-                return arr[2:] , I[2:] , round(B_cl, 4) , S_n
+            # Manual, Sec. 6, Stage 2: NOISE_MAX has to be measured with the
+            # excitation pulse switched off under the same conditions as the
+            # signal. Doing it once at start up, at gain 0 and with a different
+            # number of points, makes the S/N ratio meaningless
+            if self.noize_each_time or self.noize_state != self.acquisition_state():
+                self.NMR_find_noize()
+            #all_arr = np.zeros(self.num_point)
+            #for i in range(self.num_exp):
+            #    self.NMR_start_experiment()
+            #    arr = self.NMR_FID_array().T
+            #    all_arr=all_arr + arr[:self.num_point]
+            #all_arr= all_arr / self.num_exp
+            all_arr = self.acquire_FID()
+            #arr = all_arr - np.mean(all_arr)
+            #arr=np.append(arr,np.zeros(53248 - arr.shape[0]))
+            #W,I = self.get_rfft_FID(arr)
+            W,I = self.process_FID(all_arr, self.N_fft)
+            # The NMR line can only show up inside a narrow window around the
+            # intermediate frequency F2 - F1 = 480 kHz, since the excitation
+            # frequency has to be within a few tens of kHz of the NMR frequency
+            # for the signal to be seen at all (manual, Sec. 6, Stage 2).
+            # Searching the whole 0 - 1024 kHz band instead locks onto
+            # out-of-band interference (e.g. the ever-present 12.5 kHz line,
+            # which accumulates coherently just like the signal); picking that
+            # peak up shifts the reported field by about 110 G.
+            band = self.nmr_band(W)
+            #S_n = np.max(I[2:])/self.NOIZE
+            S_n = np.max(I[band])/self.NOIZE
+            # the returned spectrum is computed with a much coarser zero padding:
+            # it covers the whole 0 - 1024 kHz band, so the interference stays
+            # visible, but it is small enough to be plotted after every point
+            I_out = self.process_FID(all_arr, self.N_disp)[1]
+            #if S_n > 0:
+            if S_n > self.sn_min:
+                #F_cl = self.z(W[2:], I[2:],Fref)
+                F_cl = self.z_integral(W[band], I[band])
+                B_cl = (-F_cl+Fref+self.IF)/self.Fr*10
+                #return arr[2:] , I[2:] , round(B_cl, 4) , S_n
+                return all_arr , I_out[2:] , round(B_cl, 4) , S_n
             else:
-                return arr[2:] , I[2:] , 0 , S_n
+                #return arr[2:] , I[2:] , 0 , S_n
+                return all_arr , I_out[2:] , 0 , S_n
 
         elif self.test_flag == 'test':
             return np.zeros(500) , np.zeros(500) , self.B , 6
@@ -290,16 +367,18 @@ class Sibir_1():
             if len(gain) == 1:
                 if int(gain[0])>=0 and int(gain[0]) <= 31:
                     self.gain_value = int(gain[0])
-                    self.reg[0] = c_uint(gain[0])
-                    self.write_reg_i(0)    
+                    #self.reg[0] = c_uint(gain[0])   # raises for a float argument
+                    self.reg[0] = c_uint(int(gain[0]))
+                    self.write_reg_i(0)
             elif len(gain) == 0:
                 return self.read_reg_i(0)
 
         elif self.test_flag == 'test':
             if len(gain) == 1:  
                 if gain[0]>=0 and gain[0] <= 31:
-                    self.gain_value = gain[0]
-                    self.reg[0] = c_uint(gain[0])
+                    self.gain_value = int(gain[0])
+                    #self.reg[0] = c_uint(gain[0])
+                    self.reg[0] = c_uint(int(gain[0]))
                 else:
                     assert(1 == 2), 'Invalid value of the preamplifier gain; gain: int [0 - 31]'
             elif len(gain) == 0:
@@ -315,7 +394,10 @@ class Sibir_1():
                     self.set_2_reg()
                     self.write_reg_i(2)    
             elif len(time_pulse) == 0:
-                return self.read_reg_i(2)
+                # register 2 holds the code T90*32.768, the documented unit of
+                # this function is us (manual, Table 3)
+                #return self.read_reg_i(2)
+                return round(self.read_reg_i(2) / 32.768, 2)
 
         elif self.test_flag == 'test':
             if len(time_pulse) == 1:  
@@ -325,7 +407,8 @@ class Sibir_1():
                 else:
                     assert(1 == 2), 'Invalid length of the pi/2 pulse, length: int [0 - 40]'
             elif len(time_pulse) == 0:
-                return  self.reg[2]
+                #return  self.reg[2]
+                return  round(self.reg[2] / 32.768, 2)
             else:
                 assert(1 == 2), 'Invalid length of the pi/2 pulse, length: int [0 - 40]'
 
@@ -352,6 +435,91 @@ class Sibir_1():
                 assert(1 == 2), 'Invalid sensor number; number: [1, 2, 3, 4]'
 
 ### Auxiliary functions
+    def nmr_band(self, W):
+        # Boolean mask selecting the part of the spectrum where the NMR line
+        # can appear: IF +/- band_width. Everything outside is interference.
+        return np.abs(W - self.IF) <= self.band_width
+
+    def acquisition_state(self):
+        # Everything that changes the amplitude scale of the spectrum and
+        # therefore invalidates the stored noise level
+        return (self.gain_value, self.mode_nav, self.mode_point, self.num_point,
+                self.num_exp, self.sensor_number, self.N_fft)
+
+    def acquire_FID(self):
+        # num_exp repetitions of the measurement cycle, averaged. num_exp is
+        # larger than one only above 128 accumulations, which is the maximum
+        # the block itself can do (manual, Table 6)
+        all_arr = np.zeros(self.num_point)
+        for i in range(self.num_exp):
+            self.NMR_start_experiment()
+            arr = self.NMR_FID_array().T
+            all_arr = all_arr + arr[:self.num_point]
+        return all_arr / self.num_exp
+
+    def process_FID(self, arr, N):
+        # Identical processing of the noise and of the signal, so that their
+        # maxima can be divided by each other (manual, Sec. 6, Stages 2 and 3):
+        # remove the DC offset and pad with zeros up to N points
+        arr = arr - np.mean(arr)
+        arr = np.append(arr, np.zeros(N - arr.shape[0]))
+        return self.get_rfft_FID(arr)
+
+    def z_integral(self, X, Y):
+        # Manual, Sec. 6, Stage 3: subtract a pedestal of 0.2*S_MAX from the
+        # spectrum and take the frequency that cuts the area of the remaining
+        # "bell" in half, the triangular pieces at both edges included.
+        # This replaces z(), which returned the midpoint between the two
+        # crossings of the 0.2*S_MAX level and fell back to the position of the
+        # maximum - i.e. to the bin grid - as soon as the level was crossed
+        # anywhere else in the spectrum.
+        k     = int(np.argmax(Y))
+        level = 0.2 * Y[k]
+        if not Y[k] > 0:
+            return X[k]
+
+        left = k
+        while left > 0 and Y[left - 1] > level:
+            left -= 1
+        right = k
+        while right < len(Y) - 1 and Y[right + 1] > level:
+            right += 1
+
+        x = list(X[left:right + 1])
+        y = list(Y[left:right + 1] - level)
+        # the bell is cut where it crosses the pedestal, somewhere between the
+        # samples left-1/left and right/right+1: add these two crossing points
+        # so that the edge triangles are included in the integral
+        if left > 0 and Y[left] > Y[left - 1]:
+            x.insert(0, X[left] - (X[left] - X[left - 1]) * y[0] / (Y[left] - Y[left - 1]))
+            y.insert(0, 0.0)
+        if right < len(Y) - 1 and Y[right] > Y[right + 1]:
+            x.append(X[right] + (X[right + 1] - X[right]) * y[-1] / (Y[right] - Y[right + 1]))
+            y.append(0.0)
+        x = np.array(x, dtype = float)
+        y = np.array(y, dtype = float)
+
+        h     = np.diff(x)
+        area  = 0.5 * (y[:-1] + y[1:]) * h
+        total = np.sum(area)
+        if not total > 0:
+            return X[k]
+
+        cum  = np.cumsum(area)
+        j    = min(int(np.searchsorted(cum, 0.5 * total)), len(area) - 1)
+        rest = 0.5 * total - (cum[j - 1] if j > 0 else 0.0)
+        # area of the j-th piece up to t:  y[j]*t + (y[j+1] - y[j])/h[j] * t^2/2
+        a = 0.5 * (y[j + 1] - y[j]) / h[j]
+        b = y[j]
+        t = rest / b if b > 0 else 0.0
+        if abs(a) > 1e-12:
+            d = b * b + 4.0 * a * rest
+            if d >= 0:
+                _t = (-b + np.sqrt(d)) / (2.0 * a)
+                if 0.0 <= _t <= h[j]:
+                    t = _t
+        return x[j] + t
+
     def z(self, X, Y, F):
         m = 0.2 * np.max(Y)
         Y1 = Y[:-1]
@@ -433,7 +601,10 @@ class Sibir_1():
                 if freq[0]>=1000 and freq[0] <= 100000:
                     self.write_freq_to_synthesizer(freq[0])    
             elif len(freq) == 0:
-                return self.read_freq_to_synthesizer()
+                # read_freq_to_synthesizer() returns both channels, (F1, F2);
+                # F1 = G*B_SET is the one the field is derived from
+                #return self.read_freq_to_synthesizer()
+                return self.read_freq_to_synthesizer()[0]
 
             else:
                 general.message("Invalid frequency")
@@ -460,44 +631,71 @@ class Sibir_1():
         if self.test_flag != 'test':
             F1 = int(self.Fr *  B1 / 10)
             F2 = int(self.Fr *  B2 / 10)
-            all_F = np.linspace(F1, F2, N)
+            #all_F = np.linspace(F1, F2, N)
+            all_F = np.linspace(F1, F2, N + 1)  # N intervals are N + 1 points
+            # Manual, Sec. 6, Stage 4: the noise level is measured once, for the
+            # centre of the scanned range
+            self.NMR_find_noize( (B1 + B2) / 2 )
             S_N = []
             for F in all_F:
                 F = int(F)
                 self.NMR_freq_synthesizer(F)
-                self.NMR_start_experiment()
-                arr = self.NMR_FID_array().T
-                W, I = self.get_rfft_FID(arr)
-                S_N.append(max(I[2:]) / self.NOIZE)
+                #self.NMR_start_experiment()
+                #arr = self.NMR_FID_array().T
+                #W, I = self.get_rfft_FID(arr)
+                W, I = self.process_FID(self.acquire_FID(), self.N_fft)
+                #S_N.append(max(I[2:]) / self.NOIZE)
+                S_N.append(np.max(I[self.nmr_band(W)]) / self.NOIZE)
                 general.message('S/N: ' + str(round(S_N[-1], 2)) + '; Field: ' + str(round(F / self.Fr * 10, 4)) + ' G')
 
             L = S_N.index(max(S_N))
             Bref = all_F[L] / self.Fr * 10
+            if max(S_N) < self.sn_min:
+                general.message('No NMR signal found in the specified range; the best S/N is ' \
+                                 + str(round(max(S_N), 2)) + ', S/N_MIN is ' + str(self.sn_min))
             return Bref
         elif self.test_flag == 'test':
             return 2000
 
-    def NMR_clarification(self, Bref):
-        Fref = int(self.Fr * Bref / 10)
-        self.NMR_freq_synthesizer(Fref)
-        self.NMR_start_experiment()
-        arr = self.NMR_FID_array().T
-        W,I = self.get_rfft_FID(arr)
-        F_cl = W[ list(I).index(max(I[2:])) ]
-        return (FF + Fref - 480) / Fr * 10
+    # Superseded by gaussmeter_field(). Never called, and it does not run: FF and
+    # Fr are undefined, and the sign of the offset disagrees with Stage 3 of
+    # Sec. 6 of the manual
+    #def NMR_clarification(self, Bref):
+    #    Fref = int(self.Fr * Bref / 10)
+    #    self.NMR_freq_synthesizer(Fref)
+    #    self.NMR_start_experiment()
+    #    arr = self.NMR_FID_array().T
+    #    W,I = self.get_rfft_FID(arr)
+    #    F_cl = W[ list(I).index(max(I[2:])) ]
+    #    return (FF + Fref - 480) / Fr * 10
 
-    def NMR_find_noize(self, B):
-        F = int(self.Fr *  B / 10)
-
+    def NMR_find_noize(self, *B):
+        # Manual, Sec. 6, Stage 2: measure the spectrum with the excitation
+        # pulse switched off and take its maximum as NOISE_MAX. Called without
+        # an argument the current synthesizer setting is kept, so that the noise
+        # is measured at the field the signal is then looked for at.
         if self.test_flag != 'test':
-            T0 = self.gaussmeter_pulse_length()
+            if len(B) == 1:
+                self.NMR_freq_synthesizer(int(self.Fr * B[0] / 10))
+            # read_reg_i(2) returns the register code (T90*32.768), not us, and
+            # restoring it through gaussmeter_pulse_length() would silently fail
+            # the 0 - 40 us check and leave the excitation pulse switched off
+            #T0 = self.gaussmeter_pulse_length()
+            T0 = self.time_90_deg_pulse
             self.gaussmeter_pulse_length(0)
-            self.NMR_freq_synthesizer(F)
-            self.NMR_start_experiment()
-            W,I = self.get_rfft_FID(self.NMR_FID_array().T)
+            #self.NMR_start_experiment()
+            #W,I = self.get_rfft_FID(self.NMR_FID_array().T)
+            # exactly the same number of points, averaging and zero padding as
+            # in gaussmeter_field(), otherwise the two maxima are not comparable
+            W,I = self.process_FID(self.acquire_FID(), self.N_fft)
             self.gaussmeter_pulse_length(T0)
-            self.NOIZE = max(I[2:])
-            return max(I[2:])
+            # The same window as in gaussmeter_field(): with T90 = 0 the whole
+            # spectrum is interference, and the 12.5 kHz line would otherwise
+            # be taken as the noise level
+            #self.NOIZE = max(I[2:])
+            self.NOIZE = np.max(I[self.nmr_band(W)])
+            self.noize_state = self.acquisition_state()
+            return self.NOIZE
         elif self.test_flag == 'test':
             return 1
     
@@ -533,8 +731,12 @@ class Sibir_1():
     def set_12_reg(self):
         pass
     def set_13_reg(self):
+        # NB: registers 13 and 15 are swapped on page 6 of the manual. Confirmed
+        # by the manufacturer: register 15 takes the address and D0, register 13
+        # takes D3 and the total number of transferred bits. The code below is
+        # correct, the manual is not
         a = self.command_synt_bytes
-        self.reg[13] = bytes_to_c_uint(a[4]+a[5]) 
+        self.reg[13] = bytes_to_c_uint(a[4]+a[5])
     def set_14_reg(self):
         a = self.command_synt_bytes
         self.reg[14] = bytes_to_c_uint(a[2]+a[3])   
@@ -621,28 +823,45 @@ class Sibir_1():
         command = self.get_command_read_reg_i(i)
         self.sock.sendto( command , (self.ip_UDP, self.port_UDP) )
         data_raw_answer, addr = self.sock.recvfrom( int(4) )
-        data_raw_data, addr = self.sock.recvfrom( int(4) )
+        # The 0xF4 packet is 6 bytes long (manual, Fig. 7 and Table 5): bytes
+        # 2-5 hold the register content, big endian, so bytes 2-3 are bits
+        # 31-16 and bytes 4-5 are bits 15-0. Receiving only 4 bytes threw away
+        # the rest of the datagram and returned the unused upper half word
+        #data_raw_data, addr = self.sock.recvfrom( int(4) )
+        data_raw_data, addr = self.sock.recvfrom( int(6) )
         self.check_out_read_reg_i(data_raw_answer,data_raw_data,i)
+        #return  bytes_to_int(data_raw_data[2:])
+        if len(data_raw_data) >= 6:
+            return  bytes_to_int(data_raw_data[4:6])
         return  bytes_to_int(data_raw_data[2:])
 
 #------------------------0x01--------------------------------------------------
-    def get_command_read_arr_all_signal(self, i):
-        command = b'\x01\x09\x00' + (0).to_bytes(1, byteorder = "big") +b'\x00'+ (i).to_bytes(1, byteorder = "big")
+    def get_command_read_arr_all_signal(self, i, first = 0):
+        # bytes 2-3 are the first requested page, bytes 4-5 the last one
+        # (manual, Fig. 1)
+        #command = b'\x01\x09\x00' + (0).to_bytes(1, byteorder = "big") +b'\x00'+ (i).to_bytes(1, byteorder = "big")
+        command = b'\x01\x09' + (first).to_bytes(2, byteorder = "big") + (i).to_bytes(2, byteorder = "big")
         return command
 
     def convert_arr_data_to_np_array(self, data):
         u_f_1 = np.array([ data[2*i] << 8 for i in range(len(data) // 2)])
         u_f_2 = np.array([ data[2*i + 1] for i in range(len(data) // 2)])
         u_f = u_f_1 + u_f_2
-        if self.mode_nav == 0:
-            Na = 0
-        elif self.mode_nav == 1:
-            Na = 7
-        else:
-            Na = 15 
-        Na = 8 #-------------------------FIX-----------
-        U  = u_f / (Na+1) - 2047
-        return  U 
+        #if self.mode_nav == 0:
+        #    Na = 0
+        #elif self.mode_nav == 1:
+        #    Na = 7
+        #else:
+        #    Na = 15
+        #Na = 8 #-------------------------FIX-----------
+        #U  = u_f / (Na+1) - 2047
+        # Manual, Sec. 3.2: U_A = u/(N_A + 1) - 2048. The hardcoded divisor of 9
+        # above was correct only for nav code 1 (N_A = 8) and rescaled the
+        # amplitude by roughly N_A/8 otherwise. This affects the amplitude scale
+        # and the DC pedestal only: gaussmeter_field() subtracts the mean before
+        # the FFT, so the measured field does not depend on it
+        U  = u_f / self.NAV_TO_DIV[self.mode_nav] - 2048
+        return  U
 
     def check_out_read_arr_all_signal(self, out):
         out, data_frame = out[:10] , out[10:]
@@ -652,8 +871,36 @@ class Sibir_1():
             general.message("problems are possible to read_arr_all_signal")      
         return  self.convert_arr_data_to_np_array(data_frame)
 
+    def read_pages(self, pages, first, last):
+        # Each page comes in its own datagram and carries its own number in
+        # bytes 3-4 of the header (manual, Fig. 5), so the pages are stored by
+        # that number instead of by the order they arrive in. Byte 9 is the
+        # number of the measurement they belong to.
+        command = self.get_command_read_arr_all_signal(last, first)
+        self.sock.sendto( command , (self.ip_UDP, self.port_UDP) )
+        meas = set()
+        # the measurement cycle is already over at this point, the pages arrive
+        # at once; a short timeout keeps a lost page from blocking for 10 s
+        self.sock.settimeout(2)
+        try:
+            data_raw_answer, addr = self.sock.recvfrom( int(4) )
+            for i in range(last - first + 1):
+                data_raw_data,addr = self.sock.recvfrom( int(512 * 2 + 10) )
+                page               = bytes_to_int(data_raw_data[3:5])
+                data_arr           = self.check_out_read_arr_all_signal(data_raw_data)
+                meas.add(data_raw_data[9])
+                if page >= 0 and page < len(pages):
+                    pages[page] = data_arr
+                else:
+                    general.message("Page number " + str(page) + " is out of range")
+        except timeout:
+            pass
+        finally:
+            self.sock.settimeout(10)
+        return meas
+
     def read_arr_all_signal(self):
-        FID = np.array([])
+        #FID = np.array([])
         if self.mode_point == 0:
             LIST = 15 #round(8192/512)
         elif self.mode_point == 1:
@@ -663,14 +910,35 @@ class Sibir_1():
         elif self.mode_point == 3:
             LIST = 103 #round(32768/512)
 
-        command = self.get_command_read_arr_all_signal(LIST)
-        self.sock.sendto( command , (self.ip_UDP, self.port_UDP) )
-        data_raw_answer, addr = self.sock.recvfrom( int(4) )
-        for i in range(LIST + 1):
-                data_raw_data,addr = self.sock.recvfrom( int(512 * 2 + 10) )
-                data_arr           = self.check_out_read_arr_all_signal(data_raw_data)
-                FID = np.append(FID, data_arr)
-        return FID 
+        #command = self.get_command_read_arr_all_signal(LIST)
+        #self.sock.sendto( command , (self.ip_UDP, self.port_UDP) )
+        #data_raw_answer, addr = self.sock.recvfrom( int(4) )
+        #for i in range(LIST + 1):
+        #        data_raw_data,addr = self.sock.recvfrom( int(512 * 2 + 10) )
+        #        data_arr           = self.check_out_read_arr_all_signal(data_raw_data)
+        #        FID = np.append(FID, data_arr)
+        #return FID
+        pages = [None] * (LIST + 1)
+        meas  = self.read_pages(pages, 0, LIST)
+        # a lost page can simply be requested again (manual, Sec. 3.2); without
+        # this a single dropped datagram used to shift the whole rest of the FID
+        # by 512 points, or to raise a socket timeout
+        for attempt in range(3):
+            missing = [p for p, v in enumerate(pages) if v is None]
+            if len(missing) == 0:
+                break
+            general.message("Lost pages " + str(missing) + ", requesting them again")
+            for p in missing:
+                meas |= self.read_pages(pages, p, p)
+
+        missing = [p for p, v in enumerate(pages) if v is None]
+        if len(missing) > 0:
+            general.message("Pages " + str(missing) + " are still missing, filled with zeros")
+            for p in missing:
+                pages[p] = np.zeros(512)
+        if len(meas) > 1:
+            general.message("The pages come from different measurements: " + str(sorted(meas)))
+        return np.concatenate(pages)
 
 #------------------------0x03--------------------------------------------------
 
@@ -688,13 +956,30 @@ class Sibir_1():
         else:
             general.message("An error occurs when starting an experiment" )
         
+    def measurement_time(self):
+        # Duration of one measurement cycle in seconds: N_A elementary cycles,
+        # each of them Np samples at Fref/16, plus the dead time of register 3
+        # and the additional delay Del of register 4 (manual, Tables 4 and 5)
+        Np  = (8192, 16384, 32768, 53248)[self.mode_point]
+        NA  = self.NAV_TO_NA[self.mode_nav]
+        Del = 40.0 if (self.mode_nav > 0 and (self.sensor_number == 2 or self.sensor_number == 4)) else 0.0
+        return NA * (Np * self.T + 0.08 + Del) / 1000.0
+
     def start_experiment(self):
         command = self.get_command_start_experiment()
         self.sock.sendto( command , (self.ip_UDP, self.port_UDP) )
         data_raw_answer_1, addr = self.sock.recvfrom( int(4) )
-        data_raw_answer_2, addr = self.sock.recvfrom( int(2) )
-        
-        self.check_out_start_experiment(data_raw_answer_1,data_raw_answer_2) 
+        # The second packet only comes when the measurement cycle is over. With
+        # 128 accumulations, 53248 points and the 40 ms delay of the slow
+        # sensors 2 and 4 that is 8.5 s, which the fixed timeout of 10 s barely
+        # covers
+        self.sock.settimeout( 2 * self.measurement_time() + 10 )
+        try:
+            data_raw_answer_2, addr = self.sock.recvfrom( int(2) )
+        finally:
+            self.sock.settimeout(10)
+
+        self.check_out_start_experiment(data_raw_answer_1,data_raw_answer_2)
         
 
 #-----------------------0x05---------------------------------------------------
@@ -730,9 +1015,11 @@ class Sibir_1():
 #---------------synthesizer------------------------------------------------
 
     def print_pack_to_synt(self):
-        AD0  = (self.read_reg_i(13)).to_bytes(2, byteorder = "big")
+        # see the note in set_13_reg(): reg 13 is D3 + number of bits,
+        # reg 15 is the address + D0
+        D3N  = (self.read_reg_i(13)).to_bytes(2, byteorder = "big")
         D1D2 = (self.read_reg_i(14)).to_bytes(2, byteorder = "big")
-        D3N  = (self.read_reg_i(15)).to_bytes(2, byteorder = "big")
+        AD0  = (self.read_reg_i(15)).to_bytes(2, byteorder = "big")
         R31  = (self.read_reg_i(31)).to_bytes(2, byteorder = "big")
         R30  = (self.read_reg_i(30)).to_bytes(2, byteorder = "big")
         print("13-15 ", AD0 + D1D2 + D3N," 30, 31 ", R31, R30)
@@ -784,7 +1071,8 @@ class Sibir_1():
         self.write_pack_to_synthesizer(command)
 
         #==5==#
-        F2 = F1 + 480
+        F2 = F1 + 480    # kHz; must stay equal to self.IF, which is where the
+                         # NMR line is then looked for in gaussmeter_field()
         code2 = int(F2 * 32.768 / 32.767846 * 2**16 / 7)
         
         #==6==#
@@ -801,26 +1089,51 @@ class Sibir_1():
 
         #==9==#
         time.sleep(0.01)
-        
+
+        #==10==#
+        # Manual, Sec. 5: the frequencies that were actually set have to be read
+        # back to be sure the transfer succeeded. Switched off by default, turn
+        # it on once read_reg_i() has been confirmed on the hardware
+        if self.verify_synt:
+            self.check_synthesizer(F1, F2)
+
+    def check_synthesizer(self, F1, F2):
+        # the accuracy of the frequency measurement is 4 kHz (manual, Sec. 5)
+        M1, M2 = self.read_freq_to_synthesizer()
+        if abs(M1 - F1) > 4 or abs(M2 - F2) > 4:
+            general.message("The synthetizer frequencies are not the requested ones: " \
+                             + str((F1, F2)) + " kHz requested, " + str((M1, M2)) + " kHz measured")
+
     def read_freq_to_synthesizer(self):
+        # register 31 holds the measured F1, register 30 the measured F2, and
+        # F = (Fref/8192)*C_F (manual, Sec. 5)
         C1 = self.read_reg_i(31)
         C2 = self.read_reg_i(30)
-        F1 = C1 * 4
-        F2 = C2 * 4
+        #F1 = C1 * 4
+        #F2 = C2 * 4
+        F1 = C1 * self.Fref / 8192
+        F2 = C2 * self.Fref / 8192
         return F1, F2
 
 #-------------------FID---------------------------------------------
-    def find_noize(self, F):
-        FID  = self.get_FID(F)
-        W , I_NOIZE   = self.get_rfft_FID(FID)
-        self.NOIZE = np.max(I_NOIZE)
-       
-    def get_FID(self, F):
-        self.NMR_freq_synthesizer(F)
-        self.NMR_start_experiment()
-        FID = self.NMR_FID_array().T
-        
-        return FID 
+# The helpers below are superseded by gaussmeter_field() and gaussmeter_search(),
+# which follow Stages 2 - 4 of Sec. 6 of the manual. They were never called and
+# do not run as they stand: get_NMR_spectrum() unpacks the (W, I) of
+# get_rfft_FID() the wrong way round, get_clarification_field_B() uses an
+# undefined G and returns nothing, search_field() and get_B() have no self,
+# search_field() reads an undefined self.B_end and never changes B, so its loop
+# does not terminate.
+#    def find_noize(self, F):
+#        FID  = self.get_FID(F)
+#        W , I_NOIZE   = self.get_rfft_FID(FID)
+#        self.NOIZE = np.max(I_NOIZE)
+#
+#    def get_FID(self, F):
+#        self.NMR_freq_synthesizer(F)
+#        self.NMR_start_experiment()
+#        FID = self.NMR_FID_array().T
+#
+#        return FID
 
     def get_rfft_FID(self, FID):
         #FID = FID - np.sum(FID[len(FID) - 100:])/101
@@ -830,47 +1143,47 @@ class Sibir_1():
         W = rfftfreq(N, T)[:N // 2]
         return W, I
 
-    def get_NMR_spectrum(self, B_ref):
-        G = 42.57637513 # MG/Tl = KG/mTl
-        F_ref = G * B_ref
-        FID   = self.get_FID(F_ref)
-        I, W   = self.get_rfft_FID(FID)
-        return I, W
-
-    def get_clarification_field_B(self, B_ref):
-        I,W = get_NMR_spectrum(B_ref)
-        F_cl  = W[np.where(I == np.max(I))[0][0]] 
-        F_NMR = G * B_ref + F_cl + 480
-        B_return = F_NMR / G
-
-    def search_field():
-        Bstep = 10 / self.time_90_deg_pulse
-        B = 0
-        S_N   = []
-        B_S_N = []
-        while B < self.B_end:
-            b += Bstep
-            B_S_N.append(b)
-            I, W = self.get_NMR_spectrum(B)
-            S = np.max(I)
-            s_n = S / self.NOIZE
-            S_N.append(s_n)
-        S_N   = np.array(  S_N)
-        B_S_N = np.array(B_S_N)
-        B_res  = B_S_N[np.where(S_N==np.max(S_N))[0][0]] 
-        return B_res
-
-    def get_B():
-        S,_ = self.get_NMR_spectrum(self.B)
-        S = np.max(S)
-        s_n = S/self.NOIZE
-        if s_n < 5:
-            B = self.search_field()
-            B = self.get_clarification_field_B(B)
-            self.B = B
-        else:
-            B = self.get_clarification_field_B(self.B)
-        return B
+#    def get_NMR_spectrum(self, B_ref):
+#        G = 42.57637513 # MG/Tl = KG/mTl
+#        F_ref = G * B_ref
+#        FID   = self.get_FID(F_ref)
+#        I, W   = self.get_rfft_FID(FID)
+#        return I, W
+#
+#    def get_clarification_field_B(self, B_ref):
+#        I,W = get_NMR_spectrum(B_ref)
+#        F_cl  = W[np.where(I == np.max(I))[0][0]]
+#        F_NMR = G * B_ref + F_cl + 480
+#        B_return = F_NMR / G
+#
+#    def search_field():
+#        Bstep = 10 / self.time_90_deg_pulse
+#        B = 0
+#        S_N   = []
+#        B_S_N = []
+#        while B < self.B_end:
+#            b += Bstep
+#            B_S_N.append(b)
+#            I, W = self.get_NMR_spectrum(B)
+#            S = np.max(I)
+#            s_n = S / self.NOIZE
+#            S_N.append(s_n)
+#        S_N   = np.array(  S_N)
+#        B_S_N = np.array(B_S_N)
+#        B_res  = B_S_N[np.where(S_N==np.max(S_N))[0][0]]
+#        return B_res
+#
+#    def get_B():
+#        S,_ = self.get_NMR_spectrum(self.B)
+#        S = np.max(S)
+#        s_n = S/self.NOIZE
+#        if s_n < 5:
+#            B = self.search_field()
+#            B = self.get_clarification_field_B(B)
+#            self.B = B
+#        else:
+#            B = self.get_clarification_field_B(self.B)
+#        return B
 
 
     #def ind_loc_max(self, v):

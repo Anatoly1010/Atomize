@@ -30,6 +30,8 @@ This function is for reading field and should be called with no argument. The de
 
 In the case of Sibir 1 Gaussmeter, this function returns (i) numpy.array of the measured FID, (ii) numpy.array of the measured NMR spectrum, (iii) float of the measured magnetic field in Gauss, (iv) float of the measured signal-to-noise ratio.
 
+The NMR line is looked for only inside a window of `band_width` (50 kHz by default) around the intermediate frequency of 480 kHz, since the excitation frequency has to be within a few tens of kHz of the NMR frequency for the signal to be seen at all. Interference outside this window is therefore ignored. If the signal-to-noise ratio stays below `sn_min` (5 by default), the NMR signal is considered to be absent and the returned field is 0. The noise level it is compared with is measured with the excitation pulse switched off, and is renewed whenever the gain, the number of points, the number of averages or the sensor is changed; set `noize_each_time = True` to renew it before every single measurement.
+
 ---
 
 ### gaussmeter_units(*units) { #gaussmeter_units data-toc-label="gaussmeter_units" }
@@ -130,7 +132,7 @@ This function queries or sets the preamplifier gain for the detection of NMR sig
 ### gaussmeter_pulse_length(*length) { #gaussmeter_pulse_length data-toc-label="gaussmeter_pulse_length" }
 
 ```python
-gaussmeter_pulse_length()      # -> int (query)
+gaussmeter_pulse_length()      # -> float (query); us
 gaussmeter_pulse_length(10)    # set pi/2 pulse length to 10 us
 ```
 

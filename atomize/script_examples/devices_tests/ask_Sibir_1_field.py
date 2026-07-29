@@ -22,7 +22,7 @@ NMR_SIBIR.gaussmeter_pulse_length(7.5)
 #set_b0 = NMR_SIBIR.gaussmeter_search(2900,3100,5)
 set_b0 = FIELD - 30
 
-NMR_SIBIR.gaussmeter_number_of_averges(32)
+NMR_SIBIR.gaussmeter_number_of_averages(32)
 
 G = []
 
