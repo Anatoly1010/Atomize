@@ -350,6 +350,9 @@ class Cryomagnetics_LM510:
         if self.test_flag != 'test':
             if len( pr ) == 1:
                 pressure = round( float(pr[0]) , 3)
+                # Checked on the real device too: the LM-510 silently ignores an out-of-range PSET
+                assert( pressure >= self.targ_pressure_min and pressure <= self.targ_pressure_max ), \
+                    "Target pressure should be in the range of 0.15 to 14.25 psi"
                 self.device_write('PSET ' + str( pressure ))
 
             elif len( pr ) == 0:

@@ -30,6 +30,8 @@ All heavy routines need scipy (the `math` extra: pip install -e .[math]); scipy
 is imported lazily so importing this module never fails on a minimal install.
 """
 
+import warnings
+
 import numpy as np
 
 # scipy is an optional dependency (pip install -e .[math]) and slow to import
@@ -198,10 +200,26 @@ def background_fit(t, V, bg_start, bg_end=None, dim=3.0, fit_dim=False):
         d = dim
     lam = 1.0 - A
     B = np.exp(-(k*np.abs(t))**(d/3.0))
-    if abs(lam) < 1e-6:
-        lam = 1e-6
+    # A > 1 on a degenerate tail fit flips the sign of F; clip as the siblings do
+    lam_raw = lam
+    if lam < 0.02:
+        lam = 0.02
+    elif lam > 1.0:
+        lam = 1.0
+    # clipping stops the sign flip but the fit is still degenerate -- say so
+    degenerate = not (0.02 <= lam_raw <= 1.0)
+    if degenerate:
+        warnings.warn(
+            'DEER background fit is degenerate: raw modulation depth lambda = '
+            '%.3f is outside (0, 1] (A = %.3f hit its bound). The tail window '
+            '[bg_start, bg_end] is probably too short or the trace has not '
+            'reached its asymptote; try fit_dim=False or a later bg_start. '
+            'lambda was clipped to %.3f and the resulting P(r) is unreliable.'
+            % (lam_raw, A, lam), RuntimeWarning, stacklevel=2)
     F = (V/B - (1 - lam))/lam
-    return {'lambda': lam, 'k': float(k), 'dim': float(d), 'A': float(A),
+    return {'lambda': lam, 'lambda_raw': float(lam_raw),
+            'lambda_degenerate': bool(degenerate),
+            'k': float(k), 'dim': float(d), 'A': float(A),
             'B': B, 'form_factor': F, 'V_norm': V, 't': t,
             'bg_start': float(bg_start),
             'bg_end': (None if bg_end is None else float(bg_end)), 'mask': mask}
@@ -291,6 +309,21 @@ def background_general(t, V, bg_start, bg_end=None,
 # --------------------------------------------------------------------------- #
 #  Tikhonov regularization + non-negativity
 # --------------------------------------------------------------------------- #
+def _crop_pre_zero(t, V):
+    """Drop samples before the dipolar zero time.
+
+    `dipolar_kernel` evaluates |w*t|, so a t < 0 sample is modelled as evolution at
+    +|t|; the inversion then piles P(r) mass at short r to fit the echo rising edge
+    (a 5 nm pair reads ~2.7 nm). Called from every engine entry point: the GUI
+    passes the full trace, only the benchmark harnesses crop themselves.
+    """
+    t = np.asarray(t, float); V = np.asarray(V, float)
+    m = t >= 0.0
+    if m.all():
+        return t, V, 0
+    return t[m], V[m], int((~m).sum())
+
+
 def regularization_matrix(n, order=2):
     """Discrete derivative operator L for Tikhonov smoothing (default 2nd order)."""
     if order == 0:
@@ -322,7 +355,15 @@ def tikhonov_nnls(K, F, alpha, L=None):
         L = regularization_matrix(K.shape[1], 2)
     A = np.vstack([K, alpha*L])
     b = np.concatenate([F, np.zeros(L.shape[0])])
-    P, _ = nnls(A, b)
+    # scipy's default maxiter (3n) raises RuntimeError at large alpha on fine r
+    # grids, aborting the whole scan; give it room, then degrade to clipped lstsq
+    try:
+        try:
+            P, _ = nnls(A, b, maxiter=max(3*A.shape[1], 5000))
+        except TypeError:                              # scipy without maxiter
+            P, _ = nnls(A, b)
+    except RuntimeError:
+        P = np.clip(np.linalg.lstsq(A, b, rcond=None)[0], 0.0, None)
     return P
 
 
@@ -343,18 +384,33 @@ def l_curve(K, F, alphas, L=None, method='gcv'):
 
     The optimal alpha is chosen by `method`:
       'gcv'       -- minimum of the generalized cross-validation score (default).
-                     Robust for DEER, whose L-curve is nearly vertical (the
-                     residual stays at the noise floor across decades of alpha),
-                     so the classic L-corner is ill-defined and tends to pick a
-                     tiny alpha => spiky P(r).
-      'curvature' -- classic maximum-Menger-curvature L-corner.
+                     Matches DeerLab's 'gcv' selection exactly on the same grid.
+      'curvature' -- classic maximum-Menger-curvature L-corner. Unreliable here:
+                     the DEER L-curve is nearly vertical (the residual stays at
+                     the noise floor across decades of alpha), so there is no
+                     well-defined corner and the pick lands at either end of the
+                     grid depending on the background window -- measured swings of
+                     six decades (alpha 1.6e-4 <-> 158) on one trace with only
+                     `bg_start` moved, i.e. 17 modes <-> 1. Over-smoothing (merged
+                     peaks) is the more common outcome, not the spiky P(r) the
+                     older docs warned about. DeerLab's own 'lc' picks differently
+                     again on the identical grid. Use GCV unless cross-checking.
 
     GCV uses the (unconstrained) Tikhonov influence-matrix trace as the effective
     degrees of freedom paired with the NNLS residual -- the standard DEER GCV
-    approximation.
+    approximation. That approximation biases alpha *upward* relative to a
+    constrained-dof GCV, never downward.
 
     Returns dict: alphas, rho, eta, curvature, gcv, alpha_opt, index, method,
-    P (the solution at the chosen alpha).
+    P (the solution at the chosen alpha), `at_bound` (the pick sits on the first
+    or last grid point -- a clipped, not an interior, optimum; also raises a
+    RuntimeWarning) and `corner_ok` (False when 'curvature' found no corner and
+    fell back to GCV).
+
+    Note that alpha is in the units of the raw [1,-2,1] operator from
+    `regularization_matrix`, i.e. dr^2 times the true second derivative, so a
+    given numeric alpha means more smoothing on a coarser distance grid and the
+    value is not directly comparable to DeerLab's (alpha_here*dr^2 ~ alpha_DL).
     """
     _require_scipy()
     K = np.asarray(K, float)
@@ -385,13 +441,30 @@ def l_curve(K, F, alphas, L=None, method='gcv'):
     kappa = np.zeros(len(alphas))
     for i in range(1, len(alphas) - 1):
         kappa[i] = _menger(x[i - 1], y[i - 1], x[i], y[i], x[i + 1], y[i + 1])
+    corner_ok = True
     if method == 'curvature':
-        idx = int(np.argmax(kappa)) if len(alphas) > 2 else len(alphas)//2
+        # kappa[0] / kappa[-1] are unfilled sentinels; search the interior only
+        if len(alphas) > 2 and kappa[1:-1].max() > 0:
+            idx = 1 + int(np.argmax(kappa[1:-1]))
+        else:                                         # no corner at all: fall back
+            idx = int(np.argmin(gcv)) if len(alphas) > 2 else len(alphas)//2
+            corner_ok = False
     else:                                             # 'gcv' (default)
         idx = int(np.argmin(gcv))
+    at_bound = bool(idx in (0, len(alphas) - 1))
+    if at_bound:
+        warnings.warn(
+            'DEER regularization scan picked alpha = %.4g at the %s end of the '
+            'search grid [%.4g, %.4g]: this is a grid boundary, not an interior '
+            'optimum, so the true optimum probably lies outside the grid and the '
+            'reported alpha is clipped. Widen `alphas`, or treat the resulting '
+            'P(r) as over-/under-smoothed.'
+            % (alphas[idx], 'lower' if idx == 0 else 'upper', alphas[0], alphas[-1]),
+            RuntimeWarning, stacklevel=2)
     return {'alphas': alphas, 'rho': rho, 'eta': eta, 'curvature': kappa,
             'gcv': gcv, 'alpha_opt': float(alphas[idx]), 'index': idx,
-            'method': method, 'P': Ps[idx]}
+            'method': method, 'P': Ps[idx],
+            'at_bound': at_bound, 'corner_ok': corner_ok}
 
 
 # --------------------------------------------------------------------------- #
@@ -408,16 +481,31 @@ def _normalize_masses(P):
 
 
 def tikhonov_ci(K, F, alpha, P, L=None, dr=1.0, z=1.96):
-    """Covariance-based confidence band on the regularized P(r) — the asymptotic
-    (curvature) CI DeerLab shows by default.
+    """Pointwise NOISE-PROPAGATION band on the regularized P(r).
 
     For the linear Tikhonov estimator P = (KᵀK + α²LᵀL)⁻¹ Kᵀ F, the noise on the
     form factor propagates as cov(P) = σ² M Mᵀ with M = (KᵀK + α²LᵀL)⁻¹ Kᵀ and σ²
     estimated from the fit residuals (effective dof = N − tr(K M)). Returns
     (lower, upper) at confidence z (default 95%) on the same density scale as
-    P/sum(P)/dr, clipped at 0. The non-negativity constraint is not propagated, so
-    the band is a slightly conservative linear approximation (as in DeerLab's
-    moment-based CI)."""
+    P/sum(P)/dr, clipped at 0.
+
+    This is NOT a calibrated confidence interval, and it is not DeerLab's band:
+      * It excludes the regularization bias, which is the dominant error at the
+        peaks. Measured coverage of a nominal-95% band at the mode: 0.84 at the
+        GCV alpha, 0.08 at alpha x2, ~0 at alpha x3 (the `alpha_factor` 2-4 that
+        `deer_invert` recommends). Coverage gets WORSE as the data get cleaner,
+        because the bias stops being masked by noise.
+      * It is conservative only where NNLS pins P = 0 (3-12x too wide there) and
+        anti-conservative at the modes.
+      * It is ~1.6-2.4x narrower than DeerLab's covariance band on the same data
+        (3.6x on the real ring-test traces) and has the opposite alpha
+        dependence: this band NARROWS as alpha grows, DeerLab's is flat.
+      * With engine='joint' it is narrower again by up to ~7x, because it holds
+        the background and lambda fixed at their fitted values while the joint
+        fit's own lambda/k scatter is the dominant uncertainty there.
+    Treat it as a display aid for the noise level. For a coverage-honest interval
+    use `deer_validate` (background-window ensemble) or the Mellin / multi-Gaussian
+    Monte-Carlo bands."""
     K = np.asarray(K, float)
     F = np.asarray(F, float)
     P = np.asarray(P, float)
@@ -450,10 +538,13 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
     L-corner) -- see `l_curve`.
 
     `alpha_factor` scales the auto-selected alpha (ignored when an explicit
-    `alpha` is given). GCV/AIC tend to under-regularize the near-vertical DEER
-    L-curve, leaving noise spikes in P(r); a factor > 1 (e.g. 2-4) reproduces
-    the heavier hand-picked L-corner regularization the DeerAnalysis ring-test
-    labs used to get smooth distributions (Schiemann et al., JACS 2021).
+    `alpha` is given). A factor > 1 (e.g. 2-4) reproduces the heavier hand-picked
+    L-corner regularization the DeerAnalysis ring-test labs used to get smooth
+    distributions (Schiemann et al., JACS 2021). It is a deliberate trade of bias
+    for smoothness: P(r) is pulled measurably off the truth, and the `tikhonov_ci`
+    band -- which propagates noise only -- NARROWS while the bias grows, so its
+    coverage at the mode collapses (0.84 at factor 1, 0.08 at 2, ~0 at 3). Above
+    factor 1 read the band as a noise scale, not as a confidence interval.
 
     `engine` selects how the background is handled:
       'sequential' -- fit the background on the tail window, divide it out, then
@@ -492,8 +583,7 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
                                  dim=dim, fit_dim=fit_dim, nu_dd=nu_dd,
                                  bg_params=bg_params, **kwargs)
     _require_scipy()
-    t = np.asarray(t, float)
-    V = np.asarray(V, float)
+    t, V, _n_pre = _crop_pre_zero(t, V)
     r = default_r_axis() if r is None else np.asarray(r, float)
     if bg_start is None:
         bg_start = t[0] + 0.5*(t[-1] - t[0])
@@ -524,7 +614,7 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
     return {'t': t, 'r': r, 'form_factor': F, 'F_fit': F_fit,
             'residuals': F - F_fit, 'P': P, 'P_norm': P_norm,
             'P_density': P_density, 'P_lower': P_lower, 'P_upper': P_upper,
-            'kernel': K, 'alpha': float(alpha),
+            'kernel': K, 'alpha': float(alpha), 'ci_kind': 'noise',
             'l_curve': lc, 'background': bg, 'lambda': bg['lambda'],
             'k': bg['k'], 'dim': bg['dim'],
             'engine': engine if engine in ('none', 'general') else 'sequential'}
@@ -559,10 +649,18 @@ def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     by Tikhonov + NNLS, the regularization weight chosen by GCV on the fitted-
     background form factor (the same `l_curve` selection as `deer_invert`). Same
     return dict as `deer_invert`, with engine='joint'.
+
+    Caveat on the uncertainty band: `P_lower`/`P_upper` come from `tikhonov_ci`,
+    which conditions on the FITTED background and lambda. Here those are themselves
+    fitted, and their scatter dominates -- measured up to 7x too narrow versus the
+    Monte-Carlo spread, where the same formula is honest to ~1.3x in the sequential
+    engine on the same data (`ci_kind` = 'noise_fixed_bg' marks this). The
+    background's own reliability flags (`lambda_clamped`, `tail_abs_F`,
+    `k_disagrees` -- see `joint_background`) are the ones to check before trusting
+    lambda or a distance from this engine.
     """
     _require_scipy()
-    t = np.asarray(t, float)
-    V = np.asarray(V, float)
+    t, V, _n_pre = _crop_pre_zero(t, V)
     r = default_r_axis() if r is None else np.asarray(r, float)
     K = dipolar_kernel(t, r, nu_dd=nu_dd)
     L = regularization_matrix(len(r), reg_order)
@@ -595,12 +693,13 @@ def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         P_masses = tikhonov_nnls(K, F, alpha_use, L)
     P_norm = _normalize_masses(P_masses)
     dr = float(r[1] - r[0]) if len(r) > 1 else 1.0
-    F_fit = K@P_norm
+    F_fit = K@P_masses                                 # the solved masses, as deer_invert
     P_lower, P_upper = tikhonov_ci(K, F, alpha_use, P_masses, L=L, dr=dr)
     return {'t': t, 'r': r, 'form_factor': F, 'F_fit': F_fit,
             'residuals': F - F_fit, 'P': P_masses, 'P_norm': P_norm,
             'P_density': P_norm/dr, 'P_lower': P_lower, 'P_upper': P_upper,
             'kernel': K, 'alpha': float(alpha_use),
+            'ci_kind': 'noise_fixed_bg',
             'l_curve': lc, 'background': bg, 'lambda': lam,
             'k': float(k), 'dim': float(d), 'engine': 'joint'}
 
@@ -635,8 +734,12 @@ def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
 #                                                              [x = x0 sin th],
 #        \int_{x0}^1 (3x^2-1)^{-s} dx = x0 \int_0^{arccosh sqrt3} sinh(u)^{1-2s} du
 #                                                              [x = x0 cosh u].
-#    The sinh integrand has unit modulus near u=0 (Re(1-2s)=0 on the line), so a
-#    plain grid integrates it accurately. Valid for 0 < Re s < 3/2.
+#    The x-integral converges only for Re s < 1 (|1-3x^2| ~ 2 sqrt3 |x-x0| at x0);
+#    both pieces above are its analytic continuation, and the poles of Gamma(1-s)
+#    cancel against the zeros of cos(pi s/2). On the critical line the sinh
+#    integrand has unit MODULUS, but its phase -2 tau ln sinh(u) turns over ever
+#    faster as u -> 0, so the plain grid at `n_u` converges only as O(1/n_u)
+#    (~2.4e-2 relative at tau = 30; ~1e-4 nm on a recovered mean distance).
 #
 #  * Signal image V~(s).  Direct numeric Mellin of F(T) is hard near T=0, where
 #    cos/sin(tau ln T) oscillate ever faster. Following the paper, split at a
@@ -690,8 +793,9 @@ def mellin_signal_spectrum(t, F, tau, delta, F0=1.0, du=0.02, parabolic=True,
     echo (the 'thin parabola' near t=0) and lets `delta` be widened:
         int_0^delta (F0 + b T^2) T^{s-1} dT = F0 delta^s/s + b delta^{s+2}/(s+2).
     The curvature b is least-squares fit over a widened low-T window (out to where
-    F has fallen to `fit_level`*F0) so a few delta-wide samples cannot make it
-    noisy. Set parabolic=False for the original constant-F split."""
+    F has fallen to `fit_level`*F0, and never narrower than three positive samples
+    so a coarse step cannot silently drop the term back to the constant-F split).
+    Set parabolic=False for the original constant-F split."""
     t = np.asarray(t, dtype=float)
     F = np.asarray(F, dtype=float)
     tau = np.asarray(tau, dtype=float)
@@ -705,7 +809,7 @@ def mellin_signal_spectrum(t, F, tau, delta, F0=1.0, du=0.02, parabolic=True,
         f0 = float(Fp[0]) or F0
         below = np.where(Fp < fit_level*f0)[0]
         wfit = float(Tp[below[0]]) if len(below) else float(Tp[-1])
-        msk = Tp <= max(wfit, delta)
+        msk = Tp <= max(wfit, delta, float(Tp[2]))      # always >= 3 samples
         if int(np.count_nonzero(msk)) >= 3:
             Tw, Fw = Tp[msk], Fp[msk]
             q = float(np.sum(Tw**4))
@@ -760,6 +864,14 @@ def joint_background(t, V, bg_start=None, bg_end=None, dim=3.0, fit_dim=False,
     component being forced into the background -- which would leave a pedestal in
     F that the Mellin engine (phi -> 0) renders as a drooping forward fit at long
     T -- while still keeping k determined on short single-peak traces.
+
+    Reliability keys in the returned dict (the pin can fail silently otherwise):
+    `lambda_raw` / `lambda_clamped` (the raw pin estimate and whether it hit the
+    [0.02, 0.95] clamp), `tail_abs_F` (mean |F| over the pin window -- the pin only
+    forces mean F = 0 there, so mean |F| above ~0.05 says the tail has NOT decayed
+    and lambda is a guess: measured 6.6x low on a 1 us trace of a 4.5 nm pair), and
+    `k_ref` / `k_ratio` / `k_disagrees` (the sequential tail-fit rate and how far
+    the joint rate sits from it). Any of these firing raises a RuntimeWarning.
     """
     _require_scipy()
     from scipy.optimize import least_squares, minimize_scalar
@@ -858,32 +970,68 @@ def joint_background(t, V, bg_start=None, bg_end=None, dim=3.0, fit_dim=False,
     collapsed = (k_w < 0.5*k_t) and (decay_w < 0.05)
     k, d = (k_t, d_t) if collapsed else (k_w, d_w)
     B = np.exp(-(k*np.abs(t))**(d/3.0))
+    lam_raw = 1.0 - float(np.mean((V/B)[pin_mask]))
     lam = lam_of(B)
     F = (V/B - (1 - lam))/lam
-    return {'lambda': lam, 'k': float(k), 'dim': float(d), 'A': float(1 - lam),
+    # the pin only fixes mean(F) = 0 over its window; mean|F| there is what says
+    # whether the tail has actually decayed, i.e. whether lambda means anything
+    tail_absF = float(np.mean(np.abs(F[pin_mask])))
+    lam_clamped = not (0.02 <= lam_raw <= 0.95)
+    k_ratio = float(k)/kref if kref > 0 else float('nan')
+    k_disagrees = bool(np.isfinite(k_ratio) and (k_ratio > 2.0 or k_ratio < 0.5))
+    reasons = []
+    if lam_clamped:
+        reasons.append('the modulation depth hit the [0.02, 0.95] clamp '
+                       '(raw %.3f, used %.3f)' % (lam_raw, lam))
+    if tail_absF > 0.05:
+        reasons.append('the tail has not decayed under the lambda pin (mean|F| = '
+                       '%.3f over the pin window), so lambda = %.3f is a guess'
+                       % (tail_absF, lam))
+    if k_disagrees and float(k0) <= 1e-4:              # kref sat on its floor
+        reasons.append('the sequential tail fit found essentially no decay '
+                       '(k = %.2g) where the joint fit gives k = %.4g'
+                       % (float(k0), float(k)))
+    elif k_disagrees:
+        reasons.append('the joint decay rate k = %.4g is %.1fx the sequential '
+                       'tail-fit rate %.4g' % (float(k), k_ratio, kref))
+    if reasons:
+        warnings.warn(
+            'DEER joint background needs checking: ' + '; '.join(reasons)
+            + '. Cross-check against engine=\'sequential\' and a later bg_start '
+              'before quoting lambda or a distance.', RuntimeWarning, stacklevel=2)
+    return {'lambda': lam, 'lambda_raw': float(lam_raw),
+            'lambda_clamped': bool(lam_clamped),
+            'tail_abs_F': tail_absF, 'k_ref': float(kref),
+            'k_ratio': k_ratio, 'k_disagrees': k_disagrees,
+            'k': float(k), 'dim': float(d), 'A': float(1 - lam),
             'B': B, 'form_factor': F, 'V_norm': V, 't': t,
             'bg_start': float(bg_start),
             'bg_end': (None if bg_end is None else float(bg_end)), 'mask': mask}
 
 
-def mellin_delta(t, F, level=0.95, floor=0.09, cap=0.12):
+def mellin_delta(t, F, level=0.95, floor=0.09, cap=0.12, floor_ratio=2.0):
     """Practical split point delta: the first T > 0 where the form factor has
     fallen to `level` of F(0) (the paper's F(delta) ~ 0.95 estimate). Falls back
     to the first positive sample if F never drops that far.
 
     The raw F-level estimate is then clipped to [`floor`, `cap`] (in the kernel
-    time unit, us). The floor is the key correction for *sharp* distributions:
-    a fast-decaying form factor crosses `level` within a couple of samples, which
-    leaves the analytic parabolic [0,delta] echo-top anchor too narrow -- the
-    'thin parabola' at t=0 -- so the recovered F_fit top comes out too steep and
-    the short-r density is unstable. Widening delta to ~90 ns gives the parabolic
-    term enough low-T support; the cap (~120 ns) stops a slow-decaying (long-r)
-    trace from over-smoothing P(r) by handling too much of the modulation
-    analytically. Both bounds were tuned on the synthetic benchmark (overlap-
-    optimal across 13 distributions x 4 noise levels x 2 conditions; the floor
-    lifts e.g. gauss_narrow easy from 0.90 to 0.92). Set floor/cap to None to
-    disable. The bounds are also clamped to the trace so delta never exceeds the
-    last positive sample."""
+    time unit, us). The floor widens a too-narrow analytic [0,delta] echo-top
+    anchor -- the 'thin parabola' at t=0 -- which otherwise leaves the recovered
+    F_fit top too steep and the short-r density unstable; the cap (~120 ns) stops
+    a slow-decaying (long-r) trace from over-smoothing P(r) by handling too much
+    of the modulation analytically. Both were tuned on the synthetic benchmark,
+    whose peaks all lie between 3.0 and 4.3 nm.
+
+    `floor_ratio` bounds how far the floor may stretch delta beyond the trace's
+    OWN decay scale: delta is raised to at most `floor_ratio` * the raw crossing.
+    Without it the floor is an absolute time, so for r0 <~ 2.5 nm -- where the
+    raw crossing is a few times smaller than 90 ns -- it hands most of the first
+    dipolar oscillation to a single parabola and the reconstruction collapses
+    (measured overlap at r0 = 2.0 nm: 0.76 clamped vs 0.92 unclamped, noiseless;
+    0.42 vs 0.64 at sigma 0.04). Above ~3 nm the raw crossing already exceeds
+    floor/floor_ratio, so the clamp binds exactly as before and the tuned regime
+    is unchanged. Set floor/cap to None to disable. The bounds are also clamped
+    to the trace so delta never exceeds the last positive sample."""
     t = np.asarray(t, dtype=float)
     F = np.asarray(F, dtype=float)
     pos = t > 0
@@ -894,9 +1042,10 @@ def mellin_delta(t, F, level=0.95, floor=0.09, cap=0.12):
         return 1e-3
     f0 = float(Fp[0]) or 1.0
     below = np.where(Fp < level*f0)[0]
-    d = float(Tp[below[0]]) if len(below) else float(Tp[0])
+    d_raw = float(Tp[below[0]]) if len(below) else float(Tp[0])
+    d = d_raw
     if floor is not None:
-        d = max(d, float(floor))
+        d = max(d, min(float(floor), float(floor_ratio)*d_raw))
     if cap is not None:
         d = min(d, float(cap))
     return float(min(d, Tp[-1]))                        # never past the last sample
@@ -908,8 +1057,12 @@ def _tail_noise(t, y, frac=0.35, smooth_w=7):
     Over the last `frac` of the t > 0 trace the dipolar signal is gone (only the
     smooth background + additive electrical noise remain), so sigma is the std of
     (y - moving-average(y)) there, corrected for the variance a width-`w` moving
-    average removes: var(y - movavg) = sigma^2 (1 - 1/w). The convolution edge
-    (last w points) is excluded."""
+    average removes: var(y - movavg) = sigma^2 (1 - 1/w). `mode='same'` zero-pads
+    BOTH ends, so both convolution edges are excluded; on a trace too short for the
+    tail window to hold four non-edge points the window is pulled back toward the
+    middle rather than into the padding, and 0.0 is returned if even that fails
+    (which leaves the caller without a noise level -- see `deer_invert_mellin`,
+    where sig_e <= 0 disables the Monte-Carlo band)."""
     t = np.asarray(t, float); y = np.asarray(y, float)
     yp = y[t > 0]
     n = len(yp)
@@ -918,8 +1071,9 @@ def _tail_noise(t, y, frac=0.35, smooth_w=7):
     w = int(max(3, smooth_w | 1))                       # odd window
     ys = np.convolve(yp, np.ones(w)/w, mode='same')
     resid = yp - ys
-    lo, hi = int(n*(1.0 - frac)), n - w                 # tail, minus right edge
-    tail = resid[lo:hi] if hi - lo >= 4 else resid[lo:]
+    hi = n - w                                          # drop the right conv edge
+    lo = min(max(int(n*(1.0 - frac)), w), max(hi - 4, w))   # inside BOTH edges
+    tail = resid[lo:hi]
     if len(tail) < 4:
         return 0.0
     return float(np.std(tail))/np.sqrt(max(1.0 - 1.0/w, 1e-6))
@@ -945,7 +1099,15 @@ def residual_whiteness(resid, max_lag=None):
       acf1          : lag-1 autocorrelation r_1 = sum e_i e_{i-1} / sum e_i^2
                       (~ 1 - DW/2); 0 = white. The single headline number.
       acf, lags     : autocorrelation function vs lag (for an autocorrelogram).
-      ci95          : +-1.96/sqrt(N), the 95% white-noise band for the ACF.
+      ci95          : +-1.96/sqrt(N), the 95% white-noise band for the ACF. It is
+                      the band for RAW white noise; a fitted, regularized residual
+                      has a different null distribution and sits slightly
+                      anti-correlated, so `white` over-flags on that side.
+      offset        : mean(e)/std(e) BEFORE the mean subtraction below. DW and the
+                      ACF are computed on the demeaned residual, which is blind to
+                      a constant pedestal from a mis-fitted lambda or background --
+                      exactly the systematic this diagnostic is meant to catch. A
+                      |offset| of order 1 is a bad fit however white it looks.
       white         : bool, |acf1| <= ci95 (residual consistent with white noise).
     """
     e = np.asarray(resid, float)
@@ -954,8 +1116,10 @@ def residual_whiteness(resid, max_lag=None):
     if n < 4:
         return {'durbin_watson': float('nan'), 'acf1': float('nan'),
                 'acf': np.array([1.0]), 'lags': np.array([0]),
-                'ci95': float('nan'), 'white': True}
-    e = e - e.mean()
+                'ci95': float('nan'), 'offset': float('nan'), 'white': True}
+    mu = float(e.mean())
+    e = e - mu
+    sd = float(np.std(e)) or 1e-30
     denom = float(np.sum(e*e)) or 1e-30
     dw = float(np.sum(np.diff(e)**2)/denom)
     if max_lag is None:
@@ -964,14 +1128,14 @@ def residual_whiteness(resid, max_lag=None):
     acf = np.array([float(np.sum(e[k:]*e[:n - k])/denom) for k in lags])
     ci95 = float(1.96/np.sqrt(n))
     return {'durbin_watson': dw, 'acf1': float(acf[1]) if len(acf) > 1 else 0.0,
-            'acf': acf, 'lags': lags, 'ci95': ci95,
+            'acf': acf, 'lags': lags, 'ci95': ci95, 'offset': float(mu/sd),
             'white': bool(abs(acf[1] if len(acf) > 1 else 0.0) <= ci95)}
 
 
-# Analytic kernel-integral constants I(s) for g=2 (Nekrasov, Matveeva, Syryamina,
-# Agarkin & Bowman, Phys. Chem. Chem. Phys. 2026, DOI 10.1039/D5CP04144A; their
-# Eqns. 5-6), with s = n/3 for the n-th moment.
-_MELLIN_I_S = {1: 4.35466, 2: 3.06158, 3: 2.77339, 4: 2.56993}
+# Analytic kernel-integral constants I(s) = Phi(s)/(2 pi nu_dd)^s (Nekrasov,
+# Matveeva, Syryamina, Agarkin & Bowman, Phys. Chem. Chem. Phys. 2026,
+# DOI 10.1039/D5CP04144A; their Eqns. 5-6), with s = n/3 for the n-th moment.
+_MELLIN_I_S = {1: 4.31512, 2: 3.06158, 3: 2.77339, 4: 2.56993}
 
 
 def distribution_moments(r, P):
@@ -1038,11 +1202,17 @@ def moment_error_apriori(eps, dt, n_points, n=1):
 
     Notes
     -----
-    Reproduces the paper's reported uniform-acquisition std(M1)=0.0400 nm for
-    eps=0.04, dt=24 ns, NT=231 (-> 0.0407 nm). The empirical std of M1 from a full
-    Tikhonov / Mellin inversion sits at or below this bound (regularization only
-    reduces the noise-driven scatter), so ME_1 is a conservative a priori error
-    bar on the recovered mean distance."""
+    Against the paper's reported uniform-acquisition std(M1) = 0.0400 nm for
+    eps=0.04, dt=24 ns, NT=231, this returns 0.0411 nm.
+
+    ME_n is the propagated NOISE error of the linear Mellin moment integral and
+    nothing else -- it carries no resolution and no regularization-bias term, so
+    it is NOT a bound on the scatter of a recovered distance. Measured
+    std(M1)/ME_1 over 200 Mellin inversions runs 0.97 (3.0 nm, sigma 0.15,
+    NT=231) up to 2.64 (5.5 nm, sigma 0.30, NT=40), and once bias is included
+    RMSE/ME_1 reaches ~40x on a trace too short to resolve the distance -- ME_1
+    is smallest exactly where the answer is worst. Report it as a noise floor,
+    not as an error bar."""
     n = int(n)
     if n not in _MELLIN_I_S:
         raise ValueError('moment order n must be 1..4')
@@ -1175,8 +1345,7 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     are None then.
     """
     _require_scipy()
-    t = np.asarray(t, float)
-    V = np.asarray(V, float)
+    t, V, _n_pre = _crop_pre_zero(t, V)
     r = default_r_axis() if r is None else np.asarray(r, float)
     if bg_start is None:
         bg_start = t[0] + 0.5*(t[-1] - t[0])
@@ -1831,8 +2000,7 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     """
     _require_scipy()
     from scipy.optimize import least_squares
-    t = np.asarray(t, float)
-    V = np.asarray(V, float)
+    t, V, _n_pre = _crop_pre_zero(t, V)
     r = default_r_axis() if r is None else np.asarray(r, float)
     if bg_start is None:
         bg_start = t[0] + 0.5*(t[-1] - t[0])
@@ -2264,9 +2432,17 @@ def _parabolic_zero_time(t, V, drop=0.15, smooth_w=5, search_frac=0.30):
     if n < 7:
         return None
     w = int(max(1, smooth_w))
-    Vs = np.convolve(V, np.ones(w)/w, mode='same') if w > 1 else V
+    # edge-pad: mode='same' zero-pads and pulls the argmax off a peak at t[0]
+    if w > 1:
+        Vs = np.convolve(np.pad(V, w//2, mode='edge'), np.ones(w)/w,
+                         mode='same')[w//2:w//2 + n]
+    else:
+        Vs = V
     ns = max(5, int(search_frac*n))
     i0 = int(np.argmax(Vs[:ns]))
+    if i0 >= ns - 1 and ns < n:
+        # still rising at the window edge -- echo top is beyond search_frac
+        return None
     vpk = float(Vs[i0]); vmin = float(np.min(Vs)); amp = max(vpk - vmin, 1e-12)
     thr = vpk - drop*amp
     lo = i0
@@ -2277,13 +2453,20 @@ def _parabolic_zero_time(t, V, drop=0.15, smooth_w=5, search_frac=0.30):
         hi += 1
     lo = max(min(lo, i0 - 3), 0)
     hi = min(max(hi, i0 + 3), n - 1)
+    # symmetric, as documented: the raw walks run up to 22x wider on the decay side
+    half = max(3, min(i0 - lo, hi - i0))
+    lo = max(i0 - half, 0)
+    hi = min(i0 + half, n - 1)
     if hi - lo < 4:
         return None
     tt = t[lo:hi + 1]; vv = V[lo:hi + 1]
     a, b, _c = np.polyfit(tt - tt.mean(), vv, 2)
     if a >= 0:                                          # not concave -> no echo max
         return None
-    return float(tt.mean() - b/(2.0*a))
+    t0 = float(tt.mean() - b/(2.0*a))
+    if not (t[lo] <= t0 <= t[hi]):       # vertex extrapolated outside its own window
+        return None
+    return t0
 
 
 def fit_zero_time(t, V, bg_start=None, bg_end=None, n_grid=16, search_frac=0.15,
@@ -2454,8 +2637,7 @@ def deer_validate(t, V, r=None, bg_start=None, bg_starts=None, bg_end=None,
     for display).
     """
     _require_scipy()
-    t = np.asarray(t, float)
-    V = np.asarray(V, float)
+    t, V, _n_pre = _crop_pre_zero(t, V)
     r = default_r_axis() if r is None else np.asarray(r, float)
     if bg_starts is None:
         bg_starts = _bg_start_grid(t, bg_start)

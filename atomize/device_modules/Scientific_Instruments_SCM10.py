@@ -4,6 +4,7 @@
 import os
 import gc
 import sys
+import time
 import pyvisa
 from pyvisa.constants import StopBits, Parity
 import atomize.main.local_config as lconf
@@ -11,6 +12,12 @@ import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
 class Scientific_Instruments_SCM10:
+    # A late reply left in the buffer after VI_ERROR_TMO desyncs every following query
+    query_attempts = 2
+    query_pause = 0.05          # s between attempts
+    flush_timeout = 50          # ms, for the manual drain fallback
+    flush_reads = 10            # cap on drain iterations
+
     #### Basic interaction functions
     def __init__(self):
 
@@ -100,10 +107,46 @@ class Scientific_Instruments_SCM10:
             self.status_flag = 0
             sys.exit()
 
+    def flush_input(self):
+        # Best-effort, never raises: viClear, or a manual drain where pyvisa-py lacks it
+        try:
+            self.device.clear()
+            return
+        except Exception:
+            pass
+
+        try:
+            old_timeout = self.device.timeout
+        except Exception:
+            return
+        try:
+            self.device.timeout = self.flush_timeout
+            for _ in range( self.flush_reads ):
+                try:
+                    self.device.read_raw()
+                except Exception:
+                    break
+        except Exception:
+            pass
+        finally:
+            try:
+                self.device.timeout = old_timeout
+            except Exception:
+                pass
+
     def device_query(self, command):
         if self.status_flag == 1:
-            answer = self.device.query(command)
-            return answer
+            last_error = None
+            for attempt in range( self.query_attempts ):
+                try:
+                    return self.device.query(command)
+                except (pyvisa.VisaIOError, BrokenPipeError) as error:
+                    last_error = error
+                    # The last failure flushes too, so the next query starts clean
+                    self.flush_input()
+                    if attempt + 1 < self.query_attempts:
+                        time.sleep( self.query_pause )
+            raise last_error
         else:
             general.message(f"No connection {self.__class__.__name__}")
             self.status_flag = 0
@@ -121,9 +164,16 @@ class Scientific_Instruments_SCM10:
     def tc_temperature(self, channel):
         if self.test_flag != 'test':
             if channel == '1':
-                answer = float(self.device_query('T?').split(' ')[1])
+                reply = self.device_query('T?')
+                try:
+                    answer = float(reply.split(' ')[1])
+                except (IndexError, ValueError):
+                    # Truncated or desynced reply; drop the rest and report what came back
+                    self.flush_input()
+                    raise ValueError(f"Unparsable temperature reply {reply!r} "
+                                     f"from {self.__class__.__name__}")
                 return answer
-        
+
         elif self.test_flag == 'test':
             assert(channel == '1'), "Incorrect channel; channel: ['1']"
             answer = self.test_temperature

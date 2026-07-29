@@ -4,6 +4,8 @@
 import os
 import gc
 import sys
+import time
+import struct
 import serial
 import minimalmodbus
 import numpy as np
@@ -11,7 +13,21 @@ import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
+# Local decode of BYTEORDER_LITTLE_SWAP (byteorder = 3), bit-identical to read_float
+def registers_to_float(register_low, register_high):
+    return struct.unpack( '<f', struct.pack( '<HH', register_low, register_high ) )[0]
+
 class Cryomech_CPA1110:
+    # A lost or corrupted frame on the RS485 line succeeds on the next attempt; minimalmodbus never retries
+    retryable_errors = ( minimalmodbus.MasterReportedException, minimalmodbus.SlaveDeviceBusyError, )
+    retry_attempts = 3
+    retry_pause = 0.05          # s between attempts
+
+    # Everything we poll is contiguous: 1 = state, 3..28 = floats, 29/30 = scales
+    block_start = 1
+    block_length = 30           # registers 1..30 inclusive
+    block_ttl = 1.0             # s; all calls within one poll tick share a read
+
     #### Basic interaction functions
     def __init__(self):
 
@@ -44,6 +60,11 @@ class Cryomech_CPA1110:
 
         # Ranges and limits
         ##self.temperature_max = 750
+
+        # block_available goes False for good if the firmware refuses the wide read
+        self.block = None
+        self.block_time = 0.0
+        self.block_available = True
 
         # Test run parameters
         # These values are returned by the modules in the test run 
@@ -98,10 +119,48 @@ class Cryomech_CPA1110:
         elif self.test_flag == 'test':
             pass
 
+    def retry(self, function, *args, **kwargs):
+        # Only transport failures are retried; a slave fault propagates at once
+        last_error = None
+        for attempt in range( self.retry_attempts ):
+            try:
+                return function( *args, **kwargs )
+            except self.retryable_errors as error:
+                last_error = error
+                if attempt + 1 < self.retry_attempts:
+                    time.sleep( self.retry_pause )
+        raise last_error
+
+    def read_block(self):
+        # Cached input-register block; None puts callers back on one read per value
+        if self.block_available is not True:
+            return None
+
+        now = time.monotonic()
+        if self.block is not None and ( now - self.block_time ) < self.block_ttl:
+            return self.block
+
+        try:
+            # functioncode = 4 for reading from input registers
+            self.block = self.retry(self.device.read_registers, self.block_start,
+                                    self.block_length, functioncode = 4)
+        except minimalmodbus.SlaveReportedException as error:
+            general.message(f"Block read rejected by {self.__class__.__name__}, "
+                            f"falling back to single reads ({error})")
+            self.block_available = False
+            self.block = None
+            return None
+
+        self.block_time = now
+        return self.block
+
     def device_write_unsigned(self, register, value, decimals):
         if self.status_flag == 1:
             # functioncode = 6 for writing to holding registers
-            self.device.write_register(register, value, decimals, functioncode = 6, signed = False)
+            self.retry(self.device.write_register, register, value, decimals,
+                       functioncode = 6, signed = False)
+            # The compressor state we hold is stale the moment we write it.
+            self.block = None
         else:
             general.message(f"No connection {self.__class__.__name__}")
             self.status_flag = 0
@@ -109,19 +168,27 @@ class Cryomech_CPA1110:
 
     def device_read_unsigned(self, register, decimals):
         if self.status_flag == 1:
+            block = self.read_block()
+            if block is not None:
+                return block[ register - self.block_start ] / ( 10 ** decimals )
             # functioncode = 4 for reading from input registers
-            answer = self.device.read_register(register, decimals, functioncode = 4, signed = False)
+            answer = self.retry(self.device.read_register, register, decimals,
+                                functioncode = 4, signed = False)
             return answer
         else:
             general.message(f"No connection {self.__class__.__name__}")
             self.status_flag = 0
             sys.exit()
-    
+
     def device_read_float(self, register):
         if self.status_flag == 1:
+            block = self.read_block()
+            if block is not None:
+                index = register - self.block_start
+                return registers_to_float( block[index], block[index + 1] )
             # functioncode = 4 for reading from input registers
             # Cryomech uses BYTEORDER_LITTLE_SWAP (byteorder = 3) bit order for float values (two registers)
-            answer = self.device.read_float(register, functioncode = 4, byteorder = 3)
+            answer = self.retry(self.device.read_float, register, functioncode = 4, byteorder = 3)
             return answer
         else:
             general.message(f"No connection {self.__class__.__name__}")
