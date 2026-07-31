@@ -40,7 +40,7 @@ import numpy as np
 # module stays numpy-only and GUIs that embed it start fast.
 import importlib.util
 SCIPY_AVAILABLE = importlib.util.find_spec('scipy') is not None
-fresnel = nnls = curve_fit = None
+fresnel = nnls = curve_fit = isotonic_regression = None
 
 # np.trapz was renamed np.trapezoid in NumPy 2.0 (np.trapz deprecated); pick
 # whichever exists so the Mellin quadrature stays warning-free on either.
@@ -55,13 +55,15 @@ def _require_scipy():
     """Lazily import scipy on first use and bind the symbols this module needs.
     Every scipy-using function calls this first, so the module-level fresnel /
     nnls / curve_fit globals are guaranteed populated before they are read."""
-    global fresnel, nnls, curve_fit
+    global fresnel, nnls, curve_fit, isotonic_regression
     if not SCIPY_AVAILABLE:
         raise RuntimeError('DEER analysis requires scipy (pip install -e .[math]).')
     if fresnel is None:
         from scipy.special import fresnel as _fresnel
-        from scipy.optimize import nnls as _nnls, curve_fit as _curve_fit
+        from scipy.optimize import (nnls as _nnls, curve_fit as _curve_fit,
+                                    isotonic_regression as _isotonic)
         fresnel, nnls, curve_fit = _fresnel, _nnls, _curve_fit
+        isotonic_regression = _isotonic
 
 
 # --------------------------------------------------------------------------- #
@@ -1262,6 +1264,30 @@ def moment_error_apriori(eps, dt, n_points, n=1):
     return float(eps*dt**s/I*np.sqrt(S))
 
 
+def _nonneg_cumulative(f):
+    """Closest non-negative density to a SIGNED one, by isotonic regression of its
+    cumulative mass.
+
+    A density is non-negative exactly when its cumulative is non-decreasing, so the
+    isotonic least-squares fit of that cumulative is the projection onto the
+    non-negative cone that stays closest to the data in the cumulative -- which is
+    what determines distances. Pool-adjacent-violators does it in O(n).
+
+    Two properties matter. It is the IDENTITY wherever the density is already
+    non-negative, touching only the intervals where the cumulative runs backwards.
+    And it CANCELS rather than deletes: the Mellin noise signature is a paired
+    +spike/-dip, and pooling the pair leaves their small net instead of keeping the
+    spike at full height, which is what clipping does -- and why clipping costs a
+    far worse forward fit at the echo top, where that spike lives.
+    """
+    _require_scipy()
+    f = np.asarray(f, float)
+    if not np.any(f < 0.0):
+        return f
+    c = isotonic_regression(np.cumsum(f)).x
+    return np.maximum(np.diff(c, prepend=0.0), 0.0)
+
+
 def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                        fit_dim=False, nu_dd=NU_DD, delta=None, tau_max=30.0,
                        n_tau=601, bg_engine='joint', bg_params=None,
@@ -1674,12 +1700,17 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     # short-r taper on the REPORTED density, not only on F_fit (see the docstring)
     f_disp = f_r*_fit_w if taper_short else f_r
     masses, P_density = _masses(f_disp)                  # signed density (displayed)
-    if taper_short:
-        F_fit = K@masses                                # consistent with the displayed P(r)
-    else:
-        F_fit = _fwd(f_r)                               # signed by default; clipped+low-r taper
-                                                        # when signed_fit=False (keeps F_fit
-                                                        # monotone vs a short-r negative spike)
+    # The reported density keeps every negative excursion (genuine short-r noise,
+    # and the diagnostic the overlay shows); the forward MODEL must not. Built from
+    # the non-negative projection, F_fit is a convex mixture of kernels, and since
+    # |K(t,r)| <= K(0,r) = 1 that guarantees F_fit(0) = max F_fit -- a form factor
+    # must peak at the zero time. Signed masses do not: a negative mass at short r
+    # subtracts |m| at t=0 but less at t>0 (its kernel decays fastest), so F_fit
+    # rises after t=0 and, the fit being even in t, renders as two humps straddling
+    # a dip at t0 -- on a third of noisy traces. This changes only the fit curve and
+    # the residual diagnostics derived from it, never the reported P(r).
+    masses_fit, _ = _masses(_nonneg_cumulative(f_disp))
+    F_fit = K@masses_fit
 
     # discrepancy diagnostics (V space); see the docstring on sigma_noise
     vfit = B*((1 - lam) + lam*F_fit)
