@@ -1289,7 +1289,7 @@ def _nonneg_cumulative(f):
 
 
 def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
-                       fit_dim=False, nu_dd=NU_DD, delta=None, tau_max=30.0,
+                       fit_dim=False, nu_dd=NU_DD, delta=None, tau_max=None,
                        n_tau=601, bg_engine='joint', bg_params=None,
                        n_mc=0, ci_z=1.96, seed=0,
                        taumax_method='penalty', noise_space='V',
@@ -1313,8 +1313,14 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     (`background_fit`) but can leave that pedestal on shallow backgrounds.
 
     `t` in us, `r` in nm. `tau` runs symmetrically over [-tau_max, tau_max] with
-    `n_tau` points. `tau_max=None` selects the cutoff automatically by
-    `taumax_method`:
+    `n_tau` points. `tau_max=None` -- the DEFAULT -- selects the cutoff
+    automatically by `taumax_method`; pass a number only to pin it deliberately.
+    tau_max IS the regularization knob here (it plays the role alpha plays in
+    Tikhonov: Phi(tau) -> 0 at high |tau|, so truncation sets how much amplified
+    noise reaches P(r)), and a pinned value regularizes by a constant regardless of
+    the data's noise. The former default of 30.0 measured -0.173 mean overlap
+    against auto over 756 catalogue traces (0.638 vs 0.812, winning on 0.9% of
+    them, roughness 41x higher), so it is auto unless you say otherwise:
       'penalty' (default) -- minimize the forward-fit RMS regularized by a
           SYMMETRIC-NOISE penalty. The fit residual rmsF (RMS of F - F_fit over
           t > 0) falls as the cutoff captures the parabolic echo top, then sits on
