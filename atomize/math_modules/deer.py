@@ -3018,15 +3018,20 @@ def fit_zero_time(t, V, bg_start=None, bg_end=None, n_grid=16, search_frac=0.15,
     residual-based t0 is also computed and, when the two disagree by more than
     `xcheck_tol_frac` of the trace span (~0.4 %), the more robust residual is used.
 
-    CAVEAT -- this lowers the MEAN |t0| error (5.1 -> 4.0 ns on the benchmark) but
-    does NOT improve end-to-end accuracy, and is left off by default for two
-    measured reasons: (1) at extreme noise (sigma 0.04) the residual fallback is
-    itself high-variance and can overshoot tens of ns EARLY, raising the WORST-case
-    t0 error (29.6 -> 45.9 ns); (2) the Mellin forward model has a small residual
-    bias that a slightly-late t0 happens to compensate, so making t0 more accurate
-    can REDUCE the distance overlap (benchmark mean 0.853 -> 0.838). It helps
-    moderate-noise traces (sigma ~0.02) but hurts the cleanest and noisiest -- a
-    net wash-to-regression. Enable only when an accurate t0 per se is the goal.
+    CAVEAT -- `xcheck` is now WORSE ON BOTH AXES and should stay off. Re-measured
+    2026-08-04 over 252 catalogue traces: it raises the mean |t0| error from 8.5 to
+    21.3 ns (worst 84 -> 150) AND costs distance overlap on both engines,
+    -0.0215 (t -6.5) on Tikhonov and -0.0196 (t -5.5) on Mellin, losing on ~81 % of
+    traces at every noise level.
+
+    That is a simpler verdict than the one this docstring used to give, and the
+    reason it changed is worth keeping: the older text said xcheck LOWERED the mean
+    t0 error (5.1 -> 4.0 ns) and was off only because a slightly-late t0 happened to
+    compensate a Mellin forward bias. Both legs are stale. The parabola/centroid
+    estimator has improved since (noise-aware gate, symmetric window, boundary and
+    vertex checks), so the residual search it defers to is no longer the more robust
+    of the two -- deferring to it now just injects the residual path's own variance.
+    No Mellin-specific argument is needed to justify the default any more.
 
     `method='residual'` aligns the kernel by minimizing the V-space reconstruction
     residual (the original method; needs r/dim/bg_start, robust when the echo
