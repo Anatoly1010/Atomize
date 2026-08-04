@@ -311,23 +311,298 @@ def background_general(t, V, bg_start, bg_end=None,
 # --------------------------------------------------------------------------- #
 #  Tikhonov regularization + non-negativity
 # --------------------------------------------------------------------------- #
-def _crop_pre_zero(t, V):
-    """Drop samples before the dipolar zero time.
+def _crop_pre_zero(t, V, policy='crop', tol=3.0):
+    """Handle samples recorded BEFORE the dipolar zero time.
 
-    `dipolar_kernel` evaluates |w*t|, so a t < 0 sample is modelled as evolution at
-    +|t|; the inversion then piles P(r) mass at short r to fit the echo rising edge
-    (a 5 nm pair reads ~2.7 nm). Called from every engine entry point: the GUI
-    passes the full trace, only the benchmark harnesses crop themselves.
+    `policy='crop'` drops them all. `dipolar_kernel` evaluates |w*t|, so a t < 0
+    sample is modelled as evolution at +|t|; where the data there really is the echo
+    rising edge, the inversion pays for the mismatch with P(r) mass at short r.
+
+    `policy='even'` keeps the ones that are demonstrably NOT a rising edge. Dropping
+    them unconditionally has its own cost, and it is the larger one: every K(.,r) is
+    even, so any model form factor has F'(0) = 0 exactly, and on a symmetric window
+    an odd data error is orthogonal to the whole model space -- a zero-time error
+    costs variance and no bias. Cropping to t >= 0 destroys that orthogonality, and
+    the only basis direction that can supply a non-zero initial slope is the short-r
+    end, so a t0 error late by D buys spurious mass ~ (r_s/<r>)^6 * w_s * D there,
+    with the shoulder in F_fit that goes with it. Measured over the 756-trace
+    synthetic catalogue, keeping them is worth +0.008 overlap (t = 7.6), positive at
+    every noise level and in every shape class, and worth more than a PERFECT t0.
+
+    Which ones are safe is decided from the data, not assumed: walk outward from
+    t = 0 and keep the contiguous run whose mirror residual V(-t) - V(+t) stays
+    inside `tol` * sqrt(2) * sigma, since a rising edge, when there is one, sits at
+    the far end. On the YopO ring test this keeps 74 % of the pre-zero samples and
+    moves no reported peak at all, while rejecting the traces whose V-space residual
+    would otherwise degrade (keeping them unconditionally costs 44 % on the 7 traces
+    whose mirror residual exceeds 3 sigma, and 4 % on the other 21).
     """
     t = np.asarray(t, float); V = np.asarray(V, float)
     m = t >= 0.0
     if m.all():
         return t, V, 0
-    return t[m], V[m], int((~m).sum())
+    n_pre = int((~m).sum())
+    tp, Vp = t[m], V[m]
+    if policy != 'even' or len(tp) < 3:
+        return tp, Vp, n_pre
+    sig = _tail_noise(t, V)
+    if not np.isfinite(sig) or sig <= 0.0:      # cannot judge -> crop, as before
+        return tp, Vp, n_pre
+    tn = -t[~m][::-1]                                  # ascending in |t|
+    Vn = V[~m][::-1]
+    thr = tol*np.sqrt(2.0)*sig
+    keep = 0
+    while (keep < len(tn) and tn[keep] <= tp[-1]
+           and abs(Vn[keep] - np.interp(tn[keep], tp, Vp)) <= thr):
+        keep += 1
+    if keep == 0:
+        return tp, Vp, n_pre
+    tk = np.concatenate([-tn[:keep][::-1], tp])
+    Vk = np.concatenate([Vn[:keep][::-1], Vp])
+    return tk, Vk, n_pre - keep
 
 
-def regularization_matrix(n, order=2):
-    """Discrete derivative operator L for Tikhonov smoothing (default 2nd order)."""
+def alias_r_min(t, nu_dd=NU_DD):
+    """Shortest distance the sampling can carry: r = (4 nu_dd dt)^(1/3).
+
+    The kernel's argument is a(1 - 3cos^2 th) with a = w|t|, which spans [-2a, a], so
+    its fastest component is 2w and it aliases once 2w > pi/dt. With
+    w = 2 pi nu_dd / r^3 that is r^3 < 4 nu_dd dt. Grid points below this are not
+    resolved by the data: 1.28 nm at 10 ns sampling but 1.88 nm at 32 ns.
+    """
+    t = np.asarray(t, float)
+    if len(t) < 2:
+        return 0.0
+    dt = float(np.median(np.diff(np.sort(t))))
+    if not np.isfinite(dt) or dt <= 0:
+        return 0.0
+    return float((4.0*nu_dd*dt)**(1.0/3.0))
+
+
+def _warn_alias(t, r, nu_dd=NU_DD):
+    """Warn when the distance grid runs below what the sampling can resolve."""
+    ra = alias_r_min(t, nu_dd=nu_dd)
+    r0 = float(np.min(r)) if len(r) else 0.0
+    if ra > 0 and r0 < ra - 1e-9:
+        warnings.warn(
+            'DEER distance grid starts at %.2f nm but this trace samples at '
+            '%.1f ns, which cannot resolve below %.2f nm ((4*nu_dd*dt)^(1/3): the '
+            'kernel\'s fastest component 2*omega aliases there). Those grid points '
+            'are unconstrained by the data and give the inversion a free place to '
+            'put mass; raise r_min to about %.2f nm. Measured on coarse-sampled '
+            'synthetic traces, doing so is worth ~+0.005 distance overlap.'
+            % (r0, float(np.median(np.diff(np.sort(np.asarray(t, float)))))*1e3,
+               ra, ra), RuntimeWarning, stacklevel=3)
+    return ra
+
+
+def _first_min_time(t, F, smooth=5):
+    """Time of the first local minimum of F, i.e. where the echo-top region ends.
+
+    A parabola is only meaningful on the initial monotone decay; past the first
+    dipolar minimum F turns back up and a least-squares fit there returns nonsense
+    curvature. Smoothed first, so one noise excursion does not call a minimum.
+    Expects t >= 0 -- on a trace that still carries pre-zero samples it would call a
+    minimum inside the rising side and hand back a time below zero.
+    """
+    t = np.asarray(t, float); F = np.asarray(F, float)
+    o = np.argsort(t)
+    tp, fp = t[o], F[o]
+    k = max(1, int(smooth))
+    if k > 1 and len(fp) >= k:
+        fp = _boxcar(fp, k)
+    d = np.diff(fp)
+    up = np.where(d > 0)[0]
+    for i in up:
+        if np.any(d[:i] < 0):
+            return float(tp[i])
+    return float(tp[-1])
+
+
+def _head_delta(t, F, level=0.60, floor=0.0, cap=0.35, iters=6, n_min=4):
+    """Echo-top head width from the FITTED curvature, not from a raw crossing.
+
+    delta = sqrt((1-level)*a/-b) with (a, b) least-squares over the window itself,
+    iterated to a fixed point from the wide end. Taking delta from where a noisy
+    sample first drops below a level makes the window SHRINK as noise rises, which is
+    backwards; the curvature is a fit over many points, so it keeps the r^3 scaling of
+    the honest window. The floor is sample-count-driven (a fixed floor can hold two
+    points on a coarse grid) and the first dipolar minimum bounds it from above.
+
+    `t` must already be restricted to t >= 0.
+    """
+    t = np.asarray(t, float); F = np.asarray(F, float)
+    tp = np.sort(t[t >= 0.0])
+    if len(tp) < n_min:
+        return float(np.clip(floor, floor, cap))
+    lo = max(float(floor), float(tp[n_min - 1]))
+    hi = min(float(cap), _first_min_time(t, F))
+    d = float(np.clip(hi, lo, max(float(tp[-1]), lo)))
+    for _ in range(int(iters)):
+        m = (t >= 0.0) & (t <= d)
+        if int(m.sum()) < n_min:
+            break
+        A = np.vstack([np.ones(int(m.sum())), t[m]**2]).T
+        c, *_ = np.linalg.lstsq(A, F[m], rcond=None)
+        a, b = float(c[0]), float(c[1])
+        if not (b < 0.0 and a > 0.0):
+            break
+        d_new = float(np.clip(np.sqrt((1.0 - level)*a/(-b)), lo, hi))
+        done = abs(d_new - d) < 1e-4
+        d = d_new
+        if done:
+            break
+    return float(np.clip(d, lo, hi))
+
+
+def _even_head(t, F, delta):
+    """Replace F on |t| <= h by an even parabola fitted to the trace's EVEN PART.
+
+    Returns (F_new, b, h) or (F, nan, nan) when the window is too thin.
+
+    The head is a parity device: F is even about t0, so the echo top carries far fewer
+    degrees of freedom than it has samples and replacing it by its own parabola
+    denoises the highest-leverage part of the trace. Fitting that parabola on the
+    ONE-SIDED window [0, delta] defeats the purpose -- there the odd part of a
+    zero-time error D is not orthogonal to {1, t^2}, and projecting it gives
+    b_hat = b(1 + 15 D/(8 delta)), a curvature bias linear in D. Since
+    b = -(2/5)<w^2> and w = 2*pi*nu_dd/r^3, that is a DISTANCE bias: measured over
+    D = +-40 ns on noiseless traces the one-sided curvature swings 17x on a narrow
+    shape. Adding an odd term and discarding it does not help either, because on a
+    one-sided window t is not orthogonal to t^4 -- a shift and F's quartic term are
+    confounded, and the fit reads D = 33 ns on a trace with no shift at all.
+
+    Averaging mirrored pairs, G(u) = [F(u) + F(-u)]/2, cancels the odd part
+    identically. That needs the pre-zero samples, so it is only available under
+    `pre_zero='even'`. The replacement window is clipped to the fit half-width h:
+    h is capped by the available pre-zero span, and applying a parabola fitted over
+    120 ns out to a 322 ns delta is extrapolation that costs 0.013 overlap on exactly
+    the broad shapes the construction exists to protect.
+    """
+    a, b, _c, h = _pair_fit(t, F, delta, order=2)
+    if not np.isfinite(b):
+        return F, np.nan, np.nan
+    m = np.abs(np.asarray(t, float)) <= h
+    if int(m.sum()) < 4 or not (b < 0.0):
+        return F, np.nan, np.nan
+    out = np.asarray(F, float).copy()
+    out[m] = a + b*np.asarray(t, float)[m]**2
+    return out, b, h
+
+
+def _pair_fit(t, F, delta, order=2):
+    """Even polynomial fitted to G(u) = [F(u) + F(-u)]/2; returns (a, b, c, h).
+
+    `order=2` gives the head's own replacement parabola. `order=4` adds the quartic
+    and is what the GUARD reads: b there is a better estimate of the true curvature,
+    because over a window wide enough to denoise, the t^4 term of
+    K = 1 - (2/5)w^2 t^2 + (2/35)w^4 t^4 is not negligible and biases a two-term fit.
+    The two are deliberately different -- the replacement wants two parameters, the
+    diagnostic wants an accurate <w^2>.
+    """
+    t = np.asarray(t, float); F = np.asarray(F, float)
+    h = min(float(delta), -float(np.min(t)))
+    if h <= 0:
+        return (np.nan,)*3 + (np.nan,)
+    dt = float(np.median(np.diff(np.sort(t))))
+    if not np.isfinite(dt) or dt <= 0:
+        return (np.nan,)*3 + (np.nan,)
+    n_u = int(max(4, round(h/dt)))
+    u = np.linspace(h/n_u, h, n_u)
+    o = np.argsort(t); ts, Fs = t[o], F[o]
+    G = 0.5*(np.interp(u, ts, Fs) + np.interp(-u, ts, Fs))
+    cols = [np.ones_like(u), u**2] + ([u**4] if order >= 4 else [])
+    A = np.vstack(cols).T
+    if len(u) <= A.shape[1]:
+        return (np.nan,)*3 + (h,)
+    co, *_ = np.linalg.lstsq(A, G, rcond=None)
+    return (float(co[0]), float(co[1]),
+            float(co[2]) if order >= 4 else np.nan, h)
+
+
+def _r_from_curvature(b, nu_dd=NU_DD):
+    """Distance implied by the echo-top curvature alone: b = -(2/5)<w^2>."""
+    if not (b < 0):
+        return np.nan
+    return float((2*np.pi*nu_dd/np.sqrt(-2.5*b))**(1.0/3.0))
+
+
+def _echo_head_solve(t, F, K, L, r, dr, alphas, method, alpha, alpha_factor,
+                     scan_lcurve, P_base, lc_base, alpha_base, level, cap,
+                     ratio_max, nu_dd):
+    """Apply the guarded even head and re-solve; returns (F, P, lc, alpha, info).
+
+    The guard is a BREADTH test, not a distance one. The blocker this exists for --
+    the 5.9-7.35 nm YopO group, where the head shifted the mean distance +0.148 nm --
+    is not a long-r effect: those traces have an echo-top curvature implying 3.3 nm
+    while reporting 7 nm peaks, because <w^2> ~ r^-6 is dominated by the shortest
+    component present. Every distance-scale candidate (delta/t_max, t_max/delta, "the
+    first dipolar minimum is not reached") puts that group in the middle of the others
+    and cannot separate it; and cv60's delta rule makes delta*w_rms ~ 1 at every
+    distance by construction, so nothing built on that product can discriminate
+    either.
+
+    What separates it is r_mean/r_eff: the mean distance of the unheaded solution
+    against the distance the echo top alone implies. It is 1 for a single distance and
+    grows with breadth, and a two-parameter head cannot stand in for an echo top that
+    is a mixture of very different decay rates. On the ring test it is 1.02-1.23
+    everywhere except that group, which spans 1.27-1.47.
+
+    A failed head fit (nan) also declines the head, which is the safe direction. The
+    unheaded solution is reused for the guard, so the second regularization scan is
+    paid only when the head is actually applied.
+    """
+    info = {'applied': False, 'delta': None, 'r_eff': None, 'r_ratio': None}
+    pos = t >= 0.0
+    if int(pos.sum()) < 8:
+        return F, P_base, lc_base, alpha_base, info
+    delta = _head_delta(t[pos], F[pos], level=level, cap=cap)
+    info['delta'] = float(delta)
+    if not (delta > 0):
+        return F, P_base, lc_base, alpha_base, info
+    F_head, b, _h = _even_head(t, F, delta)
+    _a4, b4, _c4, _h4 = _pair_fit(t, F, delta, order=4)
+    r_eff = _r_from_curvature(b4, nu_dd=nu_dd)
+    info['r_eff'] = (None if not np.isfinite(r_eff) else float(r_eff))
+    if not (np.isfinite(r_eff) and np.isfinite(b)):
+        return F, P_base, lc_base, alpha_base, info
+    dens = np.clip(np.asarray(P_base, float), 0.0, None)
+    mass = float(np.trapezoid(dens, r))
+    r_mean = float(np.trapezoid(r*dens, r)/mass) if mass > 0 else np.nan
+    ratio = r_mean/r_eff if np.isfinite(r_mean) else np.nan
+    info['r_ratio'] = (None if not np.isfinite(ratio) else float(ratio))
+    if not (np.isfinite(ratio) and ratio <= float(ratio_max)):
+        return F, P_base, lc_base, alpha_base, info
+    lc = (l_curve(K, F_head, alphas, L, method=method)
+          if (scan_lcurve or alpha is None) else None)
+    a_use = (float(alpha) if alpha is not None
+             else lc['alpha_opt']*float(alpha_factor))
+    if alpha is None and alpha_factor == 1.0 and lc is not None:
+        P = lc['P']
+    else:
+        P = tikhonov_nnls(K, F_head, a_use, L)
+    info['applied'] = True
+    return F_head, P, lc, a_use, info
+
+
+def regularization_matrix(n, order=2, include_edges=False):
+    """Discrete derivative operator L for Tikhonov smoothing (default 2nd order).
+
+    `include_edges` closes the operator's FREE ENDS. The plain second difference is
+    (n-2, n): P[0] and P[-1] each appear in exactly one row where an interior point
+    appears in three, so edge mass is ~3x under-penalized and a spike sitting exactly
+    at the grid edge is the cheapest roughness the fit can buy. That is a real
+    artefact generator, not a curiosity -- it is why a spurious short-r peak MOVES
+    when the distance grid's lower bound moves, tracking the boundary rather than any
+    distance. With `include_edges` the two extra rows [-2, 1, ...] and [..., 1, -2]
+    treat P as zero just outside the grid, so the boundary points carry the same
+    curvature penalty as the interior.
+
+    Use it when the grid comfortably contains the distribution; it is WRONG when the
+    truth genuinely has mass at the boundary, because it then forces P -> 0 where the
+    data says otherwise (measured: a true 2.03 nm distribution recovers its peak at
+    2.02 nm on a grid starting at 1.5 nm, but at 2.19 nm on one starting at 2.0).
+    """
     if order == 0:
         return np.eye(n)
     if order == 1:
@@ -341,6 +616,10 @@ def regularization_matrix(n, order=2):
     L[idx, idx] = 1.0
     L[idx, idx + 1] = -2.0
     L[idx, idx + 2] = 1.0
+    if include_edges and n >= 2:
+        top = np.zeros((1, n)); top[0, 0] = -2.0; top[0, 1] = 1.0
+        bot = np.zeros((1, n)); bot[0, -1] = -2.0; bot[0, -2] = 1.0
+        L = np.vstack([top, L, bot])
     return L
 
 
@@ -533,7 +812,7 @@ def tikhonov_ci(K, F, alpha, P, L=None, dr=1.0, z=1.96):
 def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False,
                 alpha=None, alphas=None, reg_order=2, nu_dd=NU_DD,
                 scan_lcurve=True, method='gcv', engine='sequential',
-                alpha_factor=1.0, **kwargs):
+                alpha_factor=1.0, pre_zero='even', reg_edges=True, **kwargs):
     """Full DEER pipeline: background-correct V(t), build the kernel, invert to
     P(r) by Tikhonov + NNLS. When `alpha` is not supplied it is chosen
     automatically by `method` ('gcv' default, or 'curvature' for the classic
@@ -561,6 +840,11 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
                        chosen by AICc). Extra params (n_gauss, max_gauss, ic,
                        bg_engine, n_mc) pass through via **kwargs.
 
+    `pre_zero` decides what happens to samples below the zero time -- 'even'
+    (default) keeps the ones that pass a mirror test, 'crop' drops them all; see
+    `_crop_pre_zero`. Tikhonov engines only: 'mellin' integrates on a log-T grid and
+    'gauss' Monte-Carlo assumes uniform sampling, so both always crop.
+
     `t` in us, `r` in nm. With `scan_lcurve` (default) the regularization scan is
     always computed for display, even when an explicit `alpha` is given. Returns a dict:
     t, r, form_factor F(t), F_fit = K P, residuals, P (raw masses), P_norm
@@ -575,7 +859,9 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
                                  dim=dim, fit_dim=fit_dim, alpha=alpha,
                                  alphas=alphas, reg_order=reg_order, nu_dd=nu_dd,
                                  method=method, scan_lcurve=scan_lcurve,
-                                 alpha_factor=alpha_factor)
+                                 alpha_factor=alpha_factor, pre_zero=pre_zero,
+                                 reg_edges=reg_edges,
+                                 echo_head=kwargs.pop('echo_head', False))
     if engine == 'mellin':
         return deer_invert_mellin(t, V, r=r, bg_start=bg_start, bg_end=bg_end,
                                   dim=dim, fit_dim=fit_dim, nu_dd=nu_dd,
@@ -585,7 +871,7 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
                                  dim=dim, fit_dim=fit_dim, nu_dd=nu_dd,
                                  bg_params=bg_params, **kwargs)
     _require_scipy()
-    t, V, _n_pre = _crop_pre_zero(t, V)
+    t, V, _n_pre = _crop_pre_zero(t, V, policy=pre_zero)
     r = default_r_axis() if r is None else np.asarray(r, float)
     if bg_start is None:
         bg_start = t[0] + 0.5*(t[-1] - t[0])
@@ -597,7 +883,8 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
         bg = background_fit(t, V, bg_start, bg_end=bg_end, dim=dim, fit_dim=fit_dim)
     F = bg['form_factor']
     K = dipolar_kernel(t, r, nu_dd=nu_dd)
-    L = regularization_matrix(len(r), reg_order)
+    r_alias = _warn_alias(t, r, nu_dd=nu_dd)
+    L = regularization_matrix(len(r), reg_order, include_edges=reg_edges)
     if alphas is None:
         # wide grid (1e-4 .. 1e3): GCV needs room above the old 1e1 ceiling to
         # find its true minimum, which for well-separated peaks sits at alpha~1e2.
@@ -616,7 +903,7 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
     return {'t': t, 'r': r, 'form_factor': F, 'F_fit': F_fit,
             'residuals': F - F_fit, 'P': P, 'P_norm': P_norm,
             'P_density': P_density, 'P_lower': P_lower, 'P_upper': P_upper,
-            'kernel': K, 'alpha': float(alpha), 'ci_kind': 'noise',
+            'kernel': K, 'alpha': float(alpha), 'r_alias': float(r_alias), 'ci_kind': 'noise',
             'l_curve': lc, 'background': bg, 'lambda': bg['lambda'],
             'k': bg['k'], 'dim': bg['dim'],
             'engine': engine if engine in ('none', 'general') else 'sequential'}
@@ -625,7 +912,9 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
 def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                       fit_dim=False, alpha=None, alphas=None, reg_order=2,
                       nu_dd=NU_DD, method='gcv', scan_lcurve=True,
-                      alpha_factor=1.0):
+                      alpha_factor=1.0, pre_zero='even', reg_edges=True,
+                      echo_head=False, head_level=0.60, head_cap=0.35,
+                      head_ratio_max=1.25):
     """DEER inversion with a *joint* (separable-NLLS / variable-projection) fit of
     the background and modulation depth together with the regularized non-negative
     P(r) -- the strategy DeerLab uses. More robust than the sequential
@@ -652,6 +941,21 @@ def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     background form factor (the same `l_curve` selection as `deer_invert`). Same
     return dict as `deer_invert`, with engine='joint'.
 
+    `echo_head` (default OFF) replaces the echo top with an even parabola fitted to
+    the trace's own even part -- F is even about t0, so the head carries far fewer
+    degrees of freedom than it has samples, and this denoises the highest-leverage
+    part of the trace. Guarded (see `_echo_head_solve`) it is worth **+0.0016 overlap
+    (t = 3.2)** over 756 synthetic traces on top of the edge-closed operator, and the
+    guard is what makes it safe on the broad real traces where the unguarded head
+    moved the mean distance +0.072 nm. Note the value has fallen as the defects it was
+    partly compensating for were fixed: +0.0046 standalone, +0.0033 once `pre_zero`
+    kept the mirrored samples, +0.0016 once `reg_edges` closed the operator's ends --
+    all three suppress the same short-r/edge pile-up. It costs a second regularization
+    scan when it fires, so it is opt-in rather than default.
+    `head_level` sets the head width (0.60 = the fitted parabola falls to 0.60),
+    `head_cap` bounds it, `head_ratio_max` is the guard threshold. The result carries
+    an `echo_head` dict: applied, delta, r_eff, r_ratio.
+
     Caveat on the uncertainty band: `P_lower`/`P_upper` come from `tikhonov_ci`,
     which conditions on the FITTED background and lambda. Here those are themselves
     fitted, and their scatter dominates -- measured up to 7x too narrow versus the
@@ -662,10 +966,11 @@ def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     lambda or a distance from this engine.
     """
     _require_scipy()
-    t, V, _n_pre = _crop_pre_zero(t, V)
+    t, V, _n_pre = _crop_pre_zero(t, V, policy=pre_zero)
     r = default_r_axis() if r is None else np.asarray(r, float)
     K = dipolar_kernel(t, r, nu_dd=nu_dd)
-    L = regularization_matrix(len(r), reg_order)
+    r_alias = _warn_alias(t, r, nu_dd=nu_dd)
+    L = regularization_matrix(len(r), reg_order, include_edges=reg_edges)
     if alphas is None:
         alphas = np.logspace(-4, 3, 24)
 
@@ -693,15 +998,21 @@ def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         P_masses = lc['P']                         # reuse the scan solution
     else:
         P_masses = tikhonov_nnls(K, F, alpha_use, L)
-    P_norm = _normalize_masses(P_masses)
     dr = float(r[1] - r[0]) if len(r) > 1 else 1.0
+    head = {'applied': False, 'delta': None, 'r_eff': None, 'r_ratio': None}
+    if echo_head:
+        F, P_masses, lc, alpha_use, head = _echo_head_solve(
+            t, F, K, L, r, dr, alphas, method, alpha, alpha_factor, scan_lcurve,
+            P_masses, lc, alpha_use, head_level, head_cap, head_ratio_max, nu_dd)
+    P_norm = _normalize_masses(P_masses)
     F_fit = K@P_masses                                 # the solved masses, as deer_invert
     P_lower, P_upper = tikhonov_ci(K, F, alpha_use, P_masses, L=L, dr=dr)
     return {'t': t, 'r': r, 'form_factor': F, 'F_fit': F_fit,
             'residuals': F - F_fit, 'P': P_masses, 'P_norm': P_norm,
             'P_density': P_norm/dr, 'P_lower': P_lower, 'P_upper': P_upper,
             'kernel': K, 'alpha': float(alpha_use),
-            'ci_kind': 'noise_fixed_bg',
+            'ci_kind': 'noise_fixed_bg', 'echo_head': head,
+            'r_alias': float(r_alias),
             'l_curve': lc, 'background': bg, 'lambda': lam,
             'k': float(k), 'dim': float(d), 'engine': 'joint'}
 
@@ -2728,6 +3039,7 @@ def fit_zero_time(t, V, bg_start=None, bg_end=None, n_grid=16, search_frac=0.15,
     opts = dict(kwargs)
     opts['engine'] = 'sequential'
     opts['scan_lcurve'] = False
+    opts['pre_zero'] = 'crop'     # fixed sample set, or the residual is a staircase in s
     opts.pop('alpha_factor', None)
     rr = opts.get('r')
     if rr is not None and len(np.asarray(rr)) > 100:
