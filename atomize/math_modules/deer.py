@@ -403,6 +403,44 @@ def alias_r_min(t, nu_dd=NU_DD):
     return float((4.0*nu_dd*dt)**(1.0/3.0))
 
 
+def _check_bg_start_periods(bg, r, P_density, min_periods=0.75, nu_dd=NU_DD):
+    """Is the background window late enough for the distance actually recovered?
+
+    The background rate is only meaningful where the dipolar signal has finished
+    evolving. How late that is depends on the DISTANCE: one dipolar period is
+    T_dd = r^3 / nu_dd, so 2.4 us at 5 nm but 0.17 us at 2 nm. A bg_start that is
+    comfortably late for a 3 nm sample opens at a fifth of a period for a 5 nm one,
+    and the fit then absorbs dipolar decay into k -- pulling the reported distance
+    SHORT, by 0.12-0.35 nm on the measured sweep.
+
+    Calibrated over 1260 cells (7 distances x 5 t_max x 6 bg_start x 3 noise x 2
+    widths, 7560 inversions): with bg_start below 0.75 dipolar periods of the
+    recovered mean distance, 95 % of the cells whose mean is wrong by >0.05 nm are
+    caught, at a 24 % false-alarm rate; below 0.5 periods only 77 % are caught. Mean
+    |error| by band: 0.21 nm under 0.5 periods, 0.09 at 0.5-0.75, 0.017 at
+    0.75-1.0, 0.013 beyond. The effect is confined to long distances -- no band
+    exceeds 0.018 nm at r <= 3.5 nm -- so this never fires on a routine 2-4 nm
+    measurement.
+
+    Returns (flagged, periods, r_mean) with periods = bg_start / T_dd(r_mean).
+    """
+    try:
+        r = np.asarray(r, float)
+        d = np.clip(np.asarray(P_density, float), 0.0, None)
+        m = float(np.trapezoid(d, r))
+        if not (m > 0):
+            return False, float('nan'), float('nan')
+        r_mean = float(np.trapezoid(r*d, r)/m)
+        t_dd = r_mean**3/nu_dd
+        bs = float(bg.get('bg_start', float('nan')))
+        if not (np.isfinite(bs) and t_dd > 0):
+            return False, float('nan'), r_mean
+        per = bs/t_dd
+        return bool(per < float(min_periods)), float(per), r_mean
+    except Exception:
+        return False, float('nan'), float('nan')
+
+
 def _apply_alias_floor(t, r, clamp=True, nu_dd=NU_DD):
     """Drop distance-grid points the sampling cannot resolve; returns (r, r_alias).
 
@@ -1071,6 +1109,21 @@ def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     P_norm = _normalize_masses(P_masses)
     F_fit = K@P_masses                                 # the solved masses, as deer_invert
     P_lower, P_upper = tikhonov_ci(K, F, alpha_use, P_masses, L=L, dr=dr)
+    _bg_early, _bg_per, _ = _check_bg_start_periods(bg, r, P_norm/dr, nu_dd=nu_dd)
+    bg['bg_start_periods'] = _bg_per
+    bg['bg_start_early'] = _bg_early
+    if _bg_early:
+        warnings.warn(
+            'DEER background window starts at %.2f dipolar periods of the recovered '
+            'distance (%.2f nm): the rate is fitted where the dipolar signal is still '
+            'evolving, which biases the reported distance SHORT (0.09-0.35 nm on the '
+            'calibration sweep). Move bg_start later -- at least %.2f us here -- or '
+            'lengthen the trace.'
+            % (_bg_per, float(np.trapezoid(r*np.clip(P_norm/dr, 0, None), r)
+                              / (np.trapezoid(np.clip(P_norm/dr, 0, None), r) or 1.0)),
+               0.75*(float(np.trapezoid(r*np.clip(P_norm/dr, 0, None), r)
+                           / (np.trapezoid(np.clip(P_norm/dr, 0, None), r) or 1.0))**3
+                     / nu_dd)), RuntimeWarning, stacklevel=2)
     return {'t': t, 'r': r, 'form_factor': F, 'F_fit': F_fit,
             'residuals': F - F_fit, 'P': P_masses, 'P_norm': P_norm,
             'P_density': P_norm/dr, 'P_lower': P_lower, 'P_upper': P_upper,
@@ -1262,9 +1315,17 @@ def joint_background(t, V, bg_start=None, bg_end=None, dim=3.0, fit_dim=False,
     forces mean F = 0 there, so mean |F| above ~0.05 says the tail has NOT decayed
     and lambda is a guess: measured 6.6x low on a 1 us trace of a 4.5 nm pair),
     `k_ref` / `k_ratio` / `k_disagrees` (the sequential tail-fit rate and how far
-    the joint rate sits from it) and `k_at_bound` (k landed on an edge of its
+    the joint rate sits from it -- a disagreement between the two background routes,
+    NOT a reliability verdict: measured 56 % detection at a 45 % false-alarm rate,
+    and structurally blind to an early background window because both routes then
+    absorb the same dipolar decay), `k_at_bound` (k landed on an edge of its
     [kref/100, kref*100] bracket, which happens when kref itself collapses and
-    means k carries no information). Any of these firing raises a RuntimeWarning.
+    means k carries no information), and `conc_implied_uM` / `conc_implausible` --
+    the spin concentration the fitted rate implies, k = 9.974e-4 * C * lambda.
+    Flagged above 1000 uM, which no spin-labelled DEER sample reaches: 43 %
+    detection at a 1 % false-alarm rate, so it is the specific one. The SENSITIVE
+    detector for that failure is `bg_start_early` on the engine result (92 % / 23 %).
+    Any of these firing raises a RuntimeWarning.
     """
     _require_scipy()
     from scipy.optimize import least_squares, minimize_scalar
@@ -1360,8 +1421,30 @@ def joint_background(t, V, bg_start=None, bg_end=None, dim=3.0, fit_dim=False,
     tail_absF = float(np.mean(np.abs(F[pin_mask])))
     lam_clamped = not (0.02 <= lam_raw <= 0.95)
     k_ratio = float(k)/kref if kref > 0 else float('nan')
+    # `k_ratio` compares the joint rate with the SEQUENTIAL tail fit on the SAME
+    # window. Measured over 1260 calibration cells it detects 56 % of the fits whose
+    # mean distance is wrong by >0.05 nm but false-alarms on 45 % of the good ones --
+    # against a 25 % base rate that lifts the odds to 29 %, i.e. it is nearly
+    # uninformative on its own. In particular it CANNOT see an early background
+    # window: there both fits absorb the same dipolar decay and agree on the same
+    # wrong rate (k_ratio 0.81-0.91 while k itself was 10-33x the truth). Read it as
+    # "the two background routes disagree", not as a reliability verdict; the flags
+    # that detect the early-window failure are `conc_implausible` here and
+    # `bg_start_early` on the engine result.
+    #
+    # A self-consistency variant -- refit the rate on the window's own second half
+    # and compare -- was implemented and MEASURED at 21 % detection, then removed:
+    # on a long-distance trace that second half is still inside the dipolar
+    # evolution, so it fails in the same way for the same reason. Do not re-derive it.
+    conc_implied = (float(k)/(9.974e-4*lam) if lam > 1e-6 else float('nan'))
+    conc_implausible = bool(np.isfinite(conc_implied) and conc_implied > 1000.0)
     k_disagrees = bool(np.isfinite(k_ratio) and (k_ratio > 2.0 or k_ratio < 0.5))
     reasons = []
+    if conc_implausible:
+        reasons.append('the fitted rate implies a spin concentration of %.0f uM '
+                       '(k = %.4g, lambda = %.3f), which is not a physical DEER '
+                       'sample -- the background fit has absorbed the dipolar decay'
+                       % (conc_implied, float(k), lam))
     if lam_clamped:
         reasons.append('the modulation depth hit the [0.02, 0.95] clamp '
                        '(raw %.3g, used %.3f)' % (lam_raw, lam))
@@ -1389,6 +1472,8 @@ def joint_background(t, V, bg_start=None, bg_end=None, dim=3.0, fit_dim=False,
             'lambda_clamped': bool(lam_clamped),
             'tail_abs_F': tail_absF, 'k_ref': float(kref),
             'k_ratio': k_ratio, 'k_disagrees': k_disagrees,
+            'conc_implied_uM': float(conc_implied),
+            'conc_implausible': conc_implausible,
             'k_at_bound': bool(k_at_bound), 'rmax_cap': float(rmax_tight),
             'k': float(k), 'dim': float(d), 'A': float(1 - lam),
             'B': B, 'form_factor': F, 'V_norm': V, 't': t,
