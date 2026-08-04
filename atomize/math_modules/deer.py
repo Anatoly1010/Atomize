@@ -318,6 +318,18 @@ def _crop_pre_zero(t, V, policy='crop', tol=3.0):
     sample is modelled as evolution at +|t|; where the data there really is the echo
     rising edge, the inversion pays for the mismatch with P(r) mass at short r.
 
+    `policy='even_fold'` keeps the same samples but AVERAGES each into its mirrored
+    positive twin, so the result stays on t >= 0 with the original uniform spacing.
+    That is the form the engines which cannot take negative rows need -- Mellin
+    substitutes u = ln T, `_gauss_mc`'s `_pake_transform` assumes uniform sampling --
+    and it lets every engine work from the same information on a given trace, so a
+    Mellin-vs-Tikhonov disagreement diagnoses the METHOD rather than the input. On
+    Mellin it is worth +0.0064 overlap (t = 5.2) over 756 traces, rising to +0.0226 at
+    sigma 0.06: its delta-split fits the head parabola's curvature from the data on
+    [0, delta], and folding halves the noise exactly there. On the multi-Gaussian
+    engine the same change is NOT significant (+0.0034, t = 1.7) and is mildly
+    negative at low noise, so that engine keeps `'crop'`.
+
     `policy='even'` keeps the ones that are demonstrably NOT a rising edge. Dropping
     them unconditionally has its own cost, and it is the larger one: every K(.,r) is
     even, so any model form factor has F'(0) = 0 exactly, and on a symmetric window
@@ -343,7 +355,7 @@ def _crop_pre_zero(t, V, policy='crop', tol=3.0):
         return t, V, 0
     n_pre = int((~m).sum())
     tp, Vp = t[m], V[m]
-    if policy != 'even' or len(tp) < 3:
+    if policy not in ('even', 'even_fold') or len(tp) < 3:
         return tp, Vp, n_pre
     sig = _tail_noise(t, V)
     if not np.isfinite(sig) or sig <= 0.0:      # cannot judge -> crop, as before
@@ -357,6 +369,18 @@ def _crop_pre_zero(t, V, policy='crop', tol=3.0):
         keep += 1
     if keep == 0:
         return tp, Vp, n_pre
+    if policy == 'even_fold':
+        # Same samples, same information, but AVERAGED into their positive twins so
+        # the result stays on t >= 0 with the original uniform spacing. The engines
+        # that cannot take negative rows -- Mellin substitutes u = ln T, and
+        # `_gauss_mc`'s `_pake_transform` assumes uniform sampling -- need this form,
+        # and using it keeps every engine looking at the same data on a given trace.
+        add = np.zeros_like(tp); w = np.zeros_like(tp)
+        idx = np.clip(np.searchsorted(tp, tn[:keep]), 0, len(tp) - 1)
+        for j, val in zip(idx, Vn[:keep]):
+            add[j] += val; w[j] += 1.0
+        Vf = np.where(w > 0, (Vp + add)/(1.0 + w), Vp)
+        return tp, Vf, n_pre - keep
     tk = np.concatenate([-tn[:keep][::-1], tp])
     Vk = np.concatenate([Vn[:keep][::-1], Vp])
     return tk, Vk, n_pre - keep
@@ -865,11 +889,15 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
     if engine == 'mellin':
         return deer_invert_mellin(t, V, r=r, bg_start=bg_start, bg_end=bg_end,
                                   dim=dim, fit_dim=fit_dim, nu_dd=nu_dd,
-                                  bg_params=bg_params, **kwargs)
+                                  bg_params=bg_params,
+                                  pre_zero=kwargs.pop('pre_zero_engine',
+                                                      'even_fold'), **kwargs)
     if engine == 'gauss':
         return deer_invert_gauss(t, V, r=r, bg_start=bg_start, bg_end=bg_end,
                                  dim=dim, fit_dim=fit_dim, nu_dd=nu_dd,
-                                 bg_params=bg_params, **kwargs)
+                                 bg_params=bg_params,
+                                 pre_zero=kwargs.pop('pre_zero_engine', 'crop'),
+                                 **kwargs)
     _require_scipy()
     t, V, _n_pre = _crop_pre_zero(t, V, policy=pre_zero)
     r = default_r_axis() if r is None else np.asarray(r, float)
@@ -1606,7 +1634,7 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                        taumax_method='penalty', noise_space='V',
                        wiener=0.0, taumax_extend=True, extend_short_frac=0.18,
                        fit_rmin_abs=2.0, fit_rmin_width=0.5,
-                       signed_fit=True, taper_short=True,
+                       signed_fit=True, taper_short=True, pre_zero='even_fold',
                        **_ignored):
     """Model-free DEER inversion by the analytic integral Mellin transform
     (doi 10.1039/C7CP04059H). Background-corrects V(t), then recovers the distance
@@ -1744,7 +1772,7 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     the over-fit indicator.
     """
     _require_scipy()
-    t, V, _n_pre = _crop_pre_zero(t, V)
+    t, V, _n_pre = _crop_pre_zero(t, V, policy=pre_zero)
     r = default_r_axis() if r is None else np.asarray(r, float)
     if bg_start is None:
         bg_start = t[0] + 0.5*(t[-1] - t[0])
@@ -2282,7 +2310,8 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                       ci_z=1.96, seed=0, sigma_min=None, sigma_max=None,
                       ci_mode='linear', ci_level=0.95, prune_spurious=True,
                       weight_min=0.02, spike_weight_max=0.10,
-                      method='lsq', mc_trials=30000, mc_tol=0.5, **_ignored):
+                      method='lsq', mc_trials=30000, mc_tol=0.5, pre_zero='crop',
+                       **_ignored):
     """Parametric DEER inversion: model P(r) as a SUM OF N GAUSSIANS and fit their
     amplitudes / centres / widths to the form factor (the DeerAnalysis "Gaussian"
     mode / DeerLab `dd_gaussN` approach). Complements the regularized (`deer_invert`)
@@ -2401,7 +2430,7 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     """
     _require_scipy()
     from scipy.optimize import least_squares
-    t, V, _n_pre = _crop_pre_zero(t, V)
+    t, V, _n_pre = _crop_pre_zero(t, V, policy=pre_zero)
     r = default_r_axis() if r is None else np.asarray(r, float)
     if bg_start is None:
         bg_start = t[0] + 0.5*(t[-1] - t[0])
@@ -3112,7 +3141,8 @@ def _bg_start_grid(t, center, span_frac=0.075, n=9):
 def deer_validate(t, V, r=None, bg_start=None, bg_starts=None, bg_end=None,
                   dim=3.0, fit_dim=False, alpha=None, alpha_factor=1.0,
                   reg_order=2, nu_dd=NU_DD, method='gcv', engine='sequential',
-                  noise=0.0, n_noise=0, seed=0, percentiles=(5, 95), **kwargs):
+                  noise=0.0, n_noise=0, seed=0, percentiles=(5, 95),
+                  pre_zero='even', **kwargs):
     """DeerAnalysis-style validation: hold the regularization fixed, re-run the
     inversion over a grid of background-start times (and optionally added-noise
     realizations), collect the ensemble of P(r), and return the consensus P(r)
@@ -3145,7 +3175,7 @@ def deer_validate(t, V, r=None, bg_start=None, bg_starts=None, bg_end=None,
     see a sweep that splits between background branches).
     """
     _require_scipy()
-    t, V, _n_pre = _crop_pre_zero(t, V)
+    t, V, _n_pre = _crop_pre_zero(t, V, policy=pre_zero)
     r = default_r_axis() if r is None else np.asarray(r, float)
     if bg_starts is None:
         bg_starts = _bg_start_grid(t, bg_start)
