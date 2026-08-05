@@ -441,6 +441,29 @@ def _check_bg_start_periods(bg, r, P_density, min_periods=0.75, nu_dd=NU_DD):
         return False, float('nan'), float('nan')
 
 
+def _flag_bg_start_early(bg, r, P_density, nu_dd=NU_DD, min_periods=0.75):
+    """Record `_check_bg_start_periods` on the background dict and warn if it fires.
+
+    Every engine that fits a background needs this, not just the joint Tikhonov one:
+    Mellin and the multi-Gaussian both default to `bg_engine='joint'` and so inherit
+    the same early-window failure. It has to run after the inversion because the
+    dipolar period is set by the distance actually recovered.
+    """
+    early, per, r_mean = _check_bg_start_periods(
+        bg, r, P_density, min_periods=min_periods, nu_dd=nu_dd)
+    bg['bg_start_periods'] = per
+    bg['bg_start_early'] = early
+    if early:
+        warnings.warn(
+            'DEER background window starts at %.2f dipolar periods of the recovered '
+            'distance (%.2f nm): the rate is fitted where the dipolar signal is still '
+            'evolving, which biases the reported distance SHORT (0.09-0.35 nm on the '
+            'calibration sweep). Move bg_start later -- at least %.2f us here -- or '
+            'lengthen the trace.'
+            % (per, r_mean, min_periods*r_mean**3/nu_dd), RuntimeWarning, stacklevel=3)
+    return early
+
+
 def _apply_alias_floor(t, r, clamp=True, nu_dd=NU_DD):
     """Drop distance-grid points the sampling cannot resolve; returns (r, r_alias).
 
@@ -648,7 +671,8 @@ def _echo_head_solve(t, F, K, L, r, dr, alphas, method, alpha, alpha_factor,
     unheaded solution is reused for the guard, so the second regularization scan is
     paid only when the head is actually applied.
     """
-    info = {'applied': False, 'delta': None, 'r_eff': None, 'r_ratio': None}
+    info = {'applied': False, 'requested': True, 'delta': None,
+            'r_eff': None, 'r_ratio': None}
     pos = t >= 0.0
     if int(pos.sum()) < 8:
         return F, P_base, lc_base, alpha_base, info
@@ -1002,6 +1026,7 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
     dr = float(r[1] - r[0]) if len(r) > 1 else 1.0
     P_density = P_norm/dr
     P_lower, P_upper = tikhonov_ci(K, F, alpha, P, L=L, dr=dr)
+    _flag_bg_start_early(bg, r, P_density, nu_dd=nu_dd)
     return {'t': t, 'r': r, 'form_factor': F, 'F_fit': F_fit,
             'residuals': F - F_fit, 'P': P, 'P_norm': P_norm,
             'P_density': P_density, 'P_lower': P_lower, 'P_upper': P_upper,
@@ -1101,7 +1126,8 @@ def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     else:
         P_masses = tikhonov_nnls(K, F, alpha_use, L)
     dr = float(r[1] - r[0]) if len(r) > 1 else 1.0
-    head = {'applied': False, 'delta': None, 'r_eff': None, 'r_ratio': None}
+    head = {'applied': False, 'requested': bool(echo_head), 'delta': None,
+            'r_eff': None, 'r_ratio': None}
     if echo_head:
         F, P_masses, lc, alpha_use, head = _echo_head_solve(
             t, F, K, L, r, dr, alphas, method, alpha, alpha_factor, scan_lcurve,
@@ -1109,21 +1135,7 @@ def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     P_norm = _normalize_masses(P_masses)
     F_fit = K@P_masses                                 # the solved masses, as deer_invert
     P_lower, P_upper = tikhonov_ci(K, F, alpha_use, P_masses, L=L, dr=dr)
-    _bg_early, _bg_per, _ = _check_bg_start_periods(bg, r, P_norm/dr, nu_dd=nu_dd)
-    bg['bg_start_periods'] = _bg_per
-    bg['bg_start_early'] = _bg_early
-    if _bg_early:
-        warnings.warn(
-            'DEER background window starts at %.2f dipolar periods of the recovered '
-            'distance (%.2f nm): the rate is fitted where the dipolar signal is still '
-            'evolving, which biases the reported distance SHORT (0.09-0.35 nm on the '
-            'calibration sweep). Move bg_start later -- at least %.2f us here -- or '
-            'lengthen the trace.'
-            % (_bg_per, float(np.trapezoid(r*np.clip(P_norm/dr, 0, None), r)
-                              / (np.trapezoid(np.clip(P_norm/dr, 0, None), r) or 1.0)),
-               0.75*(float(np.trapezoid(r*np.clip(P_norm/dr, 0, None), r)
-                           / (np.trapezoid(np.clip(P_norm/dr, 0, None), r) or 1.0))**3
-                     / nu_dd)), RuntimeWarning, stacklevel=2)
+    _flag_bg_start_early(bg, r, P_norm/dr, nu_dd=nu_dd)
     return {'t': t, 'r': r, 'form_factor': F, 'F_fit': F_fit,
             'residuals': F - F_fit, 'P': P_masses, 'P_norm': P_norm,
             'P_density': P_norm/dr, 'P_lower': P_lower, 'P_upper': P_upper,
@@ -1318,14 +1330,22 @@ def joint_background(t, V, bg_start=None, bg_end=None, dim=3.0, fit_dim=False,
     the joint rate sits from it -- a disagreement between the two background routes,
     NOT a reliability verdict: measured 56 % detection at a 45 % false-alarm rate,
     and structurally blind to an early background window because both routes then
-    absorb the same dipolar decay), `k_at_bound` (k landed on an edge of its
-    [kref/100, kref*100] bracket, which happens when kref itself collapses and
-    means k carries no information), and `conc_implied_uM` / `conc_implausible` --
+    absorb the same dipolar decay; it is also SUPPRESSED when there is no background
+    to compare -- see `bg_flat`), `bg_drop` / `bg_flat` (the fraction by which the
+    fitted background decays across the whole trace, and whether that is below 1 %.
+    k_ratio is a ratio of two rates and swings freely when both sit near their
+    floor, so on a flat-background trace it fired on nothing: with k = 0 the joint
+    rate lands at ~5e-5 and the warning read "0.0x the sequential tail-fit rate".
+    A routine background decays ~10 % over a 2 us trace, ten times the threshold),
+    `k_at_bound` (k landed on an edge of its [kref/100, kref*100] bracket, which
+    happens when kref itself collapses and means k carries no information), and
+    `conc_implied_uM` / `conc_implausible` --
     the spin concentration the fitted rate implies, k = 9.974e-4 * C * lambda.
     Flagged above 1000 uM, which no spin-labelled DEER sample reaches: 43 %
     detection at a 1 % false-alarm rate, so it is the specific one. The SENSITIVE
-    detector for that failure is `bg_start_early` on the engine result (92 % / 23 %).
-    Any of these firing raises a RuntimeWarning.
+    detector for that failure is `bg_start_early` (92 % / 23 %), which every engine
+    that fits a background records on this dict after its inversion, via
+    `_flag_bg_start_early`. Any of these firing raises a RuntimeWarning.
     """
     _require_scipy()
     from scipy.optimize import least_squares, minimize_scalar
@@ -1438,7 +1458,15 @@ def joint_background(t, V, bg_start=None, bg_end=None, dim=3.0, fit_dim=False,
     # evolution, so it fails in the same way for the same reason. Do not re-derive it.
     conc_implied = (float(k)/(9.974e-4*lam) if lam > 1e-6 else float('nan'))
     conc_implausible = bool(np.isfinite(conc_implied) and conc_implied > 1000.0)
-    k_disagrees = bool(np.isfinite(k_ratio) and (k_ratio > 2.0 or k_ratio < 0.5))
+    # a ratio of two rates says nothing when both are negligible: judge the decay
+    def _bg_drop(rate):
+        if not (np.isfinite(rate) and rate > 0):
+            return 0.0
+        return float(-np.expm1(-(rate*Tmax)**(d/3.0)))
+    bg_drop = max(_bg_drop(float(k)), _bg_drop(kref))
+    bg_flat = bool(bg_drop < 0.01)
+    k_disagrees = bool(np.isfinite(k_ratio) and not bg_flat
+                       and (k_ratio > 2.0 or k_ratio < 0.5))
     reasons = []
     if conc_implausible:
         reasons.append('the fitted rate implies a spin concentration of %.0f uM '
@@ -1472,6 +1500,7 @@ def joint_background(t, V, bg_start=None, bg_end=None, dim=3.0, fit_dim=False,
             'lambda_clamped': bool(lam_clamped),
             'tail_abs_F': tail_absF, 'k_ref': float(kref),
             'k_ratio': k_ratio, 'k_disagrees': k_disagrees,
+            'bg_drop': float(bg_drop), 'bg_flat': bg_flat,
             'conc_implied_uM': float(conc_implied),
             'conc_implausible': conc_implausible,
             'k_at_bound': bool(k_at_bound), 'rmax_cap': float(rmax_tight),
@@ -1896,7 +1925,7 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     _require_scipy()
     t, V, _n_pre = _crop_pre_zero(t, V, policy=pre_zero)
     r = default_r_axis() if r is None else np.asarray(r, float)
-    r, _r_alias = _apply_alias_floor(t, r, clamp=clamp_alias, nu_dd=nu_dd)
+    r, r_alias = _apply_alias_floor(t, r, clamp=clamp_alias, nu_dd=nu_dd)
     if bg_start is None:
         bg_start = t[0] + 0.5*(t[-1] - t[0])
     if bg_engine == 'none':
@@ -2224,11 +2253,13 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         P_std = ens.std(axis=0)
         P_lower = P_density - ci_z*P_std                # signed band about the estimate
         P_upper = P_density + ci_z*P_std
+    _flag_bg_start_early(bg, r, P_density, nu_dd=nu_dd)
     return {'t': t, 'r': r, 'form_factor': F, 'F_fit': F_fit,
             'residuals': F - F_fit, 'P': masses, 'P_norm': masses,
             'P_density': P_density, 'P_lower': P_lower, 'P_upper': P_upper,
             'P_std': P_std, 'P_signed_density': P_density, 'kernel': K,
             'alpha': float('nan'), 'noise_level': float(sig_e_raw),
+            'r_alias': float(r_alias),
             'ci_kind': 'mc_fixed_bg', 'ci_unavailable': ci_unavailable,
             'l_curve': None, 'background': bg, 'lambda': bg['lambda'],
             'k': bg['k'], 'dim': bg['dim'], 'engine': 'mellin',
@@ -2556,7 +2587,7 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     from scipy.optimize import least_squares
     t, V, _n_pre = _crop_pre_zero(t, V, policy=pre_zero)
     r = default_r_axis() if r is None else np.asarray(r, float)
-    r, _r_alias = _apply_alias_floor(t, r, clamp=clamp_alias, nu_dd=nu_dd)
+    r, r_alias = _apply_alias_floor(t, r, clamp=clamp_alias, nu_dd=nu_dd)
     if bg_start is None:
         bg_start = t[0] + 0.5*(t[-1] - t[0])
     if bg_engine == 'none':
@@ -2951,10 +2982,12 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         except Exception:
             P_lower = P_upper = P_std = None
 
+    _flag_bg_start_early(bg, r, P_density, nu_dd=nu_dd)
     return {'t': t, 'r': r, 'form_factor': F, 'F_fit': F_fit,
             'residuals': F - F_fit, 'P': masses, 'P_norm': P_norm,
             'P_density': P_density, 'P_lower': P_lower, 'P_upper': P_upper,
             'P_std': P_std, 'kernel': K, 'alpha': float('nan'), 'l_curve': None,
+            'r_alias': float(r_alias),
             'background': bg, 'lambda': bg['lambda'], 'k': bg['k'],
             'dim': bg['dim'], 'engine': 'gauss', 'n_gauss': int(n),
             'components': components, 'ic': ic_key,
@@ -3307,7 +3340,7 @@ def deer_validate(t, V, r=None, bg_start=None, bg_starts=None, bg_end=None,
     _require_scipy()
     t, V, _n_pre = _crop_pre_zero(t, V, policy=pre_zero)
     r = default_r_axis() if r is None else np.asarray(r, float)
-    r, _r_alias = _apply_alias_floor(t, r, clamp=clamp_alias, nu_dd=nu_dd)
+    r, r_alias = _apply_alias_floor(t, r, clamp=clamp_alias, nu_dd=nu_dd)
     if bg_starts is None:
         bg_starts = _bg_start_grid(t, bg_start)
     bg_starts = np.atleast_1d(np.asarray(bg_starts, float))
@@ -3381,7 +3414,7 @@ def deer_validate(t, V, r=None, bg_start=None, bg_starts=None, bg_end=None,
     return {'r': r, 'P_density': P_median, 'P_mean': P_mean,
             'P_lower': P_lower, 'P_upper': P_upper, 'ensemble': ens,
             'n_trials': ens.shape[0], 'bg_starts': bg_starts,
-            'alpha': alpha_fixed,
+            'alpha': alpha_fixed, 'r_alias': float(r_alias),
             'peak': float(r[int(np.argmax(P_median))]),
             'r_mean': float(np.sum(r*P_mass)), 'base': base,
             'trials': trials_stat, 'trial_spread': spread,
