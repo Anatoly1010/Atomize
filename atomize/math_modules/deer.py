@@ -2305,26 +2305,84 @@ def _pake_transform(t, nu):
     return Phi
 
 
+def _add_component_mass(components, r, dr):
+    """Add the ON-GRID mass beside the analytic `area` / `weight`.
+
+    `area = a*sigma*sqrt(2pi)` integrates the Gaussian over the whole real line,
+    but the reported P(r) only exists on [r_min, r_max]: for a component the r
+    axis truncates, the two disagree -- by up to 1.9x for a mode sitting on a
+    grid edge. `weight` deliberately keeps the analytic definition, because
+    `_has_spurious` and its tuned thresholds are calibrated against it;
+    `mass_fraction` is the fraction of the DRAWN curve, which is what the panel
+    and the CSV are describing."""
+    r = np.asarray(r, float)
+    tot = 0.0
+    for cc in components:
+        s = max(abs(float(cc['sigma'])), 1e-12)
+        m = float(np.sum(float(cc['amplitude'])
+                         * np.exp(-0.5*((r - float(cc['center']))/s)**2))*dr)
+        cc['mass'] = m
+        tot += m
+    tot = tot or 1.0
+    for cc in components:
+        cc['mass_fraction'] = cc['mass']/tot
+
+
+def _mark_active_bounds(components, idx, lo_b, hi_b, tol=1e-3):
+    """Flag per component whether the fit came back ON one of its box bounds.
+
+    A parameter sitting on an active bound is a BOUND, not a measurement, and its
+    linearized +/- bar is meaningless there -- the local quadratic is taken at a
+    point the parameter cannot move away from, so the interval runs outside the
+    feasible region (a component pinned at the width floor is reported as
+    sigma = 0.054 +/- 0.087, 61% of which is negative width). The width floor is
+    distance-dependent and re-applied per seed, so the bound actually imposed is
+    the one carried in `bounds`, not the floor recomputed from the fitted centre:
+    26% of candidate components end up under a bound that differs from it.
+
+    `idx[kk]` is the offset of component kk's amplitude in the full parameter
+    vector; centre and sigma follow at +1 and +2. Call BEFORE sorting."""
+    for kk, cc in enumerate(components):
+        j = idx[kk]
+        c_lo, c_hi = float(lo_b[j + 1]), float(hi_b[j + 1])
+        s_lo_k, s_hi_k = float(lo_b[j + 2]), float(hi_b[j + 2])
+        c, s = float(cc['center']), abs(float(cc['sigma']))
+        cc['sigma_bound_lo'] = s_lo_k
+        cc['sigma_bound_hi'] = s_hi_k
+        cc['sigma_at_floor'] = bool(s <= s_lo_k*(1.0 + tol))
+        cc['sigma_at_ceiling'] = bool(np.isfinite(s_hi_k)
+                                      and s >= s_hi_k*(1.0 - tol))
+        cc['center_at_bound'] = bool(c <= c_lo + tol*max(abs(c_lo), 1.0)
+                                     or c >= c_hi - tol*max(abs(c_hi), 1.0))
+        cc['bound_active'] = bool(cc['sigma_at_floor'] or cc['sigma_at_ceiling']
+                                  or cc['center_at_bound'])
+
+
 def _gauss_mc(t, V, r, K, F, bg, dr, rmin, rmax, s_lo, s_hi, npts, Ns, forced,
               ic_key, prune, _density, _criterion, _has_spurious, nu_dd,
               mc_trials, mc_tol, seed, ci_z, n_mc):
-    """Dzuba/Matveeva random Monte-Carlo multi-Gaussian fit, in the FREQUENCY
-    (dipolar Pake) domain (Dzuba, JMR 275 (2016) 1; Matveeva et al., Z. Phys.
-    Chem. 231 (2017) 463). For each candidate N a large number of trial parameter
-    sets (a_k in [0,1], r_k in [rmin,rmax], sigma_k in [s_lo,s_hi]) are drawn at
-    random and the trial whose Pake spectrum best matches the data (smallest
-    frequency-domain MSD) is kept -- a completely random search, so it cannot be
-    trapped in the floor-width-spike local optimum the gradient fit falls into,
-    and the coarse frequency-domain comparison is immune to ESEEM peaks (fixed
-    frequencies) and background error (zero-frequency). The data-consistent trials
-    (MSD within (1+mc_tol) of the best) form an ensemble whose per-r percentiles
-    give a genuine (non-linearized) confidence band. N is selected with the same
-    information criterion + weight-gated spurious test as the least-squares path,
-    using the best trial's time-domain residual. Returns the deer_invert_gauss
-    dict shape with engine='gauss', method='mc'."""
+    """Dzuba/Matveeva multi-Gaussian fit, RANKED in the dipolar (Pake) frequency
+    domain (Dzuba, JMR 275 (2016) 1; Matveeva et al., Z. Phys. Chem. 231 (2017)
+    463). For each candidate N a modest number of RANDOM parameter sets
+    (a_k in [0,1], r_k in [rmin,rmax], sigma_k in [s_lo,s_hi]) are drawn, and each
+    is polished by a local least-squares fit against the TIME-DOMAIN form factor;
+    the Pake-domain MSD then only ranks the polished candidates. The random starts
+    are what dodge the floor-width-spike basin a single gradient fit can fall
+    into, and that is this mode's one measured advantage.
+
+    Two properties it does NOT have, both measured. The background is not re-fit
+    here -- it stays at the preparation values, so the returned lambda/k/dim are
+    the prep stage's verbatim, and 'mc' is therefore LESS tolerant of a wrong
+    background than 'lsq', not more. And the trials within (1+mc_tol) of the best
+    MSD are an OPTIMIZER SPREAD, not a confidence band: the tolerance carries no
+    noise scale, so the ensemble is empty about as often as it is wide.
+
+    N is selected with the same information criterion + weight-gated spurious test
+    as the least-squares path, using the best trial's time-domain residual.
+    Returns the deer_invert_gauss dict shape with engine='gauss', method='mc'."""
     rng = np.random.default_rng(seed)
-    # dipolar Pake band: nu = 52.04/r^3 MHz for nitroxides; cover [r_max, r_min]
-    nu_hi = min(1.3*52.04/max(rmin, 0.5)**3, 0.5/(float(t[1]-t[0]) if len(t) > 1 else 1.0))
+    # dipolar Pake band: nu = nu_dd/r^3 MHz; cover [r_max, r_min]
+    nu_hi = min(1.3*nu_dd/max(rmin, 0.5)**3, 0.5/(float(t[1]-t[0]) if len(t) > 1 else 1.0))
     nu = np.linspace(0.0, nu_hi, 200)
     Phi = _pake_transform(t, nu)
     Fnu = Phi @ F
@@ -2430,6 +2488,12 @@ def _gauss_mc(t, V, r, K, F, bg, dr, rmin, rmax, s_lo, s_hi, npts, Ns, forced,
     tot_area = sum(cc['area'] for cc in components) or 1.0
     for cc in components:
         cc['weight'] = cc['area']/tot_area
+    _add_component_mass(components, r, dr)
+    # this path's sigma bound is the FLAT s_lo, not the distance-dependent floor
+    n_c = len(components)
+    _mark_active_bounds(components, [3*kk for kk in order],
+                        np.array([0., rmin, s_lo]*n_c),
+                        np.array([np.inf, rmax, s_hi]*n_c))
 
     # confidence band from the data-consistent ensemble (per-r 2.5/97.5 pct)
     P_lower = P_upper = P_std = None
@@ -2453,7 +2517,11 @@ def _gauss_mc(t, V, r, K, F, bg, dr, rmin, rmax, s_lo, s_hi, npts, Ns, forced,
             'aic': float(chosen['crit']['aic']), 'aicc': float(chosen['crit']['aicc']),
             'bic': float(chosen['crit']['bic']), 'ic_curve': ic_curve,
             'n_gauss_ic': int(n_ic), 'pruned': bool(n != n_ic),
+            'ic_railed': bool(not forced and Ns and int(n_ic) >= int(max(Ns))),
             'ci_mode': 'mc_ensemble', 'ci_level': 0.95,
+            # this path never re-fits the background, so lambda/k/dim are the
+            # preparation stage's values, NOT co-fitted ones as on the lsq path
+            'lambda_source': 'prep',
             'noise_level': float(_tail_noise(t, bg['V_norm'])),
             'mc_trials': int(mc_trials), 'mc_msd': float(chosen.get('rss', float('nan')))}
 
@@ -2539,16 +2607,21 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     dipolar FREQUENCY (Pake) domain: stochastic multi-start (`mc_trials` random
     initial parameter sets, each locally polished) selected by the smallest Pake-
     spectrum MSD. The random starts dodge the floor-spike basin the gradient fit
-    can fall into, and the frequency-domain comparison is intrinsically immune to
-    ESEEM peaks (fixed frequencies) and background error (zero frequency); the data-
-    consistent trials (MSD within (1+`mc_tol`) of the best) form an ensemble whose
-    per-r 2.5/97.5 percentiles give a NON-linearized confidence band (`P_lower`/
-    `P_upper`), and `center_err`/`sigma_err` are that ensemble's per-component STD.
-    On artifact-free synthetic data 'mc' ties 'lsq' (at low noise the gradient fit
-    is already near-optimal; at high noise both are information-limited); its value
-    is robustness to those real-data artifacts and the honest error band. It costs
-    a few seconds (opt-in). `n_mc`/`ci_mode` are ignored for 'mc' (the ensemble band
-    replaces the covariance band).
+    can fall into; the trials within (1+`mc_tol`) of the best MSD form an ensemble
+    whose per-r 2.5/97.5 percentiles set `P_lower`/`P_upper` and whose per-component
+    STD sets `center_err`/`sigma_err`.
+
+    MEASURED LIMITS (S5, 2026-08-07 -- four earlier claims here did not survive):
+    'mc' is NOT immune to ESEEM or background error (the 2%-of-peak band always
+    contains DC, and an ESEEM line selects itself in as soon as it is present); it
+    does NOT tie 'lsq' on clean data (overlap 0.875 -> 0.845, t = -5.46, correct-N
+    0.81 -> 0.64 over 104 known-N runs); it does NOT use the joint V-space model
+    (it fits the PREPPED form factor, so lambda / A / k are never re-fit, which
+    makes the solver choice an estimator choice); and the ensemble is optimizer
+    spread, not a confidence band -- bimodal (exactly zero width, or ~0.7), with
+    measured coverage 0.27-0.72 against a nominal 0.95. `mc_trials` has no effect
+    at any value up to its default. Prefer 'lsq' unless probing search stability.
+    `n_mc`/`ci_mode` are ignored for 'mc'.
 
     `bg_engine` selects how V(t) is prepared, exactly as in `deer_invert_mellin`:
     'joint' (default, lambda-pinned DeerLab-style), 'sequential' (tail-window fit),
@@ -2635,7 +2708,12 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     def _sigma_floor(c):
         if sigma_min:                                     # explicit override wins
             return s_lo
-        return float(min(s_hi, max(s_lo, c**4/(27.0*nu_dd*max(T_span, 1e-6)))))
+        # cap STRICTLY below s_hi: s_hi is also the sigma UPPER bound, so a plain
+        # min(s_hi, ...) makes lo == hi for any centre past
+        # (s_hi*27*nu_dd*T)**0.25 and least_squares refuses the box. That needs
+        # rmax ~ 2.25x the trace-supported rmax, not a short trace.
+        return float(min(s_hi*0.999,
+                         max(s_lo, c**4/(27.0*nu_dd*max(T_span, 1e-6)))))
     # coarse Tikhonov pass to seed component centres (peak positions). A fixed
     # moderate alpha is enough just to place peaks; falls back to an even spread.
     try:
@@ -2778,7 +2856,14 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                 p0 += [a0, cc, max(s0, sig_lo)]
                 lo += [0.0, rmin, sig_lo]
                 hi += [np.inf, rmax, s_hi]
-            sol, rss, bnds = _solve(p0, np.array(lo), np.array(hi))
+            # guard the SEED, not the whole N: one unusable start must not delete a
+            # component count the other seed could have fit. _solve is inside the
+            # try because the re-floor refit can rebuild a degenerate box from a
+            # centre that migrated during the fit, even when every seed was legal.
+            try:
+                sol, rss, bnds = _solve(p0, np.array(lo), np.array(hi))
+            except Exception:
+                continue
             if best is None or rss < best[1]:
                 best = (sol, rss, bnds)
         return best
@@ -2808,7 +2893,20 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         width alone collapsed genuine 3-4 Gaussian distributions all the way to
         N=1. So a floor-width component is spurious only when it ALSO carries
         < `spike_weight_max` of the area; a negligible-weight component
-        (< `weight_min`, any width) is always spurious."""
+        (< `weight_min`, any width) is always spurious.
+
+        SCOPE OF THE WIDTH ARM -- deliberate, and measured. The test compares
+        against the GLOBAL `s_lo`, not `_sigma_floor(centre)`, so it can only fire
+        below the distance where the resolution floor still equals s_lo, about
+        r* = (1.1*s_lo*27*nu_dd*T)**0.25. That is not a fixed distance: it moves
+        with the grid AND the trace length (3.5 nm on an auto grid at 2 us,
+        5.0 nm on the default grid at 5 us). Beyond r* only the negligible-weight
+        arm can condemn a component, and that is right: out there the per-centre
+        floor has ALREADY made the near-delta spike unconstructible, so what a
+        per-centre test would catch instead is a genuine weak far mode. Re-keying
+        the arm on `_sigma_floor(centre)` was tried and measured -- correct-N
+        0.843 -> 0.731 over 108 runs, and on the rows it changes N was right 12/13
+        before and 0/13 after -- so it must not be "fixed" that way."""
         sig = np.abs(pp[2::3][:n])
         amp = pp[0::3][:n]
         area = amp*sig*np.sqrt(2.0*np.pi)
@@ -2823,19 +2921,29 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     forced = bool(n_gauss and int(n_gauss) > 0)
 
     if method == 'mc':
-        return _gauss_mc(t, V, r, K, F, bg, dr, rmin, rmax, s_lo, s_hi, npts,
-                         Ns, forced, ic_key=ic if ic in ('aic', 'aicc', 'bic')
-                         else 'aicc', prune=prune_spurious, _density=_density,
-                         _criterion=_criterion, _has_spurious=_has_spurious,
-                         nu_dd=nu_dd, mc_trials=int(mc_trials), mc_tol=float(mc_tol),
-                         seed=seed, ci_z=ci_z, n_mc=n_mc)
+        res = _gauss_mc(t, V, r, K, F, bg, dr, rmin, rmax, s_lo, s_hi, npts,
+                        Ns, forced, ic_key=ic if ic in ('aic', 'aicc', 'bic')
+                        else 'aicc', prune=prune_spurious, _density=_density,
+                        _criterion=_criterion, _has_spurious=_has_spurious,
+                        nu_dd=nu_dd, mc_trials=int(mc_trials), mc_tol=float(mc_tol),
+                        seed=seed, ci_z=ci_z, n_mc=n_mc)
+        # the 'mc' path returns its own dict, so the two reporting mechanisms that
+        # live in the 'lsq' tail have to be re-applied here or they vanish
+        res['r_alias'] = float(r_alias)
+        _flag_bg_start_early(bg, r, res['P_density'], nu_dd=nu_dd)
+        return res
     ic_key = ic if ic in ('aic', 'aicc', 'bic') else 'aicc'
     best = best_clean = None
     ic_curve = []
+    ic_failed = []                     # (N, reason) -- an N that never reached the criterion
     for n in Ns:
         try:
-            sol, rss, bounds = _fit_n(n)
-        except Exception:
+            fit = _fit_n(n)
+            if fit is None:            # every seed for this N was unusable
+                raise RuntimeError('no usable seed')
+            sol, rss, bounds = fit
+        except Exception as exc:
+            ic_failed.append((int(n), '%s: %s' % (type(exc).__name__, exc)))
             continue
         crit = _criterion(rss, n, n_bg)
         ic_curve.append((n, float(crit[ic_key]), rss))
@@ -2846,7 +2954,13 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                 best_clean is None or crit[ic_key] < best_clean['crit'][ic_key]):
             best_clean = cand
     if best is None:
-        raise RuntimeError('Gaussian fit failed for every component count tried.')
+        why = '; '.join('N=%d %s' % (n, msg) for n, msg in ic_failed[:3])
+        raise RuntimeError(
+            'Gaussian fit failed for every component count tried (%s). A '
+            'degenerate width box is the usual cause: the distance range is far '
+            'wider than the trace supports, so the resolution floor meets the '
+            'width ceiling. Narrow "Distance max" or set sigma_min.'
+            % (why or 'no diagnostics'))
 
     # Prefer the criterion-best model with NO spurious (floor-width / negligible-
     # weight) component; fall back to the plain criterion pick if every fit has one
@@ -2900,6 +3014,8 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     tot_area = sum(cc['area'] for cc in components) or 1.0
     for cc in components:
         cc['weight'] = cc['area']/tot_area
+    _add_component_mass(components, r, dr)
+    _mark_active_bounds(components, [n_bg + 3*kk for kk in range(n)], lo_b, hi_b)
     components.sort(key=lambda d: d['center'])
 
     # Rigorous support-plane / profile-likelihood confidence intervals (Hustedt,
@@ -2994,6 +3110,14 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
             'aic': float(best['crit']['aic']), 'aicc': float(best['crit']['aicc']),
             'bic': float(best['crit']['bic']), 'ic_curve': ic_curve,
             'n_gauss_ic': int(n_ic), 'pruned': bool(n != n_ic),
+            'ic_failed': ic_failed,
+            # the criterion never turned over inside the cap, so N is the spin
+            # box's value rather than the data's. Measured on 28 real traces:
+            # true for 25/28 at the default max_gauss = 4, but only 4/28 once the
+            # cap is lifted to 8 -- the criterion DOES have an interior minimum
+            # (at 5-7), it is just above the default. It matters: the reported
+            # peak moves by a median 0.13 nm (worst 4.2 nm) between N and N-1.
+            'ic_railed': bool(not forced and int(n_ic) >= int(max_gauss)),
             'ci_mode': ci_mode, 'ci_level': float(ci_level),
             'noise_level': float(sig_e)}
 
@@ -3336,6 +3460,14 @@ def deer_validate(t, V, r=None, bg_start=None, bg_starts=None, bg_end=None,
     raise a background flag or the trial mean distances span more than
     max(0.15 nm, 5%) -- the caller's own flags come from `base` alone and cannot
     see a sweep that splits between background branches).
+
+    `trial_spread['band_degenerate']` says the percentile BAND means nothing on
+    this run and must not be shown as an uncertainty: either the ensemble is
+    flat (spread below 1% of the curve) or the engine co-fits its background, so
+    `bg_start` never enters its objective and the sweep cannot probe it. That is
+    the case for `engine='gauss'` with any `bg_engine` except 'general'. The flag
+    half of the sweep (`n_flagged` / `disagree`) stays valid either way, since the
+    per-trial background flags are rebuilt at every `bg_start`.
     """
     _require_scipy()
     t, V, _n_pre = _crop_pre_zero(t, V, policy=pre_zero)
@@ -3408,9 +3540,22 @@ def deer_validate(t, V, r=None, bg_start=None, bg_starts=None, bg_end=None,
     # a MAJORITY must flag: any-one is a false alarm on healthy real data
     disagree = bool(n_flag*2 > len(trials_stat)
                     or (rm.size and rm_spread > max(0.15, 0.05*float(rm.mean()))))
+    # Does the background start reach this engine's OBJECTIVE at all? The
+    # multi-Gaussian engine re-fits background + lambda in V-space against
+    # V_norm, which is bg_start-free, so bg_start moves only the starting point:
+    # the trials then differ by flat-valley jitter orders below a real band, and
+    # a percentile band drawn from them reads as certainty rather than as
+    # "not measured". The FLAG half of the sweep stays meaningful (the per-trial
+    # background flags are rebuilt per bg_start), so only the band is disowned.
+    bg_cofit = bool(engine == 'gauss'
+                    and kwargs.get('bg_engine', 'joint') != 'general')
+    P_spread = float(np.max(np.ptp(ens, axis=0))) if ens.shape[0] > 1 else 0.0
+    P_scale = float(np.max(np.abs(P_median))) or 1.0
     spread = {'r_mean_spread': rm_spread,
               'lambda_spread': float(np.ptp(lam_t)) if lam_t.size else float('nan'),
-              'n_flagged': n_flag, 'n': len(trials_stat), 'disagree': disagree}
+              'n_flagged': n_flag, 'n': len(trials_stat), 'disagree': disagree,
+              'P_spread': P_spread, 'P_scale': P_scale,
+              'band_degenerate': bool(bg_cofit or P_spread < 0.01*P_scale)}
     return {'r': r, 'P_density': P_median, 'P_mean': P_mean,
             'P_lower': P_lower, 'P_upper': P_upper, 'ensemble': ens,
             'n_trials': ens.shape[0], 'bg_starts': bg_starts,
