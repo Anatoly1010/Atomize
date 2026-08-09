@@ -61,6 +61,7 @@ class Theme:
     base:   tuple = (63, 63, 97)     # input-field background, buttons, tabs
     border: tuple = (83, 83, 117)    # element borders / separators
     fg:     tuple = (193, 202, 227)  # primary text
+    dim:    tuple = (142, 150, 178)  # secondary text (hints, units, help chips)
     accent: tuple = (211, 194, 78)   # selection / highlight (gold)
     track:  tuple = (43, 43, 77)     # scrollbar track / tab-pane border
     hover:  tuple = (73, 73, 107)    # hover background (tabs, etc.)
@@ -200,7 +201,55 @@ _TEMPLATES = {
         "QPushButton:pressed { background-color: $accent; border-style: inset; "
         "font-weight: bold; }"),
 
-    'LABEL_STYLE': Template("QLabel { color: $fg; font-weight: bold; }"),
+    # Field labels are normal weight: bold is reserved for section headings and
+    # actions, so a dense parameter panel keeps a readable hierarchy.
+    'LABEL_STYLE': Template("QLabel { color: $fg; }"),
+
+    # Gold bold section heading (the one bold level inside a parameter panel).
+    'HEADING_STYLE': Template(
+        "QLabel { color: $accent; font-weight: bold; font-size: 13px; }"),
+
+    # Dimmed secondary text: units, short hints, status lines.
+    'HINT_STYLE': Template("QLabel { color: $dim; }"),
+
+    # Round '?' chip that opens a help popup; quiet until hovered.
+    'HELP_CHIP_STYLE': Template("""
+    QToolButton {
+        color: $dim;
+        background-color: transparent;
+        border: 1px solid $border;
+        border-radius: 8px;
+        font-weight: bold;
+        padding: 0px;
+    }
+    QToolButton:hover { color: $accent; border: 1px solid $accent; }
+    QToolButton:checked { color: $accent; border: 1px solid $accent; }
+"""),
+
+    # Disclosure header for a collapsible 'Advanced' block.
+    'DISCLOSURE_STYLE': Template("""
+    QToolButton {
+        color: $dim;
+        background-color: transparent;
+        border: none;
+        font-weight: bold;
+        text-align: left;
+        padding: 2px 0px;
+    }
+    QToolButton:hover { color: $accent; }
+"""),
+
+    # Body of a help popup: a bordered card floating over the panel.
+    'HELP_POPUP_STYLE': Template("""
+    QWidget { background-color: $bg; }
+    QLabel {
+        color: $fg;
+        background-color: $bg;
+        border: 1px solid $accent;
+        border-radius: 3px;
+        padding: 8px;
+    }
+"""),
 
     # Tooltips: Fusion otherwise falls back to the OS default (light box), which
     # clashes with the dark UI. Applied app-wide by apply_app_style().
@@ -245,7 +294,6 @@ _TEMPLATES = {
     QCheckBox {
         color: $fg;
         background-color: transparent;
-        font-weight: bold;
         spacing: 8px;
     }
     QCheckBox::indicator {
@@ -298,21 +346,29 @@ _TEMPLATES = {
 """),
 
     'TAB_STYLE': Template("""
+    /* awg_phasing_insys' tab colours on the strip, but no pane fill and no
+       frame: the pages inherit the window background, so a filled pane would
+       show only as a thick band of $base framing the content. */
     QTabWidget::pane {
-        border: 1px solid $track;
+        border: none;
         top: -1px;
-        background: $base;
+        background: transparent;
+        padding: 10px 0px 0px 0px;
+    }
+    QTabBar {
+        background: transparent;
+        qproperty-drawBase: 0;
     }
     QTabBar::tab {
         height: 22px;
         font-weight: bold;
         color: $fg;
         background: $base;
-        border: 1px solid $track;
-        border-bottom: none;
+        border: none;
+        border-bottom: 2px solid $track;
         border-top-left-radius: 4px;
         border-top-right-radius: 4px;
-        padding: 2px 10px;
+        padding: 3px 12px;
         margin-right: 2px;
     }
     QTabBar::tab:selected {
@@ -320,8 +376,9 @@ _TEMPLATES = {
         background: $border;
         border-bottom: 2px solid $accent;
     }
-    QTabBar::tab:hover {
+    QTabBar::tab:hover:!selected {
         background: $hover;
+        border-bottom: 2px solid $border;
     }
 """),
 }
@@ -331,15 +388,17 @@ def build_styles(theme=DEFAULT_THEME):
     """
     Return a dict of per-widget stylesheet strings rendered from *theme*.
 
-    Keys: ``BUTTON_STYLE``, ``LABEL_STYLE``, ``TOOLTIP_STYLE``, ``DSPIN_STYLE``,
-    ``SPIN_STYLE``, ``COMBO_STYLE``, ``LINEEDIT_STYLE``, ``CHECKBOX_STYLE``,
-    ``SCROLL_STYLE``, ``TAB_STYLE``.
+    Keys: ``BUTTON_STYLE``, ``LABEL_STYLE``, ``HEADING_STYLE``, ``HINT_STYLE``,
+    ``HELP_CHIP_STYLE``, ``DISCLOSURE_STYLE``, ``HELP_POPUP_STYLE``,
+    ``TOOLTIP_STYLE``, ``DSPIN_STYLE``, ``SPIN_STYLE``, ``COMBO_STYLE``,
+    ``LINEEDIT_STYLE``, ``CHECKBOX_STYLE``, ``SCROLL_STYLE``, ``TAB_STYLE``.
     """
     subs = {
         'bg':     _css(theme.bg),
         'base':   _css(theme.base),
         'border': _css(theme.border),
         'fg':     _css(theme.fg),
+        'dim':    _css(theme.dim),
         'accent': _css(theme.accent),
         'track':  _css(theme.track),
         'hover':  _css(theme.hover),
@@ -355,11 +414,17 @@ BG     = _css(DEFAULT_THEME.bg)
 BASE   = _css(DEFAULT_THEME.base)
 BORDER = _css(DEFAULT_THEME.border)
 FG     = _css(DEFAULT_THEME.fg)
+DIM    = _css(DEFAULT_THEME.dim)
 ACCENT = _css(DEFAULT_THEME.accent)
 
 _STYLES = build_styles(DEFAULT_THEME)
 BUTTON_STYLE   = _STYLES['BUTTON_STYLE']
 LABEL_STYLE    = _STYLES['LABEL_STYLE']
+HEADING_STYLE  = _STYLES['HEADING_STYLE']
+HINT_STYLE     = _STYLES['HINT_STYLE']
+HELP_CHIP_STYLE   = _STYLES['HELP_CHIP_STYLE']
+DISCLOSURE_STYLE  = _STYLES['DISCLOSURE_STYLE']
+HELP_POPUP_STYLE  = _STYLES['HELP_POPUP_STYLE']
 TOOLTIP_STYLE  = _STYLES['TOOLTIP_STYLE']
 DSPIN_STYLE    = _STYLES['DSPIN_STYLE']
 SPIN_STYLE     = _STYLES['SPIN_STYLE']
