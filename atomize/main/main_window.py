@@ -2045,7 +2045,7 @@ def main():
     # Fusion + shared dark palette, so QComboBox / QSpinBox / QLineEdit render
     # identically on Linux and Windows (AppUserModelID already set above).
     from atomize.general_modules.gui_style import apply_app_style
-    apply_app_style(app)
+    apply_app_style(app, desktop = True)
     main = MainWindow()
 
     main.show()

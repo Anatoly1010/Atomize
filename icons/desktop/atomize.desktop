@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Atomize
+GenericName=Spectrometer control
+Comment=Modular instrument control for spectrometers
+Exec=atomize-itc %f
+Icon=atomize
+Terminal=false
+Categories=Science;Physics;
+Keywords=EPR;spectrometer;instrument;liveplot;
+StartupNotify=true
+StartupWMClass=Atomize

@@ -157,9 +157,40 @@ def set_app_user_model_id(app_id):
 
 
 # --------------------------------------------------------------------------- #
+# Linux desktop identity
+# --------------------------------------------------------------------------- #
+def set_desktop_identity(app, wm_class='Atomize', desktop_file='atomize'):
+    """
+    Bind this process to its freedesktop entry so the shell uses the themed icon.
+
+    On X11 Qt fills WM_CLASS with (script name, ``applicationName``), and the
+    shell matches a window to a ``.desktop`` file through ``StartupWMClass``;
+    setting ``applicationName`` is therefore what makes that match land. On
+    Wayland there is no WM_CLASS and no way to push a window icon at all - the
+    match is made on the xdg-shell app-id, which Qt takes from
+    ``desktopFileName`` - so both are set here.
+
+    Without the match the shell has no themed icon to look up: on X11 it falls
+    back to rescaling the raster published over ``_NET_WM_ICON``, and on Wayland
+    the window simply has no icon. Install the entries with
+    ``icons/install_desktop.py``.
+
+    No-op on Windows and macOS, which identify applications by other means.
+    """
+    if sys.platform.startswith(('win32', 'darwin')) or app is None:
+        return
+    try:
+        app.setApplicationName(wm_class)
+        app.setApplicationDisplayName('Atomize')
+        app.setDesktopFileName(desktop_file)
+    except Exception:
+        pass
+
+
+# --------------------------------------------------------------------------- #
 # Entry point
 # --------------------------------------------------------------------------- #
-def apply_app_style(app=None, app_id=None, theme=DEFAULT_THEME):
+def apply_app_style(app=None, app_id=None, theme=DEFAULT_THEME, desktop=False):
     """
     Pin the QApplication to the Fusion style with the theme's dark palette.
 
@@ -170,6 +201,13 @@ def apply_app_style(app=None, app_id=None, theme=DEFAULT_THEME):
     Pass ``app_id`` (e.g. ``'Atomize.MainWindow'``) to give the process its own
     Windows taskbar icon/button via :func:`set_app_user_model_id`. Pass a custom
     ``theme`` to re-skin.
+
+    ``desktop`` claims an installed Linux desktop entry via
+    :func:`set_desktop_identity`, so the shell draws the icon from the theme at
+    the exact size it needs. Use ``True`` in the main-window process, or the
+    tool's icon suffix in a control-centre tool - ``desktop='cw'`` binds to
+    ``atomize-cw.desktop`` and the ``atomize-cw`` themed icon, which are what
+    ``icons/make_icons.py`` emits for ``icons/svg/icon_cw.svg``.
     """
     set_app_user_model_id(app_id)
 
@@ -177,6 +215,12 @@ def apply_app_style(app=None, app_id=None, theme=DEFAULT_THEME):
         app = QApplication.instance()
     if app is None:
         return
+
+    if desktop is True:
+        set_desktop_identity(app)
+    elif desktop:
+        name = 'atomize-%s' % desktop
+        set_desktop_identity(app, wm_class=name, desktop_file=name)
 
     # QStyleFactory.create returns None for unknown keys; Fusion ships with Qt
     # on every platform, so this is a safe no-op guard rather than a hard dep.
