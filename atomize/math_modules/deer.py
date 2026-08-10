@@ -932,7 +932,7 @@ def tikhonov_ci(K, F, alpha, P, L=None, dr=1.0, z=1.96):
 def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False,
                 alpha=None, alphas=None, reg_order=2, nu_dd=NU_DD,
                 scan_lcurve=True, method='gcv', engine='sequential',
-                alpha_factor=1.0, pre_zero='even', reg_edges=True,
+                alpha_factor=1.0, pre_zero=None, reg_edges=True,
                 clamp_alias=True, **kwargs):
     """Full DEER pipeline: background-correct V(t), build the kernel, invert to
     P(r) by Tikhonov + NNLS. When `alpha` is not supplied it is chosen
@@ -961,10 +961,12 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
                        chosen by AICc). Extra params (n_gauss, max_gauss, ic,
                        bg_engine, n_mc) pass through via **kwargs.
 
-    `pre_zero` decides what happens to samples below the zero time -- 'even'
-    (default) keeps the ones that pass a mirror test, 'crop' drops them all; see
-    `_crop_pre_zero`. Tikhonov engines only: 'mellin' integrates on a log-T grid and
-    'gauss' Monte-Carlo assumes uniform sampling, so both always crop.
+    `pre_zero` decides what happens to samples below the zero time -- 'even' keeps
+    the ones that pass a mirror test, 'crop' drops them all, 'even_fold' averages
+    each into its mirror twin; see `_crop_pre_zero`. None (the default) means the
+    engine's own policy: 'even' on the Tikhonov paths, 'even_fold' on Mellin,
+    'crop' on gauss. An explicit value is honoured on EVERY engine -- passing
+    'crop' to Mellin used to be silently overridden.
 
     `t` in us, `r` in nm. With `scan_lcurve` (default) the regularization scan is
     always computed for display, even when an explicit `alpha` is given. Returns a dict:
@@ -975,29 +977,35 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
     # coefficients for the 'general' background (a/b/c/d, fit flag); flows through
     # kwargs so deer_validate and the engine dispatch carry it transparently.
     bg_params = kwargs.pop('bg_params', None)
+    # `pre_zero_engine` is the older engine-only spelling; it still wins when given
+    pz_engine = kwargs.pop('pre_zero_engine', None)
     if engine == 'joint':
+        # the head parameters are named arguments there, so they arrive in kwargs
+        head_kw = {k: kwargs.pop(k) for k in
+                   ('head_level', 'head_cap', 'head_ratio_max') if k in kwargs}
         return deer_invert_joint(t, V, r=r, bg_start=bg_start, bg_end=bg_end,
                                  dim=dim, fit_dim=fit_dim, alpha=alpha,
                                  alphas=alphas, reg_order=reg_order, nu_dd=nu_dd,
                                  method=method, scan_lcurve=scan_lcurve,
-                                 alpha_factor=alpha_factor, pre_zero=pre_zero,
+                                 alpha_factor=alpha_factor,
+                                 pre_zero=(pre_zero or 'even'),
                                  reg_edges=reg_edges, clamp_alias=clamp_alias,
-                                 echo_head=kwargs.pop('echo_head', False))
+                                 echo_head=kwargs.pop('echo_head', False),
+                                 **head_kw)
     if engine == 'mellin':
         return deer_invert_mellin(t, V, r=r, bg_start=bg_start, bg_end=bg_end,
                                   dim=dim, fit_dim=fit_dim, nu_dd=nu_dd,
                                   bg_params=bg_params,
-                                  pre_zero=kwargs.pop('pre_zero_engine',
-                                                      'even_fold'),
+                                  pre_zero=(pz_engine or pre_zero or 'even_fold'),
                                   clamp_alias=clamp_alias, **kwargs)
     if engine == 'gauss':
         return deer_invert_gauss(t, V, r=r, bg_start=bg_start, bg_end=bg_end,
                                  dim=dim, fit_dim=fit_dim, nu_dd=nu_dd,
                                  bg_params=bg_params,
-                                 pre_zero=kwargs.pop('pre_zero_engine', 'crop'),
+                                 pre_zero=(pz_engine or pre_zero or 'crop'),
                                  clamp_alias=clamp_alias, **kwargs)
     _require_scipy()
-    t, V, _n_pre = _crop_pre_zero(t, V, policy=pre_zero)
+    t, V, _n_pre = _crop_pre_zero(t, V, policy=(pre_zero or 'even'))
     r = default_r_axis() if r is None else np.asarray(r, float)
     r, r_alias = _apply_alias_floor(t, r, clamp=clamp_alias, nu_dd=nu_dd)
     if bg_start is None:
@@ -3486,10 +3494,12 @@ def deer_validate(t, V, r=None, bg_start=None, bg_starts=None, bg_end=None,
     # trial (DeerAnalysis-style validation tests background-start / noise
     # sensitivity, not the regularization choice). Holding alpha fixed also drops
     # the per-trial L-curve scan -- the costly part -- so validation stays fast.
+    # r is clamped above; forward the flag or a per-trial re-clamp changes its length
     base = deer_invert(t, V, r=r, bg_start=bs_mid, bg_end=bg_end, dim=dim,
                        fit_dim=fit_dim, alpha=alpha, alphas=None,
                        reg_order=reg_order, nu_dd=nu_dd, method=method,
-                       engine=engine, alpha_factor=af_mid, **kwargs)
+                       engine=engine, alpha_factor=af_mid,
+                       clamp_alias=clamp_alias, **kwargs)
     alpha_fixed = float(base['alpha'])
     # the Mellin regularizer is tau_max, not alpha (and n_tau follows tau_max)
     if engine == 'mellin':
@@ -3501,7 +3511,7 @@ def deer_validate(t, V, r=None, bg_start=None, bg_starts=None, bg_end=None,
         return deer_invert(t, Vx, r=r, bg_start=bs, bg_end=bg_end, dim=dim,
                            fit_dim=fit_dim, alpha=alpha_fixed, scan_lcurve=False,
                            reg_order=reg_order, nu_dd=nu_dd, method=method,
-                           engine=engine, **kwargs)
+                           engine=engine, clamp_alias=clamp_alias, **kwargs)
 
     ensemble = []
     trials_stat = []
