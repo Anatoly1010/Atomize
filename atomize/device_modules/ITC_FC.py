@@ -162,17 +162,47 @@ class ITC_FC:
                 assert(1 == 2), 'Invalid argument; field: float'
 
     ##### UNDOCUMENTED; FOR TEST ONLY
-    def magnet_pid(self, p = 3.5, i = 0.01, d = 8.0):
+    def magnet_pid(self, p = 100, i = 0.15, d = 0.08, tpid = 2):
+        """
+        Set the PID parameters of the field controller.
+
+        p    - field deviation in G above which the PWM is switched to the relay
+               mode (0% or 100%);
+        i    - integration time constant in s;
+        d    - differentiation time constant in s;
+        tpid - period of the PID iteration and averaging in ms (from 2 to 500).
+
+        Two parameter sets are recommended:
+        fast settling (~4 s):            p = 100, i = 0.15, d = 0.08, tpid = 2
+        accurate but slow (~8-10 s):     p = 400, i = 0.3,  d = 0.08, tpid = 80
+        """
         if self.test_flag != 'test':
             p_coef = round(p, 3)
             i_coef = round(i, 3)
             d_coef = round(d, 3)
-            self.device_write(f'KP {p}') ##13 #10
-            self.device_write(f'KI {i}')
-            self.device_write(f'KD {d}')
+            tpid_coef = round(tpid, 3)
+            self.device_write(f'KP {p_coef}') ##13 #10
+            self.device_write(f'KI {i_coef}')
+            self.device_write(f'KD {d_coef}')
+            self.device_write(f'TPID {tpid_coef}')
 
         elif self.test_flag == 'test':
-            pass
+            assert(p >= 0), 'Incorrect KP value; the field deviation in G should be positive'
+            assert(i >= 0), 'Incorrect KI value; the integration time constant in s should be positive'
+            assert(d >= 0), 'Incorrect KD value; the differentiation time constant in s should be positive'
+            assert(tpid >= 2 and tpid <= 500), 'Incorrect TPID value. The available range is from 2 to 500 ms'
+
+    def magnet_fast(self):
+        """
+        Switch the field controller to the fast settling mode (~4 s).
+        """
+        self.magnet_pid(p = 100, i = 0.15, d = 0.08, tpid = 2)
+
+    def magnet_accurate(self):
+        """
+        Switch the field controller to the accurate, but slow settling mode (~8-10 s).
+        """
+        self.magnet_pid(p = 400, i = 0.3, d = 0.08, tpid = 80)
 
     def magnet_pid_state(self, state):
         if self.test_flag != 'test':
