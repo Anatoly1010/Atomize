@@ -26,15 +26,14 @@ class Sibir_1():
     NAV_TO_NA = (1, 8, 16, 32, 64, 128)
 
     # Divisor of the accumulated ADC sum, see convert_arr_data_to_np_array().
-    # Manual, Sec. 3.2: U_A = u/(N_A + 1) - 2048.
-    # NB: u is an unsigned short (16 bit), while the raw sum of N_A samples of
-    # the 12-bit ADC overflows it already at N_A = 16. The block therefore has
-    # to rescale internally and the divisor most likely saturates, which is what
-    # the second table assumes. The divisor is directly measurable on the
-    # hardware: with no NMR signal the ADC baseline is 2048, so the mean of the
-    # raw array u_f (before scaling) equals divisor*2048
-    NAV_TO_DIV = (2, 9, 17, 33, 65, 129)     # literally as in the manual
-    #NAV_TO_DIV = (1, 8, 16, 16, 16, 16)     # if the block saturates at 16 accumulations
+    # Manual, Sec. 3.2 gives U_A = u/(N_A + 1) - 2048, which cannot be right: u
+    # is an unsigned short, so the block cannot hold the raw sum of more than 16
+    # samples of the 12-bit ADC and shifts it right instead, and the divisor
+    # saturates. Measured with the excitation off, where the mean of the raw
+    # array u_f is the ADC baseline times the divisor: the ratios come out
+    # 1.000, 8.000, 16.000, 16.000, 16.000, 16.000, and the noise follows the
+    # matching divisor/sqrt(N_A) to within 2%
+    NAV_TO_DIV = (1, 8, 16, 16, 16, 16)
 
     def __init__(self):
         
@@ -823,17 +822,13 @@ class Sibir_1():
         command = self.get_command_read_reg_i(i)
         self.sock.sendto( command , (self.ip_UDP, self.port_UDP) )
         data_raw_answer, addr = self.sock.recvfrom( int(4) )
-        # The 0xF4 packet is 6 bytes long (manual, Fig. 7 and Table 5): bytes
-        # 2-5 hold the register content, big endian, so bytes 2-3 are bits
-        # 31-16 and bytes 4-5 are bits 15-0. Receiving only 4 bytes threw away
-        # the rest of the datagram and returned the unused upper half word
-        #data_raw_data, addr = self.sock.recvfrom( int(4) )
-        data_raw_data, addr = self.sock.recvfrom( int(6) )
+        # The manual (Fig. 7, Table 5) makes the 0xF4 packet 6 bytes long, with
+        # the register content in bytes 2-5. The block sends 4: measured
+        # "f4 05 00 01" for register 5, so the content is bytes 2-3. The buffer
+        # is oversized because recvfrom() drops whatever does not fit in it
+        data_raw_data, addr = self.sock.recvfrom( int(64) )
         self.check_out_read_reg_i(data_raw_answer,data_raw_data,i)
-        #return  bytes_to_int(data_raw_data[2:])
-        if len(data_raw_data) >= 6:
-            return  bytes_to_int(data_raw_data[4:6])
-        return  bytes_to_int(data_raw_data[2:])
+        return  bytes_to_int(data_raw_data[2:4])
 
 #------------------------0x01--------------------------------------------------
     def get_command_read_arr_all_signal(self, i, first = 0):
@@ -855,11 +850,11 @@ class Sibir_1():
         #    Na = 15
         #Na = 8 #-------------------------FIX-----------
         #U  = u_f / (Na+1) - 2047
-        # Manual, Sec. 3.2: U_A = u/(N_A + 1) - 2048. The hardcoded divisor of 9
-        # above was correct only for nav code 1 (N_A = 8) and rescaled the
-        # amplitude by roughly N_A/8 otherwise. This affects the amplitude scale
-        # and the DC pedestal only: gaussmeter_field() subtracts the mean before
-        # the FFT, so the measured field does not depend on it
+        # The measured divisor is in NAV_TO_DIV; the hardcoded 9 above was
+        # correct only for nav code 1 (N_A = 8) and rescaled the amplitude by
+        # roughly N_A/8 otherwise. This affects the amplitude scale and the DC
+        # pedestal only: gaussmeter_field() subtracts the mean before the FFT,
+        # so the measured field does not depend on it
         U  = u_f / self.NAV_TO_DIV[self.mode_nav] - 2048
         return  U
 
