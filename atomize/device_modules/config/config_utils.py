@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import configparser
-import pyqtgraph as pg
 from pyvisa.constants import StopBits, Parity
 import atomize.general_modules.general_functions as general
 
@@ -142,6 +141,9 @@ def search_keys_dictionary(dictionary, search_value):
             return key
 
 def parse_pg(st, helper_list):
+    # imported here: only a couple of device modules parse SI strings, and
+    # pyqtgraph costs 0.2 s of start up for every module that imports this one
+    import pyqtgraph as pg
     fp = pg.siParse( pg.siFormat( pg.siEval(st), suffix = (pg.siParse(st))[2], allowUnicode = False) )
     close_value = min(helper_list, key=lambda x: abs(x - float(fp[0])))
     ret_string = f'{close_value} {fp[1]}{fp[2]}'
@@ -158,6 +160,7 @@ def parse_pg(st, helper_list):
             return ret_string, int( pg.siParse(ret_string)[0] ), 1
 
 def search_and_limit_keys_dictionary(dictionary, search_value, min_value, max_value):
+    import pyqtgraph as pg
     dict_vals = dictionary.values()
     dict_keys = dictionary.keys()
 

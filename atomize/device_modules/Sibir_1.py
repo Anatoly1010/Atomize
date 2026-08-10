@@ -7,9 +7,7 @@ import time
 import struct 
 from ctypes import * 
 from socket import *
-import numpy as np 
-import scipy as sp
-from scipy.fft  import rfft, rfftfreq
+import numpy as np
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
@@ -1131,9 +1129,12 @@ class Sibir_1():
 #        return FID
 
     def get_rfft_FID(self, FID):
+        # imported here, not at the top: scipy.fft costs 0.26 s of start up and
+        # is not touched at all in test mode
+        from scipy.fft import rfft, rfftfreq
         #FID = FID - np.sum(FID[len(FID) - 100:])/101
-        #N , T = self.N , self.T 
-        N, T = len(FID) , self.T 
+        #N , T = self.N , self.T
+        N, T = len(FID) , self.T
         I = np.abs(rfft(FID))[:N // 2]
         W = rfftfreq(N, T)[:N // 2]
         return W, I

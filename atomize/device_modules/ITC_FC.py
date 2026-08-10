@@ -10,7 +10,6 @@ from pyvisa.constants import StopBits, Parity
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
-from scipy.interpolate import CubicSpline, PchipInterpolator
 
 class ITC_FC:
     #### Basic interaction functions
@@ -21,11 +20,8 @@ class ITC_FC:
         self.path_current_directory = os.path.dirname(__file__)
         self.path_current_directory_local = lconf.load_config_device()
         self.path_config_file = os.path.join(self.path_current_directory_local, 'ITC_FC_config.ini')
-        path_calib_file = os.path.join(self.path_current_directory, 'config', 'Calibration_curve_08_2024_Sibir_magnet.csv')
-
-        temp = np.genfromtxt(path_calib_file, dtype = float, delimiter = ',', skip_header = 1, comments = '#') 
-        calibration_data = np.transpose(temp)
-        self.cs = CubicSpline(calibration_data[0], calibration_data[1]/calibration_data[0] / 0.999826, bc_type='natural')
+        self.path_calib_file = os.path.join(self.path_current_directory, 'config', 'Calibration_curve_08_2024_Sibir_magnet.csv')
+        self._cs = None
 
 
         # configuration data
@@ -69,6 +65,23 @@ class ITC_FC:
 
         elif self.test_flag == 'test':
             self.test_field = 3500
+
+    @property
+    def cs(self):
+        """
+        Calibration curve of the magnet, built on first use. Only magnet_field()
+        with calibration = 'True' evaluates it, while scipy.interpolate costs
+        0.25 s of start up for every script that opens the field controller.
+        """
+        if self._cs is None:
+            from scipy.interpolate import CubicSpline
+            temp = np.genfromtxt(self.path_calib_file, dtype = float, delimiter = ',',
+                                 skip_header = 1, comments = '#')
+            calibration_data = np.transpose(temp)
+            self._cs = CubicSpline(calibration_data[0],
+                                   calibration_data[1] / calibration_data[0] / 0.999826,
+                                   bc_type = 'natural')
+        return self._cs
 
     def close_connection(self):
         if self.test_flag != 'test':
