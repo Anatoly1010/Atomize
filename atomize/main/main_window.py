@@ -1423,21 +1423,25 @@ class NameList(QDockWidget):
         self.open_dir = os.path.dirname(filename)
         ldir.save('data', self.open_dir)      # remember the data folder
 
-        header_lines = []
+        if str(file_path).endswith('.h5'):
+            # the shared reader gives back the same column-per-row layout
+            data = self.window.file_handler.open_1d(file_path)[1]
+        else:
+            header_lines = []
 
-        with open(file_path, 'r') as file_to_read:
-            for line in file_to_read:
-                if line.startswith('#'):
-                    header_lines.append(line)
-                else:
-                    break
+            with open(file_path, 'r') as file_to_read:
+                for line in file_to_read:
+                    if line.startswith('#'):
+                        header_lines.append(line)
+                    else:
+                        break
 
-        header_count = len(header_lines)
-        header_text = "".join(header_lines)
+            header_count = len(header_lines)
+            header_text = "".join(header_lines)
 
-        # read data
-        temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 1, comments = '#') 
-        data = np.transpose(temp)
+            # read data
+            temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = 1, comments = '#')
+            data = np.transpose(temp)
 
         # universal name
         #name_plot = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
@@ -1487,20 +1491,23 @@ class NameList(QDockWidget):
         self.open_dir = os.path.dirname(filename)
         ldir.save('data', self.open_dir)      # remember the data folder
 
-        header_lines = []
+        if str(file_path).endswith('.h5'):
+            data = self.window.file_handler.open_2d(file_path)[1]
+        else:
+            header_lines = []
 
-        with open(file_path, 'r') as file_to_read:
-            for line in file_to_read:
-                if line.startswith('#'):
-                    header_lines.append(line)
-                else:
-                    break
+            with open(file_path, 'r') as file_to_read:
+                for line in file_to_read:
+                    if line.startswith('#'):
+                        header_lines.append(line)
+                    else:
+                        break
 
-        header_count = len(header_lines)
-        header_text = "".join(header_lines)
+            header_count = len(header_lines)
+            header_text = "".join(header_lines)
 
-        temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = header_count) 
-        data = temp
+            temp = np.genfromtxt(file_path, dtype = float, delimiter = ',', skip_header = header_count)
+            data = temp
 
         #name_plot = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
         name_plot = os.path.splitext(os.path.basename(file_path))[0]
@@ -1508,13 +1515,17 @@ class NameList(QDockWidget):
         pw = self.window.add_new_plot(2, name_plot)
         pw.setAxisLabels(xname = 'X', xscale = 'Arb. U.',yname = 'Y', yscale = 'Arb. U.',
                 zname = 'Z', zscale = 'Arb. U.')
-        pw.setImage(data, axes = {'y': 0, 'x': 1}, autoLevels=False)
+        if np.ndim(data) == 3:
+            # an .h5 with both quadratures; I and Q become selectable frames
+            pw.setImage(data, axes = {'t': 0, 'y': 1, 'x': 2}, autoLevels=False)
+        else:
+            pw.setImage(data, axes = {'y': 0, 'x': 1}, autoLevels=False)
 
     def file_dialog(self, directory = ''):
         """
         A function to open a new window for choosing 1d data
         """
-        filedialog = QFileDialog(self, 'Open File', directory = ldir.load('data', self.open_dir), filter = "CSV (*.csv)", options = QFileDialog.Option.DontUseNativeDialog )
+        filedialog = QFileDialog(self, 'Open File', directory = ldir.load('data', self.open_dir), filter = "Data (*.csv *.h5)", options = QFileDialog.Option.DontUseNativeDialog )
 
         filedialog.setIconProvider(QFileIconProvider())
         filedialog.resize(1100, 450) 
@@ -1759,7 +1770,7 @@ class NameList(QDockWidget):
         """
         A function to open a new window for choosing 2D data
         """
-        filedialog = QFileDialog(self, 'Open File', directory = ldir.load('data', self.open_dir), filter = "CSV (*.csv)", options = QFileDialog.Option.DontUseNativeDialog )
+        filedialog = QFileDialog(self, 'Open File', directory = ldir.load('data', self.open_dir), filter = "Data (*.csv *.h5)", options = QFileDialog.Option.DontUseNativeDialog )
 
         filedialog.setIconProvider(QFileIconProvider())
         filedialog.resize(1100, 450) 

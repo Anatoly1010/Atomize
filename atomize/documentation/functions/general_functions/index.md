@@ -21,10 +21,10 @@ Description of available general functions in Atomize, including a module for sa
 | [`open_2d(file_path, header=0)`](data_managment.md#open_2d) | Open a file with a 2D array of comma separated values |
 | [`open_2d_appended(file_path, header=0, chunk_size=1)`](data_managment.md#open_2d_appended) | Open a file with a single column array of values from 2D array |
 | [`open_file_dialog(directory='')`](data_managment.md#open_file_dialog) | Open file selection dialog |
-| [`create_file_dialog(directory='')`](data_managment.md#create_file_dialog) | Create file via save dialog |
+| [`create_file_dialog(directory='', fmt='csv')`](data_managment.md#create_file_dialog) | Create file via save dialog |
 | [`create_file_parameters(add_name, directory='')`](data_managment.md#create_file_parameters) | Create data + parameters file pair |
 | [`save_header(filename, header='', mode='w')`](data_managment.md#save_header) | Save a header to a file |
-| [`save_data(filename, data, header='', mode='w')`](data_managment.md#save_data) | Save a numpy array to a file |
+| [`save_data(filename, data, header='', mode='w', axes=None, fmt='%.6e', dtype=None)`](data_managment.md#save_data) | Save a numpy array to a file |
 | [`Bruker_Opener().open(path)`](bruker_opener.md#bruker_open) | Read Bruker native files (BES3T / ESP/WinEPR), 1D/2D, real or I/Q |
 
 ## Related

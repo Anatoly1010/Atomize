@@ -76,7 +76,7 @@ class Saver_Opener():
         elif self.test_flag == 'test':
             return [self.test_file_path] if multiple else self.test_file_path
 
-    def create_file_dialog(self, directory = '', multiprocessing = False):
+    def create_file_dialog(self, directory = '', multiprocessing = False, fmt = 'csv'):
         if self.test_flag != 'test':
             if not multiprocessing:
                 print("create_file_dialog", flush = True)
@@ -88,7 +88,7 @@ class Saver_Opener():
                 return "None"
 
             else:
-                file_path = self.FileDialog(directory = directory, mode = 'Save', fmt = 'csv')
+                file_path = self.FileDialog(directory = directory, mode = 'Save', fmt = fmt)
 
                 if file_path: 
                     open(file_path, "w").close()
@@ -121,6 +121,12 @@ class Saver_Opener():
     def save_header(self, filename, header = '', mode = 'w'):
         if self.test_flag != 'test':
             if (filename != 'None') and (filename != ''):
+                if str(filename).endswith('.h5'):
+                    h5py = self._h5py()
+                    with h5py.File(filename, 'w') as file_for_save:
+                        self._write_h5_attrs(file_for_save, header)
+                    return
+
                 with open(filename, mode) as file_for_save:
                     np.savetxt(
                         file_for_save, 
@@ -139,20 +145,26 @@ class Saver_Opener():
                 pass
             os.remove( filename )
 
-    def save_data(self, filename, data, header = '', mode = 'w'):
+    def save_data(self, filename, data, header = '', mode = 'w', axes = None,
+                  fmt = '%.6e', dtype = None):
         if self.test_flag != 'test':
             if (filename != 'None') and (filename != ''):
+                if str(filename).endswith('.h5'):
+                    self._save_h5(filename, data, header = header, axes = axes,
+                                  dtype = dtype if dtype is not None else self._dtype_from_fmt(fmt))
+                    return
+
                 if len( data.shape ) == 2:
                     with open(filename, mode) as file_for_save:
                         np.savetxt(
-                            file_for_save, 
-                            data, 
-                            fmt='%.6e', 
-                            delimiter=',', 
-                            newline='\n', 
-                            header=header, 
-                            footer='', 
-                            comments='# ', 
+                            file_for_save,
+                            data,
+                            fmt=fmt,
+                            delimiter=',',
+                            newline='\n',
+                            header=header,
+                            footer='',
+                            comments='# ',
                             encoding=None
                         )
 
@@ -162,24 +174,98 @@ class Saver_Opener():
 
                     for i in range(data.shape[0]):
                         current_filename = filename if i == 0 else f"{base_name}_{i}{ext}"
-                        
+
                         with open(current_filename, mode) as f:
                             np.savetxt(
-                                f, 
-                                np.transpose(data[i]), 
-                                fmt='%.6e', 
-                                delimiter=',', 
-                                header=header, 
+                                f,
+                                np.transpose(data[i]),
+                                fmt=fmt,
+                                delimiter=',',
+                                header=header,
                                 comments='# '
                             )
-        
+
         elif self.test_flag == 'test':
             with open(filename, mode) as f:
                 pass
             os.remove( filename )
 
+    def _h5py(self):
+        try:
+            import h5py
+        except ImportError:
+            raise ImportError("h5py is not installed; it is required to read or write '.h5' files")
+
+        return h5py
+
+    def _dtype_from_fmt(self, fmt):
+        # '%.6e' is 7 significant digits, the float32 band; anything wider needs float64
+        try:
+            digits = int(str(fmt).split('.')[1][:-1])
+        except (IndexError, ValueError):
+            return 'float32'
+
+        return 'float32' if digits <= 6 else 'float64'
+
+    def _write_h5_attrs(self, file_for_save, header):
+        file_for_save.attrs['header'] = header
+        file_for_save.attrs['format_version'] = 1
+        file_for_save.attrs['source'] = 'atomize'
+
+    def _save_h5(self, filename, data, header = '', axes = None, dtype = 'float32'):
+        h5py = self._h5py()
+        data = np.asarray(data)
+
+        with h5py.File(filename, 'w') as file_for_save:
+            self._write_h5_attrs(file_for_save, header)
+
+            # the array is stored exactly as np.savetxt would lay it out
+            if data.ndim == 3:
+                for i in range(data.shape[0]):
+                    name = ('I', 'Q')[i] if i < 2 else f'D{i}'
+                    file_for_save.create_dataset(name, data = np.transpose(data[i]).astype(dtype))
+            else:
+                file_for_save.create_dataset('I', data = data.astype(dtype))
+
+            if axes is not None:
+                for name, axis in zip(('t', 'sweep'), axes):
+                    if axis is not None:
+                        file_for_save.create_dataset(name, data = np.asarray(axis, dtype = 'float64'))
+
+    def _open_h5(self, file_path, header = 0, scans = False):
+        h5py = self._h5py()
+
+        with h5py.File(file_path, 'r') as file_to_read:
+            # the same list of ':'-split '# ' lines the csv readers return
+            header_array = [ ('# ' + line + '\n').split(':') \
+                             for line in str(file_to_read.attrs.get('header', '')).splitlines() ]
+            if header > 0:
+                header_array = header_array[:header]
+
+            if scans and 'scans' in file_to_read:
+                data = [ np.asarray(scan) for scan in file_to_read['scans'] ]
+            elif 'Q' in file_to_read:
+                data = np.stack( (np.asarray(file_to_read['I']), np.asarray(file_to_read['Q'])) )
+            else:
+                data = np.asarray(file_to_read['I'])
+
+        return header_array, data
+
+    def open_h5_axes(self, file_path):
+        h5py = self._h5py()
+
+        with h5py.File(file_path, 'r') as file_to_read:
+            axes = { name: np.asarray(file_to_read[name]) for name in ('t', 'sweep') \
+                     if name in file_to_read }
+
+        return axes
+
     def open_1d(self, file_path, header = 0):
         if self.test_flag != 'test':
+
+            if str(file_path).endswith('.h5'):
+                header_array, temp = self._open_h5(file_path, header = header)
+                return header_array, np.transpose(temp)
 
             header_array = []
             file_to_read = open(file_path, 'r', errors = 'ignore')
@@ -199,6 +285,9 @@ class Saver_Opener():
     def open_2d(self, file_path, header = 0):
         if self.test_flag != 'test':
 
+            if str(file_path).endswith('.h5'):
+                return self._open_h5(file_path, header = header)
+
             header_array = []
             file_to_read = open(file_path, 'r', errors = 'ignore')
             for i, line in enumerate(file_to_read):
@@ -216,6 +305,10 @@ class Saver_Opener():
 
     def open_2d_appended(self, file_path, header = 0, chunk_size = 1):
         if self.test_flag != 'test':
+
+            if str(file_path).endswith('.h5'):
+                header_array, temp = self._open_h5(file_path, header = header, scans = True)
+                return header_array, temp if isinstance(temp, list) else np.array_split(temp, chunk_size)
 
             header_array = []
             file_to_read = open(file_path, 'r', errors = 'ignore')

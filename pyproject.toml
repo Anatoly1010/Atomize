@@ -24,7 +24,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 
-dependencies = ["numpy>=1.25", "pyvisa>=1.11", "pyvisa-py>=0.5", "pyqtgraph>=0.12", "PyQt6>=6.2", "platformdirs>=4.5"]
+dependencies = ["numpy>=1.25", "pyvisa>=1.11", "pyvisa-py>=0.5", "pyqtgraph>=0.12", "PyQt6>=6.2", "platformdirs>=4.5", "h5py>=3.8"]
 license-files = ["license.md"]
 
 [project.scripts]
