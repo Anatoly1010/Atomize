@@ -14,6 +14,15 @@ from atomize.main.client import LivePlotClient
 # Test run parameters
 test_flag = sys.argv[1] if len(sys.argv) > 1 else 'None'
 
+# A child launched by the main window writes to a pipe, so on Windows print()
+# encodes with the legacy codepage and dies on a message carrying '×' or 'φ' --
+# in the middle of whatever the caller was doing. The parent already decodes
+# with errors='replace'; match it on the way out.
+try:
+    sys.stdout.reconfigure(errors='replace')
+except (AttributeError, OSError, ValueError):
+    pass
+
 _plotter_instance = None
 
 # When True, plot_1d / plot_2d default to the non-blocking coalescing worker even
