@@ -79,7 +79,8 @@ class Saver_Opener():
     def create_file_dialog(self, directory = '', multiprocessing = False, fmt = 'csv'):
         if self.test_flag != 'test':
             if not multiprocessing:
-                print("create_file_dialog", flush = True)
+                # the suffix tells the parent window which filter to open with
+                print(f"create_file_dialog {fmt}", flush = True)
                 file_path = sys.stdin.readline().strip()
 
                 if file_path and file_path != "None":
@@ -121,9 +122,10 @@ class Saver_Opener():
     def save_header(self, filename, header = '', mode = 'w'):
         if self.test_flag != 'test':
             if (filename != 'None') and (filename != ''):
-                if str(filename).endswith('.h5'):
+                if self._is_h5(filename):
                     h5py = self._h5py()
-                    with h5py.File(filename, 'w') as file_for_save:
+                    # 'a' keeps whatever data the file already holds
+                    with h5py.File(filename, 'a' if mode == 'a' else 'w') as file_for_save:
                         self._write_h5_attrs(file_for_save, header)
                     return
 
@@ -149,7 +151,10 @@ class Saver_Opener():
                   fmt = '%.6e', dtype = None):
         if self.test_flag != 'test':
             if (filename != 'None') and (filename != ''):
-                if str(filename).endswith('.h5'):
+                if self._is_h5(filename):
+                    if mode == 'a':
+                        raise ValueError("append mode is not supported for '.h5' files")
+
                     self._save_h5(filename, data, header = header, axes = axes,
                                   dtype = dtype if dtype is not None else self._dtype_from_fmt(fmt))
                     return
@@ -189,6 +194,9 @@ class Saver_Opener():
             with open(filename, mode) as f:
                 pass
             os.remove( filename )
+
+    def _is_h5(self, file_path):
+        return str(file_path).lower().endswith('.h5')
 
     def _h5py(self):
         try:
@@ -244,10 +252,17 @@ class Saver_Opener():
 
             if scans and 'scans' in file_to_read:
                 data = [ np.asarray(scan) for scan in file_to_read['scans'] ]
-            elif 'Q' in file_to_read:
-                data = np.stack( (np.asarray(file_to_read['I']), np.asarray(file_to_read['Q'])) )
             else:
-                data = np.asarray(file_to_read['I'])
+                # every plane the writer laid down, in the order it wrote them
+                names = [ name for name in ['I', 'Q'] + [f'D{i}' for i in range(2, 32)] \
+                          if name in file_to_read ]
+                if not names:
+                    # a header-only file, as save_header leaves it
+                    data = np.array([])
+                elif len(names) == 1:
+                    data = np.asarray(file_to_read[names[0]])
+                else:
+                    data = np.stack( [ np.asarray(file_to_read[name]) for name in names ] )
 
         return header_array, data
 
@@ -263,7 +278,7 @@ class Saver_Opener():
     def open_1d(self, file_path, header = 0):
         if self.test_flag != 'test':
 
-            if str(file_path).endswith('.h5'):
+            if self._is_h5(file_path):
                 header_array, temp = self._open_h5(file_path, header = header)
                 return header_array, np.transpose(temp)
 
@@ -285,7 +300,7 @@ class Saver_Opener():
     def open_2d(self, file_path, header = 0):
         if self.test_flag != 'test':
 
-            if str(file_path).endswith('.h5'):
+            if self._is_h5(file_path):
                 return self._open_h5(file_path, header = header)
 
             header_array = []
@@ -306,7 +321,7 @@ class Saver_Opener():
     def open_2d_appended(self, file_path, header = 0, chunk_size = 1):
         if self.test_flag != 'test':
 
-            if str(file_path).endswith('.h5'):
+            if self._is_h5(file_path):
                 header_array, temp = self._open_h5(file_path, header = header, scans = True)
                 return header_array, temp if isinstance(temp, list) else np.array_split(temp, chunk_size)
 

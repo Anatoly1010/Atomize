@@ -170,7 +170,10 @@ class MainWindow(QMainWindow):
                 continue
 
             if line.startswith("create_file_dialog"):
-                file_data = self.file_handler.create_file_dialog(multiprocessing = True)
+                # the script may ask for a format; older scripts send no suffix
+                parts = line.split()
+                file_data = self.file_handler.create_file_dialog(multiprocessing = True,
+                    fmt = parts[1] if len(parts) > 1 else 'csv')
                 self.process_python.write(f"{file_data}\n".encode())
                 
             elif line.startswith("open_file_dialog"):

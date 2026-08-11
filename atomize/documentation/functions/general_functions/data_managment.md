@@ -110,7 +110,7 @@ This function has the full functionality of the [`create_file_dialog()`](#create
 save_header(file_path, header='', mode='w')
 ```
 
-This function saves the string given by argument `header` to the file with the path `file_path`. Argument `mode` allows choosing whether the file will be rewritten (`mode='w'`) or the data will be appended to the end of the file (`mode='a'`). For an `.h5` file the header becomes the file attribute described in [HDF5 files](#hdf5-files) and no datasets are created yet, so a run that crashes before saving still leaves its header behind.
+This function saves the string given by argument `header` to the file with the path `file_path`. Argument `mode` allows choosing whether the file will be rewritten (`mode='w'`) or the data will be appended to the end of the file (`mode='a'`). For an `.h5` file the header becomes the file attribute described in [HDF5 files](#hdf5-files) and no datasets are created yet, so a run that crashes before saving still leaves its header behind — that file reads back through `open_2d` as an empty array with its header intact. `mode='a'` updates the header of an existing `.h5` without touching its data.
 
 ---
 
@@ -120,9 +120,9 @@ This function saves the string given by argument `header` to the file with the p
 save_data(file_path, data, header='', mode='w', axes=None, fmt='%.6e', dtype=None)
 ```
 
-This function saves the numpy array given by the argument `data` and the string given by argument `header` to the file with the path `file_path`. Argument `mode` allows choosing whether the file will be rewritten (`mode='w'`) or the data will be appended to the end of the file (`mode='a'`).
+This function saves the numpy array given by the argument `data` and the string given by argument `header` to the file with the path `file_path`. Argument `mode` allows choosing whether the file will be rewritten (`mode='w'`) or the data will be appended to the end of the file (`mode='a'`). Appending to an `.h5` file raises a `ValueError` rather than quietly rewriting it, since appending rows of text and growing a dataset are not the same operation.
 
-This function works for 1D, 2D, and 3D data. In case of 3D (an array of 2D arrays) data, a separate file will be created for each 2D array with the additional `_i` string in the `file_path`; an `.h5` file keeps the first two of them as the `I` and `Q` datasets of one file instead. The standard combination of function to save the experimental data together with a header is the following:
+This function works for 1D, 2D, and 3D data. In case of 3D (an array of 2D arrays) data, a separate file will be created for each 2D array with the additional `_i` string in the `file_path`; an `.h5` file keeps them as the `I` and `Q` datasets of one file instead (a third plane and beyond become `D2`, `D3`…, and `open_2d` stacks whatever it finds). The standard combination of function to save the experimental data together with a header is the following:
 
 ```python
 file_data, file_param = file_handler.create_file_parameters('.param')
