@@ -1303,8 +1303,21 @@ def mellin_inverse(P_tau, tau, w):
     return (1.0/(2.0*np.pi))*w**(-0.5)*np.real(integ)
 
 
+# Reliability keys that describe the background fit that PRODUCED them. An engine
+# that re-fits the background moves these under `background['prep']` instead of
+# shipping them beside its own lambda/k, where they read as verdicts on a fit they
+# never saw. They are moved, never recomputed: recomputing `k_ratio` on a refitted
+# rate is a measured regression (real sample3_labA 1.003 -> 0.435, which crosses
+# the < 0.5 gate and starts warning on a healthy trace).
+_PREP_BG_KEYS = ('lambda_raw', 'lambda_clamped', 'lambda_degenerate',
+                 'tail_abs_F', 'k_ref', 'k_ratio', 'k_disagrees',
+                 'bg_drop', 'bg_flat', 'conc_implied_uM', 'conc_implausible',
+                 'k_at_bound', 'rmax_cap')
+
+
 def joint_background(t, V, bg_start=None, bg_end=None, dim=3.0, fit_dim=False,
-                     nu_dd=NU_DD, n_r=60, rate_alpha=1.0, lam_pin_frac=0.5):
+                     nu_dd=NU_DD, n_r=60, rate_alpha=1.0, lam_pin_frac=0.5,
+                     prep_only=False):
     """Joint (DeerLab-style) intermolecular background returning ONLY the
     background (same dict shape as `background_fit`). Fits the decay rate k (and d
     when `fit_dim`) together with a non-negative P(r), with the modulation depth
@@ -1354,6 +1367,11 @@ def joint_background(t, V, bg_start=None, bg_end=None, dim=3.0, fit_dim=False,
     detector for that failure is `bg_start_early` (92 % / 23 %), which every engine
     that fits a background records on this dict after its inversion, via
     `_flag_bg_start_early`. Any of these firing raises a RuntimeWarning.
+
+    Set `prep_only=True` when the caller re-fits this background rather than
+    reporting it (the multi-Gaussian `lsq` engine does): the warning then says the
+    reliability keys describe the STARTING estimate. That caller also moves the
+    keys under `background['prep']` -- see `_PREP_BG_KEYS`.
     """
     _require_scipy()
     from scipy.optimize import least_squares, minimize_scalar
@@ -1501,9 +1519,13 @@ def joint_background(t, V, bg_start=None, bg_end=None, dim=3.0, fit_dim=False,
                        'information' % (float(k), kref))
     if reasons:
         warnings.warn(
-            'DEER joint background needs checking: ' + '; '.join(reasons)
-            + '. Cross-check against engine=\'sequential\' and a later bg_start '
-              'before quoting lambda or a distance.', RuntimeWarning, stacklevel=2)
+            ('DEER starting background needs checking: ' if prep_only else
+             'DEER joint background needs checking: ') + '; '.join(reasons)
+            + ('. The caller re-fits lambda and k from here, so read the reported '
+               'values, not these; a later bg_start still moves the starting point.'
+               if prep_only else
+               '. Cross-check against engine=\'sequential\' and a later bg_start '
+               'before quoting lambda or a distance.'), RuntimeWarning, stacklevel=2)
     return {'lambda': lam, 'lambda_raw': float(lam_raw),
             'lambda_clamped': bool(lam_clamped),
             'tail_abs_F': tail_absF, 'k_ref': float(kref),
@@ -2663,6 +2685,16 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     aicc / aic / bic (of the chosen N), ic ('aicc'|'aic'|'bic'), ci_mode, ci_level,
     ic_curve (list of (N, criterion, rss)), noise_level. alpha is NaN and l_curve
     is None (no regularization), as for the Mellin engine.
+
+    `background` carries the RE-FIT lambda / k / dim / B / form_factor / V_norm.
+    The preparation's own reliability keys (`lambda_clamped`, `tail_abs_F`,
+    `k_disagrees`, `conc_implausible`, ... -- see `joint_background`) judge the
+    background this fit started from, not the one reported, so on the 'lsq' path
+    they are moved to `background['prep']` and must be quoted as such. They are
+    NOT recomputed on the refitted rate: that was measured to turn a healthy trace
+    into a warning. `bg_start_early` is the exception -- it is re-derived from the
+    final P(r) and stays at the top level. The 'mc' path does not re-fit, so its
+    keys stay where `joint_background` put them.
     """
     _require_scipy()
     from scipy.optimize import least_squares
@@ -2675,7 +2707,8 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         bg = _no_background(t, V, bg_start=bg_start, bg_end=bg_end)
     elif bg_engine == 'joint':
         bg = joint_background(t, V, bg_start=bg_start, bg_end=bg_end,
-                              dim=dim, fit_dim=fit_dim, nu_dd=nu_dd)
+                              dim=dim, fit_dim=fit_dim, nu_dd=nu_dd,
+                              prep_only=(method != 'mc'))
     elif bg_engine == 'general':
         bg = background_general(t, V, bg_start, bg_end=bg_end, **(bg_params or {}))
     else:
@@ -3009,8 +3042,15 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     F_fit = D/lam_safe                                    # model form factor, F(0)=1
     P_norm = _normalize_masses(masses)
     P_density = P_norm/dr
-    bg = dict(bg); bg.update({'lambda': lam_fit, 'k': k_fit, 'dim': float(dim_fit),
-                              'B': Bv, 'form_factor': F, 'V_norm': Vn_eff})
+    # This engine RE-FITS the background, so the preparation's reliability keys
+    # describe an estimate that no longer exists: park them under 'prep'.
+    bg = dict(bg)
+    prep = {kk: bg.pop(kk) for kk in _PREP_BG_KEYS if kk in bg}
+    bg.update({'lambda': lam_fit, 'k': k_fit, 'dim': float(dim_fit),
+               'A': float(1.0 - lam_fit),
+               'B': Bv, 'form_factor': F, 'V_norm': Vn_eff})
+    if prep:
+        bg['prep'] = prep
 
     components = []
     for kk in range(n):
@@ -3473,9 +3513,12 @@ def deer_validate(t, V, r=None, bg_start=None, bg_starts=None, bg_end=None,
     this run and must not be shown as an uncertainty: either the ensemble is
     flat (spread below 1% of the curve) or the engine co-fits its background, so
     `bg_start` never enters its objective and the sweep cannot probe it. That is
-    the case for `engine='gauss'` with any `bg_engine` except 'general'. The flag
-    half of the sweep (`n_flagged` / `disagree`) stays valid either way, since the
-    per-trial background flags are rebuilt at every `bg_start`.
+    the case for `engine='gauss'` with any `bg_engine` except 'general' -- but NOT
+    for `method='mc'`, which inverts the prepared form factor instead of re-fitting
+    and so does follow `bg_start`. The flag half of the sweep (`n_flagged` /
+    `disagree`) stays valid either way, since the per-trial background flags are
+    rebuilt at every `bg_start`; on the re-fitting engine they are read from
+    `background['prep']` and describe that trial's STARTING background.
     """
     _require_scipy()
     t, V, _n_pre = _crop_pre_zero(t, V, policy=pre_zero)
@@ -3526,14 +3569,16 @@ def deer_validate(t, V, r=None, bg_start=None, bg_starts=None, bg_end=None,
             ensemble.append(res_i['P_density'])
             # per-trial scalars: the caller otherwise only ever sees `base`
             bg_i = res_i.get('background') or {}
+            # an engine that re-fits its background parks these under 'prep'
+            rel_i = bg_i.get('prep') or bg_i
             m_i = _normalize_masses(np.clip(res_i['P_density'], 0.0, None)*dr)
             trials_stat.append(
                 {'bg_start': float(bs), 'r_mean': float(np.sum(r*m_i)),
                  'lambda': float(res_i.get('lambda', float('nan'))),
                  'k': float(res_i.get('k', float('nan'))),
-                 'flagged': bool(bg_i.get('lambda_clamped')
-                                 or bg_i.get('k_disagrees')
-                                 or float(bg_i.get('tail_abs_F') or 0.0) > 0.05)})
+                 'flagged': bool(rel_i.get('lambda_clamped')
+                                 or rel_i.get('k_disagrees')
+                                 or float(rel_i.get('tail_abs_F') or 0.0) > 0.05)})
     if not ensemble:
         raise RuntimeError('DEER validation produced no successful trials.')
     ens = np.vstack(ensemble)
@@ -3557,7 +3602,11 @@ def deer_validate(t, V, r=None, bg_start=None, bg_starts=None, bg_end=None,
     # a percentile band drawn from them reads as certainty rather than as
     # "not measured". The FLAG half of the sweep stays meaningful (the per-trial
     # background flags are rebuilt per bg_start), so only the band is disowned.
-    bg_cofit = bool(engine == 'gauss'
+    # method='mc' is exempt: it never re-fits, it inverts the PREPARED form factor,
+    # which is built at bg_start, so the sweep does move its objective. Read the
+    # solver off the result, not off the arguments -- `method` here is the alpha
+    # selector, and the gauss solver reaches the engine by its own route.
+    bg_cofit = bool(engine == 'gauss' and base.get('method') != 'mc'
                     and kwargs.get('bg_engine', 'joint') != 'general')
     P_spread = float(np.max(np.ptp(ens, axis=0))) if ens.shape[0] > 1 else 0.0
     P_scale = float(np.max(np.abs(P_median))) or 1.0
