@@ -961,6 +961,11 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
                        chosen by AICc). Extra params (n_gauss, max_gauss, ic,
                        bg_engine, n_mc) pass through via **kwargs.
 
+    `method` does double duty: it is the regularization selector ('gcv' / 'lcurve')
+    on the Tikhonov engines and the SOLVER ('lsq' / 'mc') on 'gauss'. The two name
+    sets are disjoint, so pass whichever the engine needs; a selector name on
+    'gauss' leaves its default solver ('lsq') in place.
+
     `pre_zero` decides what happens to samples below the zero time -- 'even' keeps
     the ones that pass a mirror test, 'crop' drops them all, 'even_fold' averages
     each into its mirror twin; see `_crop_pre_zero`. None (the default) means the
@@ -999,6 +1004,12 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
                                   pre_zero=(pz_engine or pre_zero or 'even_fold'),
                                   clamp_alias=clamp_alias, **kwargs)
     if engine == 'gauss':
+        # `method` is the alpha selector for the regularized engines and the SOLVER
+        # for this one; the two name sets are disjoint, so a caller passing a solver
+        # name means it. Without this the gauss solver never arrived and
+        # method='mc' silently ran 'lsq' -- the estimator, not just the search.
+        if method in ('lsq', 'mc'):
+            kwargs['method'] = method
         return deer_invert_gauss(t, V, r=r, bg_start=bg_start, bg_end=bg_end,
                                  dim=dim, fit_dim=fit_dim, nu_dd=nu_dd,
                                  bg_params=bg_params,
@@ -3492,7 +3503,9 @@ def deer_validate(t, V, r=None, bg_start=None, bg_starts=None, bg_end=None,
     `alpha`/`alpha_factor`) and then held fixed for every trial -- validation
     probes background/noise sensitivity, not the regularization choice. For
     `engine='mellin'` alpha is not the regularizer, so `tau_max` (with its
-    `n_tau` grid) and `delta` are pinned to the central trial instead. With
+    `n_tau` grid) and `delta` are pinned to the central trial instead. On
+    `engine='gauss'` there is no regularizer at all and `method` names the SOLVER
+    ('lsq' / 'mc') rather than the alpha criterion -- see `deer_invert`. With
     `noise` > 0 and `n_noise` > 0, each background-start trial is additionally
     repeated with `n_noise` Gaussian-noise realizations of std `noise` added to V
     (estimate `noise` from the trace residual). All trials share the grid `r`.
