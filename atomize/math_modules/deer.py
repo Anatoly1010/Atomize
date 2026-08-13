@@ -1701,7 +1701,7 @@ def joint_background(t, V, bg_start=None, bg_end=None, dim=3.0, fit_dim=False,
 
 
 def mellin_delta(t, F, level=0.95, floor=0.09, cap=0.12, floor_ratio=2.0,
-                 rel_noise=0.0):
+                 rel_noise=0.0, parab_tol=None):
     """Practical split point delta: the first T > 0 where the form factor has
     fallen to `level` of F(0) (the paper's F(delta) ~ 0.95 estimate). Falls back
     to the first positive sample if F never drops that far.
@@ -1740,7 +1740,22 @@ def mellin_delta(t, F, level=0.95, floor=0.09, cap=0.12, floor_ratio=2.0,
     -- for rel_noise below ~0.09, which covers the whole tuned low-noise regime.
     Leave at 0 to disable. NOTE this repairs the forward fit, not the accuracy:
     the collapsed delta happened to sit at a better point of the overlap-vs-delta
-    curve, so P(r) at that noise level is slightly worse, not better."""
+    curve, so P(r) at that noise level is slightly worse, not better.
+
+    `parab_tol` bounds the same floor stretch by what the echo top can actually
+    support. The [0,delta] term models F as a single parabola, so stretching delta
+    past the parabolic head puts a KNOWN-wrong analytic model over part of the
+    modulation, and the error lands as a systematic early-time residual rather
+    than as noise. `floor_ratio` alone does not catch this: it is relative to the
+    crossing, and on a fast-decaying (short-distance, broad) form factor twice the
+    crossing is already deep into the first oscillation -- measured on the YopO
+    ring-test sample1 traces, the parabola misses by 8-21 sigma at the stretched
+    delta and the early residual runs 3-10x the noise. With `parab_tol` set, the
+    stretch stops where the least-squares parabola over [0,T] first misses a
+    sample by more than that tolerance (`_parabola_valid`), so delta still widens
+    on a slow top and stops short on a steep one. It can only LOWER the stretched
+    delta, never push it below the crossing, so a trace whose head is parabolic
+    past the floor is untouched. None = off (the pre-existing behaviour)."""
     t = np.asarray(t, dtype=float)
     F = np.asarray(F, dtype=float)
     pos = t > 0
@@ -1761,10 +1776,38 @@ def mellin_delta(t, F, level=0.95, floor=0.09, cap=0.12, floor_ratio=2.0,
     d_raw = float(Tp[below[0]]) if len(below) else float(Tp[0])
     d = d_raw
     if floor is not None:
-        d = max(d, min(float(floor), float(floor_ratio)*d_raw))
+        stretch = float(floor_ratio)*d_raw
+        if parab_tol is not None:
+            stretch = min(stretch, _parabola_valid(Tp, Fp_s, float(parab_tol)))
+        d = max(d, min(float(floor), stretch))
     if cap is not None:
         d = min(d, float(cap))
     return float(min(d, Tp[-1]))                        # never past the last sample
+
+
+def _parabola_valid(Tp, Fp, tol, F0=1.0, n_min=3):
+    """Largest T over which the echo top is parabolic to within `tol`.
+
+    Walks the window out sample by sample, least-squares fitting F0 + b*T^2 over
+    [0, T] each time, and stops at the first window whose worst point misses the
+    parabola by more than `tol`. `Tp`/`Fp` are the sorted positive-T samples.
+    """
+    Tp = np.asarray(Tp, dtype=float)
+    Fp = np.asarray(Fp, dtype=float)
+    n_min = min(int(n_min), len(Tp))
+    if n_min < 3:
+        return float(Tp[-1]) if len(Tp) else 0.0
+    best = float(Tp[n_min - 1])
+    for n in range(n_min, len(Tp) + 1):
+        Tw, Fw = Tp[:n], Fp[:n]
+        q = float(np.sum(Tw**4))
+        if q <= 0:
+            continue
+        b = float(np.sum(Tw**2*(Fw - F0))/q)
+        if np.max(np.abs(Fw - (F0 + b*Tw**2))) > tol:
+            break
+        best = float(Tw[-1])
+    return best
 
 
 def _tail_noise(t, y, frac=0.35, smooth_w=7):
@@ -1974,6 +2017,7 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                        n_tau=601, bg_engine='joint', bg_params=None,
                        n_mc=0, ci_z=1.96, seed=0,
                        taumax_method='penalty', wiener=0.0,
+                       parab_tol_min=0.01,
                        fit_rmin_abs=2.0, fit_rmin_width=0.5,
                        signed_fit=True, taper_short=True, pre_zero='even_fold',
                        clamp_alias=True,
@@ -2053,6 +2097,22 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     tau_max auto-selection instability, not by the inverse filter, and the Wiener
     term interacts with that selection to regress several cases. Enable it when the
     data are moderately noisy and the result shows the tell-tale short-r spike.
+
+    `parab_tol_min` (default 0.01, None = off) floors the tolerance that stops the
+    auto `delta` being stretched past the parabolic echo top; the tolerance itself
+    is max(4*sig_e/lambda, parab_tol_min), so it follows the noise and falls back to
+    the floor only on a very clean trace. See `mellin_delta`'s `parab_tol` for the
+    mechanism. It binds on FAST-DECAYING form factors -- short mean distance, or a
+    broad distribution -- whose head leaves the parabolic regime well before the
+    90 ns floor: on the 28 YopO ring-test traces it moved delta on 10 of them (e.g.
+    sample1_labB 64 -> 32 ns) and cut the early-time residual there by 30-50%
+    (corpus mean forward-fit residual 2.00 -> 1.94 sigma, early 2.73 -> 2.40, 7
+    traces improved / 0 regressed / 21 untouched), while the reported peak moved by
+    at most 0.05 nm. On the synthetic benchmark (156 saved traces, peaks 3.0-4.3 nm)
+    the head IS parabolic past the floor, so delta moves on 2 cases and the mean
+    overlap with truth is unchanged in all three conditions (easy / hard / no-bg).
+    The 4x multiplier is what buys that: at 3x the tolerance is tight enough to trim
+    delta on a clean broad bimodal and cost it 0.024 overlap.
 
     With `n_mc` > 0 a Monte-Carlo confidence band is returned (additive-noise
     propagation): the white electrical-noise level `sig_e` is read from the
@@ -2157,10 +2217,14 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         # to ~0.13/0.16, which restores the echo-top width (benchmark forward-fit
         # half-width vs the true F: 0.78 -> ~1.0 at sigma 0.04) and roughly halves the
         # short-r spurious mass. Tuned on the synthetic benchmark.
+        # ... and cap that stretch where the echo top stops being parabolic, which
+        # the noise scaling alone cannot see (see `mellin_delta`'s parab_tol).
         rel = float(sig_e)/max(float(lam), 1e-3)
         bump = min(max(rel - 0.02, 0.0)*0.6, 0.04)
+        ptol = (None if parab_tol_min is None
+                else max(4.0*rel, float(parab_tol_min)))
         delta = mellin_delta(t, F, level=0.85, floor=0.09 + bump, cap=0.12 + bump,
-                             rel_noise=rel)
+                             rel_noise=rel, parab_tol=ptol)
     D = 2.0*np.pi*nu_dd                                 # w = D / r^3 (rad/us)
     w = D/r**3
     dr = float(r[1] - r[0]) if len(r) > 1 else 1.0
