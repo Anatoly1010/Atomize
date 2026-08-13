@@ -429,6 +429,20 @@ def _check_bg_start_periods(bg, r, P_density, min_periods=0.75, nu_dd=NU_DD):
     exceeds 0.018 nm at r <= 3.5 nm -- so this never fires on a routine 2-4 nm
     measurement.
 
+    KNOWN BLIND SPOT (measured, not theoretical): the reference distance is the
+    engine's OWN r_mean, and the failure this detects biases exactly that number
+    SHORT. A shorter r_mean means a shorter dipolar period, hence MORE periods,
+    hence a pass -- the detector is least sensitive precisely where the fit is
+    worst. Measured on a 5.5 nm synthetic at bg_start = 1.50 us: Mellin returns
+    4.598 nm (0.90 nm short) at 0.80 periods and is NOT flagged, while the joint
+    engine on the same trace is only 0.42 nm short, reports 0.60 periods, and IS.
+    Re-referencing to a fit-independent distance was tried and REJECTED: the
+    trace-supported cap 5*(Tmax/2)^(1/3) puts every one of 84 real engine results
+    below 0.75 periods, i.e. it flags everything (`~/deer_benchmark/s6q/
+    detectors.log`). Treat a pass as weak evidence and cross-check engines; a
+    non-circular reference needs the 1260-cell recalibration, not a swapped
+    denominator.
+
     Returns (flagged, periods, r_mean) with periods = bg_start / T_dd(r_mean).
     """
     try:
@@ -469,6 +483,65 @@ def _flag_bg_start_early(bg, r, P_density, nu_dd=NU_DD, min_periods=0.75):
             'lengthen the trace.'
             % (per, r_mean, min_periods*r_mean**3/nu_dd), RuntimeWarning, stacklevel=3)
     return early
+
+
+def _flag_not_deer_like(bg, lam=None, absF_max=1.2, lam_floor=LAM_MIN):
+    """Is this a DEER trace at all? Records two specific tells on `bg`.
+
+    Every engine happily returns a distance distribution for input that carries no
+    dipolar modulation -- a bare exponential, a linear ramp, pure noise. Measured:
+    V = exp(-0.35 t) with bg_engine='none' comes back as 3 Gaussians at a mean of
+    6.32 nm, a straight ramp as 6.75 nm, and pure noise as 1.63 nm. Nothing in the
+    result says the input was not a measurement.
+
+    `form_factor_implausible` -- a normalized form factor is bounded by F(0) = 1,
+    so |F| far above 1 means the background division blew up rather than that the
+    sample has a distance. `lambda_collapsed` -- essentially no modulation depth,
+    so there is nothing for a distance to be fitted to (the engines that PIN lambda
+    clamp it at LAM_MIN and also raise `lambda_clamped`; the multi-Gaussian engine
+    re-fits it free and can return 0.0000 with no other tell).
+
+    Both thresholds are set from the healthy range, not guessed: over 84 real
+    results (28 traces x 3 engines) max|F| spans 0.914-1.046 and lambda 0.224-0.505,
+    so 1.2 and LAM_MIN fire on 0/84 while the garbage cases above read 4.73 and
+    0.0000. See `~/deer_benchmark/s6q/detectors.log`.
+
+    On REAL data the work they do is catching `bg_engine='general'` collapsing:
+    its empirical g(t) needs a clean tail, and on 4 of 29 traces it swallowed the
+    modulation instead, reaching |F| = 1.33 / 4.25 / 13.1 / 18.4 with lambda at
+    0.040-0.258 of what the joint engine gets on the same trace (every other trace:
+    0.52-1.16, median 0.94). Those four were reported as ordinary distributions --
+    one of them 7.85 nm with half its mass on the grid edges.
+
+    They catch the LOUD failures only: pure noise trips both, and the bare
+    exponential trips `lambda_collapsed` under bg_engine='joint'. A smooth decay
+    that the background cannot absorb still passes -- the same exponential under
+    bg_engine='none' (lambda 0.560, |F| 1.003) and a linear ramp (0.318, 1.029)
+    are reported as 6-7 nm distributions with no flag. Catching those needs a
+    no-oscillation test on F, which a genuinely broad P(r) would also trip, so it
+    wants its own false-alarm measurement before it exists.
+    """
+    F = np.asarray(bg.get('form_factor', ()), float)
+    aF = float(np.max(np.abs(F))) if F.size else float('nan')
+    lam = float(bg.get('lambda', float('nan')) if lam is None else lam)
+    bad_F = bool(np.isfinite(aF) and aF > float(absF_max))
+    bad_lam = bool(np.isfinite(lam) and lam <= float(lam_floor))
+    bg['form_factor_absmax'] = aF
+    bg['form_factor_implausible'] = bad_F
+    bg['lambda_collapsed'] = bad_lam
+    if bad_F or bad_lam:
+        why = []
+        if bad_F:
+            why.append('the form factor reaches |F| = %.2f, but a normalized form '
+                       'factor is bounded by F(0) = 1' % aF)
+        if bad_lam:
+            why.append('the modulation depth is %.4f, i.e. there is no dipolar '
+                       'modulation to fit a distance to' % lam)
+        warnings.warn(
+            'DEER input does not look like a dipolar trace: ' + '; '.join(why)
+            + '. The reported P(r) is what the engine does with this input, not a '
+              'measured distance distribution.', RuntimeWarning, stacklevel=3)
+    return bad_F or bad_lam
 
 
 def _apply_alias_floor(t, r, clamp=True, nu_dd=NU_DD):
@@ -1053,6 +1126,7 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
     P_density = P_norm/dr
     P_lower, P_upper = tikhonov_ci(K, F, alpha, P, L=L, dr=dr)
     _flag_bg_start_early(bg, r, P_density, nu_dd=nu_dd)
+    _flag_not_deer_like(bg)
     return {'t': t, 'r': r, 'form_factor': F, 'F_fit': F_fit,
             'residuals': F - F_fit, 'P': P, 'P_norm': P_norm,
             'P_density': P_density, 'P_lower': P_lower, 'P_upper': P_upper,
@@ -1162,6 +1236,7 @@ def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     F_fit = K@P_masses                                 # the solved masses, as deer_invert
     P_lower, P_upper = tikhonov_ci(K, F, alpha_use, P_masses, L=L, dr=dr)
     _flag_bg_start_early(bg, r, P_norm/dr, nu_dd=nu_dd)
+    _flag_not_deer_like(bg)
     return {'t': t, 'r': r, 'form_factor': F, 'F_fit': F_fit,
             'residuals': F - F_fit, 'P': P_masses, 'P_norm': P_norm,
             'P_density': P_norm/dr, 'P_lower': P_lower, 'P_upper': P_upper,
@@ -2227,6 +2302,7 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         P_lower = P_density - ci_z*P_std                # signed band about the estimate
         P_upper = P_density + ci_z*P_std
     _flag_bg_start_early(bg, r, P_density, nu_dd=nu_dd)
+    _flag_not_deer_like(bg)
     return {'t': t, 'r': r, 'form_factor': F, 'F_fit': F_fit,
             'residuals': F - F_fit, 'P': masses, 'P_norm': masses,
             'P_density': P_density, 'P_lower': P_lower, 'P_upper': P_upper,
@@ -2335,8 +2411,8 @@ def _gauss_mc(t, V, r, K, F, bg, dr, rmin, rmax, s_lo, s_hi, npts, Ns, forced,
               ic_key, prune, _density, _criterion, _has_spurious, nu_dd,
               mc_trials, mc_tol, seed, ci_z, n_mc):
     """Dzuba/Matveeva multi-Gaussian fit, RANKED in the dipolar (Pake) frequency
-    domain (Dzuba, JMR 275 (2016) 1; Matveeva et al., Z. Phys. Chem. 231 (2017)
-    463). For each candidate N a modest number of RANDOM parameter sets
+    domain (Dzuba, J. Magn. Reson. 269 (2016) 113; Matveeva et al., Z. Phys. Chem.
+    231 (2017) 671). For each candidate N a modest number of RANDOM parameter sets
     (a_k in [0,1], r_k in [rmin,rmax], sigma_k in [s_lo,s_hi]) are drawn, and each
     is polished by a local least-squares fit against the TIME-DOMAIN form factor;
     the Pake-domain MSD then only ranks the polished candidates. The random starts
@@ -2575,8 +2651,9 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     free. `sigma_min` overrides the floor.
 
     `method` selects the solver. 'lsq' (default) is the gradient least-squares fit
-    described above. 'mc' is a Dzuba/Matveeva-style Monte-Carlo fit (Dzuba, JMR 275
-    (2016) 1; Matveeva et al., Z. Phys. Chem. 231 (2017) 463) carried out in the
+    described above. 'mc' is a Dzuba/Matveeva-style Monte-Carlo fit (Dzuba,
+    J. Magn. Reson. 269 (2016) 113; Matveeva et al., Z. Phys. Chem. 231 (2017)
+    671) carried out in the
     dipolar FREQUENCY (Pake) domain: stochastic multi-start (`mc_trials` random
     initial parameter sets, each locally polished) selected by the smallest Pake-
     spectrum MSD. The random starts dodge the floor-spike basin the gradient fit
@@ -2664,8 +2741,8 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     dr = float(r[1] - r[0]) if len(r) > 1 else 1.0
     rmin, rmax = float(r[0]), float(r[-1])
     # width bounds: the widest meaningful one spans the half-range. The LOWER
-    # bound regularizes via the distance-discretization length (Dzuba, JMR 275
-    # (2016) 1; Matveeva et al., Z. Phys. Chem. 231 (2017) 463) -- a component
+    # bound regularizes via the distance-discretization length (Dzuba, J. Magn.
+    # Reson. 269 (2016) 113; Matveeva et al., Z. Phys. Chem. 231 (2017) 671) -- a component
     # narrower than ~the resolvable distance step is unphysical and just over-
     # fits a noise wiggle as a near-delta spike. A floor of a few grid steps
     # (>= 0.05 nm, the practical PDS width resolution) blocks those spikes AND,
@@ -2915,6 +2992,7 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         # live in the 'lsq' tail have to be re-applied here or they vanish
         res['r_alias'] = float(r_alias)
         _flag_bg_start_early(bg, r, res['P_density'], nu_dd=nu_dd)
+        _flag_not_deer_like(bg, lam=res.get('lambda'))
         return res
     ic_key = ic if ic in ('aic', 'aicc', 'bic') else 'aicc'
     best = best_clean = None
@@ -3090,6 +3168,7 @@ def deer_invert_gauss(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
             P_lower = P_upper = P_std = None
 
     _flag_bg_start_early(bg, r, P_density, nu_dd=nu_dd)
+    _flag_not_deer_like(bg, lam=lam_fit)
     return {'t': t, 'r': r, 'form_factor': F, 'F_fit': F_fit,
             'residuals': F - F_fit, 'P': masses, 'P_norm': P_norm,
             'P_density': P_density, 'P_lower': P_lower, 'P_upper': P_upper,
