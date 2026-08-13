@@ -60,6 +60,13 @@ LAM_MIN = 0.02
 LAM_MAX = 1.0
 LAM_MAX_PINNED = 0.95
 
+# How far the Mellin forward fit may rise above its own t0 value before it counts
+# as the double hump the non-negative projection exists to prevent (F(0) = 1, so
+# this is 0.2%). Sized from the measured gap: the signed fit overshoots by at most
+# 0.0008 on 104 synthetic traces -- arithmetic, invisible -- while a real double
+# peak clears it several times over.
+FIT_PEAK_TOL = 2e-3
+
 
 def _require_scipy():
     """Lazily import scipy on first use and bind the symbols this module needs.
@@ -2143,11 +2150,12 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     used to be a fraction of the r range, which made the reported mean distance a
     function of the user's r_max (2.554 -> 3.170 nm on one trace over r_max 6 -> 20)
     and kept tapering into grids that already start above the unreliable region.
-    F_fit is the forward kernel applied to those same tapered masses, which is why
-    `signed_fit` reaches only the tau_max selector in that mode. With
-    `taper_short=False` the reported density is the raw signed one and F_fit follows
-    `signed_fit`: the clipped, low-r-tapered density (negatives would flip the t=0
-    curvature into a spurious double peak) or the signed one. kernel,
+    F_fit is the forward kernel applied to those same (tapered) masses, signed,
+    unless the signed fit would rise more than `FIT_PEAK_TOL` above its own zero
+    time -- the double hump a short-r negative mass can produce -- in which case it
+    falls back to the non-negative projection `_nonneg_cumulative`. `f_fit_signed`
+    reports which was used. `signed_fit` is a separate switch and reaches only the
+    tau_max selector. kernel,
     background, lambda / k / dim. Mellin-specific extras: engine='mellin', delta,
     tau_max, auto_taumax, sigma_fit, sigma_noise, neg_area, ci_kind, ci_unavailable,
     P_signed_density (== P_density, kept for back-compat), tau, V_image,
@@ -2272,10 +2280,9 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         amplitude faithfully (a whiter residual). Otherwise the clipped, low-r-
         tapered non-negative density is used (guards against a double-peaked echo
         top from a large short-r negative noise spike, e.g. low-lambda data).
-        Reached from the penalty selector's rmsF always, but from the reported
-        F_fit only when `taper_short` is OFF -- with the taper on (the default)
-        F_fit is K@masses of the tapered density, so `signed_fit` moves the tau_max
-        choice, not the displayed curve."""
+        Reached from the penalty selector's rmsF only: the reported F_fit is built
+        separately (signed, with a peak-at-t0 fallback), so `signed_fit` moves the
+        tau_max choice, not the displayed curve."""
         if signed_fit:
             m, _ = _masses(fr)
             return K@m
@@ -2357,16 +2364,27 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     f_disp = f_r*_fit_w if taper_short else f_r
     masses, P_density = _masses(f_disp)                  # signed density (displayed)
     # The reported density keeps every negative excursion (genuine short-r noise,
-    # and the diagnostic the overlay shows); the forward MODEL must not. Built from
-    # the non-negative projection, F_fit is a convex mixture of kernels, and since
-    # |K(t,r)| <= K(0,r) = 1 that guarantees F_fit(0) = max F_fit -- a form factor
-    # must peak at the zero time. Signed masses do not: a negative mass at short r
-    # subtracts |m| at t=0 but less at t>0 (its kernel decays fastest), so F_fit
-    # rises after t=0 and, the fit being even in t, renders as two humps straddling
-    # a dip at t0 -- on a third of noisy traces. This changes only the fit curve and
-    # the residual diagnostics derived from it, never the reported P(r).
-    masses_fit, _ = _masses(_nonneg_cumulative(f_disp))
+    # and the diagnostic the overlay shows). The forward MODEL only has to peak at
+    # the zero time -- a form factor does. The non-negative projection GUARANTEES
+    # that (F_fit is then a convex mixture of kernels and |K(t,r)| <= K(0,r) = 1),
+    # which is why it is the fallback, but it is sufficient rather than necessary
+    # and it is not free: deleting a genuine short-r negative removes mass whose
+    # kernel decays fastest, so the modelled echo top decays too fast and the fit
+    # sits BELOW the data across the head (measured +3.7 sigma over the first 50 ns
+    # on the YopO sample1_labB trace, against +0.5 for Tikhonov on the same F).
+    # So test the requirement instead of enforcing it: keep the honest signed fit
+    # while it peaks at t0, and project only when it would render the double hump
+    # straddling t0 that signed masses can produce on a noisy trace. Over 104
+    # synthetic traces the signed fit never overshoots by more than 0.0008; over
+    # the 28 real ones only 4 do at all, so the projection now costs its head bias
+    # on the traces that need it rather than on every trace.
+    masses_fit, _ = _masses(f_disp)
     F_fit = K@masses_fit
+    i_zero = int(np.argmin(np.abs(t)))
+    f_fit_signed = bool(F_fit.max() <= F_fit[i_zero] + FIT_PEAK_TOL)
+    if not f_fit_signed:
+        masses_fit, _ = _masses(_nonneg_cumulative(f_disp))
+        F_fit = K@masses_fit
 
     # discrepancy diagnostics (V space); see the docstring on sigma_noise
     vfit = B*((1 - lam) + lam*F_fit)
@@ -2419,7 +2437,7 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
             'P_density': P_density, 'P_lower': P_lower, 'P_upper': P_upper,
             'P_std': P_std, 'P_signed_density': P_density, 'kernel': K,
             'alpha': float('nan'), 'noise_level': float(sig_e_raw),
-            'r_alias': float(r_alias),
+            'r_alias': float(r_alias), 'f_fit_signed': f_fit_signed,
             'ci_kind': 'mc_fixed_bg', 'ci_unavailable': ci_unavailable,
             'l_curve': None, 'background': bg, 'lambda': bg['lambda'],
             'k': bg['k'], 'dim': bg['dim'], 'engine': 'mellin',
