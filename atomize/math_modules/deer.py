@@ -250,16 +250,38 @@ def background_general(t, V, bg_start, bg_end=None,
     `a` cancels in B = g/g(0), so b / c / d set the background SHAPE and `a` only
     its t=0 level (hence lambda); B(t) = exp(b*(t + c*(d^t - 1))) stays positive.
 
-    With `fit=True` (default) the four coefficients are fit on the tail; any of
-    a / b / c / d that are supplied are used as the initial guess. With `fit=False`
-    they are used DIRECTLY as the background (manual mode -- the GUI's hand-set
-    coefficients), no fitting. When fitting, `d` is constrained so the d^t term
-    retains >= 5% of its t=0 amplitude across the fit window (d^span >= 0.05):
-    otherwise c and d are unconstrained by the tail (where d^t has vanished) and
-    the fit is degenerate; a faster decay is not an intermolecular background
-    anyway. Time `t` is in microseconds, so the manual coefficients act on t in us.
-    Returns the same dict shape as `background_fit`, with k / dim = NaN and the
-    coefficients in `params` (a, b, c, d) and `model` = 'general'.
+    With `fit=False` the coefficients are used DIRECTLY as the background (manual
+    mode -- the GUI's hand-set values), no fitting. Time `t` is in microseconds, so
+    they act on t in us.
+
+    With `fit=True` (default) what gets fitted depends on whether the caller
+    asserts the d^t shape, because the tail window cannot determine it:
+
+      * neither `c` nor `d` given -- fit the IDENTIFIABLE two-parameter form
+        g = a*exp(b*t) (so c = 0, and `a` IS g(0), hence lambda directly);
+      * `c` or `d` given -- fit all four, seeded with whatever was supplied, with
+        `d` bounded so the d^t term keeps >= 5% of its t=0 amplitude across the
+        window. The caller is asserting a shape the data cannot supply.
+
+    Why: lambda = 1 - a*exp(b*c) is an EXTRAPOLATION to t = 0, but only the product
+    b*c reaches it and that product is fitted where d^t has already decayed to a few
+    percent. Measured over 28 real traces (`~/deer_benchmark/s6q/general_*.log`):
+    |corr(a, c)| median 0.986 with a covariance condition number of 2.9e23 (2.2e2
+    for the two-parameter form) -- numerically singular, about two determined
+    degrees of freedom out of four. Fitted c came back as -1.3e5 / -2.2e5 / -642
+    against b ~ -0.001, and on 13 of 28 traces the four-parameter fit did not
+    converge at all and silently fell back to its seed. Downstream, lambda moved by
+    >30% on 13/28 traces across five trace-trim settings (worst 3.6x), 15 of 140
+    trace x trim combinations collapsed onto the LAM_MIN clamp, and one trace's
+    reported distance flipped between 3.75 and 7.85 nm on two points of trim. The
+    two-parameter form over the same grid: 0/140 collapses, lambda spread median
+    0.008 (vs 0.276), within 20% of the joint engine on 133/140 (vs 81/140), and
+    r_mean agreeing with it to a median 0.004 nm.
+
+    Returns the same dict shape as `background_fit`, with k / dim = NaN, the
+    coefficients in `params` (a, b, c, d), `model` = 'general', `n_free` (2 or 4,
+    or 0 when `fit=False`) and `fit_failed` -- which also raises a RuntimeWarning,
+    since a failed fit and a good one used to be indistinguishable in this dict.
     """
     _require_scipy()
     t = np.asarray(t, dtype=float)
@@ -270,6 +292,8 @@ def background_general(t, V, bg_start, bg_end=None,
     mask = t >= bg_start
     if bg_end is not None:
         mask = mask & (t <= bg_end)
+    fit_failed = False
+    n_free = 0
 
     def _model(x, aa, bb, cc, dd):
         dd = min(max(float(dd), 1e-9), 1.0)
@@ -291,18 +315,39 @@ def background_general(t, V, bg_start, bg_end=None,
         b0 = float(b) if b is not None else b_lin
         c0 = float(c) if c is not None else 0.0
         d0 = float(np.clip(d if d is not None else np.sqrt(d_lo), d_lo, 1.0))
-        p0 = [a0, b0, c0, d0]
-        bounds = ([1e-9, -np.inf, -np.inf, d_lo], [np.inf, np.inf, np.inf, 1.0])
-        try:
-            popt, _ = curve_fit(_model, tt, vv, p0=p0, bounds=bounds, maxfev=10000)
-        except Exception:
-            popt = p0
-        af, bf, cf, df = (float(x) for x in popt)
+        # the d^t term is only identifiable if the caller asserts its shape
+        shape_given = (c is not None) or (d is not None)
+        if shape_given:
+            p0 = [a0, b0, c0, d0]
+            bounds = ([1e-9, -np.inf, -np.inf, d_lo], [np.inf, np.inf, np.inf, 1.0])
+            try:
+                popt, _ = curve_fit(_model, tt, vv, p0=p0, bounds=bounds, maxfev=10000)
+                af, bf, cf, df = (float(x) for x in popt)
+            except Exception:
+                af, bf, cf, df = p0
+                fit_failed = True
+        else:
+            try:
+                popt, _ = curve_fit(lambda x, aa, bb: aa*np.exp(bb*x), tt, vv,
+                                    p0=[a0, b0], maxfev=10000,
+                                    bounds=([1e-9, -np.inf], [np.inf, np.inf]))
+                af, bf = (float(x) for x in popt)
+            except Exception:
+                af, bf = a0, b0
+                fit_failed = True
+            cf, df = 0.0, d0
+        n_free = 4 if shape_given else 2
     else:                                              # manual: use the given coefficients
         af = 1.0 if a is None else float(a)
         bf = 0.0 if b is None else float(b)
         cf = 0.0 if c is None else float(c)
         df = float(np.clip(0.8 if d is None else float(d), 1e-6, 1.0))
+    if fit_failed:
+        warnings.warn(
+            'DEER general background: the coefficient fit did not converge, so the '
+            'seed values are reported as the background (a = %.4g, b = %.4g). The '
+            'result is not a fit to this trace.' % (af, bf),
+            RuntimeWarning, stacklevel=2)
     g = _model(t, af, bf, cf, df)                     # = (1-lambda)*B(t) baseline
     g0 = af*np.exp(bf*cf)                              # g(0): d^0 = 1
     lam = float(np.clip(1.0 - g0, LAM_MIN, LAM_MAX))
@@ -312,7 +357,9 @@ def background_general(t, V, bg_start, bg_end=None,
             'B': B, 'form_factor': F, 'V_norm': V, 't': t,
             'bg_start': float(bg_start),
             'bg_end': (None if bg_end is None else float(bg_end)), 'mask': mask,
-            'model': 'general', 'params': {'a': af, 'b': bf, 'c': cf, 'd': df}}
+            'model': 'general', 'n_free': int(n_free),
+            'fit_failed': bool(fit_failed),
+            'params': {'a': af, 'b': bf, 'c': cf, 'd': df}}
 
 
 # --------------------------------------------------------------------------- #
