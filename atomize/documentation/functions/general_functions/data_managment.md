@@ -59,6 +59,41 @@ This function opens a file with a single column array of values from 2D array. F
 
 ---
 
+### open_h5_axes(file_path) { #open_h5_axes data-toc-label="open_h5_axes" }
+
+```python
+open_h5_axes(file_path)    # -> { 't': numpy.array, 'sweep': numpy.array }
+```
+
+This function returns the axis datasets of an `.h5` file written with the `axes` argument of [save_data](#save_data). Only the axes actually present appear in the dictionary, so a file saved without them yields an empty one. The data itself is read separately, through `open_1d` or `open_2d`.
+
+| Argument    | Description |
+| ----------- | ----------- |
+| `file_path` | Path to file |
+
+---
+
+### open_h5_axis_units(file_path) { #open_h5_axis_units data-toc-label="open_h5_axis_units" }
+
+```python
+open_h5_axis_units(file_path)    # -> { 't': str, 'sweep': str }
+```
+
+This function returns the units stored beside those axes by the `axes_units` argument of [save_data](#save_data), keyed the same way. A file saved without them, or written by an earlier version, yields an empty dictionary; an axis vector holds only numbers, so a reader that wants to label it needs this.
+
+```python
+data = file_handler.open_2d(file_path)[1]
+axes = file_handler.open_h5_axes(file_path)
+units = file_handler.open_h5_axis_units(file_path)
+# axes['sweep'] in units.get('sweep', 'arb. u.')
+```
+
+| Argument    | Description |
+| ----------- | ----------- |
+| `file_path` | Path to file |
+
+---
+
 ### open_file_dialog(directory='') { #open_file_dialog data-toc-label="open_file_dialog" }
 
 ```python
@@ -114,10 +149,10 @@ This function saves the string given by argument `header` to the file with the p
 
 ---
 
-### save_data(file_path, data, header='', mode='w', axes=None, fmt='%.6e', dtype=None) { #save_data data-toc-label="save_data" }
+### save_data(file_path, data, header='', mode='w', axes=None, fmt='%.6e', dtype=None, axes_units=None) { #save_data data-toc-label="save_data" }
 
 ```python
-save_data(file_path, data, header='', mode='w', axes=None, fmt='%.6e', dtype=None)
+save_data(file_path, data, header='', mode='w', axes=None, fmt='%.6e', dtype=None, axes_units=None)
 ```
 
 This function saves the numpy array given by the argument `data` and the string given by argument `header` to the file with the path `file_path`. Argument `mode` allows choosing whether the file will be rewritten (`mode='w'`) or the data will be appended to the end of the file (`mode='a'`). Appending to an `.h5` file raises a `ValueError` rather than quietly rewriting it, since appending rows of text and growing a dataset are not the same operation.
@@ -135,6 +170,7 @@ file_handler.save_data(file_data, data, header=header, mode='w')
 | Argument | Description |
 | -------- | ----------- |
 | `axes`   | `(t, sweep)` pair of 1D arrays written as the axis datasets of an `.h5` file; ignored for CSV |
+| `axes_units` | `(t, sweep)` pair of unit strings, e.g. `('s', 'G')`, stored beside those datasets; ignored for CSV. An axis vector carries only numbers, so without this the unit of a stored axis is lost |
 | `fmt`    | Number format of the CSV columns; it also picks the HDF5 precision unless `dtype` is given |
 | `dtype`  | HDF5 data type; `None` derives it from `fmt`, so `'%.6e'` (7 significant digits) gives `float32` and anything wider gives `float64`. Pass `'float64'` to store the array exactly whatever the CSV format is |
 
@@ -149,14 +185,18 @@ example_2d.h5
 ├── attrs
 │   ├── header          str   exact header text as passed to save_data (no '# ')
 │   ├── format_version  int   1
-│   └── source          str   'atomize'
+│   ├── source          str   'atomize'
+│   ├── t_unit          str   unit of the t axis, only when axes_units is passed
+│   └── sweep_unit      str   unit of the sweep axis, only when axes_units is passed
 ├── I      float32  (npoints, nsamples)   same orientation as the CSV rows
 ├── Q      float32  (npoints, nsamples)   only when the source has a quadrature
 ├── t      float64  (nsamples,)           within-trace axis
 └── sweep  float64  (npoints,)            tau / field / amplitude axis
 ```
 
-The array is stored exactly as `np.savetxt()` would lay it out, so a 1D file is the same layout with one axis fewer and no separate concept: `save_data()` never has to guess what the array means, and `open_1d()` / `open_2d()` differ for HDF5 exactly as they differ for CSV. The `t` and `sweep` datasets are written only when `axes` is passed. A file written with per-scan snapshots carries one more dataset, `scans`, whose first axis is the scan number and whose slice `j - 1` is the cumulative average after scan `j`.
+The array is stored exactly as `np.savetxt()` would lay it out, so a 1D file is the same layout with one axis fewer and no separate concept: `save_data()` never has to guess what the array means, and `open_1d()` / `open_2d()` differ for HDF5 exactly as they differ for CSV. The `t` and `sweep` datasets are written only when `axes` is passed, and their `t_unit` / `sweep_unit` attributes only when `axes_units` is passed as well. A file written with per-scan snapshots carries one more dataset, `scans`, whose first axis is the scan number and whose slice `j - 1` is the cumulative average after scan `j`.
+
+An axis stored this way keeps its true origin, which a header cannot: a header line gives a step only, so a reader has to start the axis at zero. A field sweep written as an axis dataset comes back running from its real start field rather than from 0 G. This is why the control center windows that save 2D data pass both `axes` and `axes_units`.
 
 !!! note
     The default `float32` is not a loss against CSV: the default `'%.6e'` format writes 7 significant digits, which is the same precision band. Save with `dtype='float64'` (or a wider `fmt`) if a particular array needs more.

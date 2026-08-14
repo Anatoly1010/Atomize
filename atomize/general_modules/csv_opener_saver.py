@@ -148,7 +148,7 @@ class Saver_Opener():
             os.remove( filename )
 
     def save_data(self, filename, data, header = '', mode = 'w', axes = None,
-                  fmt = '%.6e', dtype = None):
+                  fmt = '%.6e', dtype = None, axes_units = None):
         if self.test_flag != 'test':
             if (filename != 'None') and (filename != ''):
                 if self._is_h5(filename):
@@ -156,7 +156,8 @@ class Saver_Opener():
                         raise ValueError("append mode is not supported for '.h5' files")
 
                     self._save_h5(filename, data, header = header, axes = axes,
-                                  dtype = dtype if dtype is not None else self._dtype_from_fmt(fmt))
+                                  dtype = dtype if dtype is not None else self._dtype_from_fmt(fmt),
+                                  axes_units = axes_units)
                     return
 
                 if len( data.shape ) == 2:
@@ -220,7 +221,8 @@ class Saver_Opener():
         file_for_save.attrs['format_version'] = 1
         file_for_save.attrs['source'] = 'atomize'
 
-    def _save_h5(self, filename, data, header = '', axes = None, dtype = 'float32'):
+    def _save_h5(self, filename, data, header = '', axes = None, dtype = 'float32',
+                 axes_units = None):
         h5py = self._h5py()
         data = np.asarray(data)
 
@@ -239,6 +241,13 @@ class Saver_Opener():
                 for name, axis in zip(('t', 'sweep'), axes):
                     if axis is not None:
                         file_for_save.create_dataset(name, data = np.asarray(axis, dtype = 'float64'))
+
+            # an axis vector carries no unit of its own; readers that know about
+            # these attributes can label it, the rest simply ignore them
+            if axes_units is not None:
+                for name, unit in zip(('t', 'sweep'), axes_units):
+                    if unit:
+                        file_for_save.attrs[name + '_unit'] = str(unit)
 
     def _open_h5(self, file_path, header = 0, scans = False):
         h5py = self._h5py()
@@ -274,6 +283,20 @@ class Saver_Opener():
                      if name in file_to_read }
 
         return axes
+
+    def open_h5_axis_units(self, file_path):
+        """
+        The units stored next to the t / sweep axes, as { name: unit }. Only
+        the ones actually present appear, so a file saved without them, or by
+        an older version, simply yields an empty dict.
+        """
+        h5py = self._h5py()
+
+        with h5py.File(file_path, 'r') as file_to_read:
+            units = { name: str(file_to_read.attrs[name + '_unit']) \
+                      for name in ('t', 'sweep') if (name + '_unit') in file_to_read.attrs }
+
+        return units
 
     def open_1d(self, file_path, header = 0):
         if self.test_flag != 'test':

@@ -67,6 +67,12 @@ LAM_MAX_PINNED = 0.95
 # peak clears it several times over.
 FIT_PEAK_TOL = 2e-3
 
+# Signed mass fraction of the extended Mellin density beyond the caller's r_max
+# above which `grid_truncated` fires (calibration in the deer_invert_mellin
+# docstring: healthy wide-grid traces sit within +-2e-3, and 4e-3 beyond the cut
+# already costs +8.8 sigma of coherent residual on the auto grid).
+MASS_OUTSIDE_TOL = 2e-3
+
 
 def _require_scipy():
     """Lazily import scipy on first use and bind the symbols this module needs.
@@ -1111,7 +1117,9 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
     always computed for display, even when an explicit `alpha` is given. Returns a dict:
     t, r, form_factor F(t), F_fit = K P, residuals, P (raw masses), P_norm
     (masses, sum = 1), P_density (P_norm / dr, integrates to 1), kernel, alpha,
-    l_curve (when scanned), background result, lambda / k / dim, and engine.
+    l_curve (when scanned), background result, lambda / k / dim, engine, and
+    `noise_level` -- the decayed-tail sigma of V, reported so the residual view can
+    draw a band and never fed back into the fit.
     """
     # coefficients for the 'general' background (a/b/c/d, fit flag); flows through
     # kwargs so deer_validate and the engine dispatch carry it transparently.
@@ -1187,6 +1195,7 @@ def deer_invert(t, V, r=None, bg_start=None, bg_end=None, dim=3.0, fit_dim=False
             'kernel': K, 'alpha': float(alpha), 'r_alias': float(r_alias), 'ci_kind': 'noise',
             'l_curve': lc, 'background': bg, 'lambda': bg['lambda'],
             'k': bg['k'], 'dim': bg['dim'],
+            'noise_level': float(_tail_noise(t, bg['V_norm'])),
             'engine': engine if engine in ('none', 'general') else 'sequential'}
 
 
@@ -1245,6 +1254,8 @@ def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     background's own reliability flags (`lambda_clamped`, `tail_abs_F`,
     `k_disagrees` -- see `joint_background`) are the ones to check before trusting
     lambda or a distance from this engine.
+
+    Returns `deer_invert`'s dict shape, `noise_level` included.
     """
     _require_scipy()
     t, V, _n_pre = _crop_pre_zero(t, V, policy=pre_zero)
@@ -1298,6 +1309,7 @@ def deer_invert_joint(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
             'ci_kind': 'noise_fixed_bg', 'echo_head': head,
             'r_alias': float(r_alias),
             'l_curve': lc, 'background': bg, 'lambda': lam,
+            'noise_level': float(_tail_noise(t, bg['V_norm'])),
             'k': float(k), 'dim': float(d), 'engine': 'joint'}
 
 
@@ -1850,14 +1862,28 @@ def residual_whiteness(resid, max_lag=None):
     """Residual-whiteness goodness-of-fit diagnostic (DeerLab-style).
 
     An adequate DEER fit leaves a WHITE (uncorrelated) residual; a structured,
-    *oscillating* residual is the hallmark of a distance distribution that has
-    not captured all the dipolar modulation -- typically an over-smoothed (too
-    broad) P(r) at an over-regularized cutoff, but also missing dipolar pathways
-    or orientation selection. Such model inadequacy shows up as autocorrelation
-    in the residual even when its amplitude already matches the noise level (so
-    the discrepancy principle alone cannot see it). See Edwards & Stoll, J. Magn.
-    Reson. 288 (2018) 58; Fabregas Ibanez et al., Magn. Reson. 1 (2020) 209
-    (DeerLab reports exactly this via the Durbin-Watson statistic).
+    *oscillating* residual is classically read as a distance distribution that has
+    not captured all the dipolar modulation -- an over-smoothed (too broad) P(r)
+    at an over-regularized cutoff, missing dipolar pathways, or orientation
+    selection. Such model inadequacy shows up as autocorrelation in the residual
+    even when its amplitude already matches the noise level (so the discrepancy
+    principle alone cannot see it). See Edwards & Stoll, J. Magn. Reson. 288
+    (2018) 58; Fabregas Ibanez et al., Magn. Reson. 1 (2020) 209 (DeerLab reports
+    exactly this via the Durbin-Watson statistic).
+
+    That reading is NOT the only one, and on a long trace it is usually the wrong
+    one: once the late part of the trace is noise-dominated, the fitted peak's own
+    dipolar frequency keeps ringing in the MODEL where the data no longer shows
+    it, and data-minus-model is coherent by construction with nothing inadequate
+    about the fit. Measured on the YopO ring-test `sample1_labB` at that lab's own
+    recipe, where the 4-12 MHz model amplitude is 1.6x the data's: raising alpha
+    32x moves it -14 % (and costs 18 % on the full-trace residual), broadening
+    P(r) by 0.35 nm moves it -25 % at 3x that cost, and the lab's whole background
+    validation grid (start 1/3-2/3 x dimension 2-3) moves it +-5 %. DeerLab 1.2
+    reproduces the same excess at 1.58x on the same trace, so it is not an
+    artifact of this implementation either. Before acting on a `structured`
+    verdict, check whether the data itself carries the line: past 2 us labB's does
+    not, at 0.32 sigma against a white-noise 95th percentile of 0.31.
 
     Returns a dict:
       durbin_watson : DW = sum (e_i - e_{i-1})^2 / sum e_i^2, in [0, 4]; ~2 = white,
@@ -2025,7 +2051,7 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                        n_mc=0, ci_z=1.96, seed=0,
                        taumax_method='penalty', wiener=0.0,
                        parab_tol_min=0.01,
-                       fit_rmin_abs=2.0, fit_rmin_width=0.5,
+                       fit_rmin_abs=2.1, fit_rmin_width=1.0,
                        signed_fit=True, taper_short=True, pre_zero='even_fold',
                        clamp_alias=True,
                        **_ignored):
@@ -2131,6 +2157,29 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     realizations: P_lower/P_upper = P_density -/+ ci_z*P_std (P_std also returned).
     ~100 realizations are typical.
 
+    The inversion runs on an INTERNAL distance grid extended above the caller's
+    r_max (same dr, out to r_max + max(10, 1.4*(r_max - r_min)) nm -- the measured
+    convergence point: half that leaves a third of the bias in the 0.5-2 us window
+    (median 1.51 vs 0.55 sigma-of-the-mean over the 28-trace corpus) while 1.5x it
+    changes nothing). The analytic
+    density is pointwise in r, but the area normalization and F_fit = K@masses are
+    grid-wide, so evaluating them on a truncated grid deletes whatever long-r mass
+    the inverse recovered and rescales the rest: F_fit decays too fast, running
+    coherently UNDER the data over the head and the first microsecond and over it
+    in the tail (median +9.6/+15.6 sigma-of-the-mean per residual window over the
+    28-trace YopO corpus at the GUI's auto r_max rule, against 0.8/1.7 with the
+    grid widened by 5 nm -- and 27/28 traces worse; Tikhonov absorbs the same cut
+    by least squares, so only this engine shows it). The tau_max selector scores
+    its rmsF and neg terms on the same extended grid, so the selected cutoff can
+    differ from a truncated-grid run where the truncation bias used to steer it.
+    The RETURNED P / P_norm / P_density (and the MC band) stay on the caller's r,
+    normalized over the caller's grid exactly as before; `mass_outside` reports
+    the signed area fraction of the extended density lying beyond the caller's
+    r_max, and `grid_truncated` fires above MASS_OUTSIDE_TOL (calibrated on that
+    corpus: wide-grid healthy traces stay within ~1e-3, while 4e-3 beyond the cut
+    already costs +8.8 sigma) -- it means the plot is missing mass the fit
+    includes, so r_max should be raised.
+
     Returns the same dict shape as `deer_invert` (so the GUI and exporters are
     shared): t, r, form_factor, F_fit (forward kernel applied to the recovered
     density), residuals, P / P_norm / P_density. The Mellin density is kept
@@ -2144,9 +2193,18 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     near t=0"), which also makes the F_fit echo top decay too fast; a raised cosine
     attenuates it without deleting a genuine short-r peak, and the area
     re-normalization returns the stolen area to the real peaks. Its window is
-    ABSOLUTE: it ramps from the grid bottom to at most `fit_rmin_abs` nm (the limit
-    below which a DEER distance is not meaningful anyway) over at most
-    `fit_rmin_width` nm, and vanishes on a grid starting above `fit_rmin_abs`. It
+    ABSOLUTE: it ramps from the grid bottom to at most `fit_rmin_abs` nm over at
+    most `fit_rmin_width` nm, and vanishes on a grid starting above
+    `fit_rmin_abs`. Neither is a minimum distance -- the grid bottom is, and P(r)
+    below `fit_rmin_abs` is attenuated rather than cut (a hard floor there is
+    measurably worse). `fit_rmin_abs` is CALIBRATION, not physics: 2.0 nm was
+    chosen as the limit below which a DEER distance is not meaningful anyway, and
+    2.1 is simply where the corpus puts it -- at 2.0 the modelled echo top runs
+    +0.32 sigma above the data, at 2.2 it overshoots to -0.51, and the crossing is
+    at 2.1, which also raises the synthetic overlap (0.8793 -> 0.8810, 142 of 156
+    rows better). 2.2 is the better overlap (0.8829) and the worse forward fit; the
+    echo-top bias decided it. `fit_rmin_width` only caps the ramp, so it has to
+    leave room for `fit_rmin_abs - r[0]` or the setting is inert. It
     used to be a fraction of the r range, which made the reported mean distance a
     function of the user's r_max (2.554 -> 3.170 nm on one trace over r_max 6 -> 20)
     and kept tapering into grids that already start above the unreliable region.
@@ -2157,7 +2215,8 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     reports which was used. `signed_fit` is a separate switch and reaches only the
     tau_max selector. kernel,
     background, lambda / k / dim. Mellin-specific extras: engine='mellin', delta,
-    tau_max, auto_taumax, sigma_fit, sigma_noise, neg_area, ci_kind, ci_unavailable,
+    tau_max, auto_taumax, sigma_fit, sigma_noise, neg_area, mass_outside,
+    grid_truncated, ci_kind, ci_unavailable,
     P_signed_density (== P_density, kept for back-compat), tau, V_image,
     kernel_image, n_mc. There is no covariance band when n_mc=0, and no L-curve, so
     P_lower / P_upper / l_curve are None then; `ci_unavailable` says why when a
@@ -2234,17 +2293,41 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         delta = mellin_delta(t, F, level=0.85, floor=0.09 + bump, cap=0.12 + bump,
                              rel_noise=rel, parab_tol=ptol)
     D = 2.0*np.pi*nu_dd                                 # w = D / r^3 (rad/us)
-    w = D/r**3
     dr = float(r[1] - r[0]) if len(r) > 1 else 1.0
-    K = dipolar_kernel(t, r, nu_dd=nu_dd)
+    # The caller's r_max is an ESTIMATOR parameter here, not a display window: the
+    # Mellin density is pointwise in r, but the area normalization and the forward
+    # fit F_fit = K@masses are grid-wide, so truncating the grid deletes long-r
+    # mass and rescales the rest -- F_fit then decays too fast and the fit runs
+    # coherently under the data (median +9.6/+15.6 sigma-of-the-mean over the
+    # 28-trace YopO corpus at the GUI's auto r_max; joint-like once widened). So
+    # the inversion, normalization, F_fit and the tau_max selector all work on an
+    # internal grid extended UPWARD with the same dr; only the RETURNED P stays on
+    # the caller's grid, normalized over it exactly as before. `mass_outside` /
+    # `grid_truncated` report how much recovered mass the caller's window cut off.
+    n_r = len(r)
+    _ext = max(10.0, 1.4*(r[-1] - r[0])) if n_r > 1 else 0.0
+    r_ext = np.concatenate([r, r[-1] + dr*np.arange(1, round(np.ceil(_ext/dr)) + 1)]) \
+        if _ext > 0 else r
+    w = D/r_ext**3
+    K_ext = dipolar_kernel(t, r_ext, nu_dd=nu_dd)
+    K = K_ext[:, :n_r]                                  # caller-grid kernel (returned)
     pos = t > 0
 
     def _masses(fr):
-        """Area-normalized signed density/masses -- the honest model-free Mellin
-        output, keeping the negative excursions (the propagated-noise signature)
-        instead of clipping them to zero. Normalized so the SIGNED density
-        integrates to 1, with a positive-area fallback if the signed area is
-        degenerate. Returns (masses, density)."""
+        """Area-normalized signed density/masses on the EXTENDED grid -- the honest
+        model-free Mellin output, keeping the negative excursions (the
+        propagated-noise signature) instead of clipping them to zero. Normalized so
+        the SIGNED density integrates to 1, with a positive-area fallback if the
+        signed area is degenerate. Returns (masses, density)."""
+        area = float(_trapz(fr, r_ext))
+        if not np.isfinite(area) or abs(area) < 1e-12:
+            area = float(_trapz(np.maximum(fr, 0.0), r_ext)) or 1.0
+        dens = fr/area
+        return dens*dr, dens
+
+    def _masses_disp(fr):
+        """Caller-grid twin of `_masses` for the RETURNED P: same normalization
+        convention as before the grid extension, so no downstream consumer moves."""
         area = float(_trapz(fr, r))
         if not np.isfinite(area) or abs(area) < 1e-12:
             area = float(_trapz(np.maximum(fr, 0.0), r)) or 1.0
@@ -2260,13 +2343,14 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         s = float(np.sum(m))
         return m/s if s > 0 else m
 
-    # low-r noise penalty over an ABSOLUTE window (see the docstring)
+    # low-r noise penalty over an ABSOLUTE window (see the docstring); identical
+    # on the caller's points and exactly 1.0 over the extended region
     _w_span = float(np.clip(float(fit_rmin_abs) - r[0], 0.0, float(fit_rmin_width)))
     if _w_span > 0.0:
-        _u = np.clip((r - r[0])/_w_span, 0.0, 1.0)
+        _u = np.clip((r_ext - r[0])/_w_span, 0.0, 1.0)
         _fit_w = 0.5*(1.0 - np.cos(np.pi*_u))
     else:
-        _fit_w = np.ones_like(r)
+        _fit_w = np.ones_like(r_ext)
 
     def _phys_fit(fr):
         """Non-negative density for F_fit, with the low-r taper applied."""
@@ -2285,8 +2369,8 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
         tau_max choice, not the displayed curve."""
         if signed_fit:
             m, _ = _masses(fr)
-            return K@m
-        return K@_phys_fit(fr)
+            return K_ext@m
+        return K_ext@_phys_fit(fr)
 
     def _build(tm, ntau):
         """Return a Mellin core inverter (F -> signed f(r)) for cutoff tm.
@@ -2317,7 +2401,7 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
                 Ptau = Vimg*np.conj(Phi_g)/(np.abs(Phi_g)**2 + eps)
             else:
                 Ptau = Vimg/Phi_g
-            return mellin_inverse(np.conj(Ptau), tau_g, w)*(3.0*D/r**4), Vimg
+            return mellin_inverse(np.conj(Ptau), tau_g, w)*(3.0*D/r_ext**4), Vimg
         return tau_g, Phi_g, inv
 
     def _ntau_for(tm):
@@ -2352,7 +2436,7 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
             rmsF[j] = (float(np.sqrt(np.mean((F - Ff_j)[pos]**2)))
                        if pos.any() else np.inf)
             _, dens_j = _masses(fr_j)                   # signed density
-            neg[j] = float(_trapz(np.abs(np.minimum(dens_j, 0.0)), r))
+            neg[j] = float(_trapz(np.abs(np.minimum(dens_j, 0.0)), r_ext))
         rmin = float(np.min(rmsF)) or 1.0
         tau_max = cands[int(np.argmin(rmsF/rmin + neg))]
         n_tau = _ntau_for(tau_max)
@@ -2362,7 +2446,11 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
 
     # short-r taper on the REPORTED density, not only on F_fit (see the docstring)
     f_disp = f_r*_fit_w if taper_short else f_r
-    masses, P_density = _masses(f_disp)                  # signed density (displayed)
+    masses, P_density = _masses_disp(f_disp[:n_r])       # signed density (displayed)
+    # recovered mass the caller's r_max cut off the PLOT (the fit keeps it)
+    _, _dens_ext = _masses(f_disp)
+    mass_outside = (float(_trapz(_dens_ext[n_r - 1:], r_ext[n_r - 1:]))
+                    if len(r_ext) > n_r else 0.0)
     # The reported density keeps every negative excursion (genuine short-r noise,
     # and the diagnostic the overlay shows). The forward MODEL only has to peak at
     # the zero time -- a form factor does. The non-negative projection GUARANTEES
@@ -2379,12 +2467,12 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     # the 28 real ones only 4 do at all, so the projection now costs its head bias
     # on the traces that need it rather than on every trace.
     masses_fit, _ = _masses(f_disp)
-    F_fit = K@masses_fit
+    F_fit = K_ext@masses_fit
     i_zero = int(np.argmin(np.abs(t)))
     f_fit_signed = bool(F_fit.max() <= F_fit[i_zero] + FIT_PEAK_TOL)
     if not f_fit_signed:
         masses_fit, _ = _masses(_nonneg_cumulative(f_disp))
-        F_fit = K@masses_fit
+        F_fit = K_ext@masses_fit
 
     # discrepancy diagnostics (V space); see the docstring on sigma_noise
     vfit = B*((1 - lam) + lam*F_fit)
@@ -2392,10 +2480,7 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
     tail = pos & (t > (t[pos][0] + 0.7*(t[-1] - t[pos][0]))) if pos.any() else pos
     sigma_noise = (float(np.std((Vn - vfit)[tail]))
                    if np.count_nonzero(tail) > 2 else float('nan'))
-    # residual-whiteness goodness-of-fit: a structured/oscillating residual flags
-    # an over-smoothed P(r) that has not captured all the dipolar modulation, even
-    # when sigma_fit already matches the noise floor (the discrepancy is blind to
-    # this). See residual_whiteness().
+    # residual whiteness; sigma_fit at the noise floor does not imply it
     whiteness = (residual_whiteness((Vn - vfit)[pos])
                  if pos.any() and np.count_nonzero(pos) >= 4 else None)
 
@@ -2425,7 +2510,7 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
             Vk = vfit + sig_e*rng.standard_normal(Vn.shape)   # add white electrical noise
             Fk = (Vk/B - (1 - lam))/lam                 # propagate (amplifies toward tail)
             fk, _ = _invert_F(Fk)
-            _, dk = _masses(fk*_fit_w if taper_short else fk)  # match the displayed taper
+            _, dk = _masses_disp((fk*_fit_w if taper_short else fk)[:n_r])
             ens[j] = dk
         P_std = ens.std(axis=0)
         P_lower = P_density - ci_z*P_std                # signed band about the estimate
@@ -2445,6 +2530,8 @@ def deer_invert_mellin(t, V, r=None, bg_start=None, bg_end=None, dim=3.0,
             'auto_taumax': bool(auto_taumax), 'sigma_fit': sigma_fit,
             'sigma_noise': sigma_noise, 'n_mc': int(n_mc),
             'neg_area': abs(float(_trapz(np.minimum(P_density, 0.0), r))),
+            'mass_outside': mass_outside,
+            'grid_truncated': bool(mass_outside > MASS_OUTSIDE_TOL),
             'tau': tau, 'V_image': Vimg, 'kernel_image': Phi,
             'whiteness': whiteness}
 
