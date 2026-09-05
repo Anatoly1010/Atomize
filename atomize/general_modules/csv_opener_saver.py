@@ -218,8 +218,41 @@ class Saver_Opener():
 
     def _write_h5_attrs(self, file_for_save, header):
         file_for_save.attrs['header'] = header
-        file_for_save.attrs['format_version'] = 1
+        file_for_save.attrs['format_version'] = 2
         file_for_save.attrs['source'] = 'atomize'
+
+        # the same header once more, as typed attributes a script can read directly
+        if 'params' in file_for_save:
+            del file_for_save['params']
+        params = file_for_save.create_group('params')
+        for name, (value, unit) in self._header_params(header).items():
+            params.attrs[name] = value
+            if unit:
+                params.attrs[name + '_unit'] = unit
+
+    def _header_params(self, header):
+        """
+        The 'Name: value unit' lines of a header as { name: (value, unit) }.
+        A value that parses as a number is a float, otherwise the text is kept
+        and the unit is ''. Parsing stops at the first '----' separator, where
+        the pulse lists start.
+        """
+        params = {}
+        for line in str(header).splitlines():
+            if line.startswith('----'):
+                break
+            if ':' not in line:
+                continue
+            name, value = ( part.strip() for part in line.split(':', 1) )
+            if not name or not value:
+                continue
+            number, _, unit = value.partition(' ')
+            try:
+                params[name] = ( float(number), unit.strip() )
+            except ValueError:
+                params[name] = ( value, '' )
+
+        return params
 
     def _save_h5(self, filename, data, header = '', axes = None, dtype = 'float32',
                  axes_units = None):
@@ -283,6 +316,39 @@ class Saver_Opener():
                      if name in file_to_read }
 
         return axes
+
+    def open_h5_params(self, file_path):
+        """
+        The header parameters of an .h5 file as { name: value }: a float for
+        every 'Name: value unit' line whose value is a number, the text
+        otherwise. A file written before these were stored yields an empty dict.
+        """
+        h5py = self._h5py()
+
+        with h5py.File(file_path, 'r') as file_to_read:
+            if 'params' not in file_to_read:
+                return {}
+            attrs = file_to_read['params'].attrs
+            params = { name: ( float(attrs[name]) if isinstance(attrs[name], np.floating) \
+                               else str(attrs[name]) ) \
+                       for name in attrs if not name.endswith('_unit') }
+
+        return params
+
+    def open_h5_param_units(self, file_path):
+        """
+        The units stored next to those parameters, as { name: unit }; only the
+        parameters that carried one appear.
+        """
+        h5py = self._h5py()
+
+        with h5py.File(file_path, 'r') as file_to_read:
+            if 'params' not in file_to_read:
+                return {}
+            attrs = file_to_read['params'].attrs
+            units = { name[:-5]: str(attrs[name]) for name in attrs if name.endswith('_unit') }
+
+        return units
 
     def open_h5_axis_units(self, file_path):
         """
