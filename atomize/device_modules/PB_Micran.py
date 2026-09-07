@@ -96,8 +96,8 @@ class PB_Micran:
         # combination of rect_awg_delay and protect_awg_delay is used
 
         assert( (self.switch_protect_delay - self.switch_delay) * self.timebase > 80 ), f'(LNA - HPA) should be more than {80} ns'
-        assert( (self.protect_delay - self.amp_delay) * self.timebase > 220 ), f'(LNA - HPA) should be more than {220} ns'
-        assert( (self.protect_awg_delay - self.amp_delay) * self.timebase > 220 ), f'(LNA - HPA) should be more than {220} ns'
+        assert( (self.protect_delay - self.amp_delay) * self.timebase >= 180 ), f'(LNA - HPA) should be more than {180} ns'
+        assert( (self.protect_awg_delay - self.amp_delay) * self.timebase >= 180 ), f'(LNA - HPA) should be more than {180} ns'
         self.internal_pause = '0 us'
 
         # interval that shift the first pulse in the sequence
