@@ -1,128 +1,135 @@
-# Atomize - Split your spectrometer apart!
-![](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/logoAtomize.png)<br/>
-Atomize is a modular software designed to control a wide range of scientific and industrial instruments, integrate them into a unified multifunctional setup, and automate routine experimental work.<br/>
-The general idea is close to [FSC2 software](http://users.physik.fu-berlin.de/~jtt/fsc2.phtml) developed by Jens Thomas Törring.<br/>
-Remote control of spectrometers is usually carried out using home-written programs, which are often restricted to doing a certain experiment with a specific set of devices. In contrast, the programs like [FSC2](http://users.physik.fu-berlin.de/~jtt/fsc2.phtml) and [Atomize](https://github.com/Anatoly1010/Atomize) are much more flexible, since they are based on a modular approach for communication with device and scripting language (EDL in FSC2; Python in Atomize) for data measuring.
+<p align="center">
+  <img src="https://github.com/Anatoly1010/Atomize/blob/master/screenshots/logoAtomize.png" alt="Atomize" width="360">
+</p>
 
-Atomize[^1] uses [liveplot library](https://github.com/PhilReinhold/liveplot) based on pyqtgraph as a main graphics library. [Liveplot](https://github.com/PhilReinhold/liveplot) was originally developed by Phil Reinhold. Since then, several improvements have been made to use it in Atomize, and it has been directly embedded into Atomize.
+<h1 align="center">Atomize</h1>
 
-[Python Programming Language](https://www.python.org/) is used inside experimental scripts, which opens up almost unlimited possibilities for raw experimental data treatment. In addition, with PyQt, one can create experimental scripts with a simple graphical interface, allowing users not familiar with Python to use it. Several examples of scripts (with dummy data) are provided in the /atomize/tests/ directory, including a GUI script with extended comments inside. Also a variant of the Atomize with GUI Control Window extension can be found [here.](https://github.com/Anatoly1010/Atomize_NIOCH)<br/>
+<p align="center">
+  <a href="https://pypi.org/project/atomize-py/"><img src="https://img.shields.io/pypi/v/atomize-py?label=PyPI" alt="PyPI"></a>
+  <a href="https://pypi.org/project/atomize-py/"><img src="https://img.shields.io/pypi/pyversions/atomize-py" alt="Python"></a>
+  <a href="https://anatoly1010.github.io/atomize_docs/"><img src="https://img.shields.io/badge/docs-atomize__docs-blue" alt="Documentation"></a>
+  <a href="https://doi.org/10.5334/jors.594"><img src="https://img.shields.io/badge/DOI-10.5334%2Fjors.594-orange" alt="DOI"></a>
+  <a href="license.md"><img src="https://img.shields.io/github/license/Anatoly1010/Atomize" alt="License"></a>
+</p>
 
-Currently there are more than 200 device specific and general functions available for over 27 different devices, including 6 series of devices. If you would like to write a module for the device that is not currently available, please, read this short [instruction.](https://anatoly1010.github.io/atomize_docs/pages/writing_modules.html)
+Atomize is a modular software for controlling scientific and industrial instruments, combining them into a unified multifunctional setup, and automating routine experimental work. Experiments are ordinary Python scripts: they import an instrument module, call its functions, and push the data to a live plot.
 
-## Documentation and Available Instruments
+The idea follows [FSC2](http://users.physik.fu-berlin.de/~jtt/fsc2.phtml) by Jens Thomas Törring. Home-written control programs are usually locked to one experiment and one set of devices. Atomize and FSC2 separate the two: instrument communication lives in modules, and the experiment lives in a script (EDL in FSC2, Python in Atomize).
 
-[Detailed documentation](https://anatoly1010.github.io/atomize_docs/)<br/>
-[Available instruments](https://anatoly1010.github.io/atomize_docs/pages/instruments.html)
+- **55+ instruments** across 19 categories: oscilloscopes, digitizers, AWGs, pulse programmers, lock-ins, temperature and field controllers, microwave bridges, and more. See the [full list](https://anatoly1010.github.io/atomize_docs/instruments/).
+- **Python scripting** with NumPy on hand for raw-data treatment; PyQt is available for scripts that need their own small GUI.
+- **Live plotting** built on [liveplot](https://github.com/PhilReinhold/liveplot) by Phil Reinhold, embedded and extended on top of pyqtgraph: 1D and 2D plots, cross-sections, cursors, fitting.
+- **Math modules** for fitting, FFT and phase correction, and signal processing.
+- **Test mode** runs any script end to end without hardware, validating the arguments on the way.
+- **Extendable.** A new instrument is one module plus one config file; see [writing modules](https://anatoly1010.github.io/atomize_docs/writing_modules/).
 
-## Status
+An extended variant with a GUI control window for a pulsed EPR endstation lives in [Atomize_ITC](https://github.com/Anatoly1010/Atomize_ITC).
 
-At the moment, Atomize has been tested and is currently used for controlling several EPR spectrometers using a broad range of different devices. The program has been tested on Ubuntu 18.04 LTS, 20.04 LTS, and 22.04 LTS.
+## Installation
 
-## Requirements
-- [Python >= 3.9](https://www.python.org/)
-- [Numpy >= 1.25](https://numpy.org/)
-- [PyQt6 >= 6.2](http://www.riverbankcomputing.com/software/pyqt/download)
-- [pyqtgraph >= 0.12](http://www.pyqtgraph.org)
-- [PyVisa >= 1.11](https://pyvisa.readthedocs.io/en/latest/)
-- [PyVisa-py >= 0.5](https://github.com/pyvisa/pyvisa-py)
-- [platformdirs >= 4.5](https://pypi.org/project/platformdirs/)
-- [hatchling >= 1.9 ](https://pypi.org/project/hatchling/)<br/>
-Optional:
-- [PySerial;](https://pypi.org/project/pyserial/) for serial instruments
-- [Minimalmodbus;](https://minimalmodbus.readthedocs.io/en/stable/index.html) for Modbus instruments
-- [SciPy;](https://scipy.org/) for mathematical modules
-- [GPIB driver;](https://linux-gpib.sourceforge.io/) for GPIB devices
-- [Telegram bot API;](https://github.com/eternnoir/pyTelegramBotAPI) for Telegram bot messages
-- [SpinAPI;](http://www.spincore.com/support/spinapi/) for Pulse Blaster ESR 500 Pro
-- [Spcm driver;](https://spectrum-instrumentation.com/en/m4i4450-x8) for Spectrum M4I 6631 X8; M4I 4450 X8
+```bash
+pip install atomize-py
+atomize
+```
 
-## Usage
+Optional extras:
 
-### 1. Installation
+| Extra    | Installs           | Needed for                       |
+| -------- | ------------------ | -------------------------------- |
+| `serial` | pyserial           | RS-232 instruments               |
+| `modbus` | minimalmodbus      | Modbus instruments               |
+| `math`   | SciPy              | math modules                     |
+| `bots`   | pyTelegramBotAPI   | Telegram notifications           |
+| `test`   | pytest             | the test suite                   |
 
-Install from PyPi:
+```bash
+pip install "atomize-py[serial,modbus,math]"
+```
 
-	pip3 install atomize-py
+Some instruments also need a vendor driver: [linux-gpib](https://linux-gpib.sourceforge.io/) for GPIB, [SpinAPI](http://www.spincore.com/support/spinapi/) for Pulse Blaster ESR 500 Pro, [Spcm](https://spectrum-instrumentation.com/en/m4i4450-x8) for Spectrum M4I cards. Full details are in the [requirements](https://anatoly1010.github.io/atomize_docs/requirements/).
 
-Run GUI from terminal:
+Atomize needs Python 3.10 or newer. It is used daily on several EPR spectrometers and has been tested on Ubuntu 18.04, 20.04 and 22.04 and on Windows 10.
 
-	atomize
+## Configuration
 
-### 2. General Configuration
+On start, Atomize prints where its files are:
 
-In the terminal where you launched Atomize, the paths to the configuration files and some other details are displayed as follows:
-```yml
+```
 SYSTEM: Linux
-DATA DIRECTORY: /path/to/experimental/data/to/open/
-SCRIPTS DIRECTORY: /path/to/atomize/scripts/
-MAIN CONFIG PATH: ~/.config/atomize-py/
+DATA DIRECTORY: /path/to/experimental/data/
+SCRIPTS DIRECTORY: /path/to/scripts/
+MAIN CONFIG PATH: ~/.config/atomize-py/main_config.ini
 DEVICE CONFIG DIRECTORY: ~/.config/atomize-py/device_config/
-EDITOR: text editor used for editing scripts
+EDITOR: nano
 ```
-The "MAIN CONFIG PATH" shows a path to a general configuration file with the name main_config.ini. It should be changed at will according to the description below:
-```yml
+
+Edit `main_config.ini` to set the text editor, the default data and script directories, and the Telegram bot credentials:
+
+```ini
 [DEFAULT]
-# configure the text editor that will opened when the Edit  button is pressed.
-# "EDITOR":
-editor = subl # Linux
-editorW = /path/to/text_editor/on/Windows/  # Windows
-
-# configure the directory that will opened when Open 1D Data or Open 2D Data
-# feature is used in the Liveplot tab. 
-# "DATA DIRECTORY":
-open_dir = /path/to/experimental/data/to/open/
-
-# configure the directory that will be opened when the Open Script button is pressed:
-# "SCRIPTS DIRECTORY":
-script_dir = /path/to/atomize/scripts/
-
-# configure Telegram bot
-telegram_bot_token = 
-message_id = 
+editor = subl                      # Linux
+editorW = C:\path\to\editor.exe    # Windows
+open_dir = /path/to/experimental/data/
+script_dir = /path/to/scripts/
+telegram_bot_token =
+message_id =
 ```
 
-### 3. Using Instrument Modules
+Each instrument has its own config file in the device config directory. Pick the protocol (GPIB, RS-232, Ethernet, Modbus) and fill in the address and settings of your device, as described in [protocol settings](https://anatoly1010.github.io/atomize_docs/protocol_settings/).
 
-To communicate with a device one should:
-1) Modify the config file located in "DEVICE CONFIG DIRECTORY" of the desired device accordingly. Choose the desired protocol (rs-232, gpib, ethernet, etc.) and correct the settings of the specified protocol in accordance with device settings. A little bit more detailed information about protocol settings can be found [here.](https://github.com/Anatoly1010/Atomize/blob/master/atomize/documentation/protocol_settings.md)
-2) Import the module or modules in your script and initialize the appropriate class. A class always
-has the same name as the module file. Initialization connect the desired device, if the settings are correct.
+## Writing an experiment
+
+Import a module, create its class (always named after the module file), and call its functions. Creating the class connects to the instrument.
+
 ```python
-# importing of the instruments
+import numpy as np
 import atomize.device_modules.Keysight_3000_Xseries as keys
-import atomize.device_modules.Lakeshore331 as tc
-
-# initialization of the instruments
-dsox3034t = keys.Keysight_3000_Xseries()
-lakeshore331 = tc.Lakeshore331()
-
-# using the instruments
-name_oscilloscope = dsox3034t.oscilloscope_name()
-temperature = lakeshore331.tc_temperature('CH A')
-```
-The same idea is valid for plotting and file handling modules.
-```python
-# importing of the general purpose modules
+import atomize.device_modules.Lakeshore_331 as tc
 import atomize.general_modules.general_functions as general
-import atomize.general_modules.csv_opener_saver_tk_kinter as openfile
+import atomize.general_modules.csv_opener_saver as openfile
 
-# initialization
+scope = keys.Keysight_3000_Xseries()
+lakeshore = tc.Lakeshore_331()
 file_handler = openfile.Saver_Opener()
-head, data = file_handler.open_1D_dialog(header = 0)
 
-# using
-general.plot_1d('1D Plot', data[0], data[1], label = 'test_data', yname = 'Y axis', yscale = 'V')
+general.message(scope.oscilloscope_name())
+temperature = lakeshore.tc_temperature('A')
+
+y = scope.oscilloscope_get_curve('CH1')
+x = np.arange(len(y))
+general.plot_1d('Trace', x, y, xname = 'Point', yname = 'Signal', yscale = 'V')
+file_handler.save_data('trace.csv', np.c_[x, y], header = f'T = {temperature} K')
 ```
 
-### 4. Experimental Scripts
+More examples with dummy data, including a script with its own GUI, are in [`atomize/script_examples/`](atomize/script_examples). The [usage guide](https://anatoly1010.github.io/atomize_docs/usage/) covers the main window, live plotting, test mode, and data files.
 
-Python is used to write an experimental script. Examples (with dummy data) can be found in the
-"SCRIPTS DIRECTORY".
+## Documentation
+
+- [Documentation site](https://anatoly1010.github.io/atomize_docs/)
+- [Available instruments](https://anatoly1010.github.io/atomize_docs/instruments/)
+- [Protocol settings](https://anatoly1010.github.io/atomize_docs/protocol_settings/)
+- [Writing modules](https://anatoly1010.github.io/atomize_docs/writing_modules/)
+
+## Citing
+
+If you use Atomize, please cite the [JORS paper](https://doi.org/10.5334/jors.594):
+
+> Melnikov A., Vedkal A., Ishchenko A., Veber S. *Atomize: A Modular Software for Control and Automation of Scientific and Industrial Instruments.* Journal of Open Research Software, 13(1), 26 (2025). DOI: [10.5334/jors.594](https://doi.org/10.5334/jors.594)
 
 ## Screenshots
-![](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot.png)
-![](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot2.png)
-![](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot3.png)
 
-[^1]: Atomize = A + TOM + ize; A stands for Anatoly, main developer; TOMo stands for the International TOMography center, our organization
+Main window with the script editor, output log and queue:
+
+![Main window](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot.png)
+
+Live 2D plot of a time-resolved EPR experiment (field versus time):
+
+![2D live plot](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot2.png)
+
+Live 1D plot of a CW EPR spectrum accumulated over scans:
+
+![1D live plot](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot3.png)
+
+---
+
+<sub>Atomize = A + TOM + ize. A stands for Anatoly, the main developer; TOM for the International TOMography Center, our organization.</sub>
