@@ -52,11 +52,17 @@ def load_scripts(src):
     app_name = "atomize-py"
     config_dir = os.path.join( get_user_documents_dir(), app_name, "default" )
 
+    # the shipped example scripts live in script_examples/ here, tests/ in the forks
+    if not os.path.isdir(src):
+        src = os.path.join( os.path.dirname(src), 'script_examples' )
+
     # Ensure config directory exists
     if not os.path.exists(config_dir) or not os.listdir(config_dir):
         try:
             shutil.copytree(src, config_dir, dirs_exist_ok = True)
         except PermissionError:
             print("During copying configs file the error occures: Permission denied.")
+        except FileNotFoundError:
+            print(f"During copying configs file the error occures: {src} not found.")
 
-    return  os.path.join( config_dir, '..')
+    return os.path.normpath( os.path.join( config_dir, '..') )
