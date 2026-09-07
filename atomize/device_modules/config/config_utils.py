@@ -1,15 +1,38 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import os
 import configparser
 from pyvisa.constants import StopBits, Parity
 import atomize.general_modules.general_functions as general
+
+def config_path(config_dir, name, legacy = None):
+    """Path to a device *_config.ini inside the user config directory.
+
+    Device modules name their config after the module itself, so a module
+    covering a whole instrument series is not tied to one model. ``legacy`` is
+    the historical, instrument-named file: installations made before the rename
+    still hold only that one, and copy_config never re-copies into a config
+    directory that already exists, so the old name has to keep working
+    indefinitely. The new name wins when both are present.
+    """
+    path = os.path.join(config_dir, name)
+    if legacy:
+        old = os.path.join(config_dir, legacy)
+        if os.path.exists(old):
+            if not os.path.exists(path):
+                return old
+            # message() is silent in test mode and message_test() outside it
+            general.message(f'Both {name} and {legacy} exist; using {name}.')
+            general.message_test(f'Both {name} and {legacy} exist; using {name}.')
+    return path
 
 # read config data
 def read_conf_util(path_config_file):
     # getting config data
     config = configparser.ConfigParser()
-    config.read(path_config_file)
+    if not config.read(path_config_file):
+        raise FileNotFoundError(path_config_file)
 
     gpib_timeout_list = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100, 300, 1000, 3000, 10000, 30000, 100000, 300000, 1000000]
 
@@ -109,7 +132,8 @@ def read_conf_util(path_config_file):
 
 def read_specific_parameters(path_config_file):
     config = configparser.ConfigParser()
-    config.read(path_config_file)
+    if not config.read(path_config_file):
+        raise FileNotFoundError(path_config_file)
 
     # loading configuration parameters
     specific_parameters = dict(config.items('SPECIFIC'))
@@ -119,7 +143,8 @@ def read_modbus_parameters(path_config_file):
     import minimalmodbus
 
     config = configparser.ConfigParser()
-    config.read(path_config_file)
+    if not config.read(path_config_file):
+        raise FileNotFoundError(path_config_file)
 
     # loading configuration parameters
     mode = config['MODBUS']['mode']

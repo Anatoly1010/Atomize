@@ -12,13 +12,16 @@ import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
 
 class Rigol_MSO8000_Series:
+    config_file = 'Rigol_MSO8000_Series_config.ini'
+
     #### Basic interaction functions
     def __init__(self):
 
         #### Inizialization
         # setting path to *.ini file
         self.path_current_directory = lconf.load_config_device()
-        self.path_config_file = os.path.join(self.path_current_directory, 'Rigol_mso8104_config.ini')
+        self.path_config_file = cutil.config_path(self.path_current_directory,
+                            self.config_file, legacy = 'Rigol_mso8104_config.ini')
 
         # configuration data
         self.config = cutil.read_conf_util(self.path_config_file)
