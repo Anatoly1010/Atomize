@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/Anatoly1010/Atomize/blob/master/screenshots/logoAtomize.png" alt="Atomize" width="360">
+  <img src="screenshots/logoAtomize.png" alt="Atomize" width="360">
 </p>
 
 <h1 align="center">Atomize</h1>
@@ -120,15 +120,15 @@ If you use Atomize, please cite the [JORS paper](https://doi.org/10.5334/jors.59
 
 Main window with the script editor, output log and queue:
 
-![Main window](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot.png)
+![Main window](screenshots/screenshot.png)
 
 Live 2D plot of a time-resolved EPR experiment (field versus time):
 
-![2D live plot](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot2.png)
+![2D live plot](screenshots/screenshot2.png)
 
 Live 1D plot of a CW EPR spectrum accumulated over scans:
 
-![1D live plot](https://github.com/Anatoly1010/Atomize/blob/master/screenshots/screenshot3.png)
+![1D live plot](screenshots/screenshot3.png)
 
 ---
 
