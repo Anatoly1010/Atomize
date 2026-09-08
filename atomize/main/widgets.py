@@ -2500,7 +2500,7 @@ class CrossSectionDock(CloseableDock):
             x_parsed = si_cursor_label(view_x, self.label_x)
             z_parsed = si_cursor_label(z_val, self.label_z)
 
-            label_text = f"X: {x_parsed} ({(self.y_cross_index+1):.0f})\nY: {y_parsed} ({(self.x_cross_index+1):.0f})\nZ: {z_parsed}"
+            label_text = f"X: {x_parsed} ({(self.x_cross_index+1):.0f})\nY: {y_parsed} ({(self.y_cross_index+1):.0f})\nZ: {z_parsed}"
             self.cursor_label.setText(label_text)
 
     def update_cross_section_set_data(self):
@@ -2531,8 +2531,8 @@ class CrossSectionDock(CloseableDock):
             y_parsed = si_cursor_label(ydata[self.y_cross_index], self.label_y)
             z_parsed = si_cursor_label(zval, self.label_z)
             self.cursor_label.setText(
-                f"X: {x_parsed} ({(self.y_cross_index+1):.0f})\n"
-                f"Y: {y_parsed} ({(self.x_cross_index+1):.0f})\nZ: {z_parsed}")
+                f"X: {x_parsed} ({(self.x_cross_index+1):.0f})\n"
+                f"Y: {y_parsed} ({(self.y_cross_index+1):.0f})\nZ: {z_parsed}")
             # section-plot crosshair labels + marker lines
             self.update_cross_section()
 
@@ -2616,7 +2616,7 @@ class CrossSectionDock(CloseableDock):
             x_parsed = si_cursor_label(xdata[self.x_cross_index], self.label_x)
             z_parsed = si_cursor_label(zval, self.label_z)
 
-            label_text = f"X: {x_parsed} ({(self.y_cross_index+1):.0f})\nY: {y_parsed} ({(self.x_cross_index+1):.0f})\nZ: {z_parsed}"
+            label_text = f"X: {x_parsed} ({(self.x_cross_index+1):.0f})\nY: {y_parsed} ({(self.y_cross_index+1):.0f})\nZ: {z_parsed}"
             #label_text = f"Y: {ydata[self.y_cross_index]:.4g}\nZ: {zval:.4g}\nPoint: {(self.x_cross_index+1):.0f}"
             
             self.v_cross_section_widget.cursor_label.setText(label_text)
@@ -2689,7 +2689,7 @@ class CrossSectionDock(CloseableDock):
             x_parsed = si_cursor_label(xdata[self.x_cross_index], self.label_x)
             z_parsed = si_cursor_label(zval, self.label_z)
 
-            label_text = f"X: {x_parsed} ({(self.y_cross_index+1):.0f})\nY: {y_parsed} ({(self.x_cross_index+1):.0f})\nZ: {z_parsed}"
+            label_text = f"X: {x_parsed} ({(self.x_cross_index+1):.0f})\nY: {y_parsed} ({(self.y_cross_index+1):.0f})\nZ: {z_parsed}"
             #f"X: {xdata[self.x_cross_index]:.4g}\nZ: {zval:.4g}\nPoint: {(self.y_cross_index+1):.0f}"
 
             self.h_cross_section_widget.cursor_label.setText(label_text)
