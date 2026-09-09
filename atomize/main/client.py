@@ -11,6 +11,9 @@ from PyQt6.QtCore import QCoreApplication, QSharedMemory
 
 logging.root.setLevel(logging.WARNING)
 
+# fixed size of one meta header frame on the LivePlot socket
+META_SIZE = 512
+
 class LivePlotClient(object):
     
     def __init__(self, timeout=2000, size=2**28):
@@ -136,19 +139,19 @@ class LivePlotClient(object):
         meta_json = json.dumps(meta).encode('utf-8')
         # The descriptive label ('value') is the only user-controlled
         # variable-length field. update_z carries extra 'index'/'full_shape'
-        # keys, so it has less headroom under the fixed 320-byte cap than
+        # keys, so it has less headroom under the fixed META_SIZE cap than
         # plot_z; trim the label to fit rather than raising, since _safe_call
         # would otherwise swallow the error into a repeated 'plot failed' log
         # line and freeze the live plot for the rest of the run.
-        if len(meta_json) > 320 and isinstance(meta.get('value'), str) and meta['value']:
+        if len(meta_json) > META_SIZE and isinstance(meta.get('value'), str) and meta['value']:
             meta = dict(meta)
-            while len(meta_json) > 320 and meta['value']:
-                meta['value'] = meta['value'][:-(len(meta_json) - 320)]
+            while len(meta_json) > META_SIZE and meta['value']:
+                meta['value'] = meta['value'][:-(len(meta_json) - META_SIZE)]
                 meta_json = json.dumps(meta).encode('utf-8')
-        if len(meta_json) > 320:
-            raise ValueError("meta object is too large (> 320 char)")
+        if len(meta_json) > META_SIZE:
+            raise ValueError("meta object is too large (%d > %d bytes): %s" % (len(meta_json), META_SIZE, meta_json[:80]))
 
-        meta_bytes = meta_json.ljust(320, b' ') 
+        meta_bytes = meta_json.ljust(META_SIZE, b' ')
 
         self.sock.write(meta_bytes)
         self.sock.flush()

@@ -27,6 +27,7 @@ from PyQt6.QtNetwork import QLocalServer
 from PyQt6 import QtCore, QtGui
 from pyqtgraph.dockarea import DockArea
 import atomize.main.queue as queue
+from atomize.main.client import META_SIZE
 import atomize.main.codeeditor as codeedit
 import atomize.main.local_config as lconf
 import atomize.general_modules.csv_opener_saver as openfile
@@ -226,15 +227,15 @@ class MainWindow(QMainWindow):
         logging.debug('reading data')
 
         # QLocalSocket is a byte STREAM with no message boundaries, but every meta
-        # header is exactly 320 bytes. A single read(320) could therefore return a
+        # header is exactly META_SIZE bytes. A single read() could therefore return a
         # fragment (split/coalesced delivery), which used to parse as truncated
         # JSON, reuse the previous frame's self.meta, and reshape the NEW array
         # with the OLD shape (wrong x-axis on 'ch', garbled 'ch_1', broken FFT) --
         # and, because 'ok' was still sent, desync every later frame until restart.
         # Instead: append all available bytes to a persistent per-connection buffer
-        # and only parse WHOLE 320-byte frames, keeping any remainder for the next
+        # and only parse WHOLE META_SIZE frames, keeping any remainder for the next
         # readyRead. Non-blocking (never waits on the event loop) and self-resyncs
-        # across fragment boundaries. EVERY 320-byte frame is acked with exactly one
+        # across fragment boundaries. EVERY frame is acked with exactly one
         # 'ok' (the client counts them), so the per-frame handshake keeps the client
         # at most one frame ahead and the array in shared memory always pairs with
         # the meta being processed.
@@ -244,9 +245,9 @@ class MainWindow(QMainWindow):
             self.recv_buffers[id(conn)] = buf
         buf += bytes(conn.readAll())
 
-        while len(buf) >= 320:
-            frame = bytes(buf[:320])
-            del buf[:320]
+        while len(buf) >= META_SIZE:
+            frame = bytes(buf[:META_SIZE])
+            del buf[:META_SIZE]
 
             try:
                 self.meta = json.loads(frame.decode())
