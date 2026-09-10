@@ -1618,6 +1618,9 @@ class CrossSectionDock(CloseableDock):
         time_plot = self.img_view.ui.roiPlot
         self.vb_time = time_plot.getViewBox()
         time_plot.hideButtons()
+        # keep the time strip from inflating when QSplitter redistributes space
+        self.img_view.ui.splitter.setStretchFactor(0, 1)
+        time_plot.setMaximumHeight(40)
         self.vb_time.mouseClickEvent = self.on_time_click
 
         axis = time_plot.getAxis('bottom')
