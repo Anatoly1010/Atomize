@@ -35,7 +35,7 @@ Typical use, right after creating the ``QApplication``::
     ...
 
 The exported module-level constants (``BG``, ``FG``, ``ACCENT`` and the
-``*_STYLE`` sheets) are generated from :data:`DEFAULT_THEME` and kept for the
+``*_STYLE`` sheets) use :data:`REFINED_THEME` and are kept for the
 per-widget ``setStyleSheet(...)`` calls scattered across the tools. To re-skin,
 build a custom :class:`Theme`, pass it to :func:`apply_app_style`, and read its
 sheets from :func:`build_styles`.
@@ -67,9 +67,21 @@ class Theme:
     hover:  tuple = (73, 73, 107)    # hover background (tabs, etc.)
     light:  tuple = (103, 103, 137)  # lighter edge for the Fusion 3-D frame
     dark:   tuple = (32, 32, 52)     # darker edge / shadow for the frame
+    input_bg: tuple = (38, 40, 58)
+    input_hover: tuple = (48, 51, 74)
+    input_focus: tuple = (44, 47, 68)
 
 
 DEFAULT_THEME = Theme()
+
+REFINED_THEME = Theme(
+    bg=(32, 33, 49), base=(52, 55, 79), border=(73, 77, 104),
+    fg=(226, 229, 240), dim=(164, 171, 194), accent=(211, 194, 78),
+    track=(41, 43, 64), hover=(64, 68, 94), light=(83, 88, 117),
+    dark=(25, 27, 41),
+)
+
+TAB_MARGINS = (16, 8, 16, 12)
 
 
 def _css(rgb):
@@ -83,6 +95,9 @@ def _css(rgb):
 # Forward slashes: Qt stylesheet ``url(...)`` wants '/', including on Windows.
 _CHECK_ICON = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'check.svg').replace('\\', '/')
+_PLUS_ICON = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'plus.svg').replace('\\', '/')
+_MINUS_ICON = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'minus.svg').replace('\\', '/')
+_CHEVRON_ICON = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'chevron.svg').replace('\\', '/')
 
 
 def _qcolor(rgb):
@@ -190,7 +205,7 @@ def set_desktop_identity(app, wm_class='Atomize', desktop_file='atomize'):
 # --------------------------------------------------------------------------- #
 # Entry point
 # --------------------------------------------------------------------------- #
-def apply_app_style(app=None, app_id=None, theme=DEFAULT_THEME, desktop=False):
+def apply_app_style(app=None, app_id=None, theme=REFINED_THEME, desktop=False):
     """
     Pin the QApplication to the Fusion style with the theme's dark palette.
 
@@ -230,7 +245,8 @@ def apply_app_style(app=None, app_id=None, theme=DEFAULT_THEME, desktop=False):
     app.setPalette(build_palette(theme))
     # Theme tooltips app-wide (a QToolTip-only sheet leaves all other widgets,
     # which set their own per-widget stylesheets, untouched).
-    app.setStyleSheet(build_styles(theme)['TOOLTIP_STYLE'])
+    styles = build_refined_styles(theme)
+    app.setStyleSheet(styles['TOOLTIP_STYLE'] + styles['MENU_STYLE'] + styles['SEPARATOR_STYLE'] + styles['INPUT_STYLE'])
 
 
 # --------------------------------------------------------------------------- #
@@ -451,17 +467,254 @@ def build_styles(theme=DEFAULT_THEME):
     return {name: tmpl.substitute(subs) for name, tmpl in _TEMPLATES.items()}
 
 
+def build_refined_styles(theme=REFINED_THEME):
+    """Styles for the main workspace and the first refreshed instrument panel."""
+    styles = build_styles(theme)
+    bg, base, border, fg, dim, accent, panel, hover, dark = (
+        _css(getattr(theme, name)) for name in
+        ('bg', 'base', 'border', 'fg', 'dim', 'accent', 'track', 'hover', 'dark')
+    )
+    def input_surface(selectors):
+        normal = ', '.join(selectors)
+        hovered = ', '.join(selector + ':hover:enabled' for selector in selectors)
+        focused = ', '.join(selector + ':focus:enabled' for selector in selectors)
+        return f"""
+            {normal} {{ background: {_css(theme.input_bg)}; border: 1px solid {panel}; border-radius: 2px; }}
+            {hovered} {{ background: {_css(theme.input_hover)}; }}
+            {focused} {{ background: {_css(theme.input_focus)}; border-color: {accent}; }}
+        """
+
+    styles['SCROLL_STYLE'] += f"""
+        QScrollBar::handle:vertical, QScrollBar::handle:horizontal {{ background: {border}; }}
+        QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {{ background: {dim}; }}
+    """
+    styles['TAB_STYLE'] += f"""
+        QTabWidget::pane {{ padding: 0px; top: 0px; border: 1px solid {panel}; }}
+        QTabBar::tab {{ border: 1px solid {panel}; border-bottom: 2px solid {panel};
+            outline: none; }}
+        QTabBar::tab:selected {{ background: {panel}; border-bottom-color: {accent}; }}
+        QTabBar::tab:focus {{ border-color: {accent}; }}
+    """
+    styles['ANALYSIS_TAB_STYLE'] = styles['TAB_STYLE'] + "QTabWidget::pane { padding: 10px 8px 8px 8px; }"
+    styles['CHECKBOX_STYLE'] += f"""
+        QCheckBox::indicator:unchecked {{ background: {base}; border-color: {border}; }}
+        QCheckBox::indicator:unchecked:hover {{ border-color: {accent}; }}
+        QCheckBox::indicator:unchecked:disabled {{ background: {panel}; border-color: {base}; }}
+    """
+    styles['SEPARATOR_STYLE'] = f"""
+        QFrame[frameShape="4"] {{ border: none; background: {base}; min-height: 1px; max-height: 1px; }}
+        QFrame[frameShape="5"] {{ border: none; background: {base}; min-width: 1px; max-width: 1px; }}
+    """
+    styles['RADIO_STYLE'] = f"""
+        QRadioButton {{ color: {fg}; background: transparent; spacing: 6px; }}
+        QRadioButton::indicator {{ width: 13px; height: 13px; border-radius: 7px;
+            background: {base}; border: 1px solid {border}; }}
+        QRadioButton::indicator:checked {{ background: {accent}; border-color: {accent}; }}
+        QRadioButton::indicator:hover {{ border-color: {accent}; }}
+        QRadioButton::indicator:disabled {{ background: {panel}; border-color: {base}; }}
+    """
+    styles['WINDOW_STYLE'] = f"""
+        QMainWindow {{ background: {bg}; color: {fg}; }}
+        QLabel {{ color: {fg}; font-weight: normal; }}
+        QWidget#launcherPanel {{ background: {bg}; border: 1px solid {panel}; border-radius: 4px; }}
+        QWidget#workspaceActions {{ border-right: 1px solid {panel}; }}
+    """ + styles['TAB_STYLE'] + styles['SCROLL_STYLE'] + styles['SEPARATOR_STYLE']
+    styles['BUTTON_STYLE'] = f"""
+        QPushButton {{ background: {base}; color: {fg}; border: 1px solid {panel};
+            border-radius: 4px; padding: 6px 12px; font-weight: 500; outline: none; }}
+        QPushButton:hover {{ background: {hover}; border-color: {border}; }}
+        QPushButton:focus {{ border: 1px solid {accent}; }}
+        QPushButton:pressed {{ background: {accent}; color: {dark}; }}
+        QPushButton:disabled {{ background: {panel}; color: {dim}; border-color: {panel}; }}
+        QPushButton[text="Stop"]:hover:enabled {{ background: #49303d; border-color: #eda6aa; }}
+        QPushButton[text="Stop"]:focus:enabled {{ border-color: #eda6aa; }}
+        QPushButton[text="Start"]:hover:enabled, QPushButton[text="Start Experiment"]:hover:enabled,
+        QPushButton[text="Run Pulses"]:hover:enabled {{ background: #3b382b; border-color: {accent}; }}
+    """
+    styles['PRIMARY_BUTTON_STYLE'] = styles['BUTTON_STYLE'] + f"""
+        QPushButton:enabled {{ background: {accent}; color: {dark}; border-color: {accent}; }}
+        QPushButton:hover:enabled, QPushButton[text="Start"]:hover:enabled,
+        QPushButton[text="Start Experiment"]:hover:enabled,
+        QPushButton[text="Run Pulses"]:hover:enabled {{ background: #e2d477; border-color: #e2d477; }}
+        QPushButton:focus:enabled {{ border: 2px solid {fg}; }}
+        QPushButton:pressed:enabled, QPushButton[text="Start"]:pressed:enabled,
+        QPushButton[text="Start Experiment"]:pressed:enabled,
+        QPushButton[text="Run Pulses"]:pressed:enabled {{ background: #b9a93e; border-color: #b9a93e; }}
+    """
+    styles['START_BUTTON_STYLE'] = styles['BUTTON_STYLE'] + f"""
+        QPushButton:hover:enabled {{ background: #3b382b; border-color: {accent}; }}
+        QPushButton:focus:enabled {{ border-color: {accent}; }}
+    """
+    styles['STOP_BUTTON_STYLE'] = styles['BUTTON_STYLE'] + f"""
+        QPushButton:hover:enabled {{ background: #49303d; border-color: #eda6aa; }}
+        QPushButton:focus:enabled {{ border-color: #eda6aa; }}
+        QPushButton:pressed:enabled {{ background: #eda6aa; color: {dark}; }}
+    """
+    styles['WORKSPACE_ACTION_STYLE'] = styles['BUTTON_STYLE'] + f"""
+        QPushButton {{ background: {base}; border-color: {panel};
+            border-radius: 4px; text-align: left; padding: 4px 10px; }}
+        QPushButton:hover {{ background: {base}; border-color: {accent}; color: {accent}; }}
+        QPushButton:focus {{ border-color: {accent}; }}
+        QPushButton:pressed {{ background: {accent}; color: {dark}; border-color: {accent}; }}
+    """
+    styles['WORKSPACE_ACTIVE_STYLE'] = styles['WORKSPACE_ACTION_STYLE'] + f"""
+        QPushButton:enabled {{ color: {accent}; border-color: {accent}; }}
+    """
+    styles['ACTION_HEADING_STYLE'] = f"""
+        QLabel {{ color: {dim}; font-size: 12px; font-weight: 500; padding-left: 10px; }}
+    """
+    styles['SECTION_HEADING_STYLE'] = f"QLabel {{ color: {dim}; font-size: 12px; font-weight: 500; }}"
+    styles['ACTIVE_BUTTON_STYLE'] = styles['BUTTON_STYLE'] + f"""
+        QPushButton:enabled {{ background: {panel}; color: {accent}; border-color: {accent}; }}
+    """
+    styles['EDITOR_STYLE'] = f"""
+        QPlainTextEdit {{ background: {dark}; color: {fg}; border: none;
+            selection-background-color: {accent}; selection-color: {dark}; padding: 8px; }}
+        QMenu {{ background: {panel}; color: {fg}; border: 1px solid {border}; }}
+        QMenu::item:selected {{ background: {hover}; }}
+    """ + styles['SCROLL_STYLE']
+    styles['LIST_STYLE'] = f"""
+        QListView {{ background: {dark}; color: {fg}; border: 1px solid {panel};
+            outline: none; font-weight: normal; }}
+        QListView::item {{ padding: 8px; border: none; }}
+        QListView::item:selected {{ background: {base}; color: {accent}; }}
+        QListView::item:hover {{ background: {hover}; }}
+        QMenu {{ background: {panel}; color: {fg}; border: 1px solid {border}; }}
+        QMenu::item:selected {{ background: {hover}; }}
+    """ + styles['SCROLL_STYLE']
+    styles['DOCK_LABEL_STYLE'] = f"""
+        DockLabel {{ background: {bg}; color: {dim}; padding: 0px 24px 0px 8px;
+            border: 1px solid {panel};
+            font-size: 12px; font-weight: 500; }}
+    """
+    styles['DOCK_CONTENT_STYLE'] = f"""
+        QWidget#dockContent {{ background: {dark}; border: 1px solid {panel}; border-top: none; }}
+    """
+    styles['DOCK_STYLE'] = f"background-color: {bg};"
+    styles['DOCK_CLOSE_STYLE'] = f"""
+        QPushButton {{ background: transparent; color: {dim}; border: 1px solid {panel};
+            border-radius: 3px; padding: 0px; outline: none; }}
+        QPushButton:hover {{ background: {hover}; color: {fg}; border-color: {dim}; }}
+        QPushButton:focus {{ border: 1px solid {accent}; }}
+    """
+    styles['PLOT_LIST_STYLE'] = styles['LIST_STYLE'] + f"""
+        QListView {{ border-top: none; padding: 1px; }}
+        QListView::item {{ padding: 3px 5px; margin: 0px;
+            border: none; border-left: 2px solid transparent; border-radius: 3px; }}
+        QListView::item:selected {{ background: {panel}; color: {accent}; border-left-color: {accent}; }}
+        QListView::item:selected:!active {{ background: {panel}; color: {accent}; border-left-color: {accent}; }}
+        QListView::item:hover:!selected {{ background: {base}; }}
+    """
+    styles['FIELD_STYLE'] = f"""
+        QDoubleSpinBox, QSpinBox {{ color: {fg}; selection-background-color: {accent};
+            selection-color: {dark}; background: {base}; border: 1px solid {panel}; padding: 4px; }}
+        QDoubleSpinBox:focus, QSpinBox:focus {{ border-color: {accent}; }}
+        QDoubleSpinBox:disabled, QSpinBox:disabled {{ color: {dim}; }}
+        QDoubleSpinBox::up-button, QSpinBox::up-button {{ subcontrol-origin: border;
+            subcontrol-position: top right; width: 16px; border: none; margin: 1px; }}
+        QDoubleSpinBox::down-button, QSpinBox::down-button {{ subcontrol-origin: border;
+            subcontrol-position: bottom right; width: 16px; border: none; margin: 1px; }}
+        QDoubleSpinBox::up-arrow, QSpinBox::up-arrow {{ image: url({_PLUS_ICON}); width: 9px; height: 9px; }}
+        QDoubleSpinBox::down-arrow, QSpinBox::down-arrow {{ image: url({_MINUS_ICON}); width: 9px; height: 9px; }}
+    """
+    styles['COMPACT_FIELD_STYLE'] = styles['FIELD_STYLE'] + "QDoubleSpinBox, QSpinBox { padding: 0px 3px; }"
+    styles['DSPIN_STYLE'] = styles['SPIN_STYLE'] = styles['COMPACT_FIELD_STYLE']
+    styles['COMPACT_TEXT_STYLE'] = f"""
+        QTextEdit, QPlainTextEdit {{ background: {base}; color: {fg}; border: 1px solid {panel};
+            selection-background-color: {accent}; selection-color: {dark}; padding: 1px 3px; }}
+    """
+    styles['COMBO_STYLE'] = f"""
+        QComboBox {{ background: {base}; color: {fg}; border: 1px solid {panel};
+            padding: 0px 3px; selection-background-color: {panel}; selection-color: {accent}; }}
+        QComboBox:focus {{ border-color: {accent}; }}
+        QComboBox::drop-down {{ width: 18px; border: none; }}
+        QComboBox::down-arrow {{ image: url({_CHEVRON_ICON}); width: 9px; height: 9px; }}
+        QComboBox QAbstractItemView {{ background: {base}; color: {fg}; border: 1px solid {panel};
+            selection-background-color: {panel}; selection-color: {accent}; outline: none; }}
+    """
+    styles['LINEEDIT_STYLE'] = f"""
+        QLineEdit {{ background: {base}; color: {fg}; border: 1px solid {panel};
+            selection-background-color: {accent}; selection-color: {dark}; padding: 1px 3px; }}
+        QLineEdit:focus {{ border-color: {accent}; }}
+    """
+    styles['PROGRESS_STYLE'] = f"""
+        QProgressBar {{ background: {panel}; color: {accent}; border: 1px solid {panel};
+            border-radius: 4px; font-weight: bold; text-align: right; margin-right: 40px; height: 20px; }}
+        QProgressBar::chunk {{ background: #c1cae3; border-radius: 2px; }}
+    """
+    styles['MENU_STYLE'] = f"""
+        QMenu, QMenu QWidget {{ background: {bg}; color: {fg}; }}
+        QMenu {{ border: 1px solid {panel}; padding: 4px; }}
+        QMenu::item {{ padding: 4px 24px 4px 8px; }}
+        QMenu::item:selected {{ background: {panel}; color: {accent}; }}
+        QMenu::item:disabled {{ color: {dim}; }}
+        QMenu::separator {{ height: 1px; background: {panel}; margin: 4px; }}
+        QMenuBar {{ color: {fg}; font-weight: bold; font-size: 14px;
+            border-bottom: 2px solid {border}; margin-bottom: 1px;
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0.95 {bg}, stop:1.0 {dim}); padding-top: 2px; padding-bottom: 1px; }}
+        QMenuBar::item:selected {{ background: {panel}; color: {accent}; }}
+        QMenu QLineEdit, QMenu QAbstractSpinBox, QMenu QComboBox {{ background: {base};
+            color: {fg}; border: 1px solid {panel}; }}
+    """
+    styles['FILE_DIALOG_STYLE'] = f"""
+        QDialog {{ background: {bg}; color: {fg}; }}
+        QLabel {{ color: {fg}; }}
+        QListView, QTreeView {{ background: {dark}; color: {fg}; border: 1px solid {panel};
+            selection-background-color: {panel}; selection-color: {accent}; outline: none; }}
+        QListView::item, QTreeView::item {{ padding: 3px 5px; }}
+        QListView::item:selected, QTreeView::item:selected {{ background: {panel}; color: {accent}; }}
+        QListView::item:hover:!selected, QTreeView::item:hover:!selected {{ background: {base}; }}
+        QLineEdit, QComboBox {{ background: {bg}; color: {fg}; border: 1px solid {panel};
+            padding: 3px 5px; selection-background-color: {accent}; selection-color: {dark}; }}
+        QLineEdit:focus, QComboBox:focus {{ border-color: {accent}; }}
+        QComboBox QAbstractItemView {{ background: {dark}; color: {fg}; border: 1px solid {panel};
+            selection-background-color: {panel}; selection-color: {accent}; outline: none; }}
+        QHeaderView::section {{ background: {bg}; color: {dim}; border: none;
+            border-bottom: 1px solid {panel}; padding: 4px; }}
+        QToolButton {{ background: {bg}; color: {fg}; border: 1px solid {panel};
+            border-radius: 3px; padding: 3px; outline: none; }}
+        QToolButton:hover, QToolButton:focus {{ border-color: {accent}; }}
+    """ + styles['BUTTON_STYLE'] + styles['SCROLL_STYLE']
+    styles['INPUT_STYLE'] = input_surface(('QDoubleSpinBox', 'QSpinBox', 'QComboBox', 'QTextEdit', 'QPlainTextEdit'))
+    for key, selectors in (
+        ('FIELD_STYLE', ('QDoubleSpinBox', 'QSpinBox')),
+        ('COMPACT_FIELD_STYLE', ('QDoubleSpinBox', 'QSpinBox')),
+        ('COMPACT_TEXT_STYLE', ('QTextEdit', 'QPlainTextEdit')),
+        ('EDITOR_STYLE', ('QPlainTextEdit',)),
+        ('LINEEDIT_STYLE', ('QLineEdit',)),
+        ('COMBO_STYLE', ('QComboBox',)),
+        ('FILE_DIALOG_STYLE', ('QLineEdit', 'QComboBox')),
+        ('MENU_STYLE', ('QMenu QLineEdit', 'QMenu QAbstractSpinBox', 'QMenu QComboBox')),
+    ):
+        styles[key] += input_surface(selectors)
+    styles['DSPIN_STYLE'] = styles['SPIN_STYLE'] = styles['COMPACT_FIELD_STYLE']
+    return styles
+
+
+REFINED_STYLES = build_refined_styles()
+
+
+def style_file_dialog(dialog):
+    """Match file pickers to the workspace palette and selection treatment."""
+    palette = build_palette(REFINED_THEME)
+    palette.setColor(QPalette.ColorRole.Highlight, _qcolor(REFINED_THEME.track))
+    palette.setColor(QPalette.ColorRole.HighlightedText, _qcolor(REFINED_THEME.accent))
+    dialog.setPalette(palette)
+    dialog.setStyleSheet(REFINED_STYLES['FILE_DIALOG_STYLE'])
+
+
 # --------------------------------------------------------------------------- #
 # Default-theme convenience constants (backwards-compatible exports)
 # --------------------------------------------------------------------------- #
-BG     = _css(DEFAULT_THEME.bg)
-BASE   = _css(DEFAULT_THEME.base)
-BORDER = _css(DEFAULT_THEME.border)
-FG     = _css(DEFAULT_THEME.fg)
-DIM    = _css(DEFAULT_THEME.dim)
-ACCENT = _css(DEFAULT_THEME.accent)
+BG     = _css(REFINED_THEME.bg)
+BASE   = _css(REFINED_THEME.base)
+BORDER = _css(REFINED_THEME.track)
+FG     = _css(REFINED_THEME.fg)
+DIM    = _css(REFINED_THEME.dim)
+ACCENT = _css(REFINED_THEME.accent)
 
-_STYLES = build_styles(DEFAULT_THEME)
+_STYLES = REFINED_STYLES
 BUTTON_STYLE   = _STYLES['BUTTON_STYLE']
 LABEL_STYLE    = _STYLES['LABEL_STYLE']
 HEADING_STYLE  = _STYLES['HEADING_STYLE']
@@ -477,3 +730,6 @@ LINEEDIT_STYLE = _STYLES['LINEEDIT_STYLE']
 CHECKBOX_STYLE = _STYLES['CHECKBOX_STYLE']
 SCROLL_STYLE   = _STYLES['SCROLL_STYLE']
 TAB_STYLE      = _STYLES['TAB_STYLE']
+ANALYSIS_TAB_STYLE = _STYLES['ANALYSIS_TAB_STYLE']
+SEPARATOR_STYLE = _STYLES['SEPARATOR_STYLE']
+RADIO_STYLE = _STYLES['RADIO_STYLE']

@@ -26,6 +26,8 @@ from PyQt6.QtWidgets import QFileDialog, QMessageBox, QListView, QDockWidget, QV
 from PyQt6.QtNetwork import QLocalServer
 from PyQt6 import QtCore, QtGui
 from pyqtgraph.dockarea import DockArea
+from atomize.main.widgets import WorkspaceDock
+from atomize.general_modules.gui_style import style_file_dialog, REFINED_THEME, REFINED_STYLES, TAB_MARGINS
 import atomize.main.queue as queue
 from atomize.main.client import META_SIZE
 import atomize.main.codeeditor as codeedit
@@ -176,11 +178,11 @@ class MainWindow(QMainWindow):
                 file_data = self.file_handler.create_file_dialog(multiprocessing = True,
                     fmt = parts[1] if len(parts) > 1 else 'csv')
                 self.process_python.write(f"{file_data}\n".encode())
-                
+
             elif line.startswith("open_file_dialog"):
                 file_data = self.file_handler.open_file_dialog(multiprocessing = True)
                 self.process_python.write(f"{file_data}\n".encode())
-                
+
             elif line.startswith("print "):
                 msg = line[6:].strip()
                 self.text_errors.appendPlainText(msg)
@@ -409,7 +411,7 @@ class MainWindow(QMainWindow):
             scat = meta['Scatter']
             taxis = meta['TimeAxis']
             verline = meta['Vline']
-            
+
             xs, ys = pw.get_raw_data(label)
             new_ys = list(ys)
             new_ys.append(meta['value'])
@@ -516,54 +518,26 @@ class MainWindow(QMainWindow):
     #####################################################
 
     def design_setting(self):
-        
+
         self.setObjectName("MainWindow")
         self.setWindowTitle("Atomize")
+        pg.setConfigOption('background', REFINED_THEME.dark)
+        pg.setConfigOption('foreground', REFINED_THEME.dim)
 
         screen_geometry = QApplication.primaryScreen().geometry()
         width = int(screen_geometry.width() * 0.6)
         height = int(screen_geometry.height() * 0.7)
 
         #int(screen_geometry.height() * 0.6)
-        self.setMinimumSize(int(screen_geometry.width() * 0.65), 650)
+        self.setMinimumWidth(int(screen_geometry.width() * 0.65))
         self.resize(width, height)
 
         x = (screen_geometry.width() - self.width()) // 2
         y = (screen_geometry.height() - self.height()) // 2
 
         self.move(x, y)
-        
-        self.setStyleSheet("""
-            QMainWindow { background-color: rgb(42, 42, 64); }
-            QTabWidget::pane {
-            border: 1.5px solid rgb(40, 30, 45 );
-            }
-            QTabBar::tab { 
-                width: 185px;
-                height: 25px;
-                font-weight: bold; 
-                color: rgb(193, 202, 227);
-                background: rgb(63, 63, 97);
-                border: 1px solid rgb(43, 43, 77);
-                border-bottom: none;
-                border-top-left-radius: 4px;
-                border-top-right-radius: 4px;
-                margin-right: 2px;
-            }
-            QTabBar::tab:selected {
-                color: rgb(211, 194, 78);
-                background: rgb(83, 83, 117); /* Чуть светлее при выборе */
-                border-bottom: 2px solid rgb(211, 194, 78);
-            }
-            QTabBar::tab:hover {
-                background: rgb(73, 73, 107);
-            }
 
-            QScrollBar:vertical { border: none; background: rgb(43, 43, 77); width: 10px; }
-            QScrollBar::handle:vertical { background: rgb(193, 202, 227); border-radius: 5px; min-height: 20px; }
-            QScrollBar::handle:vertical:hover { background: rgb(211, 194, 78); }
-
-        """)
+        self.setStyleSheet(REFINED_STYLES['WINDOW_STYLE'])
 
         central_container = QWidget()
         self.setCentralWidget(central_container)
@@ -576,16 +550,15 @@ class MainWindow(QMainWindow):
         main_window_layout.addWidget(self.tabwidget)
 
         self.gridLayout_tab = QGridLayout(self.tab1)
-        self.gridLayout_tab.setContentsMargins(5, 5, 5, 5)
-        self.gridLayout_tab.setSpacing(5)
+        self.gridLayout_tab.setContentsMargins(*TAB_MARGINS)
+        self.gridLayout_tab.setSpacing(8)
 
         buttons_widget = QWidget()
-        buttons_widget.setMinimumHeight(420)
+        buttons_widget.setObjectName("workspaceActions")
+        buttons_widget.setFixedWidth(188)
         buttons_v_layout = QVBoxLayout(buttons_widget)
-        #buttons_v_layout.setContentsMargins(10, 5, 10, 5)
-        buttons_v_layout.setSpacing(5)
-
-        buttons_v_layout.addStretch()
+        buttons_v_layout.setContentsMargins(0, 4, 12, 4)
+        buttons_v_layout.setSpacing(4)
 
         self.button_open = QPushButton("&Open Script")
         self.button_edit = QPushButton("&Edit Script")
@@ -607,23 +580,50 @@ class MainWindow(QMainWindow):
 
         for btn, method in btn_list:
             btn.clicked.connect(method)
-            btn.setFixedSize(140, 40)
-            btn.setSizePolicy(QSizePolicy.Policy.Fixed, 
-                              QSizePolicy.Policy.Fixed)
-            buttons_v_layout.addWidget(btn)
-            btn.setStyleSheet("""
-                QPushButton {
-                border-radius: 4px; background-color: rgb(63, 63, 97); 
-                border-style: outset; color: rgb(193, 202, 227); font-weight: bold;
-                padding: 2px 10px;
-            }
-                QPushButton:pressed { background-color: rgb(211, 194, 78); border-style: inset; }
-            """)
+            btn.setFixedHeight(34)
+            btn.setStyleSheet(REFINED_STYLES['WORKSPACE_ACTION_STYLE'])
 
+        script_heading = QLabel("Script")
+        script_heading.setStyleSheet(REFINED_STYLES['ACTION_HEADING_STYLE'])
+        buttons_v_layout.addWidget(script_heading)
+        buttons_v_layout.addSpacing(4)
+        for button in (self.button_open, self.button_edit, self.button_reload, self.button_test):
+            buttons_v_layout.addWidget(button)
+
+        buttons_v_layout.addSpacing(16)
+        experiment_heading = QLabel("Experiment")
+        experiment_heading.setStyleSheet(REFINED_STYLES['ACTION_HEADING_STYLE'])
+        buttons_v_layout.addWidget(experiment_heading)
+        buttons_v_layout.addSpacing(8)
+        run_actions = QHBoxLayout()
+        run_actions.setSpacing(6)
+        self.button_start.setText("&Start")
+        self.button_start.setToolTip("Start Experiment")
+        self.button_stop.setText("Stop")
+        self.button_stop.setToolTip("Stop Experiment")
+        self.button_start.setStyleSheet(REFINED_STYLES['START_BUTTON_STYLE'])
+        self.button_stop.setStyleSheet(REFINED_STYLES['STOP_BUTTON_STYLE'])
+        run_actions.addWidget(self.button_start)
+        run_actions.addWidget(self.button_stop)
+        buttons_v_layout.addLayout(run_actions)
+        buttons_v_layout.addWidget(self.button_queue)
+        buttons_v_layout.addSpacing(16)
+
+        utility_actions = QHBoxLayout()
+        utility_actions.setSpacing(6)
+        utility_actions.addWidget(self.button_help)
+        utility_actions.addWidget(self.button_quit)
+        buttons_v_layout.addLayout(utility_actions)
         buttons_v_layout.addStretch()
+        tab_order = (self.button_open, self.button_edit, self.button_reload, self.button_test,
+                     self.button_start, self.button_stop, self.button_queue, self.button_help, self.button_quit)
+        for previous, following in zip(tab_order, tab_order[1:]):
+            QWidget.setTabOrder(previous, following)
+        buttons_widget.setMinimumHeight(buttons_v_layout.minimumSize().height())
         self.gridLayout_tab.addWidget(buttons_widget, 0, 0, 1, 1)
 
         self.textEdit = codeedit.CodeEditor(self)
+        self.textEdit.setFont(QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.SystemFont.FixedFont))
         #self.textEdit.setReadOnly(True)
         self.textEdit.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.NoContextMenu)
         option = QtGui.QTextOption()
@@ -632,67 +632,19 @@ class MainWindow(QMainWindow):
             QtGui.QFontMetricsF(self.textEdit.font()).horizontalAdvance(' ') * 4
         )
 
-        self.textEdit.setStyleSheet("""
-            QPlainTextEdit {
-                background-color: rgb(42, 42, 64); 
-                color: rgb(211, 194, 78); 
-                selection-background-color: rgb(211, 197, 78); 
-                selection-color: rgb(63, 63, 97);
-                border: 1px solid rgb(63, 63, 97);
-            }
-            QMenu {
-                background-color: rgb(42, 42, 64);
-                border: 1px solid rgb(63, 63, 97);
-            }
-            QMenu::item { color: rgb(211, 194, 78); } 
-            QMenu::item:selected { background-color: rgb(48, 48, 75); } 
-            QScrollBar:vertical {
-                border: none; background: rgb(42, 42, 64); 
-                width: 10px; margin: 0px;
-            }
-            QScrollBar::handle:vertical {
-                background: rgb(193, 202, 227); min-height: 20px; border-radius: 5px;
-            }
-            QScrollBar::handle:vertical:hover { background: rgb(211, 194, 78); }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
-        """)
+        self.textEdit.setStyleSheet(REFINED_STYLES['EDITOR_STYLE'])
 
         self.textEdit.textChanged.connect(self.save_edited_text)
 
         self.text_errors = codeedit.CodeEditor(self)
+        self.text_errors.setFont(QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.SystemFont.FixedFont))
         self.text_errors.setReadOnly(True)
         self.text_errors.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.NoContextMenu)
         self.text_errors.setCenterOnScroll(True)
         self.text_errors.ensureCursorVisible()
         self.text_errors.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
 
-        self.text_errors.setStyleSheet("""
-            QPlainTextEdit {
-                background-color: rgb(42, 42, 64); 
-                color: rgb(211, 194, 78); 
-                selection-background-color: rgb(211, 197, 78); 
-                selection-color: rgb(63, 63, 97);
-                border: 1px solid rgb(63, 63, 97);
-            }
-            QMenu {
-                background-color: rgb(42, 42, 64);
-                border: 1px solid rgb(63, 63, 97);
-            }
-            QMenu::item { color: rgb(211, 194, 78); } 
-            QMenu::item:selected { background-color: rgb(48, 48, 75); } 
-
-            QScrollBar:vertical {
-                border: none; background: rgb(43, 43, 77); 
-                width: 10px; margin: 0px;
-            }
-            QScrollBar::handle:vertical {
-                background: rgb(193, 202, 227); min-height: 20px; border-radius: 5px;
-            }
-            QScrollBar::handle:vertical:hover { background: rgb(211, 194, 78); }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
-        """)
+        self.text_errors.setStyleSheet(REFINED_STYLES['EDITOR_STYLE'])
 
         self.gridLayout_tab.setColumnStretch(1, 1)
         self.gridLayout_tab.setRowStretch(0, 10)
@@ -700,28 +652,28 @@ class MainWindow(QMainWindow):
 
 
         self.dockarea2 = DockArea()
-        self.dock_editor = self.dockarea2.addDock(name="Script Editor")
+        self.dock_editor = self.dockarea2.addDock(WorkspaceDock(name="Script Editor"))
         self.textEdit.textChanged.connect(self.save_edited_text)
         self.dock_editor.addWidget(widget=self.textEdit)
         self.gridLayout_tab.addWidget(self.dockarea2, 0, 1, 1, 1)
 
         self.dockarea3 = DockArea()
-        self.dock_errors = self.dockarea3.addDock(name="Output")
+        self.dock_errors = self.dockarea3.addDock(WorkspaceDock(name="Output"))
         self.dockarea3.setMinimumHeight(100)
         self.dock_errors.addWidget(widget=self.text_errors)
         self.gridLayout_tab.addWidget(self.dockarea3, 1, 0, 1, 2)
 
         self.dockarea4 = DockArea()
-        self.dockarea4.setMaximumHeight(60)    
-        self.dockarea4.setMaximumHeight(80)
+        self.dockarea4.setMaximumHeight(60)
+        self.dockarea4.setMaximumHeight(100)
         self.script_queue = queue.QueueList(self)
-        self.dock_queue = self.dockarea4.addDock(name="Queue")
+        self.dock_queue = self.dockarea4.addDock(WorkspaceDock(name="Queue"))
         self.dock_queue.addWidget(widget=self.script_queue)
         self.gridLayout_tab.addWidget(self.dockarea4, 2, 0, 1, 2)
 
 
         self.label_filename = QLabel("No experimental script is opened")
-        self.label_filename.setStyleSheet("color: rgb(193, 202, 227); font-weight: bold; padding: 2px;")
+        self.label_filename.setStyleSheet(REFINED_STYLES['HINT_STYLE'])
         self.gridLayout_tab.addWidget(self.label_filename, 4, 0, 1, 2)
 
         self.gridLayout_tab.setRowStretch(0, 10)
@@ -745,7 +697,8 @@ class MainWindow(QMainWindow):
         # Liveplot tab setting
         tab3 = QWidget()
         self.gridLayout_tab_liveplot = QGridLayout(tab3)
-        self.gridLayout_tab_liveplot.setContentsMargins(5, 5, 5, 5)
+        self.gridLayout_tab_liveplot.setContentsMargins(*TAB_MARGINS)
+        self.gridLayout_tab_liveplot.setSpacing(8)
         self.tabwidget.addTab(tab3, "Liveplot")
         self.tabwidget.tabBar().setTabTextColor(1, QColor(193, 202, 227))
 
@@ -753,19 +706,15 @@ class MainWindow(QMainWindow):
         self.dockarea = DockArea()
         self.namelist = self.create_namelist()
 
-        self.gridLayout_tab_liveplot.setColumnMinimumWidth(0, 200)
+        self.namelist.setFixedWidth(220)
+        self.gridLayout_tab_liveplot.setColumnMinimumWidth(0, 220)
         self.gridLayout_tab_liveplot.setColumnStretch(1, 2000)
         self.gridLayout_tab_liveplot.addWidget(self.namelist, 0, 0)
         self.gridLayout_tab_liveplot.setAlignment(self.namelist, QtCore.Qt.AlignmentFlag.AlignLeft)
         self.gridLayout_tab_liveplot.addWidget(self.dockarea, 0, 1)
         #self.gridLayout_tab_liveplot.setAlignment(self.dockarea, QtConst.AlignRight)
-        self.namelist.setStyleSheet(
-            "QListView {background-color: rgb(42, 42, 64); selection-color: rgb(211, 194, 78); color: rgb(211, 194, 78); selection-background-color: rgb(63, 63, 97); border: 1px solid rgb(40, 30, 45);} "
-            "QListView::item:hover {background-color: rgb(211, 194, 78); color: rgb(42, 42, 64);} "
-            "QMenu {background-color: rgb(42, 42, 64); border: 1px solid rgb(63, 63, 97);} "
-            "QMenu::item {color: rgb(211, 194, 78);} "
-            "QMenu::item:selected {background-color: rgb(48, 48, 75);}"
-        )
+        self.namelist.setStyleSheet(REFINED_STYLES['LIST_STYLE'])
+        self.setMinimumHeight(self.minimumSizeHint().height())
 
     def create_namelist(self):
         return NameList(self)
@@ -802,7 +751,7 @@ class MainWindow(QMainWindow):
             self.text_errors.appendPlainText(f"{len(active_processes)} process is still running. Please terminate it")
         else:
             sys.exit()
-    
+
     def clear_errors(self):
         self.text_errors.clear()
 
@@ -819,7 +768,7 @@ class MainWindow(QMainWindow):
         """
         A function to quit the programm
         """
-        
+
         active_processes = []
         try:
             if self.process_python.state() != QtCore.QProcess.ProcessState.NotRunning:
@@ -865,7 +814,7 @@ class MainWindow(QMainWindow):
 
         elif self.test_flag == 0 and exec_code == True:
             self.process_python.setArguments([name])
-            self.button_start.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(211, 194, 78); border-style: outset; color: rgb(63, 63, 97); font-weight: bold; } ")
+            self.button_start.setStyleSheet(REFINED_STYLES['PRIMARY_BUTTON_STYLE'])
             self.process_python.start()
             self.pid = self.process_python.processId()
             print(f'SCRIPT PROCESS ID: {self.pid}')
@@ -878,7 +827,7 @@ class MainWindow(QMainWindow):
             self.start_experiment()
         elif btn.text() == "Update Script":
             self.reload()
-            self.button_test.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97); border-style: outset; color: rgb(193, 202, 227); font-weight: bold; } ")
+            self.button_test.setStyleSheet(REFINED_STYLES['WORKSPACE_ACTION_STYLE'])
             #self.start_experiment()
         else:
             return
@@ -887,7 +836,7 @@ class MainWindow(QMainWindow):
         """
         A function to run script check.
         """
-        self.button_test.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(193, 202, 227); border-style: outset; color: rgb(63, 63, 97); font-weight: bold; } ")
+        self.button_test.setStyleSheet(REFINED_STYLES['WORKSPACE_ACTIVE_STYLE'])
 
         QApplication.processEvents()
 
@@ -898,7 +847,7 @@ class MainWindow(QMainWindow):
         else:
             self.text_errors.appendPlainText('No experimental script is opened')
             return
-        
+
         if self.cached_stamp2 != stamp:
             self.checked = 0
         self.cached_stamp2 = stamp
@@ -924,7 +873,7 @@ class MainWindow(QMainWindow):
             self.loop.exec()
         else:
             self.text_errors.appendPlainText("Script has been already tested. No errors are found")
-            self.button_test.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97); border-style: outset; color: rgb(193, 202, 227); font-weight: bold; } ")
+            self.button_test.setStyleSheet(REFINED_STYLES['WORKSPACE_ACTION_STYLE'])
             self.success = True
 
     def reload(self):
@@ -954,11 +903,11 @@ class MainWindow(QMainWindow):
             self.checked = 0
             self.text_errors.appendPlainText(text_errors_script)
 
-        self.button_test.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97); border-style: outset; color: rgb(193, 202, 227); font-weight: bold; } ")
+        self.button_test.setStyleSheet(REFINED_STYLES['WORKSPACE_ACTION_STYLE'])
 
         self.success = (exit_status == QtCore.QProcess.ExitStatus.NormalExit and exit_code == 0)
         loop.quit()
- 
+
     def on_finished_script(self):
         """
         A function to add the information about errors found during syntax checking to a dedicated text box in the main window of the programm.
@@ -977,7 +926,7 @@ class MainWindow(QMainWindow):
             self.text_errors.appendPlainText(f"The script PID {self.pid} was executed with errors")
             self.text_errors.appendPlainText(text_errors_script)
 
-        self.button_start.setStyleSheet("QPushButton {border-radius: 4px; background-color: rgb(63, 63, 97); border-style: outset; color: rgb(193, 202, 227); font-weight: bold; } ")
+        self.button_start.setStyleSheet(REFINED_STYLES['START_BUTTON_STYLE'])
 
         if len(self.script_queue.keys()) != 0:
             self.start_experiment()
@@ -1005,7 +954,7 @@ class MainWindow(QMainWindow):
         elif self.system == 'Windows':
             self.process_text_editor.setArguments([self.script])
         self.process_text_editor.start()
-        
+
     def open_file(self, filename):
         """
         A function to open an experimental script.
@@ -1040,7 +989,7 @@ class MainWindow(QMainWindow):
         filedialog = QFileDialog(self, 'Open File', directory = ldir.load('script', self.path), filter = "python (*.py)",options = QFileDialog.Option.DontUseNativeDialog)
 
         filedialog.setIconProvider(QFileIconProvider())
-        filedialog.resize(1100, 450) 
+        filedialog.resize(1100, 450)
         # use QFileDialog.Option.DontUseNativeDialog to change directory
 
         tree = filedialog.findChild(QTreeView)
@@ -1057,7 +1006,7 @@ class MainWindow(QMainWindow):
                 btn.hide()
             else:
                 seen_texts.append(btn.text())
-    
+
         line_edit = filedialog.findChild(QLineEdit)
 
         if line_edit:
@@ -1067,199 +1016,7 @@ class MainWindow(QMainWindow):
         if size_grip:
             size_grip.setVisible(False)
 
-        filedialog.setStyleSheet("""
-            QFileDialog, QDialog { 
-                background-color: rgb(42, 42, 64); 
-                color: rgb(193, 202, 227);
-                font-size: 11px;
-            }
-
-            QFileDialog QListView {
-                min-width: 150px; 
-                background-color: rgb(35, 35, 55);
-                border: 1px solid rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-            }
-
-            QTreeView {
-                min-width: 500px;
-                background-color: rgb(35, 35, 55);
-                border: 1px solid rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                outline: none;
-            }
-
-            QFileDialog QFrame#qt_contents, QFileDialog QWidget {
-                background-color: rgb(42, 42, 64);
-            }
-            
-            QFileDialog QToolBar {
-                background-color: rgb(42, 42, 64);
-                border-bottom: 1px solid rgb(63, 63, 97);
-                min-height: 34px; 
-                padding: 2px;
-            }
-
-            QToolButton {
-                background-color: rgb(63, 63, 97);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 4px;
-                min-height: 23px; 
-                max-height: 23px;
-                min-width: 23px;
-                qproperty-iconSize: 14px 14px; 
-                margin: 0px 2px;
-                vertical-align: middle;
-            }
-
-            QToolButton:hover {
-                border: 1px solid rgb(211, 194, 78);
-                background-color: rgb(83, 83, 117);
-            }
-
-            QLineEdit, QComboBox {
-                background-color: rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 3px;
-                padding: 2px 5px;
-                min-height: 16px; 
-            }
-
-            QLineEdit:focus, QFileDialog QComboBox:focus {
-                border: 1px solid rgb(211, 194, 78);
-                color: rgb(211, 194, 78);
-                outline: none;
-            }
-
-            QFileDialog QComboBox#lookInCombo {
-                background-color: rgb(42, 42, 64);
-                color: rgb(193, 202, 227);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 3px;
-                padding-left: 5px;
-                min-height: 19px;
-                max-height: 19px;
-                selection-background-color: rgb(48, 48, 75);
-                selection-color: rgb(211, 194, 78);
-            }
-
-            QFileDialog QComboBox#lookInCombo QAbstractItemView {
-                outline: none;
-                border: 1px solid rgb(48, 48, 75);
-                background-color: rgb(42, 42, 64);
-            }
-
-            QFileDialog QDialogButtonBox QPushButton {
-                background-color: rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 4px;
-                font-weight: bold;
-                min-height: 23px;
-                max-height: 23px;
-                min-width: 75px;
-                padding: 0px 12px;
-            }
-
-            QFileDialog QDialogButtonBox QPushButton:hover {
-                background-color: rgb(83, 83, 117);
-                border: 1px solid rgb(211, 194, 78);
-                color: rgb(211, 194, 78);
-            }
-            
-            QHeaderView::section {
-                background-color: rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                padding: 4px;
-                border: none;
-                border-right: 1px solid rgb(83, 83, 117);
-                min-height: 20px;
-            }
-
-            QScrollBar:vertical {
-                border: none; background: rgb(43, 43, 77); 
-                width: 10px; margin: 0px;
-            }
-            QScrollBar::handle:vertical {
-                background: rgb(193, 202, 227); min-height: 20px; border-radius: 5px;
-            }
-            QScrollBar::handle:vertical:hover { background: rgb(211, 194, 78); }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
-
-            QScrollBar:horizontal {
-                border: none; 
-                background: rgb(43, 43, 77); 
-                height: 10px; 
-                margin: 0px;
-            }
-            QScrollBar::handle:horizontal {
-                background: rgb(193, 202, 227); 
-                min-width: 20px; 
-                border-radius: 5px;
-            }
-            QScrollBar::handle:horizontal:hover { 
-                background: rgb(211, 194, 78); 
-            }
-            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { 
-                width: 0px; 
-            }
-            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { 
-                background: none; 
-            }
-
-            QFileDialog QDialogButtonBox {
-                background-color: rgb(42, 42, 64);
-                border-top: 1px solid rgb(63, 63, 97);
-                padding: 6px;
-            }
-
-            QFileDialog QLabel {
-                color: rgb(193, 202, 227);
-            }
-
-            QFileDialog QListView::item:hover {
-                background-color: rgb(48, 48, 75);
-                color: rgb(211, 194, 78);
-            }
-
-            QHeaderView {
-                background-color: rgb(63, 63, 97);
-            }
-
-            QFileDialog QListView#sidebar:inactive, 
-            QTreeView:inactive {
-                selection-background-color: rgb(35, 35, 55);
-                selection-color: rgb(211, 194, 78);
-            }
-
-            QTreeView::item:hover { 
-                background-color: rgb(48, 48, 75);
-                color: rgb(211, 194, 78); 
-                } 
-            QTreeView::item:selected:inactive, 
-            QFileDialog QListView#sidebar::item:selected:inactive {
-                selection-background-color: rgb(63, 63, 97);
-                selection-color: rgb(211, 194, 78);
-            }
-            QFileDialog QListView#sidebar::item {
-                padding-left: 5px; 
-                padding-top: 5px;
-            }
-
-            QMenu {
-                background-color: rgb(42, 42, 64);
-                border: 1px solid rgb(63, 63, 97);
-                padding: 3px;
-            }
-            QMenu::item { color: rgb(211, 194, 78); } 
-            QMenu::item:selected { 
-                background-color: rgb(48, 48, 75); 
-                color: rgb(211, 194, 78);
-                }
-
-        """)
+        style_file_dialog(filedialog)
 
         filedialog.setFileMode(QFileDialog.FileMode.AnyFile)
         filedialog.fileSelected.connect(self.open_file)
@@ -1272,7 +1029,7 @@ class MainWindow(QMainWindow):
         filedialog = QFileDialog(self, 'Save File', directory = ldir.load('script', self.path), filter = "python (*.py)",options = QFileDialog.Option.DontUseNativeDialog)
         filedialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
         # use QFileDialog.Option.DontUseNativeDialog to change directory
-        filedialog.setStyleSheet("QWidget { background-color : rgb(42, 42, 64); color: rgb(211, 194, 78);}")
+        style_file_dialog(filedialog)
         filedialog.setFileMode(QFileDialog.FileMode.AnyFile)
         filedialog.fileSelected.connect(self.save_file)
         filedialog.show()
@@ -1282,14 +1039,14 @@ class MainWindow(QMainWindow):
             self.flag_opened_script_changed = 1
             with open(self.script, 'w') as file:
                 file.write(self.textEdit.toPlainText())
-            
+
             self.cached_stamp = os.stat(self.script).st_mtime
 
         else:
             self.flag_opened_script_changed = 1
             if self.textEdit.toPlainText() != '': # save file dialog will be opened after at least one character is added
                 self.save_file_dialog()
-        
+
     @QtCore.pyqtSlot(str)
     def add_error_message(self, data):
         """
@@ -1313,7 +1070,10 @@ class NameList(QDockWidget):
     def __init__(self, window):
         super(NameList, self).__init__('Current Plots:')
         self.setFeatures(QDockWidget.DockWidgetFeature.NoDockWidgetFeatures)
-        self.setTitleBarWidget(QWidget(self))
+        self.plot_list_heading = QLabel("Plots · 0", self)
+        self.plot_list_heading.setFixedHeight(24)
+        self.plot_list_heading.setStyleSheet(REFINED_STYLES['DOCK_LABEL_STYLE'].replace('DockLabel', 'QLabel'))
+        self.setTitleBarWidget(self.plot_list_heading)
 
         #directories
         path_to_main = Path(__file__).parent
@@ -1328,77 +1088,16 @@ class NameList(QDockWidget):
         self.open_dir = str(config['DEFAULT']['open_dir'])
         if self.open_dir == '':
             self.open_dir = lconf.load_scripts(os.path.join(path_to_main, '..', 'tests'))
-        
+
         self.namelist_model = QStandardItemModel()
         self.namelist_view = QListView()
-        self.namelist_view.setStyleSheet("""
-            QListView {
-                background-color: rgb(42, 42, 64); 
-                color: rgb(211, 194, 78); 
-                selection-color: rgb(211, 194, 78); 
-                selection-background-color: rgb(63, 63, 97); 
-                border: 1px solid rgb(63, 63, 97); 
-                outline: none;
-                font-size: 12px;
-                font-weight: bold;
+        self.namelist_view.setStyleSheet(REFINED_STYLES['PLOT_LIST_STYLE'])
+        self.namelist_view.setTextElideMode(QtCore.Qt.TextElideMode.ElideMiddle)
 
-            }
-
-            QListView::item {
-                padding: 5px; 
-                border-bottom: 1px solid rgb(53, 53, 84); 
-            }
-
-            QListView::item:hover { 
-                background-color: rgb(211, 194, 78); 
-                color: rgb(42, 42, 64);
-            }
-
-            QScrollBar:vertical {
-                border: none;
-                background: rgb(43, 43, 77); 
-                width: 10px;
-                margin: 0px;
-            }
-            QScrollBar::handle:vertical {
-                background: rgb(193, 202, 227); 
-                min-height: 20px;
-                border-radius: 5px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background: rgb(211, 194, 78); 
-            }
-            
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                height: 0px;
-            }
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-                background: none;
-            }
-            QScrollBar:horizontal {
-                border: none;
-                background: rgb(43, 43, 77); 
-                height: 10px; /* Здесь теперь высота */
-                margin: 0px;
-            }
-            QScrollBar::handle:horizontal {
-                background: rgb(193, 202, 227); 
-                min-width: 20px; /* Здесь min-width вместо min-height */
-                border-radius: 5px;
-            }
-            QScrollBar::handle:horizontal:hover {
-                background: rgb(211, 194, 78); 
-            }
-            
-            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
-                width: 0px; /* Убираем стрелочки по бокам */
-            }
-            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
-                background: none;
-            }
-        """)
-        
         self.namelist_view.setModel(self.namelist_model)
+        self.namelist_model.rowsInserted.connect(self.update_plot_count)
+        self.namelist_model.rowsRemoved.connect(self.update_plot_count)
+        self.namelist_model.modelReset.connect(self.update_plot_count)
         self.setWidget(self.namelist_view)
         self.window = window
         self.plot_dict = {}
@@ -1417,6 +1116,9 @@ class NameList(QDockWidget):
         open_action_2 = QAction('Open 2D Data', self)
         open_action_2.triggered.connect(self.file_dialog_2d)
         self.namelist_view.addAction(open_action_2)
+
+    def update_plot_count(self, *args):
+        self.plot_list_heading.setText(f"Plots · {self.namelist_model.rowCount()}")
 
     def open_file(self, filename):
         """
@@ -1452,38 +1154,38 @@ class NameList(QDockWidget):
         name_plot = os.path.splitext(os.path.basename(file_path))[0]
 
         pw = self.window.add_new_plot(1, name_plot)
-        # opening of a simple CSV file with a maximum of 4 columns. 
+        # opening of a simple CSV file with a maximum of 4 columns.
         # this is usually related to internal pyqtgraph export.
         # in this case, there is an extra comma that creates an empty column, which should be taken into account
         # the data may have a different number of columns.
         if len(data) == 2:
-            pw.plot(data[0], data[1], parametric = True, name = name_plot, xname = 'X', 
-                xscale = 'Arb. U.',yname = 'Y', yscale = 'Arb. U.', 
+            pw.plot(data[0], data[1], parametric = True, name = name_plot, xname = 'X',
+                xscale = 'Arb. U.',yname = 'Y', yscale = 'Arb. U.',
                 label = 'Data_1', scatter = 'False')
         elif len(data) == 3 and np.isnan(data[2][0]) != True:
             pw.plot(data[0], data[1], parametric = True, name = name_plot + '_1', xname = 'X',
-                xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', 
+                xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.',
                 label = 'Data_1', scatter = 'False')
-            pw.plot(data[0], data[2], parametric = True, name = name_plot + '_2', xname = 'X', 
-                xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', 
+            pw.plot(data[0], data[2], parametric = True, name = name_plot + '_2', xname = 'X',
+                xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.',
                 label = 'Data_2', scatter = 'False')
         elif len(data) == 3 and np.isnan(data[2][0]) == True:
-            pw.plot(data[0], data[1], parametric = True, name = name_plot, xname = 'X', 
-                xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', 
+            pw.plot(data[0], data[1], parametric = True, name = name_plot, xname = 'X',
+                xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.',
                 label = 'Data_1', scatter = 'False')
         elif len(data) == 4 and np.isnan(data[3][0]) == True:
-            pw.plot(data[0], data[1], parametric = True, name = name_plot + '_1', xname = 'X', 
-                xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', 
+            pw.plot(data[0], data[1], parametric = True, name = name_plot + '_1', xname = 'X',
+                xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.',
                 label = 'Data_1', scatter = 'False')
-            pw.plot(data[0], data[2], parametric = True, name = name_plot + '_2', xname = 'X', 
-                xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', 
+            pw.plot(data[0], data[2], parametric = True, name = name_plot + '_2', xname = 'X',
+                xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.',
                 label = 'Data_2', scatter = 'False')
         elif len(data) == 5 and np.isnan(data[4][0]) == True:
-            pw.plot(data[0], data[1], parametric = True, name = name_plot + '_1', xname = 'X', 
-                xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', 
+            pw.plot(data[0], data[1], parametric = True, name = name_plot + '_1', xname = 'X',
+                xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.',
                 label = 'Data_1', scatter = 'False')
-            pw.plot(data[0], data[3], parametric = True, name = name_plot + '_2', xname = 'X', 
-                xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.', 
+            pw.plot(data[0], data[3], parametric = True, name = name_plot + '_2', xname = 'X',
+                xscale = 'Arb. U.', yname = 'Y', yscale = 'Arb. U.',
                 label = 'Data_2', scatter = 'False')
 
     def open_file_2d(self, filename):
@@ -1532,7 +1234,7 @@ class NameList(QDockWidget):
         filedialog = QFileDialog(self, 'Open File', directory = ldir.load('data', self.open_dir), filter = "Data (*.csv *.h5)", options = QFileDialog.Option.DontUseNativeDialog )
 
         filedialog.setIconProvider(QFileIconProvider())
-        filedialog.resize(1100, 450) 
+        filedialog.resize(1100, 450)
 
         tree = filedialog.findChild(QTreeView)
         header = tree.header()
@@ -1558,199 +1260,7 @@ class NameList(QDockWidget):
         if size_grip:
             size_grip.setVisible(False)
 
-        filedialog.setStyleSheet("""
-            QFileDialog, QDialog { 
-                background-color: rgb(42, 42, 64); 
-                color: rgb(193, 202, 227);
-                font-size: 11px;
-            }
-
-            QFileDialog QListView {
-                min-width: 150px; 
-                background-color: rgb(35, 35, 55);
-                border: 1px solid rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-            }
-
-            QTreeView {
-                min-width: 500px;
-                background-color: rgb(35, 35, 55);
-                border: 1px solid rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                outline: none;
-            }
-
-            QFileDialog QFrame#qt_contents, QFileDialog QWidget {
-                background-color: rgb(42, 42, 64);
-            }
-            
-            QFileDialog QToolBar {
-                background-color: rgb(42, 42, 64);
-                border-bottom: 1px solid rgb(63, 63, 97);
-                min-height: 34px; 
-                padding: 2px;
-            }
-
-            QToolButton {
-                background-color: rgb(63, 63, 97);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 4px;
-                min-height: 23px; 
-                max-height: 23px;
-                min-width: 23px;
-                qproperty-iconSize: 14px 14px; 
-                margin: 0px 2px;
-                vertical-align: middle;
-            }
-
-            QToolButton:hover {
-                border: 1px solid rgb(211, 194, 78);
-                background-color: rgb(83, 83, 117);
-            }
-
-            QLineEdit, QComboBox {
-                background-color: rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 3px;
-                padding: 2px 5px;
-                min-height: 16px; 
-            }
-
-            QLineEdit:focus, QFileDialog QComboBox:focus {
-                border: 1px solid rgb(211, 194, 78);
-                color: rgb(211, 194, 78);
-                outline: none;
-            }
-
-            QFileDialog QComboBox#lookInCombo {
-                background-color: rgb(42, 42, 64);
-                color: rgb(193, 202, 227);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 3px;
-                padding-left: 5px;
-                min-height: 19px;
-                max-height: 19px;
-                selection-background-color: rgb(48, 48, 75);
-                selection-color: rgb(211, 194, 78);
-            }
-
-            QFileDialog QComboBox#lookInCombo QAbstractItemView {
-                outline: none;
-                border: 1px solid rgb(48, 48, 75);
-                background-color: rgb(42, 42, 64);
-            }
-
-            QFileDialog QDialogButtonBox QPushButton {
-                background-color: rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 4px;
-                font-weight: bold;
-                min-height: 23px;
-                max-height: 23px;
-                min-width: 75px;
-                padding: 0px 12px;
-            }
-
-            QFileDialog QDialogButtonBox QPushButton:hover {
-                background-color: rgb(83, 83, 117);
-                border: 1px solid rgb(211, 194, 78);
-                color: rgb(211, 194, 78);
-            }
-            
-            QHeaderView::section {
-                background-color: rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                padding: 4px;
-                border: none;
-                border-right: 1px solid rgb(83, 83, 117);
-                min-height: 20px;
-            }
-
-            QScrollBar:vertical {
-                border: none; background: rgb(43, 43, 77); 
-                width: 10px; margin: 0px;
-            }
-            QScrollBar::handle:vertical {
-                background: rgb(193, 202, 227); min-height: 20px; border-radius: 5px;
-            }
-            QScrollBar::handle:vertical:hover { background: rgb(211, 194, 78); }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
-
-            QScrollBar:horizontal {
-                border: none; 
-                background: rgb(43, 43, 77); 
-                height: 10px; 
-                margin: 0px;
-            }
-            QScrollBar::handle:horizontal {
-                background: rgb(193, 202, 227); 
-                min-width: 20px; 
-                border-radius: 5px;
-            }
-            QScrollBar::handle:horizontal:hover { 
-                background: rgb(211, 194, 78); 
-            }
-            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { 
-                width: 0px; 
-            }
-            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { 
-                background: none; 
-            }
-
-            QFileDialog QDialogButtonBox {
-                background-color: rgb(42, 42, 64);
-                border-top: 1px solid rgb(63, 63, 97);
-                padding: 6px;
-            }
-
-            QFileDialog QLabel {
-                color: rgb(193, 202, 227);
-            }
-
-            QFileDialog QListView::item:hover {
-                background-color: rgb(48, 48, 75);
-                color: rgb(211, 194, 78);
-            }
-
-            QHeaderView {
-                background-color: rgb(63, 63, 97);
-            }
-
-            QFileDialog QListView#sidebar:inactive, 
-            QTreeView:inactive {
-                selection-background-color: rgb(35, 35, 55);
-                selection-color: rgb(211, 194, 78);
-            }
-
-            QTreeView::item:hover { 
-                background-color: rgb(48, 48, 75);
-                color: rgb(211, 194, 78); 
-                } 
-            QTreeView::item:selected:inactive, 
-            QFileDialog QListView#sidebar::item:selected:inactive {
-                selection-background-color: rgb(63, 63, 97);
-                selection-color: rgb(211, 194, 78);
-            }
-            QFileDialog QListView#sidebar::item {
-                padding-left: 5px; 
-                padding-top: 5px;
-            }
-
-            QMenu {
-                background-color: rgb(42, 42, 64);
-                border: 1px solid rgb(63, 63, 97);
-                padding: 3px;
-            }
-            QMenu::item { color: rgb(211, 194, 78); } 
-            QMenu::item:selected { 
-                background-color: rgb(48, 48, 75); 
-                color: rgb(211, 194, 78);
-                }
-
-        """)
+        style_file_dialog(filedialog)
 
 
         filedialog.setFileMode(QFileDialog.FileMode.AnyFile)
@@ -1777,7 +1287,7 @@ class NameList(QDockWidget):
         filedialog = QFileDialog(self, 'Open File', directory = ldir.load('data', self.open_dir), filter = "Data (*.csv *.h5)", options = QFileDialog.Option.DontUseNativeDialog )
 
         filedialog.setIconProvider(QFileIconProvider())
-        filedialog.resize(1100, 450) 
+        filedialog.resize(1100, 450)
         # use QFileDialog.Option.DontUseNativeDialog to change directory
 
         tree = filedialog.findChild(QTreeView)
@@ -1786,7 +1296,7 @@ class NameList(QDockWidget):
             header.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
 
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        
+
         buttons = filedialog.findChildren(QPushButton)
         seen_texts = []
         for btn in buttons:
@@ -1803,200 +1313,8 @@ class NameList(QDockWidget):
 
         if line_edit:
             line_edit.setCompleter(None)
-        
-        filedialog.setStyleSheet("""
-            QFileDialog, QDialog { 
-                background-color: rgb(42, 42, 64); 
-                color: rgb(193, 202, 227);
-                font-size: 11px;
-            }
 
-            QFileDialog QListView {
-                min-width: 150px; 
-                background-color: rgb(35, 35, 55);
-                border: 1px solid rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-            }
-
-            QTreeView {
-                min-width: 500px;
-                background-color: rgb(35, 35, 55);
-                border: 1px solid rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                outline: none;
-            }
-
-            QFileDialog QFrame#qt_contents, QFileDialog QWidget {
-                background-color: rgb(42, 42, 64);
-            }
-            
-            QFileDialog QToolBar {
-                background-color: rgb(42, 42, 64);
-                border-bottom: 1px solid rgb(63, 63, 97);
-                min-height: 34px; 
-                padding: 2px;
-            }
-
-            QToolButton {
-                background-color: rgb(63, 63, 97);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 4px;
-                min-height: 23px; 
-                max-height: 23px;
-                min-width: 23px;
-                qproperty-iconSize: 14px 14px; 
-                margin: 0px 2px;
-                vertical-align: middle;
-            }
-
-            QToolButton:hover {
-                border: 1px solid rgb(211, 194, 78);
-                background-color: rgb(83, 83, 117);
-            }
-
-            QLineEdit, QComboBox {
-                background-color: rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 3px;
-                padding: 2px 5px;
-                min-height: 16px; 
-            }
-
-            QLineEdit:focus, QFileDialog QComboBox:focus {
-                border: 1px solid rgb(211, 194, 78);
-                color: rgb(211, 194, 78);
-                outline: none;
-            }
-
-            QFileDialog QComboBox#lookInCombo {
-                background-color: rgb(42, 42, 64);
-                color: rgb(193, 202, 227);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 3px;
-                padding-left: 5px;
-                min-height: 19px;
-                max-height: 19px;
-                selection-background-color: rgb(48, 48, 75);
-                selection-color: rgb(211, 194, 78);
-            }
-
-            QFileDialog QComboBox#lookInCombo QAbstractItemView {
-                outline: none;
-                border: 1px solid rgb(48, 48, 75);
-                background-color: rgb(42, 42, 64);
-            }
-
-            QFileDialog QDialogButtonBox QPushButton {
-                background-color: rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 4px;
-                font-weight: bold;
-                min-height: 23px;
-                max-height: 23px;
-                min-width: 75px;
-                padding: 0px 12px;
-            }
-
-            QFileDialog QDialogButtonBox QPushButton:hover {
-                background-color: rgb(83, 83, 117);
-                border: 1px solid rgb(211, 194, 78);
-                color: rgb(211, 194, 78);
-            }
-            
-            QHeaderView::section {
-                background-color: rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                padding: 4px;
-                border: none;
-                border-right: 1px solid rgb(83, 83, 117);
-                min-height: 20px;
-            }
-
-            QScrollBar:vertical {
-                border: none; background: rgb(43, 43, 77); 
-                width: 10px; margin: 0px;
-            }
-            QScrollBar::handle:vertical {
-                background: rgb(193, 202, 227); min-height: 20px; border-radius: 5px;
-            }
-            QScrollBar::handle:vertical:hover { background: rgb(211, 194, 78); }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
-
-            QScrollBar:horizontal {
-                border: none; 
-                background: rgb(43, 43, 77); 
-                height: 10px; 
-                margin: 0px;
-            }
-            QScrollBar::handle:horizontal {
-                background: rgb(193, 202, 227); 
-                min-width: 20px; 
-                border-radius: 5px;
-            }
-            QScrollBar::handle:horizontal:hover { 
-                background: rgb(211, 194, 78); 
-            }
-            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { 
-                width: 0px; 
-            }
-            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { 
-                background: none; 
-            }
-
-            QFileDialog QDialogButtonBox {
-                background-color: rgb(42, 42, 64);
-                border-top: 1px solid rgb(63, 63, 97);
-                padding: 6px;
-            }
-
-            QFileDialog QLabel {
-                color: rgb(193, 202, 227);
-            }
-
-            QFileDialog QListView::item:hover {
-                background-color: rgb(48, 48, 75);
-                color: rgb(211, 194, 78);
-            }
-
-            QHeaderView {
-                background-color: rgb(63, 63, 97);
-            }
-
-            QFileDialog QListView#sidebar:inactive, 
-            QTreeView:inactive {
-                selection-background-color: rgb(35, 35, 55);
-                selection-color: rgb(211, 194, 78);
-            }
-
-            QTreeView::item:hover { 
-                background-color: rgb(48, 48, 75);
-                color: rgb(211, 194, 78); 
-                } 
-            QTreeView::item:selected:inactive, 
-            QFileDialog QListView#sidebar::item:selected:inactive {
-                selection-background-color: rgb(63, 63, 97);
-                selection-color: rgb(211, 194, 78);
-            }
-            QFileDialog QListView#sidebar::item {
-                padding-left: 5px; 
-                padding-top: 5px;
-            }
-
-            QMenu {
-                background-color: rgb(42, 42, 64);
-                border: 1px solid rgb(63, 63, 97);
-                padding: 3px;
-            }
-            QMenu::item { color: rgb(211, 194, 78); } 
-            QMenu::item:selected { 
-                background-color: rgb(48, 48, 75); 
-                color: rgb(211, 194, 78);
-                }
-
-        """)
+        style_file_dialog(filedialog)
 
         filedialog.setFileMode(QFileDialog.FileMode.AnyFile)
 
@@ -2025,6 +1343,7 @@ class NameList(QDockWidget):
     def __setitem__(self, name, plot):
         model = QStandardItem(name)
         model.setEditable(False)
+        model.setToolTip(name)
         self.namelist_model.appendRow(model)
         self.plot_dict[name] = plot
 
@@ -2038,7 +1357,7 @@ class NameList(QDockWidget):
             self.plot_dict[name].h_cross_dock.close()
             self.plot_dict[name].v_cross_dock.close()
         except AttributeError:
-            pass        
+            pass
         del self.plot_dict[name]
 
     def keys(self):
@@ -2051,7 +1370,7 @@ def main():
     """
     # Windows taskbar
     try:
-        myappid = 'atomize' 
+        myappid = 'atomize'
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     except Exception:
         pass
@@ -2060,7 +1379,7 @@ def main():
     # Fusion + shared dark palette, so QComboBox / QSpinBox / QLineEdit render
     # identically on Linux and Windows (AppUserModelID already set above).
     from atomize.general_modules.gui_style import apply_app_style
-    apply_app_style(app, desktop = True)
+    apply_app_style(app, desktop=True, theme=REFINED_THEME)
     main = MainWindow()
 
     main.show()

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from PyQt6 import QtCore
+from atomize.general_modules.gui_style import REFINED_STYLES
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QAction, QDropEvent
 from PyQt6.QtWidgets import QListView, QDockWidget, QWidget, QAbstractItemView
@@ -16,49 +17,8 @@ class QueueList(QDockWidget):
         self.namelist_model = QStandardItemModel()
         self.namelist_view = CustomListView()
 
-        self.namelist_view.setStyleSheet("""
-            QListView {
-                background-color: rgb(42, 42, 64); 
-                color: rgb(211, 194, 78); 
-                selection-color: rgb(211, 194, 78); 
-                selection-background-color: rgb(63, 63, 97); 
-                border: 1px solid rgb(63, 63, 97);
-                outline: none;
-            }
-            QListView::item:hover { 
-                background-color: rgb(211, 194, 78); 
-                color: rgb(42, 42, 64);
-            }
-
-            QScrollBar:vertical {
-                border: none;
-                background: rgb(43, 43, 77); 
-                width: 10px;
-                margin: 0px;
-            }
-            QScrollBar::handle:vertical {
-                background: rgb(193, 202, 227); 
-                min-height: 20px;
-                border-radius: 5px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background: rgb(211, 194, 78); 
-            }
-            
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                height: 0px;
-            }
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-                background: none;
-            }
-            
-            QMenu {
-                background-color: rgb(42, 42, 64);
-                border: 1px solid rgb(63, 63, 97);
-            }
-            QMenu::item { color: rgb(211, 194, 78); } 
-            QMenu::item:selected { background-color: rgb(48, 48, 75); } 
-        """)
+        self.namelist_view.setStyleSheet(REFINED_STYLES['PLOT_LIST_STYLE'] + 'QListView { border: none; }')
+        self.namelist_view.setTextElideMode(Qt.TextElideMode.ElideMiddle)
 
         self.namelist_view.setModel(self.namelist_model)
         self.namelist_view.selectionModel().currentChanged.connect(self.list_elements)
@@ -117,6 +77,7 @@ class QueueList(QDockWidget):
     def __setitem__(self, name, plot):
         #if name not in self.keys():
         model = QStandardItem(plot)
+        model.setToolTip(plot)
         model.setEditable(False)
         model.setFlags(model.flags() & ~Qt.ItemFlag.ItemIsDropEnabled)
         self.namelist_model.appendRow(model)
@@ -154,8 +115,6 @@ class CustomListView(QListView):
         self.setAcceptDrops(True)
         self.setDragDropOverwriteMode(False)
         self.drop = 0
-        self.setStyleSheet("QListView::item:selected:active {background-color: rgb(63, 63, 97); color: rgb(211, 194, 78); } QListView::item:hover {background-color: rgb(48, 48, 75); }")
-        self.setStyleSheet("QMenu::item:selected {background-color: rgb(48, 48, 75);  } QMenu::item:selected:active {background-color: rgb(63, 63, 97); }")
 
     def dropEvent(self, event: QDropEvent):
         self.drop = 1

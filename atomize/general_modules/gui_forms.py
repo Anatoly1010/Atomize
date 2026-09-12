@@ -57,7 +57,7 @@ from atomize.general_modules.gui_style import (LABEL_STYLE, HEADING_STYLE,
                                                HINT_STYLE, HELP_CHIP_STYLE,
                                                DISCLOSURE_STYLE,
                                                HELP_POPUP_STYLE,
-                                               CHECKBOX_STYLE, SCROLL_STYLE)
+                                               CHECKBOX_STYLE, SCROLL_STYLE, SEPARATOR_STYLE)
 
 # Width of the label column. Wide enough for the longest field name the tools
 # use once the parenthetical explanations move to tooltips and suffixes.
@@ -137,7 +137,7 @@ def hline():
     line = QFrame()
     line.setFrameShape(QFrame.Shape.HLine)
     line.setFrameShadow(QFrame.Shadow.Plain)
-    line.setStyleSheet('color: rgb(83, 83, 117);')
+    line.setStyleSheet(SEPARATOR_STYLE)
     return line
 
 
@@ -150,7 +150,7 @@ def vline():
     line = QFrame()
     line.setFrameShape(QFrame.Shape.VLine)
     line.setFrameShadow(QFrame.Shadow.Plain)
-    line.setStyleSheet('color: rgb(83, 83, 117);')
+    line.setStyleSheet(SEPARATOR_STYLE)
     return line
 
 

@@ -118,18 +118,10 @@ If you use Atomize, please cite the [JORS paper](https://doi.org/10.5334/jors.59
 
 ## Screenshots
 
-Main window with the script editor, output log and queue:
+The current interface shown with synthetic demonstration data.
 
-![Main window](screenshots/screenshot.png)
+![Script editor and experiment queue](screenshots/screenshot.png)
 
-Live 2D plot of a time-resolved EPR experiment (field versus time):
+![Liveplot with two 1D plots](screenshots/screenshot2.png)
 
-![2D live plot](screenshots/screenshot2.png)
-
-Live 1D plot of a CW EPR spectrum accumulated over scans:
-
-![1D live plot](screenshots/screenshot3.png)
-
----
-
-<sub>Atomize = A + TOM + ize. A stands for Anatoly, the main developer; TOM for the International TOMography Center, our organization.</sub>
+![Liveplot with 1D plots and a 2D map](screenshots/screenshot3.png)

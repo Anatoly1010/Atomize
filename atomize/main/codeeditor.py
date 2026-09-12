@@ -6,7 +6,7 @@
 # with a little bit of appearance changes
 
 from PyQt6 import QtGui
-from PyQt6.QtCore import QRect, pyqtSlot, Qt, QSize
+from PyQt6.QtCore import QRect, QPointF, pyqtSlot, Qt, QSize
 from PyQt6.QtGui import QColor, QTextFormat, QPainter, QFont, QKeyEvent, QTextOption, QTextCursor, QKeySequence, QShortcut
 from PyQt6.QtWidgets import QWidget, QPlainTextEdit, QApplication, QTextEdit, QInputDialog, QSpinBox
 
@@ -50,7 +50,7 @@ class CodeEditor(QPlainTextEdit):
 
     def lineNumberAreaPaintEvent(self, event):
         painter = QPainter(self.lineNumberArea)
-        painter.fillRect(event.rect(), QColor(63, 63, 97))   # color of the line column 
+        painter.fillRect(event.rect(), self.palette().window())
 
         block = self.firstVisibleBlock()
         blockNumber = block.blockNumber();
@@ -60,14 +60,16 @@ class CodeEditor(QPlainTextEdit):
         while block.isValid() and top <= event.rect().bottom():
             if block.isVisible() and bottom >= event.rect().top():
                 number = str(blockNumber + 1)
-                painter.setPen(QColor(192, 202, 227))
-                painter.setFont(QtGui.QFont("Ubuntu", 9, QtGui.QFont.Weight.Bold))
-                painter.drawText(-4, int(top + 1), self.lineNumberArea.width(), 
-                    self.fontMetrics().height(),
-                    Qt.AlignmentFlag.AlignRight, number)
+                painter.setPen(self.palette().text().color())
+                painter.setFont(self.font())
+                line = block.layout().lineAt(0)
+                baseline = top + line.y() + line.ascent()
+                x = self.lineNumberArea.width() - 4 - painter.fontMetrics().horizontalAdvance(number)
+                painter.drawText(QPointF(x, baseline), number)
             block = block.next()
-            top = bottom
-            bottom = top + self.blockBoundingRect(block).height() + 0.1
+            if block.isValid():
+                top = self.blockBoundingGeometry(block).translated(self.contentOffset()).top()
+                bottom = top + self.blockBoundingRect(block).height()
             blockNumber += 1
 
     def lineNumberAreaWidth(self):
@@ -94,7 +96,7 @@ class CodeEditor(QPlainTextEdit):
     def resizeEvent(self, event):
         QPlainTextEdit.resizeEvent(self, event)
         cr = self.contentsRect()
-        self.lineNumberArea.setGeometry(QRect(cr.left(), cr.top(), self.lineNumberAreaWidth(), cr.height()))
+        self.lineNumberArea.setGeometry(QRect(cr.left(), self.viewport().y(), self.lineNumberAreaWidth(), self.viewport().height()))
 
     @pyqtSlot(int)
     def updateLineNumberAreaWidth(self, newBlockCount):
@@ -105,7 +107,7 @@ class CodeEditor(QPlainTextEdit):
         extraSelections = []
         #if not self.isReadOnly():
         selection = QTextEdit.ExtraSelection()
-        lineColor = QColor(48, 48, 75)
+        lineColor = self.palette().alternateBase().color()
         selection.format.setBackground(lineColor)
         selection.format.setProperty(QTextFormat.Property.FullWidthSelection, True)
         selection.cursor = self.textCursor()
@@ -129,8 +131,6 @@ class CodeEditor(QPlainTextEdit):
         dialog.setInputMode(QInputDialog.InputMode.IntInput)
         dialog.setIntRange(1, self.document().blockCount())
         
-        # Set stylesheet directly on the instance
-        dialog.setStyleSheet("background-color: rgb(42, 42, 64); color: rgb(211, 194, 78);")
         
         spinbox = dialog.findChild(QSpinBox)
         if spinbox:
@@ -149,8 +149,6 @@ class CodeEditor(QPlainTextEdit):
             self.ensureCursorVisible() # Ensure the line is in view
 
     def trigger_search(self):
-        self.setStyleSheet("""background-color: rgb(42, 42, 64); color: rgb(211, 194, 78);  selection-background-color: rgb(211, 197, 78); selection-color: rgb(63, 63, 97); """)
-        
         text, ok = QInputDialog.getText(
             self, "Find Text", "Search for:", text=self.last_search_term
         )

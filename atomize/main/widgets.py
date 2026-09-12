@@ -8,13 +8,15 @@ import math
 from datetime import datetime
 from pathlib import Path
 from pyqtgraph.dockarea import Dock
+from pyqtgraph.dockarea.Dock import DockLabel
+from atomize.general_modules.gui_style import style_file_dialog, REFINED_THEME, REFINED_STYLES
 from PyQt6 import QtWidgets, QtCore, QtGui, sip
 import atomize.main.local_config as lconf
 import atomize.general_modules.last_dir as ldir
 
-pg.setConfigOption('background', (63,63,97))
+pg.setConfigOption('background', REFINED_THEME.dark)
 pg.setConfigOption('leftButtonPan', False)
-pg.setConfigOption('foreground', (192, 202, 227))
+pg.setConfigOption('foreground', REFINED_THEME.dim)
 #pg.setConfigOptions(imageAxisOrder='row-major')
 
 LastExportDirectory = None
@@ -41,20 +43,40 @@ def get_widget(rank, name):
         2: CrossSectionDock,
         }[rank](name=name)
 
-class CloseableDock(Dock):
+class WorkspaceDockLabel(DockLabel):
+    def paintEvent(self, event):
+        QtWidgets.QLabel.paintEvent(self, event)
+
+    def updateStyle(self):
+        self.setStyleSheet(REFINED_STYLES['DOCK_LABEL_STYLE'])
+        self.setFixedHeight(24)
+        self.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter)
+
+
+class WorkspaceDock(Dock):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('label', WorkspaceDockLabel(kwargs.get('name', args[0] if args else '')))
+        kwargs.setdefault('autoOrientation', False)
+        super().__init__(*args, **kwargs)
+        self.widgetArea.setObjectName('dockContent')
+        self.hStyle = self.vStyle = self.nStyle = REFINED_STYLES['DOCK_CONTENT_STYLE']
+        self.layout.setContentsMargins(1, 0, 1, 1)
+        self.updateStyle()
+
+
+class CloseableDock(WorkspaceDock):
     docklist = []
     def __init__(self, *args, **kwargs):
         # Default 'closable' to False to prevent pyqtgraph's native button from interfering
         kwargs.setdefault('closable', False)
         super(CloseableDock, self).__init__(*args, **kwargs)
         
-        self.setStyleSheet("background: rgba(42, 42, 64, 255);")
-        style = QtWidgets.QStyleFactory().create("fusion")
-        close_icon = style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_TitleBarCloseButton)
+        self.setStyleSheet(REFINED_STYLES['DOCK_STYLE'])
         
-        self.close_button = QtWidgets.QPushButton(close_icon, "", self)
-        self.close_button.setGeometry(0, 0, 13, 13)
-        self.close_button.setStyleSheet("border: rgba(0, 0, 0, 255); background: rgba(211, 194, 78, 255);")
+        self.close_button = QtWidgets.QPushButton("×", self)
+        self.close_button.setFixedSize(18, 18)
+        self.close_button.setStyleSheet(REFINED_STYLES['DOCK_CLOSE_STYLE'])
+        self.close_button.setToolTip('Close plot')
         self.close_button.raise_()
         self.close_button.clicked.connect(self.close)
         
@@ -65,7 +87,8 @@ class CloseableDock(Dock):
     def containerChanged(self, container):
         """Triggered by pyqtgraph when the dock moves (including floating)."""
         super().containerChanged(container)
-        container.setStyleSheet(f"background-color: rgba(42, 42, 64, 255);")
+        if container is not None:
+            container.setStyleSheet(REFINED_STYLES['DOCK_STYLE'])
         # Ensure button is on top when it moves to a new floating window
         self.update_button_layout()
 
@@ -76,10 +99,9 @@ class CloseableDock(Dock):
 
     def update_button_layout(self):
         """Positions the button relative to the current dock size."""
-        margin = 0
-        # Position at top-right
-        self.close_button.move(margin, margin)
-        self.close_button.raise_()
+        if hasattr(self, 'close_button'):
+            self.close_button.move(max(0, self.width() - 22), 3)
+            self.close_button.raise_()
 
     def close(self):
         self.setParent(None)
@@ -1370,199 +1392,7 @@ class CrosshairDock(CloseableDock):
         if size_grip:
             size_grip.setVisible(False)
 
-        filedialog.setStyleSheet("""
-            QFileDialog, QDialog { 
-                background-color: rgb(42, 42, 64); 
-                color: rgb(193, 202, 227);
-                font-size: 11px;
-            }
-
-            QFileDialog QListView {
-                min-width: 150px; 
-                background-color: rgb(35, 35, 55);
-                border: 1px solid rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-            }
-
-            QTreeView {
-                min-width: 500px;
-                background-color: rgb(35, 35, 55);
-                border: 1px solid rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                outline: none;
-            }
-
-            QFileDialog QFrame#qt_contents, QFileDialog QWidget {
-                background-color: rgb(42, 42, 64);
-            }
-            
-            QFileDialog QToolBar {
-                background-color: rgb(42, 42, 64);
-                border-bottom: 1px solid rgb(63, 63, 97);
-                min-height: 34px; 
-                padding: 2px;
-            }
-
-            QToolButton {
-                background-color: rgb(63, 63, 97);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 4px;
-                min-height: 23px; 
-                max-height: 23px;
-                min-width: 23px;
-                qproperty-iconSize: 14px 14px; 
-                margin: 0px 2px;
-                vertical-align: middle;
-            }
-
-            QToolButton:hover {
-                border: 1px solid rgb(211, 194, 78);
-                background-color: rgb(83, 83, 117);
-            }
-
-            QLineEdit, QComboBox {
-                background-color: rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 3px;
-                padding: 2px 5px;
-                min-height: 16px; 
-            }
-
-            QLineEdit:focus, QFileDialog QComboBox:focus {
-                border: 1px solid rgb(211, 194, 78);
-                color: rgb(211, 194, 78);
-                outline: none;
-            }
-
-            QFileDialog QComboBox#lookInCombo {
-                background-color: rgb(42, 42, 64);
-                color: rgb(193, 202, 227);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 3px;
-                padding-left: 5px;
-                min-height: 19px;
-                max-height: 19px;
-                selection-background-color: rgb(48, 48, 75);
-                selection-color: rgb(211, 194, 78);
-            }
-
-            QFileDialog QComboBox#lookInCombo QAbstractItemView {
-                outline: none;
-                border: 1px solid rgb(48, 48, 75);
-                background-color: rgb(42, 42, 64);
-            }
-
-            QFileDialog QDialogButtonBox QPushButton {
-                background-color: rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 4px;
-                font-weight: bold;
-                min-height: 23px;
-                max-height: 23px;
-                min-width: 75px;
-                padding: 0px 12px;
-            }
-
-            QFileDialog QDialogButtonBox QPushButton:hover {
-                background-color: rgb(83, 83, 117);
-                border: 1px solid rgb(211, 194, 78);
-                color: rgb(211, 194, 78);
-            }
-            
-            QHeaderView::section {
-                background-color: rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                padding: 4px;
-                border: none;
-                border-right: 1px solid rgb(83, 83, 117);
-                min-height: 20px;
-            }
-
-            QScrollBar:vertical {
-                border: none; background: rgb(43, 43, 77); 
-                width: 10px; margin: 0px;
-            }
-            QScrollBar::handle:vertical {
-                background: rgb(193, 202, 227); min-height: 20px; border-radius: 5px;
-            }
-            QScrollBar::handle:vertical:hover { background: rgb(211, 194, 78); }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
-
-            QScrollBar:horizontal {
-                border: none; 
-                background: rgb(43, 43, 77); 
-                height: 10px; 
-                margin: 0px;
-            }
-            QScrollBar::handle:horizontal {
-                background: rgb(193, 202, 227); 
-                min-width: 20px; 
-                border-radius: 5px;
-            }
-            QScrollBar::handle:horizontal:hover { 
-                background: rgb(211, 194, 78); 
-            }
-            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { 
-                width: 0px; 
-            }
-            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { 
-                background: none; 
-            }
-
-            QFileDialog QDialogButtonBox {
-                background-color: rgb(42, 42, 64);
-                border-top: 1px solid rgb(63, 63, 97);
-                padding: 6px;
-            }
-
-            QFileDialog QLabel {
-                color: rgb(193, 202, 227);
-            }
-
-            QFileDialog QListView::item:hover {
-                background-color: rgb(48, 48, 75);
-                color: rgb(211, 194, 78);
-            }
-
-            QHeaderView {
-                background-color: rgb(63, 63, 97);
-            }
-
-            QFileDialog QListView#sidebar:inactive, 
-            QTreeView:inactive {
-                selection-background-color: rgb(35, 35, 55);
-                selection-color: rgb(211, 194, 78);
-            }
-
-            QTreeView::item:hover { 
-                background-color: rgb(48, 48, 75);
-                color: rgb(211, 194, 78); 
-                } 
-            QTreeView::item:selected:inactive, 
-            QFileDialog QListView#sidebar::item:selected:inactive {
-                selection-background-color: rgb(63, 63, 97);
-                selection-color: rgb(211, 194, 78);
-            }
-            QFileDialog QListView#sidebar::item {
-                padding-left: 5px; 
-                padding-top: 5px;
-            }
-
-            QMenu {
-                background-color: rgb(42, 42, 64);
-                border: 1px solid rgb(63, 63, 97);
-                padding: 3px;
-            }
-            QMenu::item { color: rgb(211, 194, 78); } 
-            QMenu::item:selected { 
-                background-color: rgb(48, 48, 75); 
-                color: rgb(211, 194, 78);
-                }
-
-        """)
+        style_file_dialog(filedialog)
 
 
         filedialog.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
@@ -2150,199 +1980,7 @@ class CrossSectionDock(CloseableDock):
         if size_grip:
             size_grip.setVisible(False)
 
-        self.fileDialog.setStyleSheet("""
-            QFileDialog, QDialog { 
-                background-color: rgb(42, 42, 64); 
-                color: rgb(193, 202, 227);
-                font-size: 11px;
-            }
-
-            QFileDialog QListView {
-                min-width: 150px; 
-                background-color: rgb(35, 35, 55);
-                border: 1px solid rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-            }
-
-            QTreeView {
-                min-width: 500px;
-                background-color: rgb(35, 35, 55);
-                border: 1px solid rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                outline: none;
-            }
-
-            QFileDialog QFrame#qt_contents, QFileDialog QWidget {
-                background-color: rgb(42, 42, 64);
-            }
-            
-            QFileDialog QToolBar {
-                background-color: rgb(42, 42, 64);
-                border-bottom: 1px solid rgb(63, 63, 97);
-                min-height: 34px; 
-                padding: 2px;
-            }
-
-            QToolButton {
-                background-color: rgb(63, 63, 97);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 4px;
-                min-height: 23px; 
-                max-height: 23px;
-                min-width: 23px;
-                qproperty-iconSize: 14px 14px; 
-                margin: 0px 2px;
-                vertical-align: middle;
-            }
-
-            QToolButton:hover {
-                border: 1px solid rgb(211, 194, 78);
-                background-color: rgb(83, 83, 117);
-            }
-
-            QLineEdit, QComboBox {
-                background-color: rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 3px;
-                padding: 2px 5px;
-                min-height: 16px; 
-            }
-
-            QLineEdit:focus, QFileDialog QComboBox:focus {
-                border: 1px solid rgb(211, 194, 78);
-                color: rgb(211, 194, 78);
-                outline: none;
-            }
-
-            QFileDialog QComboBox#lookInCombo {
-                background-color: rgb(42, 42, 64);
-                color: rgb(193, 202, 227);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 3px;
-                padding-left: 5px;
-                min-height: 19px;
-                max-height: 19px;
-                selection-background-color: rgb(48, 48, 75);
-                selection-color: rgb(211, 194, 78);
-            }
-
-            QFileDialog QComboBox#lookInCombo QAbstractItemView {
-                outline: none;
-                border: 1px solid rgb(48, 48, 75);
-                background-color: rgb(42, 42, 64);
-            }
-
-            QFileDialog QDialogButtonBox QPushButton {
-                background-color: rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                border: 1px solid rgb(83, 83, 117);
-                border-radius: 4px;
-                font-weight: bold;
-                min-height: 23px;
-                max-height: 23px;
-                min-width: 75px;
-                padding: 0px 12px;
-            }
-
-            QFileDialog QDialogButtonBox QPushButton:hover {
-                background-color: rgb(83, 83, 117);
-                border: 1px solid rgb(211, 194, 78);
-                color: rgb(211, 194, 78);
-            }
-            
-            QHeaderView::section {
-                background-color: rgb(63, 63, 97);
-                color: rgb(193, 202, 227);
-                padding: 4px;
-                border: none;
-                border-right: 1px solid rgb(83, 83, 117);
-                min-height: 20px;
-            }
-
-            QScrollBar:vertical {
-                border: none; background: rgb(43, 43, 77); 
-                width: 10px; margin: 0px;
-            }
-            QScrollBar::handle:vertical {
-                background: rgb(193, 202, 227); min-height: 20px; border-radius: 5px;
-            }
-            QScrollBar::handle:vertical:hover { background: rgb(211, 194, 78); }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
-
-            QScrollBar:horizontal {
-                border: none; 
-                background: rgb(43, 43, 77); 
-                height: 10px; 
-                margin: 0px;
-            }
-            QScrollBar::handle:horizontal {
-                background: rgb(193, 202, 227); 
-                min-width: 20px; 
-                border-radius: 5px;
-            }
-            QScrollBar::handle:horizontal:hover { 
-                background: rgb(211, 194, 78); 
-            }
-            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { 
-                width: 0px; 
-            }
-            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { 
-                background: none; 
-            }
-
-            QFileDialog QDialogButtonBox {
-                background-color: rgb(42, 42, 64);
-                border-top: 1px solid rgb(63, 63, 97);
-                padding: 6px;
-            }
-
-            QFileDialog QLabel {
-                color: rgb(193, 202, 227);
-            }
-
-            QFileDialog QListView::item:hover {
-                background-color: rgb(48, 48, 75);
-                color: rgb(211, 194, 78);
-            }
-
-            QHeaderView {
-                background-color: rgb(63, 63, 97);
-            }
-
-            QFileDialog QListView#sidebar:inactive, 
-            QTreeView:inactive {
-                selection-background-color: rgb(35, 35, 55);
-                selection-color: rgb(211, 194, 78);
-            }
-
-            QTreeView::item:hover { 
-                background-color: rgb(48, 48, 75);
-                color: rgb(211, 194, 78); 
-                } 
-            QTreeView::item:selected:inactive, 
-            QFileDialog QListView#sidebar::item:selected:inactive {
-                selection-background-color: rgb(63, 63, 97);
-                selection-color: rgb(211, 194, 78);
-            }
-            QFileDialog QListView#sidebar::item {
-                padding-left: 5px; 
-                padding-top: 5px;
-            }
-
-            QMenu {
-                background-color: rgb(42, 42, 64);
-                border: 1px solid rgb(63, 63, 97);
-                padding: 3px;
-            }
-            QMenu::item { color: rgb(211, 194, 78); } 
-            QMenu::item:selected { 
-                background-color: rgb(48, 48, 75); 
-                color: rgb(211, 194, 78);
-                }
-
-        """)
+        style_file_dialog(self.fileDialog)
 
 
         self.fileDialog.setNameFilters(['*.csv','*.txt','*.dat'])
