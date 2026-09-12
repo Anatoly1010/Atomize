@@ -474,13 +474,14 @@ def build_refined_styles(theme=REFINED_THEME):
         _css(getattr(theme, name)) for name in
         ('bg', 'base', 'border', 'fg', 'dim', 'accent', 'track', 'hover', 'dark')
     )
-    def input_surface(selectors):
+    def input_surface(selectors, highlight_hover=True):
         normal = ', '.join(selectors)
         hovered = ', '.join(selector + ':hover:enabled' for selector in selectors)
         focused = ', '.join(selector + ':focus:enabled' for selector in selectors)
+        hover_rule = f"{hovered} {{ background: {_css(theme.input_hover)}; }}" if highlight_hover else ''
         return f"""
             {normal} {{ background: {_css(theme.input_bg)}; border: 1px solid {panel}; border-radius: 2px; }}
-            {hovered} {{ background: {_css(theme.input_hover)}; }}
+            {hover_rule}
             {focused} {{ background: {_css(theme.input_focus)}; border-color: {accent}; }}
         """
 
@@ -687,7 +688,7 @@ def build_refined_styles(theme=REFINED_THEME):
         ('FILE_DIALOG_STYLE', ('QLineEdit', 'QComboBox')),
         ('MENU_STYLE', ('QMenu QLineEdit', 'QMenu QAbstractSpinBox', 'QMenu QComboBox')),
     ):
-        styles[key] += input_surface(selectors)
+        styles[key] += input_surface(selectors, highlight_hover=key != 'EDITOR_STYLE')
     styles['DSPIN_STYLE'] = styles['SPIN_STYLE'] = styles['COMPACT_FIELD_STYLE']
     return styles
 

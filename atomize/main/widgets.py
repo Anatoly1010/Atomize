@@ -79,10 +79,26 @@ class CloseableDock(WorkspaceDock):
         self.close_button.setToolTip('Close plot')
         self.close_button.raise_()
         self.close_button.clicked.connect(self.close)
-        
+
+        widget = kwargs.get('widget')
+        if isinstance(widget, pg.PlotWidget):
+            self.add_auto_range_button(widget.getPlotItem())
+        elif isinstance(widget, pg.ImageView) and isinstance(widget.getView(), pg.PlotItem):
+            self.add_auto_range_button(widget.getView())
+
         self.closeClicked = self.close_button.clicked
         self.closed = False
         CloseableDock.docklist.append(self)
+
+    def add_auto_range_button(self, plot_item):
+        self.auto_range_button = QtWidgets.QPushButton("A", self)
+        self.auto_range_button.setFixedSize(18, 18)
+        self.auto_range_button.setStyleSheet(REFINED_STYLES['DOCK_CLOSE_STYLE'])
+        self.auto_range_button.setToolTip('Show all · Auto range')
+        self.auto_range_button.clicked.connect(plot_item.autoBtnClicked)
+        plot_item.hideButtons()
+        self.label.setContentsMargins(0, 0, 22, 0)
+        self.update_button_layout()
 
     def containerChanged(self, container):
         """Triggered by pyqtgraph when the dock moves (including floating)."""
@@ -102,6 +118,9 @@ class CloseableDock(WorkspaceDock):
         if hasattr(self, 'close_button'):
             self.close_button.move(max(0, self.width() - 22), 3)
             self.close_button.raise_()
+        if hasattr(self, 'auto_range_button'):
+            self.auto_range_button.move(max(0, self.width() - 44), 3)
+            self.auto_range_button.raise_()
 
     def close(self):
         self.setParent(None)

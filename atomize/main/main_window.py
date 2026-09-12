@@ -120,6 +120,7 @@ class MainWindow(QMainWindow):
             lambda: self.handle_output(self.process_python)
             )
         self.process_python.finished.connect(lambda: self._clear_output_buffer(self.process_python))
+        self.process_python.started.connect(self.namelist.begin_run)
 
         self.process_test = QtCore.QProcess(self)
         self.process_test.readyReadStandardOutput.connect( lambda: self.handle_output(self.process_test) )
@@ -222,6 +223,7 @@ class MainWindow(QMainWindow):
         self.recv_buffers[id(conn)] = bytearray()
         conn.readyRead.connect(lambda: self.read_from(conn, memory))
         conn.disconnected.connect(memory.detach)
+        conn.disconnected.connect(lambda: self.namelist.source_disconnected(conn))
         conn.disconnected.connect(lambda: self.recv_buffers.pop(id(conn), None))
         conn.write(b'ok')
 
@@ -299,16 +301,17 @@ class MainWindow(QMainWindow):
             # go unparsed and unacked, stalling the sending client for its full
             # timeout. Catch, log, and keep draining the buffer.
             try:
-                self.do_operation(arr)
+                self.do_operation(arr, source=conn)
             except Exception:
                 logging.exception('LivePlot do_operation failed on a frame')
 
-    def do_operation(self, arr = None):
+    def do_operation(self, arr = None, source=None):
         def clear(name):
             self.namelist[name].clear()
 
         def close(name):
             self.namelist[name].close()
+            self.namelist.refresh_view()
 
         def remove(name):
             del self.namelist[name]
@@ -316,6 +319,10 @@ class MainWindow(QMainWindow):
         meta = self.meta
         operation = meta['operation']
         name = meta['name']
+        is_data = operation.startswith(('plot_', 'append_')) and name != '*'
+        if is_data and source is not None and not source.property('liveplot_run_started'):
+            source.setProperty('liveplot_run_started', True)
+            self.namelist.begin_run(source)
 
         if name in self.namelist:
             pw = self.namelist[name]
@@ -334,12 +341,16 @@ class MainWindow(QMainWindow):
         else:
             if operation in ('clear', 'close', 'remove', 'none'):
                 return
-            pw = self.add_new_plot(meta['rank'], name)
+            pw = self.add_new_plot(meta['rank'], name, select=source is None)
+
+        if is_data:
+            self.namelist.show_run_plot(name, source)
 
         if operation == 'clear':
             pw.clear()
         elif operation == 'close':
             pw.close()
+            self.namelist.refresh_view()
         elif operation == 'none':
             pass
         elif operation == 'remove':
@@ -503,10 +514,15 @@ class MainWindow(QMainWindow):
         elif operation == 'label':
             pw.setTitle(meta['value'])
 
-    def add_new_plot(self, rank, name):
+        if is_data and source is not None:
+            self.namelist.mark_plot_activity(name, source)
+
+    def add_new_plot(self, rank, name, select=True):
         pw = widgets.get_widget(rank, name)
         self.add_plot(pw)
         self.namelist[name] = pw
+        if select:
+            self.namelist.select_plot(name)
         return pw
 
     def add_plot(self, pw):
@@ -518,6 +534,12 @@ class MainWindow(QMainWindow):
     #####################################################
 
     def design_setting(self):
+
+        self.main_button_styles = {
+            key: REFINED_STYLES[key] + "QPushButton { text-align: center; padding-left: 10px; padding-right: 10px; }"
+            for key in ('WORKSPACE_ACTION_STYLE', 'WORKSPACE_ACTIVE_STYLE',
+                        'START_BUTTON_STYLE', 'STOP_BUTTON_STYLE', 'PRIMARY_BUTTON_STYLE')
+        }
 
         self.setObjectName("MainWindow")
         self.setWindowTitle("Atomize")
@@ -581,7 +603,7 @@ class MainWindow(QMainWindow):
         for btn, method in btn_list:
             btn.clicked.connect(method)
             btn.setFixedHeight(34)
-            btn.setStyleSheet(REFINED_STYLES['WORKSPACE_ACTION_STYLE'])
+            btn.setStyleSheet(self.main_button_styles['WORKSPACE_ACTION_STYLE'])
 
         script_heading = QLabel("Script")
         script_heading.setStyleSheet(REFINED_STYLES['ACTION_HEADING_STYLE'])
@@ -601,8 +623,8 @@ class MainWindow(QMainWindow):
         self.button_start.setToolTip("Start Experiment")
         self.button_stop.setText("Stop")
         self.button_stop.setToolTip("Stop Experiment")
-        self.button_start.setStyleSheet(REFINED_STYLES['START_BUTTON_STYLE'])
-        self.button_stop.setStyleSheet(REFINED_STYLES['STOP_BUTTON_STYLE'])
+        self.button_start.setStyleSheet(self.main_button_styles['START_BUTTON_STYLE'])
+        self.button_stop.setStyleSheet(self.main_button_styles['STOP_BUTTON_STYLE'])
         run_actions.addWidget(self.button_start)
         run_actions.addWidget(self.button_stop)
         buttons_v_layout.addLayout(run_actions)
@@ -814,7 +836,7 @@ class MainWindow(QMainWindow):
 
         elif self.test_flag == 0 and exec_code == True:
             self.process_python.setArguments([name])
-            self.button_start.setStyleSheet(REFINED_STYLES['PRIMARY_BUTTON_STYLE'])
+            self.button_start.setStyleSheet(self.main_button_styles['PRIMARY_BUTTON_STYLE'])
             self.process_python.start()
             self.pid = self.process_python.processId()
             print(f'SCRIPT PROCESS ID: {self.pid}')
@@ -827,7 +849,7 @@ class MainWindow(QMainWindow):
             self.start_experiment()
         elif btn.text() == "Update Script":
             self.reload()
-            self.button_test.setStyleSheet(REFINED_STYLES['WORKSPACE_ACTION_STYLE'])
+            self.button_test.setStyleSheet(self.main_button_styles['WORKSPACE_ACTION_STYLE'])
             #self.start_experiment()
         else:
             return
@@ -836,7 +858,7 @@ class MainWindow(QMainWindow):
         """
         A function to run script check.
         """
-        self.button_test.setStyleSheet(REFINED_STYLES['WORKSPACE_ACTIVE_STYLE'])
+        self.button_test.setStyleSheet(self.main_button_styles['WORKSPACE_ACTIVE_STYLE'])
 
         QApplication.processEvents()
 
@@ -873,7 +895,7 @@ class MainWindow(QMainWindow):
             self.loop.exec()
         else:
             self.text_errors.appendPlainText("Script has been already tested. No errors are found")
-            self.button_test.setStyleSheet(REFINED_STYLES['WORKSPACE_ACTION_STYLE'])
+            self.button_test.setStyleSheet(self.main_button_styles['WORKSPACE_ACTION_STYLE'])
             self.success = True
 
     def reload(self):
@@ -903,7 +925,7 @@ class MainWindow(QMainWindow):
             self.checked = 0
             self.text_errors.appendPlainText(text_errors_script)
 
-        self.button_test.setStyleSheet(REFINED_STYLES['WORKSPACE_ACTION_STYLE'])
+        self.button_test.setStyleSheet(self.main_button_styles['WORKSPACE_ACTION_STYLE'])
 
         self.success = (exit_status == QtCore.QProcess.ExitStatus.NormalExit and exit_code == 0)
         loop.quit()
@@ -926,7 +948,7 @@ class MainWindow(QMainWindow):
             self.text_errors.appendPlainText(f"The script PID {self.pid} was executed with errors")
             self.text_errors.appendPlainText(text_errors_script)
 
-        self.button_start.setStyleSheet(REFINED_STYLES['START_BUTTON_STYLE'])
+        self.button_start.setStyleSheet(self.main_button_styles['START_BUTTON_STYLE'])
 
         if len(self.script_queue.keys()) != 0:
             self.start_experiment()
@@ -1098,11 +1120,55 @@ class NameList(QDockWidget):
         self.namelist_model.rowsInserted.connect(self.update_plot_count)
         self.namelist_model.rowsRemoved.connect(self.update_plot_count)
         self.namelist_model.modelReset.connect(self.update_plot_count)
-        self.setWidget(self.namelist_view)
         self.window = window
         self.plot_dict = {}
+        self.plot_sources = {}
+        self.last_plot_update = {}
+        marker = QtGui.QPixmap(12, 12)
+        marker.fill(QtCore.Qt.GlobalColor.transparent)
+        painter = QtGui.QPainter(marker)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        painter.setPen(QtCore.Qt.PenStyle.NoPen)
+        painter.setBrush(QColor('#81c995'))
+        painter.drawEllipse(2, 2, 8, 8)
+        painter.end()
+        self.active_plot_icon = QIcon(marker)
+        self.pinned = set()
+        self.run_source = None
+        self.run_plots = None
+        self.following_run = False
+        self.hidden_area = DockArea(self)
+        self.hidden_area.hide()
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+        controls = QHBoxLayout()
+        self.pin_button = QPushButton("Pin")
+        self.pin_button.setToolTip("Keep the current plot visible while browsing others")
+        self.pin_button.setCheckable(True)
+        self.pin_button.clicked.connect(self.toggle_pin)
+        self.grid_button = QPushButton("Grid")
+        self.grid_button.setToolTip("Click plots to add or remove them from the grid")
+        self.grid_button.setCheckable(True)
+        self.grid_button.toggled.connect(self.change_view_mode)
+        for button in (self.pin_button, self.grid_button):
+            button.setStyleSheet(REFINED_STYLES['BUTTON_STYLE'] +
+                                "QPushButton:checked { border-color: #d3c24e; color: #d3c24e; }")
+            controls.addWidget(button)
+        layout.addLayout(controls)
+        self.selection_hint = QLabel("Click to add/remove plots.\nPinned plots stay visible.")
+        self.selection_hint.setStyleSheet(REFINED_STYLES['HINT_STYLE'])
+        self.selection_hint.setWordWrap(True)
+        self.selection_hint.hide()
+        layout.addWidget(self.selection_hint)
+        layout.addWidget(self.namelist_view)
+        self.setWidget(panel)
+        self.namelist_view.selectionModel().selectionChanged.connect(self.refresh_view)
+        self.namelist_view.selectionModel().currentChanged.connect(self.refresh_view)
 
-        self.namelist_view.doubleClicked.connect(self.activate_item)
+        self.namelist_view.clicked.connect(self.activate_item)
+        self.namelist_view.activated.connect(self.activate_item)
         self.namelist_view.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
         delete_action = QAction("Delete Selected", self.namelist_view)
         ###
@@ -1117,8 +1183,120 @@ class NameList(QDockWidget):
         open_action_2.triggered.connect(self.file_dialog_2d)
         self.namelist_view.addAction(open_action_2)
 
+    def mark_plot_activity(self, name, source):
+        self.plot_sources.setdefault(name, set()).add(source)
+        self.last_plot_update[name] = datetime.now().strftime('%H:%M:%S')
+        self.update_plot_status(name)
+
+    def source_disconnected(self, source):
+        for name, sources in self.plot_sources.items():
+            if source in sources:
+                sources.discard(source)
+                self.update_plot_status(name)
+
+    def update_plot_status(self, name):
+        items = self.namelist_model.findItems(name)
+        if not items:
+            return
+        active = bool(self.plot_sources.get(name))
+        items[0].setIcon(self.active_plot_icon if active else QIcon())
+        status = [name]
+        if name in self.pinned:
+            status.append('Pinned')
+        if name in self.last_plot_update:
+            status.append('Live source connected' if active else 'Source disconnected')
+            status.append(f'Last data: {self.last_plot_update[name]}')
+        items[0].setToolTip('\n'.join(status))
+
+    def begin_run(self, source=None):
+        self.grid_button.setChecked(False)
+        self.run_source = source
+        self.run_plots = set()
+        self.following_run = True
+        self.namelist_view.selectionModel().clear()
+        self.refresh_view()
+
+    def select_plot(self, name):
+        item = self.namelist_model.findItems(name)[0]
+        selection = self.namelist_view.selectionModel()
+        selection.setCurrentIndex(item.index(), QtCore.QItemSelectionModel.SelectionFlag.NoUpdate)
+        flag = QtCore.QItemSelectionModel.SelectionFlag.Select if self.grid_button.isChecked() else QtCore.QItemSelectionModel.SelectionFlag.ClearAndSelect
+        selection.select(item.index(), flag)
+        self.refresh_view()
+
+    def show_run_plot(self, name, source):
+        if self.run_plots is None or source is not self.run_source or name in self.run_plots:
+            return
+        self.run_plots.add(name)
+        plot = self.plot_dict[name]
+        if plot.closed:
+            plot.closed = False
+            self.window.add_plot(plot)
+        self.select_plot(name)
+
+    def change_view_mode(self, grid):
+        shown = [name for name, plot in self.plot_dict.items()
+                 if plot.area is self.window.dockarea and not plot.closed]
+        self.following_run = False
+        mode = QListView.SelectionMode.MultiSelection if grid else QListView.SelectionMode.SingleSelection
+        self.namelist_view.setSelectionMode(mode)
+        self.selection_hint.setVisible(grid)
+        if grid:
+            for name in shown:
+                self.select_plot(name)
+        else:
+            index = self.namelist_view.currentIndex()
+            self.namelist_view.selectionModel().select(index, QtCore.QItemSelectionModel.SelectionFlag.ClearAndSelect)
+        self.refresh_view()
+
+    def toggle_pin(self):
+        index = self.namelist_view.currentIndex()
+        if not index.isValid():
+            return
+        name = index.data()
+        if name in self.pinned:
+            self.pinned.remove(name)
+        else:
+            self.pinned.add(name)
+        self.refresh_view()
+
+    def refresh_view(self, *args):
+        current = self.namelist_view.currentIndex().data()
+        selected = {index.data() for index in self.namelist_view.selectedIndexes()}
+        if self.following_run and not self.grid_button.isChecked():
+            selected = self.run_plots
+        elif not self.grid_button.isChecked():
+            selected = {current}
+        wanted = self.pinned | selected
+        visible = []
+        for name, plot in self.plot_dict.items():
+            traces = [getattr(plot, attr, None) for attr in ('h_cross_dock', 'v_cross_dock')]
+            docks = [plot] + [dock for dock in traces if dock is not None and dock.parent() is not None]
+            if name in wanted and not plot.closed:
+                visible.extend(docks)
+            else:
+                for dock in docks:
+                    if dock.parent() is not None and dock.area is not self.hidden_area:
+                        self.hidden_area.addDock(dock)
+        for position, dock in enumerate(visible):
+            if len(visible) > 2 and position % 2:
+                self.window.dockarea.addDock(dock, position='right', relativeTo=visible[position - 1])
+            else:
+                self.window.dockarea.addDock(dock, position='bottom')
+        self.pin_button.setEnabled(current in self.plot_dict)
+        self.pin_button.setChecked(current in self.pinned)
+        self.pin_button.setText("Unpin" if current in self.pinned else "Pin")
+        for row in range(self.namelist_model.rowCount()):
+            item = self.namelist_model.item(row)
+            font = item.font()
+            font.setBold(item.text() in self.pinned)
+            item.setFont(font)
+            self.update_plot_status(item.text())
+        self.update_plot_count()
+
     def update_plot_count(self, *args):
-        self.plot_list_heading.setText(f"Plots · {self.namelist_model.rowCount()}")
+        shown = sum(plot.area is self.window.dockarea and not plot.closed for plot in self.plot_dict.values())
+        self.plot_list_heading.setText(f"Plots · {self.namelist_model.rowCount()} · {shown} shown")
 
     def open_file(self, filename):
         """
@@ -1327,15 +1505,21 @@ class NameList(QDockWidget):
 
     def activate_item(self, index):
         item = self.namelist_model.itemFromIndex(index)
+        if item is None:
+            return
+        if item.text() not in (self.run_plots or set()):
+            self.following_run = False
         plot = self.plot_dict[str(item.text())]
         if plot.closed:
             plot.closed = False
             self.window.add_plot(plot)
+        self.refresh_view()
 
     def delete_item(self):
         index = self.namelist_view.currentIndex()
         item = self.namelist_model.itemFromIndex(index)
-        del self[str(item.text())]
+        if item is not None:
+            del self[str(item.text())]
 
     def __getitem__(self, item):
         return self.plot_dict[item]
@@ -1344,21 +1528,29 @@ class NameList(QDockWidget):
         model = QStandardItem(name)
         model.setEditable(False)
         model.setToolTip(name)
-        self.namelist_model.appendRow(model)
+        if name in self.plot_dict:
+            del self[name]
         self.plot_dict[name] = plot
+        self.namelist_model.appendRow(model)
+        plot.closeClicked.connect(self.refresh_view)
+        self.refresh_view()
 
     def __contains__(self, value):
         return value in self.plot_dict
 
     def __delitem__(self, name):
+        self.pinned.discard(name)
+        self.plot_sources.pop(name, None)
+        self.last_plot_update.pop(name, None)
+        plot = self.plot_dict.pop(name)
         self.namelist_model.removeRow(self.namelist_model.findItems(name)[0].index().row())
-        self.plot_dict[name].close()
+        plot.close()
         try:
-            self.plot_dict[name].h_cross_dock.close()
-            self.plot_dict[name].v_cross_dock.close()
+            plot.h_cross_dock.close()
+            plot.v_cross_dock.close()
         except AttributeError:
             pass
-        del self.plot_dict[name]
+        self.refresh_view()
 
     def keys(self):
         return list(self.plot_dict.keys())
