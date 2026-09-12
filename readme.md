@@ -122,6 +122,6 @@ The current interface shown with synthetic demonstration data.
 
 ![Script editor and experiment queue](screenshots/screenshot.png)
 
-![Liveplot with two 1D plots](screenshots/screenshot2.png)
+![Liveplot with two noisy 1D traces](screenshots/screenshot2.png)
 
-![Liveplot with 1D plots and a 2D map](screenshots/screenshot3.png)
+![Liveplot with a noisy 2D echo map](screenshots/screenshot3.png)
