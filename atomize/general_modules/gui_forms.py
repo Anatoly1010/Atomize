@@ -507,7 +507,10 @@ def apply_row_metrics(root, row_h=ROW_H, edit_h=EDIT_H):
     spinbox buttons, so rows line up across blocks that were built separately.
     """
     for wdg in root.findChildren((QComboBox, QPushButton)):
-        wdg.setMinimumHeight(row_h)
+        if wdg.minimumHeight() == wdg.maximumHeight():   # pinned size (dock header buttons)
+            continue
+        # a styled button squeezed below its own hint clips its descenders
+        wdg.setMinimumHeight(max(row_h, wdg.sizeHint().height()))
     for spin in root.findChildren((QSpinBox, QDoubleSpinBox)):
         spin.setButtonSymbols(QSpinBox.ButtonSymbols.PlusMinus)
         spin.setMinimumHeight(row_h)
