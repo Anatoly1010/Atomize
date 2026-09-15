@@ -21,7 +21,11 @@ class QueueList(QDockWidget):
         self.namelist_view.setTextElideMode(Qt.TextElideMode.ElideMiddle)
 
         self.namelist_view.setModel(self.namelist_model)
-        self.namelist_view.selectionModel().currentChanged.connect(self.list_elements)
+        self.namelist_model.rowsInserted.connect(self.sync_items)
+        self.namelist_model.rowsRemoved.connect(self.sync_items)
+        self.namelist_model.rowsMoved.connect(self.sync_items)
+        self.namelist_model.dataChanged.connect(self.sync_items)
+        self.namelist_model.modelReset.connect(self.sync_items)
 
         self.setWidget(self.namelist_view)
         self.window = window
@@ -33,68 +37,60 @@ class QueueList(QDockWidget):
         delete_action.triggered.connect(self.delete_item)
         self.namelist_view.addAction(delete_action)
         clear_action = QAction("Remove All", self.namelist_view)
-        clear_action.triggered.connect(self.clear)
+        clear_action.triggered.connect(lambda: self.clear())
         self.namelist_view.addAction(clear_action)
 
-    def list_elements(self, previous_index, current_index):
-        self.get_items_to_dict(self.namelist_view, previous_index.row(), current_index.row())
+    def sync_items(self, *args):
+        self.plot_dict = {
+            str(row): self.namelist_model.index(row, 0).data(Qt.ItemDataRole.UserRole)
+            for row in range(self.namelist_model.rowCount())
+        }
 
-    def get_items_to_dict(self, list_view, pr, cur):
-        """
-        # Function to get items from QListView to a dictionary
-        """
-        items_dict = {}
-        model = list_view.model()
-        for row in range(model.rowCount()):
-            # Create a model index for the specific row (column 0 for lists)
-            index = model.index(row, 0)
-            # Retrieve data using the DisplayRole (the visible text)
-            item_text = model.data(index, Qt.ItemDataRole.DisplayRole)
-            items_dict[row] = item_text
-        
-        if self.namelist_view.drop == 1:
-            self.namelist_view.drop = 0
-            b = items_dict.pop(pr)
-            items_dict[cur] = b
-            keys_list = list(items_dict.keys())
+    def mark_running(self, path, queued=False):
+        if not queued:
+            self.namelist_model.insertRow(0, self.create_item(path))
+        item = self.namelist_model.item(0)
+        self.namelist_view.running = True
+        item.setText(f'Running: {path}')
+        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsDragEnabled)
+        self.namelist_view.setCurrentIndex(item.index())
 
-            for i in range( len(keys_list) ):
-                items_dict[i] = items_dict.pop(keys_list[i])
-
-        self.plot_dict = items_dict.copy()
-        return items_dict
+    def finish_running(self):
+        if self.namelist_view.running:
+            self.namelist_view.running = False
+            self.namelist_model.removeRow(0)
 
     def delete_item(self):
         index = self.namelist_view.currentIndex()
         item = self.namelist_model.itemFromIndex(index)
         if item is None:            # empty queue / nothing selected
             return
-        del self[str(item.text())]
+        if self.namelist_view.running and index.row() == 0:
+            return
+        self.namelist_model.removeRow(index.row())
 
     def __getitem__(self, item):
         return self.plot_dict[item]
 
     def __setitem__(self, name, plot):
-        #if name not in self.keys():
+        self.namelist_model.appendRow(self.create_item(plot))
+
+    def create_item(self, plot):
         model = QStandardItem(plot)
+        model.setData(plot, Qt.ItemDataRole.UserRole)
         model.setToolTip(plot)
         model.setEditable(False)
         model.setFlags(model.flags() & ~Qt.ItemFlag.ItemIsDropEnabled)
-        self.namelist_model.appendRow(model)
-        self.plot_dict[name] = plot
+        return model
 
     def __contains__(self, value):
         return value in self.plot_dict
 
     def __delitem__(self, name):
-        for key, value in self.plot_dict.items():
-            if value == name:
-                key_to_del = key
-                break
-
-        index_of_key = list(self.plot_dict.keys()).index(key_to_del)
-        self.namelist_model.removeRow(self.namelist_model.findItems(name)[0].index().row())
-        del self.plot_dict[ list(self.plot_dict.keys())[index_of_key] ]
+        for row, path in enumerate(self.values()):
+            if path == name and not (self.namelist_view.running and row == 0):
+                self.namelist_model.removeRow(row)
+                return
 
     def keys(self):
         return list(self.plot_dict.keys())
@@ -102,9 +98,12 @@ class QueueList(QDockWidget):
     def values(self):
         return list(self.plot_dict.values())
 
-    def clear(self):
-        self.namelist_model.clear()
-        self.plot_dict = {}
+    def clear(self, force=False):
+        if self.namelist_view.running and not force:
+            self.namelist_model.removeRows(1, self.namelist_model.rowCount() - 1)
+        else:
+            self.namelist_view.running = False
+            self.namelist_model.clear()
 
 
 class CustomListView(QListView):
@@ -114,8 +113,23 @@ class CustomListView(QListView):
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDragDropOverwriteMode(False)
-        self.drop = 0
+        self.running = False
+
+    def blocks_running_move(self, event):
+        if not self.running:
+            return False
+        if any(index.row() == 0 for index in self.selectedIndexes()):
+            return True
+        return (self.indexAt(event.position().toPoint()).row() == 0
+                and self.dropIndicatorPosition() != QAbstractItemView.DropIndicatorPosition.BelowItem)
+
+    def dragMoveEvent(self, event):
+        super().dragMoveEvent(event)
+        if self.blocks_running_move(event):
+            event.ignore()
 
     def dropEvent(self, event: QDropEvent):
-        self.drop = 1
+        if self.blocks_running_move(event):
+            event.ignore()
+            return
         super().dropEvent(event)

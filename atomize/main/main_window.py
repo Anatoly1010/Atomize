@@ -121,6 +121,7 @@ class MainWindow(QMainWindow):
             )
         self.process_python.finished.connect(lambda: self._clear_output_buffer(self.process_python))
         self.process_python.started.connect(self.namelist.begin_run)
+        self.process_python.started.connect(self.on_started_script)
 
         self.process_test = QtCore.QProcess(self)
         self.process_test.readyReadStandardOutput.connect( lambda: self.handle_output(self.process_test) )
@@ -742,7 +743,7 @@ class MainWindow(QMainWindow):
         return NameList(self)
 
     def stop_script(self):
-        self.script_queue.clear()
+        self.script_queue.clear(force=True)
         self.queue = 0
         self.process_test.terminate()
         self.process_python.terminate()
@@ -808,6 +809,8 @@ class MainWindow(QMainWindow):
         """
         A function to run an experimental script using python.exe.
         """
+        if self.process_python.state() != QtCore.QProcess.ProcessState.NotRunning:
+            return
         if len(self.script_queue.keys()) != 0:
             self.queue = 1
             first_index = self.script_queue.namelist_model.index(0, 0 )
@@ -930,13 +933,15 @@ class MainWindow(QMainWindow):
         self.success = (exit_status == QtCore.QProcess.ExitStatus.NormalExit and exit_code == 0)
         loop.quit()
 
+    def on_started_script(self):
+        self.script_queue.mark_running(self.process_python.arguments()[0], queued=bool(self.queue))
+        self.queue = 1
+
     def on_finished_script(self):
         """
         A function to add the information about errors found during syntax checking to a dedicated text box in the main window of the programm.
         """
-        if self.queue == 1:
-            key_to_del = self.script_queue.values()[0]
-            del self.script_queue[key_to_del]
+        self.script_queue.finish_running()
         #except IndexError:
         #    pass
 
