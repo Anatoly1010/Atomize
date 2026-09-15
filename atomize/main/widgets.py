@@ -76,7 +76,7 @@ class CloseableDock(WorkspaceDock):
         self.close_button = QtWidgets.QPushButton("×", self)
         self.close_button.setFixedSize(18, 18)
         self.close_button.setStyleSheet(REFINED_STYLES['DOCK_CLOSE_STYLE'])
-        self.close_button.setToolTip('Close plot')
+        self.close_button.setToolTip('Hide plot')
         self.close_button.raise_()
         self.close_button.clicked.connect(self.close)
 

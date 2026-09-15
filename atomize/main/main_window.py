@@ -1137,6 +1137,7 @@ class NameList(QDockWidget):
         self.run_source = None
         self.run_plots = None
         self.following_run = False
+        self.finished_plots = set()
         self.hidden_area = DockArea(self)
         self.hidden_area.hide()
         panel = QWidget()
@@ -1157,6 +1158,13 @@ class NameList(QDockWidget):
                                 "QPushButton:checked { border-color: #d3c24e; color: #d3c24e; }")
             controls.addWidget(button)
         layout.addLayout(controls)
+        self.show_run_button = QPushButton("Show current run")
+        self.show_run_button.setToolTip("Show all green-dot plots and follow connected sources")
+        self.show_run_button.setCheckable(True)
+        self.show_run_button.setStyleSheet(self.grid_button.styleSheet())
+        self.show_run_button.setEnabled(False)
+        self.show_run_button.clicked.connect(self.show_current_run)
+        layout.addWidget(self.show_run_button)
         self.selection_hint = QLabel("Click to add/remove plots.\nPinned plots stay visible.")
         self.selection_hint.setStyleSheet(REFINED_STYLES['HINT_STYLE'])
         self.selection_hint.setWordWrap(True)
@@ -1184,15 +1192,22 @@ class NameList(QDockWidget):
         self.namelist_view.addAction(open_action_2)
 
     def mark_plot_activity(self, name, source):
+        was_active = bool(self.plot_sources.get(name))
         self.plot_sources.setdefault(name, set()).add(source)
         self.last_plot_update[name] = datetime.now().strftime('%H:%M:%S')
         self.update_plot_status(name)
+        if not was_active:
+            self.refresh_view()
 
     def source_disconnected(self, source):
         for name, sources in self.plot_sources.items():
             if source in sources:
                 sources.discard(source)
                 self.update_plot_status(name)
+                plot = self.plot_dict.get(name)
+                if not sources and self.following_run and plot is not None and plot.area is self.window.dockarea and not plot.closed:
+                    self.finished_plots.add(name)
+        self.refresh_view()
 
     def update_plot_status(self, name):
         items = self.namelist_model.findItems(name)
@@ -1212,8 +1227,22 @@ class NameList(QDockWidget):
         self.grid_button.setChecked(False)
         self.run_source = source
         self.run_plots = set()
+        self.finished_plots.clear()
         self.following_run = True
         self.namelist_view.selectionModel().clear()
+        self.refresh_view()
+
+    def show_current_run(self):
+        if not any(self.plot_sources.values()):
+            return
+        self.grid_button.setChecked(False)
+        self.finished_plots.clear()
+        self.following_run = True
+        self.namelist_view.selectionModel().clear()
+        for name, plot in self.plot_dict.items():
+            if self.plot_sources.get(name) and plot.closed:
+                plot.closed = False
+                self.window.add_plot(plot)
         self.refresh_view()
 
     def select_plot(self, name):
@@ -1263,16 +1292,21 @@ class NameList(QDockWidget):
     def refresh_view(self, *args):
         current = self.namelist_view.currentIndex().data()
         selected = {index.data() for index in self.namelist_view.selectedIndexes()}
-        if self.following_run and not self.grid_button.isChecked():
-            selected = self.run_plots
+        active = {name for name in self.plot_dict if self.plot_sources.get(name)}
+        following = self.following_run and not self.grid_button.isChecked()
+        if following:
+            wanted = active | self.finished_plots
         elif not self.grid_button.isChecked():
-            selected = {current}
-        wanted = self.pinned | selected
+            wanted = self.pinned | {current}
+        else:
+            wanted = self.pinned | selected
         visible = []
+        shown = set()
         for name, plot in self.plot_dict.items():
             traces = [getattr(plot, attr, None) for attr in ('h_cross_dock', 'v_cross_dock')]
             docks = [plot] + [dock for dock in traces if dock is not None and dock.parent() is not None]
             if name in wanted and not plot.closed:
+                shown.add(name)
                 visible.extend(docks)
             else:
                 for dock in docks:
@@ -1284,6 +1318,8 @@ class NameList(QDockWidget):
             else:
                 self.window.dockarea.addDock(dock, position='bottom')
         self.pin_button.setEnabled(current in self.plot_dict)
+        self.show_run_button.setEnabled(bool(active))
+        self.show_run_button.setChecked(bool(active) and following and shown == active)
         self.pin_button.setChecked(current in self.pinned)
         self.pin_button.setText("Unpin" if current in self.pinned else "Pin")
         for row in range(self.namelist_model.rowCount()):
@@ -1507,7 +1543,7 @@ class NameList(QDockWidget):
         item = self.namelist_model.itemFromIndex(index)
         if item is None:
             return
-        if item.text() not in (self.run_plots or set()):
+        if not self.plot_sources.get(item.text()):
             self.following_run = False
         plot = self.plot_dict[str(item.text())]
         if plot.closed:
@@ -1540,6 +1576,7 @@ class NameList(QDockWidget):
 
     def __delitem__(self, name):
         self.pinned.discard(name)
+        self.finished_plots.discard(name)
         self.plot_sources.pop(name, None)
         self.last_plot_update.pop(name, None)
         plot = self.plot_dict.pop(name)
