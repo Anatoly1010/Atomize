@@ -223,7 +223,8 @@ class OutputPanel(QtCore.QObject):
     def _position_header(self):
         label = self.window.dock_errors.label
         width = self.header.sizeHint().width()
-        label.setContentsMargins(0, 0, width, 0)
+        margins = label.contentsMargins()
+        label.setContentsMargins(margins.left(), margins.top(), width, margins.bottom())
         self.header.setGeometry(max(0, label.width() - width), 0, width, label.height())
         self.header.raise_()
 

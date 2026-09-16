@@ -81,7 +81,7 @@ REFINED_THEME = Theme(
     dark=(25, 27, 41),
 )
 
-TAB_MARGINS = (16, 8, 16, 12)
+TAB_MARGINS = (8, 4, 8, 6)
 
 
 def _css(rgb):
