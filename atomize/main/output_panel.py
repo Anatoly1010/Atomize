@@ -6,6 +6,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from atomize.general_modules.gui_style import REFINED_STYLES
 from atomize.main import local_config
+from atomize.main.window_size import WindowSize
 
 
 class OutputScroll(QtCore.QObject):
@@ -115,6 +116,8 @@ class OutputPanel(QtCore.QObject):
         self.shared = self.settings.value('output/shared', False, type=bool)
         self.right = self.settings.value('output/right', False, type=bool)
         self.settings.remove('output/visible')
+        self.settings.remove('window/geometry')
+        self.window_size = WindowSize(window, settings=self.settings)
 
         grid = window.gridLayout_tab
         buttons = grid.itemAtPosition(0, 0).widget()

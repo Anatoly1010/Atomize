@@ -46,6 +46,8 @@ class MainWindow(QMainWindow):
         """
         additional_path = kwargs.pop('ptm', '')
         super(MainWindow, self).__init__(*args, **kwargs)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        self.destroyed.connect(QApplication.instance().quit)
 
         path_to_main = Path(__file__).parent
 
@@ -555,7 +557,6 @@ class MainWindow(QMainWindow):
         height = int(screen_geometry.height() * 0.7)
 
         #int(screen_geometry.height() * 0.6)
-        self.setMinimumWidth(int(screen_geometry.width() * 0.65))
         self.resize(width, height)
 
         x = (screen_geometry.width() - self.width()) // 2
@@ -776,7 +777,7 @@ class MainWindow(QMainWindow):
             event.ignore()
             self.text_errors.appendPlainText(f"{len(active_processes)} process is still running. Please terminate it")
         else:
-            sys.exit()
+            event.accept()
 
     def clear_errors(self):
         self.text_errors.clear()
@@ -791,22 +792,8 @@ class MainWindow(QMainWindow):
         print(f"AVAILABLE INSTRUMENTS: {rm.list_resources()}")
 
     def quit(self):
-        """
-        A function to quit the programm
-        """
-
-        active_processes = []
-        try:
-            if self.process_python.state() != QtCore.QProcess.ProcessState.NotRunning:
-                active_processes.append(self.process_python)
-        except AttributeError:
-            pass
-
-        if active_processes:
-            event.ignore()
-            self.text_errors.appendPlainText(f"{len(active_processes)} process is still running. Please terminate it")
-        else:
-            sys.exit()
+        """Use the same close checks as the title-bar button."""
+        QMainWindow.close(self)
 
     def start_experiment(self):
         """
