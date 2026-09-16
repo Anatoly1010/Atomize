@@ -43,6 +43,15 @@ def get_widget(rank, name):
         2: CrossSectionDock,
         }[rank](name=name)
 
+class ElidedItemDelegate(QtWidgets.QStyledItemDelegate):
+    """Let the list width determine where long labels are shortened."""
+
+    def sizeHint(self, option, index):
+        size = super().sizeHint(option, index)
+        size.setWidth(0)
+        return size
+
+
 class WorkspaceDockLabel(DockLabel):
     def paintEvent(self, event):
         QtWidgets.QLabel.paintEvent(self, event)

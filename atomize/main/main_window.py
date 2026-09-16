@@ -1123,6 +1123,7 @@ class NameList(QDockWidget):
         self.namelist_view = QListView()
         self.namelist_view.setStyleSheet(REFINED_STYLES['PLOT_LIST_STYLE'])
         self.namelist_view.setTextElideMode(QtCore.Qt.TextElideMode.ElideMiddle)
+        self.namelist_view.setItemDelegate(widgets.ElidedItemDelegate(self.namelist_view))
 
         self.namelist_view.setModel(self.namelist_model)
         self.namelist_model.rowsInserted.connect(self.update_plot_count)

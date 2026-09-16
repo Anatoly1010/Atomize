@@ -3,6 +3,7 @@
 
 from PyQt6 import QtCore
 from atomize.general_modules.gui_style import REFINED_STYLES
+from atomize.main.widgets import ElidedItemDelegate
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QAction, QDropEvent
 from PyQt6.QtWidgets import QListView, QDockWidget, QWidget, QAbstractItemView
@@ -19,6 +20,7 @@ class QueueList(QDockWidget):
 
         self.namelist_view.setStyleSheet(REFINED_STYLES['PLOT_LIST_STYLE'] + 'QListView { border: none; }')
         self.namelist_view.setTextElideMode(Qt.TextElideMode.ElideMiddle)
+        self.namelist_view.setItemDelegate(ElidedItemDelegate(self.namelist_view))
 
         self.namelist_view.setModel(self.namelist_model)
         self.namelist_model.rowsInserted.connect(self.sync_items)
