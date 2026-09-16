@@ -153,6 +153,9 @@ class MainWindow(QMainWindow):
         self.checked = 0
         self.cached_stamp2 = 0
 
+        from atomize.main.output_panel import OutputPanel
+        self.output_panel = OutputPanel(self)
+
     def handle_output(self, process):
         raw_data = process.readAllStandardOutput().data().decode(self.system_encoding, errors='replace')
 
