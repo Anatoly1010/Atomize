@@ -208,38 +208,12 @@ class Keysight_3000_Xseries:
         if self.test_flag != 'test': 
             if len(points) == 1:
                 temp = int(points[0])
-                test_acq_type = self.oscilloscope_acquisition_type()
                 self.oscilloscope_run()
 
-                if test_acq_type == 'Average':
-                    poi = min(self.points_list_average, key = lambda x: abs(x - temp))
-                    if int(poi) != temp:
-                        general.message(f"Desired record length cannot be set, the nearest available value of {poi} is used")
-                    self.device_write(":WAVeform:POINts " + str(poi))
-                else:
-                    poi = min(self.points_list, key = lambda x: abs(x - temp))
-                    if int(poi) != temp:
-                        general.message(f"Desired record length cannot be set, the nearest available value of {poi} is used")
-                    self.device_write(":WAVeform:POINts " + str(poi))
-
-                # 4000 / 3999
-                #answer = int(self.device_query(':WAVeform:POINts?'))
-                #tb_0 = pg.siEval(self.oscilloscope_timebase())
-                #i = 0
-                #st_time = time.time()
-                #while answer != poi:
-                #    mod_tb = pg.siEval(self.oscilloscope_timebase()) + 0.01 * tb_0
-                #    self.oscilloscope_timebase( pg.siFormat( mod_tb, suffix = 's', precision = 5, allowUnicode = False))
-                #    answer = int(self.device_query(':WAVeform:POINts?'))
-                #
-                #    if i == 0:
-                #        general.message('Incorrect number of points. Timebase will be changed')
-                #        i = 1
-                #
-                #    if (time.time() - st_time) > 30:
-                #        general.message(f'Correct timebase was not found. The number of point is {answer}')
-                #        self.oscilloscope_timebase( pg.siFormat( tb_0, suffix = 's', precision = 5, allowUnicode = False))
-                #        break
+                self.device_write(":WAVeform:POINts " + str(temp))
+                answer = int(self.device_query(':WAVeform:POINts?'))
+                if answer != temp:
+                    general.message(f"Desired record length cannot be set, the nearest available value of {answer} is used")
 
             elif len(points) == 0:
                 answer = int(self.device_query(':WAVeform:POINts?'))
@@ -369,6 +343,12 @@ class Keysight_3000_Xseries:
             #end_time=datetime.now()
             #general.message('Acquisition completed')
             #print("Duration of Acquisition: {}".format(end_time - start_time))
+        elif self.test_flag == 'test':
+            pass
+
+    def oscilloscope_wait_acquisition(self):
+        if self.test_flag != 'test':
+            self.device_query('*OPC?')
         elif self.test_flag == 'test':
             pass
 

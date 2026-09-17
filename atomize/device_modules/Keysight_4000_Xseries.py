@@ -358,6 +358,12 @@ class Keysight_4000_Xseries:
         elif self.test_flag == 'test':
             pass
 
+    def oscilloscope_wait_acquisition(self):
+        if self.test_flag != 'test':
+            self.device_query('*OPC?')
+        elif self.test_flag == 'test':
+            pass
+
     def oscilloscope_preamble(self, channel):
         if self.test_flag != 'test':
             ch = str(channel)
