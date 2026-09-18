@@ -36,6 +36,8 @@ import atomize.general_modules.csv_opener_saver as openfile
 import atomize.general_modules.last_dir as ldir
 os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
 
+IDLE_PLOT_S = 10
+
 class MainWindow(QMainWindow):
     """
     A main window class.
@@ -1120,15 +1122,25 @@ class NameList(QDockWidget):
         self.plot_dict = {}
         self.plot_sources = {}
         self.last_plot_update = {}
-        marker = QtGui.QPixmap(12, 12)
-        marker.fill(QtCore.Qt.GlobalColor.transparent)
-        painter = QtGui.QPainter(marker)
-        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        painter.setPen(QtCore.Qt.PenStyle.NoPen)
-        painter.setBrush(QColor('#81c995'))
-        painter.drawEllipse(2, 2, 8, 8)
-        painter.end()
-        self.active_plot_icon = QIcon(marker)
+        self.last_plot_time = {}
+
+        def dot_icon(color):
+            marker = QtGui.QPixmap(12, 12)
+            marker.fill(QtCore.Qt.GlobalColor.transparent)
+            painter = QtGui.QPainter(marker)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+            painter.setPen(QtCore.Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(color))
+            painter.drawEllipse(2, 2, 8, 8)
+            painter.end()
+            return QIcon(marker)
+
+        self.active_plot_icon = dot_icon('#81c995')
+        self.idle_plot_icon = dot_icon('#9aa0a6')
+        self.idle_timer = QtCore.QTimer(self)
+        self.idle_timer.setInterval(2000)
+        self.idle_timer.timeout.connect(self.refresh_idle_plots)
+        self.idle_timer.start()
         self.pinned = set()
         self.run_source = None
         self.run_plots = None
@@ -1191,6 +1203,7 @@ class NameList(QDockWidget):
         was_active = bool(self.plot_sources.get(name))
         self.plot_sources.setdefault(name, set()).add(source)
         self.last_plot_update[name] = datetime.now().strftime('%H:%M:%S')
+        self.last_plot_time[name] = time.monotonic()
         self.update_plot_status(name)
         if not was_active:
             self.refresh_view()
@@ -1205,17 +1218,31 @@ class NameList(QDockWidget):
                     self.finished_plots.add(name)
         self.refresh_view()
 
+    def refresh_idle_plots(self):
+        for name, sources in list(self.plot_sources.items()):
+            if sources:
+                self.update_plot_status(name)
+
     def update_plot_status(self, name):
         items = self.namelist_model.findItems(name)
         if not items:
             return
         active = bool(self.plot_sources.get(name))
-        items[0].setIcon(self.active_plot_icon if active else QIcon())
+        idle = active and time.monotonic() - self.last_plot_time.get(name, 0.0) > IDLE_PLOT_S
+        if not active:
+            items[0].setIcon(QIcon())
+        else:
+            items[0].setIcon(self.idle_plot_icon if idle else self.active_plot_icon)
         status = [name]
         if name in self.pinned:
             status.append('Pinned')
         if name in self.last_plot_update:
-            status.append('Live source connected' if active else 'Source disconnected')
+            if not active:
+                status.append('Source disconnected')
+            elif idle:
+                status.append(f'Source connected, idle since {self.last_plot_update[name]}')
+            else:
+                status.append('Live source connected')
             status.append(f'Last data: {self.last_plot_update[name]}')
         items[0].setToolTip('\n'.join(status))
 
@@ -1575,6 +1602,7 @@ class NameList(QDockWidget):
         self.finished_plots.discard(name)
         self.plot_sources.pop(name, None)
         self.last_plot_update.pop(name, None)
+        self.last_plot_time.pop(name, None)
         plot = self.plot_dict.pop(name)
         self.namelist_model.removeRow(self.namelist_model.findItems(name)[0].index().row())
         plot.close()
