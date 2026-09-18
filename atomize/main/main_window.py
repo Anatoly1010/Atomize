@@ -1575,10 +1575,9 @@ class NameList(QDockWidget):
         self.refresh_view()
 
     def delete_item(self):
-        index = self.namelist_view.currentIndex()
-        item = self.namelist_model.itemFromIndex(index)
-        if item is not None:
-            del self[str(item.text())]
+        names = [index.data() for index in self.namelist_view.selectedIndexes()]
+        for name in names:
+            del self[name]
 
     def __getitem__(self, item):
         return self.plot_dict[item]
