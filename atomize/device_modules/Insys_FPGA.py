@@ -19,6 +19,7 @@ import numpy as np
 import atomize.main.local_config as lconf
 import atomize.device_modules.config.config_utils as cutil
 import atomize.general_modules.general_functions as general
+from atomize.general_modules import insys_status
 
 
 # Streaming-parser constants used by the v4 buffer-handling path
@@ -53,8 +54,7 @@ class Insys_FPGA:
         self.path_current_directory = lconf.load_config_device()
         self.path_config_file_pulser = os.path.join(self.path_current_directory, 'PB_Insys_pulser_config.ini')
 
-        path_to_main_status = os.path.abspath( os.getcwd() )
-        self.path_status_file = os.path.join(path_to_main_status, 'status')
+        self.path_status_file = str(insys_status.status_path())
 
         # configuration data
         #config = cutil.read_conf_util(self.path_config_file)
@@ -72,6 +72,9 @@ class Insys_FPGA:
         # board was opened). The board can only be released by the process that
         # opened it, so every exit path must reach pulser_close().
         self._brd_open = False
+        self._status_owner = None
+        self._recovery_required = False
+        self._board_released = False
 
         ####################GIM################################################################################
         # Channel assignments
@@ -2138,12 +2141,22 @@ class Insys_FPGA:
         self.det_residual_by_nid = {}
         self._det_rows_phases = 1
         if self.test_flag != 'test':
-            initRet                = self.initBrd() # Функция открывает плату для использования.
+            self._board_released = False
+            self._status_owner = insys_status.claim(self.path_status_file)
+            try:
+                result = self.initBrd()
+                if result != 2:
+                    raise RuntimeError(f'initBrd failed with code {result}. {insys_status.REBOOT_REQUIRED}')
+            except BaseException:
+                self._recovery_required = True
+                insys_status.require_reboot(self._status_owner, self.path_status_file)
+                raise
+            self._brd_open = True
 
-            setZeroGIMRet          = self.setZero_GIM()    #;print("setZero_GIM:"    ,setZeroGIMRet         ) # Функция зануляет регистр управления ГИМ.
-            rstGIMRet              = self.rst_GIM()        #;print("rst_GIM:"        ,rstGIMRet             ) # функция выполняет сброс узла ГИМ.
-                                                    #1
-            setSync_GIMRet         = self.setSync_GIM( self.ext_trigger )   #;print("setSync_GIM:"    ,setSync_GIMRet        ) # Функция выставляет синхронный режим ГИМ (старт ГИМ от сетки стартов, старт ввода/вывода  от ГИМ).
+            for name, args in (('setZero_GIM', ()), ('rst_GIM', ()), ('setSync_GIM', (self.ext_trigger,))):
+                result = getattr(self, name)(*args)
+                if result != 1:
+                    raise RuntimeError(f'{name} failed with code {result}')
             self.nDacChanNum_brd   = self.getDAC_ChanNum() #;print("getDAC_ChanNum:" ,self.nDacChanNum_brd  ) # Функция возвращает количество используемых каналов ЦАП (задается в exam_edac.ini)
             self.nStrmBufSizeb_brd = self.getStrmBufSizeb()
             #print("getStrmBufSizeb:",self.nStrmBufSizeb_brd) # Функция возвращает размер буфера стрима в байтах.
@@ -2151,18 +2164,8 @@ class Insys_FPGA:
             self.brdDataBuf_brd    = (ctypes.c_int * self.nStrmBufSizeb_brd)()
             self.strmBufNum_brd    = self.getStreamBufNum()
 
-            file_to_read = open(self.path_status_file, 'w', encoding='utf-8')
-            file_to_read.write('Status:  On' + '\n')
-            file_to_read.close()
-
-            self._brd_open = True
-
         elif self.test_flag == 'test':
-
-            text = open( self.path_status_file, encoding='utf-8' ).read()
-            lines = text.split('\n')
-            assert( str( lines[0].split(':  ')[1] ) != 'On' ), "Insys FPGA card is already opened. Please, close it."
-
+            insys_status.ensure_available(self.path_status_file)
 
             # Derive the buffer size from the current rep-rate + window (the same
             # mapping used to write the ini in real mode) rather than parsing
@@ -2185,61 +2188,44 @@ class Insys_FPGA:
                 lines = text.split('\n')
                 self.nStrmBufSizeb_brd = int((lines[1][-4:])) * 2**10
 
-            #file_to_read = open(self.path_status_file, 'w')
-            #file_to_read.write('Status:  On' + '\n')
-            #file_to_read.close()
-
     def pulser_close(self):
-        """
-        Bring the FPGA card to a safe idle state and release it.
+        """Release this instance's board; failed cleanup requires a reboot."""
+        if self.test_flag == 'test' or not getattr(self, '_status_owner', None):
+            return
+        if getattr(self, '_recovery_required', False):
+            raise RuntimeError(insys_status.REBOOT_REQUIRED)
+        if not insys_status.is_owner(self._status_owner, self.path_status_file):
+            raise RuntimeError('FPGA belongs to another acquisition; cleanup refused.')
+        if not self._brd_open:
+            if not self._board_released:
+                self._recovery_required = True
+                insys_status.require_reboot(self._status_owner, self.path_status_file)
+                raise RuntimeError(insys_status.REBOOT_REQUIRED)
+            insys_status.release(self._status_owner, self.path_status_file)
+            self._status_owner = None
+            return
 
-        This is the ONLY way to release the board: a process that opened the
-        card and dies without calling this leaves the card stuck (the handle is
-        not reclaimable by another process). It is therefore made defensive and
-        idempotent so every worker exit path (normal, Stop, or exception) can
-        call it safely:
-          * each board call is guarded, so a partially-opened board still closes;
-          * it is a no-op on the hardware if the board was never opened;
-          * the 'status' file (the cross-process "card busy" lock) is ALWAYS
-            cleared, even if a board call failed.
-        """
-        if self.test_flag != 'test':
-
-            # Stop the background processing thread first (bounded join;
-            # the worker never touches the board, so a hung worker cannot
-            # block the card release below).
+        errors = []
+        try:
+            self._acq_worker_stop()
+        except Exception as exc:
+            errors.append(str(exc))
+        for name, args, expected in (('setEnable_GIM', (0,), 1), ('setDACEnable_GIM', (0,), 1),
+                                     ('setSwitchEn_GIM', (0,), 1), ('closeBrd', (), 2)):
             try:
-                self._acq_worker_stop()
-            except Exception:
-                pass
-
-            if getattr(self, '_brd_open', False):
-                # reverse of start_brd(): stop GIM sequencing, DAC output and the
-                # input switch, then release the board. Order matches the firmware
-                # power-up sequence run in reverse.
-                for step in (lambda: self.setEnable_GIM(0),
-                             lambda: self.setDACEnable_GIM(0),
-                             lambda: self.setSwitchEn_GIM(0),
-                             self.closeBrd):
-                    try:
-                        step()
-                    except Exception:
-                        pass
-                self._brd_open = False
-
-            # always clear the cross-process lock
-            try:
-                with open(self.path_status_file, 'w', encoding='utf-8') as f:
-                    f.write('Status:  Off' + '\n')
-            except Exception:
-                pass
-
-        elif self.test_flag == 'test':
-
-            pass
-            #file_to_read = open(self.path_status_file, 'w')
-            #file_to_read.write('Status:  Off' + '\n')
-            #file_to_read.close()
+                result = getattr(self, name)(*args)
+                if result != expected:
+                    errors.append(f'{name} returned {result}')
+            except Exception as exc:
+                errors.append(f'{name}: {exc}')
+        self._brd_open = False
+        if errors:
+            self._recovery_required = True
+            insys_status.require_reboot(self._status_owner, self.path_status_file)
+            raise RuntimeError('; '.join(errors) + '. ' + insys_status.REBOOT_REQUIRED)
+        self._board_released = True
+        insys_status.release(self._status_owner, self.path_status_file)
+        self._status_owner = None
 
     def pulser_default_synt(self, num):
         """
