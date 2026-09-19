@@ -8,7 +8,7 @@ import math
 import time
 import queue
 import ctypes
-import fileinput
+import tempfile
 import threading
 from copy import deepcopy
 from operator import iconcat
@@ -1373,30 +1373,12 @@ class Insys_FPGA:
 
     def _set_stream_buffer_kb(self, kb):
         """
-        Set streamBufSizeKb in exam_adc.ini to an absolute value, regardless of
-        its current value. Unlike change_ini_file (which only rewrites a single
-        known source string and silently no-ops otherwise), this is idempotent
-        and correct from any prior state, so a run can never inherit a stale
-        buffer size left by a previous run. No-op in test mode (the preflight
-        must not mutate the shared ini; the value is derived on read instead).
+        Set streamBufSizeKb without changing other INI settings.
+        Test mode derives the buffer size without writing the shared file.
         """
         if self.test_flag == 'test':
             return
-
-        file_ini = 'exam_adc.ini'
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        file_path = os.path.join(current_dir, "..", "..", "libs", file_ini)
-        file_path = os.path.normpath(file_path)
-
-        with fileinput.input(file_path, inplace = True, encoding='utf-8') as file:
-            for line in file:
-                # Match the active key only (not the commented ';streamBufSizeb').
-                if line.lstrip().startswith('streamBufSizeKb'):
-                    indent = line[:len(line) - len(line.lstrip())]
-                    ending = '\n' if line.endswith('\n') else ''
-                    print(f"{indent}streamBufSizeKb = {kb}{ending}", end = '')
-                else:
-                    print(line, end = '')
+        self.change_three_ini_files('exam_adc.ini', 'streamBufSizeKb = ', str(kb))
 
     def pulser_update(self):
         """
@@ -6806,67 +6788,50 @@ class Insys_FPGA:
 
             assert( int( len(self.channel_1) / 4 ) == len_1st_ch ), 'Length of TRIGGER_AWG pulses does not equal to Length of AWG pulses'
 
+    def _rewrite_ini(self, file_ini, transform):
+        """Replace a complete INI atomically, preserving the original on failure."""
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.normpath(os.path.join(current_dir, '..', '..', 'libs', file_ini))
+        with open(file_path, encoding='utf-8', newline='') as stream:
+            original = stream.read()
+        if not original.strip():
+            raise ValueError(f'Empty Insys configuration: {file_path}')
+        updated = transform(original)
+        if not updated.strip():
+            raise ValueError(f'Refusing to empty Insys configuration: {file_path}')
+        if updated == original:
+            return
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', newline='',
+                                             dir=os.path.dirname(file_path), prefix=file_ini + '.',
+                                             suffix='.tmp', delete=False) as stream:
+                temporary = stream.name
+                stream.write(updated)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.chmod(temporary, os.stat(file_path).st_mode & 0o7777)
+            os.replace(temporary, file_path)
+        finally:
+            if temporary is not None and os.path.exists(temporary):
+                os.unlink(temporary)
+
     def change_ini_file(self, search_text, new_text):
-        """
-        pb.change_ini_file("streamBufSizeKb = 512", "streamBufSizeKb = 1024")
-        """
-
-        if self.test_flag != 'test':
-
-            file_ini = 'exam_adc.ini'
-            #file_path =  "/".join(  (*(__file__.split("/")), )[:-3] + ("libs", ) + (file_ini, ) )
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            file_path = os.path.join(current_dir, "..", "..", "libs", file_ini)
-            file_path = os.path.normpath(file_path)
-
-            with fileinput.input(file_path, inplace = True, encoding='utf-8') as file:
-                for line in file:
-                    new_line = line.replace(search_text, new_text)
-                    print(new_line, end = '')
-
-        elif self.test_flag == 'test':
-
-            pass
+        """Replace text in exam_adc.ini, except in test mode."""
+        self.change_two_ini_files('exam_adc.ini', search_text, new_text)
 
     def change_two_ini_files(self, file_ini, search_text, new_text):
-        """
-        pb.change_two_ini_files('exam_adc.ini', "streamBufSizeKb = 512", "streamBufSizeKb = 1024")
-        """
-
-        if self.test_flag != 'test':
-
-            #file_ini = 'exam_adc.ini'
-            #file_path =  "/".join(  (*(__file__.split("/")), )[:-3] + ("libs", ) + (file_ini, ) )
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            file_path = os.path.join(current_dir, "..", "..", "libs", file_ini)
-            file_path = os.path.normpath(file_path)
-
-            with fileinput.input(file_path, inplace = True, encoding='utf-8') as file:
-                for line in file:
-                    new_line = line.replace(search_text, new_text)
-                    print(new_line, end = '')
-
-        elif self.test_flag == 'test':
-
-            pass
+        """Replace text in one INI, preserving the original if writing fails."""
+        if self.test_flag == 'test':
+            return
+        self._rewrite_ini(file_ini, lambda text: text.replace(search_text, new_text))
 
     def change_three_ini_files(self, file_ini, search_text, new_text):
-        """
-        pb.change_two_ini_files('exam_adc.ini', "streamBufSizeKb = 512", "streamBufSizeKb = 1024")
-        """
-        #file_path =  "/".join(  (*(__file__.split("/")), )[:-3] + ("libs", ) + (file_ini, ) )
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        file_path = os.path.join(current_dir, "..", "..", "libs", file_ini)
-        file_path = os.path.normpath(file_path)
-        
-        #, encoding='utf-8'
-        with fileinput.input(file_path, inplace = True, encoding='utf-8') as file:
-            for line in file:
-                new_line = line.replace(search_text, search_text)
-                if new_line[0:14] == 'BaseClockValue':
-                    print(search_text + new_text + '\n', end = '')
-                else:
-                    print(new_line, end = '')
+        """Set an active INI key, including in test mode, preserving comments."""
+        key = re.escape(search_text.partition('=')[0].strip())
+        pattern = rf'^([ \t]*{key}[ \t]*=[ \t]*)[^\s;]+'
+        self._rewrite_ini(file_ini, lambda text: re.sub(
+            pattern, lambda match: match[1] + new_text, text, flags=re.MULTILINE))
 
     def count_ip(self, ph):
         return np.sum( self.count_nip.reshape( len( self.count_nip ) // ph, ph, order = 'C' ), axis = 1 )
