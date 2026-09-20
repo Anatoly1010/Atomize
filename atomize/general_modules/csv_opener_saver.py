@@ -14,6 +14,8 @@ from atomize.general_modules.gui_style import style_file_dialog
 class Saver_Opener():
     def __init__(self):
 
+        self.save_cancelled = False
+
         # Test run parameters
         if len(sys.argv) > 1:
             self.test_flag = sys.argv[1]
@@ -78,26 +80,25 @@ class Saver_Opener():
             return [self.test_file_path] if multiple else self.test_file_path
 
     def create_file_dialog(self, directory = '', multiprocessing = False, fmt = 'csv'):
+        """Select an output file; cancellation suspends this instance's saves until a new selection."""
         if self.test_flag != 'test':
             if not multiprocessing:
                 # the suffix tells the parent window which filter to open with
                 print(f"create_file_dialog {fmt}", flush = True)
                 file_path = sys.stdin.readline().strip()
 
-                if file_path and file_path != "None":
-                    open(file_path, "w").close()
-                    return file_path
-                return "None"
-
             else:
                 file_path = self.FileDialog(directory = directory, mode = 'Save', fmt = fmt)
 
-                if file_path: 
-                    open(file_path, "w").close()
-                    return file_path
+            if file_path in (None, '', 'None'):
+                self.save_cancelled = True
                 return "None"
+            open(file_path, "w").close()
+            self.save_cancelled = False
+            return file_path
         
         elif self.test_flag == 'test':
+            self.save_cancelled = False
             return self.test_file_path
     
     def create_file_parameters(self, add_name, directory = '', multiprocessing = False):
@@ -107,6 +108,8 @@ class Saver_Opener():
                     directory = directory, 
                     multiprocessing = multiprocessing 
                     )
+                if file_name in (None, '', 'None'):
+                    return 'None', 'None'
                 base_name = file_name.rsplit('.', 1)[0]
                 file_save_param = f"{base_name}{add_name}.csv"
 
@@ -122,7 +125,7 @@ class Saver_Opener():
 
     def save_header(self, filename, header = '', mode = 'w'):
         if self.test_flag != 'test':
-            if (filename != 'None') and (filename != ''):
+            if not self.save_cancelled and filename not in (None, '', 'None'):
                 if self._is_h5(filename):
                     h5py = self._h5py()
                     # 'a' keeps whatever data the file already holds
@@ -151,7 +154,7 @@ class Saver_Opener():
     def save_data(self, filename, data, header = '', mode = 'w', axes = None,
                   fmt = '%.6e', dtype = None, axes_units = None):
         if self.test_flag != 'test':
-            if (filename != 'None') and (filename != ''):
+            if not self.save_cancelled and filename not in (None, '', 'None'):
                 if self._is_h5(filename):
                     if mode == 'a':
                         raise ValueError("append mode is not supported for '.h5' files")

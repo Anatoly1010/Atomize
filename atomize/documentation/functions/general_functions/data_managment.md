@@ -116,6 +116,8 @@ create_file_dialog(directory='', fmt='csv')    # -> path to file.csv
 
 This function returns the path to the file specified in the dialog box that opens. It can be used to manually save your data inside the experimental script to specified file.
 
+Cancelling returns the string `'None'` and suspends `save_data()` and `save_header()` on the same `Saver_Opener` instance until another save dialog successfully selects a file. This also suppresses saves to derived filenames and explicitly specified paths. Use a separate `Saver_Opener` instance for independent saves that must continue after cancellation. Direct writes through Python or NumPy are not affected.
+
 | Argument    | Description |
 | ----------- | ----------- |
 | `directory` | Path to preopened directory in the dialog window |
@@ -130,7 +132,7 @@ This function returns the path to the file specified in the dialog box that open
 create_file_parameters('.param')
 ```
 
-This function has the full functionality of the [`create_file_dialog()`](#create_file_dialog) function, but also returns a second file for saving parameters / header.
+This function has the full functionality of the [`create_file_dialog()`](#create_file_dialog) function, but also returns a second file for saving parameters / header. Cancellation returns `('None', 'None')` and suspends saving on the same instance as described above.
 
 | Argument    | Description |
 | ----------- | ----------- |
