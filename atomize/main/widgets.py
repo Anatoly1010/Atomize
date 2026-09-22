@@ -969,6 +969,8 @@ class CrosshairDock(CloseableDock):
         self.used_symbols = {}
         self.used_brush = {}
         self.curves = {}
+        self.track_curves = []
+        self.track_owner = None
 
         self.plot_item = self.plot_widget.getPlotItem()
         self.plot_item.ctrl.fftCheck.toggled.connect(self.on_fft_toggled)
@@ -1428,8 +1430,34 @@ class CrosshairDock(CloseableDock):
         filedialog.show()
 
     def clear(self):
+        self.clear_track()
         self.plot_widget._clear_ruler()
         self.plot_widget.clear()
+
+    def capture_track(self, labels, owner):
+        """Keep independent, faded copies of the requested curves."""
+        curves = [self.curves.get(label) for label in labels]
+        if not curves or any(curve is None or curve.xData is None or curve.yData is None
+                             or not len(curve.xData) for curve in curves):
+            return False
+        self.clear_track()
+        for curve in curves:
+            reference = self.plot_widget.plot(
+                curve.xData.copy(), curve.yData.copy(), pen=pg.mkPen(curve.opts['pen']))
+            reference.setPos(curve.pos().x(), curve.pos().y())
+            reference.setTransform(curve.transform())
+            reference.setOpacity(0.3)
+            reference.setZValue(-10)
+            self.track_curves.append(reference)
+        self.track_owner = owner
+        return True
+
+    def clear_track(self):
+        """Remove only the frozen display references."""
+        for curve in self.track_curves:
+            self.plot_item.removeItem(curve)
+        self.track_curves.clear()
+        self.track_owner = None
 
     def get_data(self, label):
         if label in self.curves:

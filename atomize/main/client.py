@@ -1,4 +1,6 @@
 import atexit
+import os
+from multiprocessing import parent_process
 import threading
 import time
 import json
@@ -211,9 +213,12 @@ class LivePlotClient(object):
     def plot_xy(self, name, xs, ys, label='', xname='X axis', xscale='arb. u.',\
      yname='Y axis', yscale='arb. u.', scatter='False', timeaxis='False', vline='False', text=''):
     
+        parent = parent_process()
         meta = {
             'name': name,
             'operation':'plot_xy',
+            'parent_pid': parent.pid if parent is not None else os.getppid(),
+            'pid': os.getpid(),
             'rank': 1,
             'label': label,
             'X': xscale,

@@ -11,9 +11,26 @@ import atomize.math_modules.fft as fft_module
 fft = fft_module.Fast_Fourier()
 ```
 
-By project convention a time `sample_spacing` given in **ns** produces a
-frequency axis in **MHz**, and the phase polynomial of
-[`ph_correction`](#ph_correction) uses the matching `2π·value/1000` scaling.
+By project convention, `Fast_Fourier.fft` interprets `sample_spacing` in **ns** and returns frequency in **MHz**. `ph_correction` accepts phase coefficients in **radians**, radians per axis unit, and radians per axis unit squared; the caller supplies any conversion from degrees or frequency shifts.
+
+## Data Treatment phase modes
+
+The 1D and 2D Data Treatment **Phase** tabs keep independent settings for two modes. **Time-domain** applies a constant phase in **deg** and a **Frequency shift** in **MHz**. Positive shifts move the carrier toward higher frequency. **Auto** beside the frequency shift estimates the carrier-cancelling shift, refines it over the echo, and then sets the constant phase. The time-axis unit must be specified; seconds, milliseconds, microseconds, nanoseconds and picoseconds are supported.
+
+**Frequency-domain** uses `phase(f) = zero + first*(f - pivot) + second*(f - pivot)**2`, with phase in degrees and frequency in MHz. First order is **deg/MHz**; second order is **deg/MHz²**. **Advanced** contains second order and **Pivot frequency**, which defaults to zero. **Auto** estimates zero order with the entered first and second orders already applied. This mode operates on an existing spectrum. For time-domain input, use **FFT → Result → input → Phase**; all transform settings are in the **FFT** tab. Spectral input labelled Hz, kHz, MHz, GHz or THz is converted to MHz when evaluating the phase polynomial.
+
+The mode follows recognized units of the current input axis: time units select **Time-domain**, and frequency units select **Frequency-domain**. Loading or selecting input, promoting a result, undoing a 1D step, resetting 2D data, or editing input units updates the selection. An FFT preview alone does not replace the input; **Result → input** selects **Frequency-domain** once the spectrum becomes the input. In 2D this follows X, so a Y-only FFT leaves the Phase mode in **Time-domain**. Unknown units leave the current selection unchanged, and each mode retains its own parameter values.
+
+The 2D **Auto shear** workflow always uses time-domain frequency shifting. It restores the raw I/Q data, reads the nominal IF from the AWG header (or the time-domain **Frequency shift** field), shifts to baseband, low-pass filters X, refines the residual shift and constant phase, and then estimates the echo centre and shear slope. Spectral phase settings are preserved. Auto shear requires X to be the echo-time axis and Y to be the dipolar-time axis, with nonzero spacing. Both time axes are converted to ns for shearing, so the slope is dimensionless and **Shear origin** and **Fit window** are in ns even when the input axes use different time units.
+
+## Axis conversion helpers
+
+```python
+fft_module.time_axis_ns(axis, unit)         # -> ndarray, time in ns
+fft_module.frequency_axis_mhz(axis, unit)   # -> ndarray, frequency in MHz
+```
+
+These functions convert a scalar or array using its stated axis unit. `time_axis_ns` accepts `s`, `ms`, `us` (also `µs` or `μs`), `ns` and `ps`. `frequency_axis_mhz` accepts `Hz`, `kHz`, `MHz`, `GHz` and `THz`. Missing or unsupported units raise `ValueError`; no unit is inferred from the numerical values.
 
 ---
 

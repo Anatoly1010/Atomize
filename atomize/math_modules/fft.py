@@ -4,6 +4,26 @@
 import sys
 import numpy as np
 
+
+def time_axis_ns(axis, unit):
+    """Convert a labelled time axis to ns for MHz carrier corrections."""
+    factors = {'s': 1e9, 'ms': 1e6, 'us': 1e3, 'µs': 1e3, 'μs': 1e3,
+               'ns': 1.0, 'ps': 1e-3}
+    key = str(unit).strip().lower()
+    if key not in factors:
+        raise ValueError('Set the time-axis unit to s, ms, us, ns or ps.')
+    return np.asarray(axis, dtype=float)*factors[key]
+
+
+def frequency_axis_mhz(axis, unit):
+    """Convert a labelled spectrum axis to MHz for phase coefficients."""
+    factors = {'hz': 1e-6, 'khz': 1e-3, 'mhz': 1.0, 'ghz': 1e3, 'thz': 1e6}
+    key = str(unit).strip().lower()
+    if key not in factors:
+        raise ValueError('Set the frequency-axis unit to Hz, kHz, MHz, GHz or THz.')
+    return np.asarray(axis, dtype=float)*factors[key]
+
+
 class Fast_Fourier():
 
     def __init__(self):

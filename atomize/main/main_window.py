@@ -352,6 +352,14 @@ class MainWindow(QMainWindow):
             pw = self.add_new_plot(meta['rank'], name, select=source is None)
 
         if is_data:
+            if hasattr(pw, 'clear_track'):
+                owner = pw.track_owner
+                if (getattr(pw, 'live_source', None) is not source
+                        and (owner is None or owner[1] != meta.get('parent_pid'))):
+                    pw.clear_track()
+                pw.live_source = source
+                pw.live_source_pid = meta.get('pid')
+                pw.live_parent_pid = meta.get('parent_pid')
             self.namelist.show_run_plot(name, source)
 
         if operation == 'clear':
@@ -379,6 +387,7 @@ class MainWindow(QMainWindow):
 
         elif operation == 'plot_xy':
             label = meta['label']
+            pw.live_labels = ((label, label + '_1') if arr.ndim == 3 else (label,))
             xnam = meta['Xname']
             xscal = meta['X']
             ynam = meta['Yname']
@@ -1603,6 +1612,8 @@ class NameList(QDockWidget):
         self.last_plot_update.pop(name, None)
         self.last_plot_time.pop(name, None)
         plot = self.plot_dict.pop(name)
+        if hasattr(plot, 'clear_track'):
+            plot.clear_track()
         self.namelist_model.removeRow(self.namelist_model.findItems(name)[0].index().row())
         plot.close()
         try:
