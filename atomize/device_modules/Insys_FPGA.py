@@ -581,6 +581,7 @@ class Insys_FPGA:
             # skip_redundant=True dedup path.
             self.tail_carry                        = np.empty(0, dtype=np.int32)
             self._last_processed_nid               = -1
+            self._live_fresh                       = 1
 
         elif self.test_flag == 'test':
 
@@ -658,6 +659,7 @@ class Insys_FPGA:
             # v4 streaming-parser state (mirrored from the non-test branch).
             self.tail_carry                        = np.empty(0, dtype=np.int32)
             self._last_processed_nid               = -1
+            self._live_fresh                       = 1
 
     # Module functions
     ####################GIM#################
@@ -2315,6 +2317,40 @@ class Insys_FPGA:
         if raise_error:
             self._acq_check_error()
 
+    def _acq_reset(self, total_points, adc_window, live_mode):
+        """Clear the ADC accumulators for a new acquisition or live snapshot."""
+        # A previous acquisition (or a mode switch) may still have
+        # buffers queued to the background worker: wait for them
+        # BEFORE resetting the accumulators the worker writes into.
+        if self._acq_worker is not None:
+            self._acq_flush(raise_error=False)
+            with self._acq_lock:
+                self._acq_dirty = None
+        # v5 decimate-on-accumulate: with dec_coef > 1 data_raw
+        # stores dec-SUMMED samples, dec times fewer of them, in
+        # int64 (headroom: values are bounded by
+        # scans * gimSum * 2^13 * dec, which can overflow int32).
+        # The layout is locked here as _acc_dec: changing the
+        # decimation mid-experiment has no effect until the next
+        # allocation (live mode re-allocates every snapshot).
+        self._acc_dec = int(self.dec_coef)
+        if self._acc_dec > 1:
+            self.data_raw = np.zeros(
+                int(total_points * adc_window * 16
+                    // self._acc_dec), dtype=np.int64)
+        else:
+            self.data_raw = np.zeros(
+                int(total_points * adc_window * 16), dtype=np.int32)
+        self.count_nip = np.zeros(total_points, dtype=np.int32)
+        self.tail_carry = np.empty(0, dtype=np.int32)
+        self._last_processed_nid = -1
+        # Force re-allocation of self.answer in pulser_acquisition_cycle.
+        if hasattr(self, 'answer'):
+            del self.answer
+        if live_mode == 0:
+            self.flag_adc_buffer = 1
+        self._live_fresh = int(live_mode == 0)
+
     def _acq_check_error(self):
         """Re-raise a worker exception in the main thread."""
         exc = self._acq_error
@@ -2372,10 +2408,12 @@ class Insys_FPGA:
         final data is exact. Disable with digitizer_processing_thread(0)
         to get the synchronous v5 path (identical results).
 
-        In live mode (live_mode=1), self.data_raw / self.count_nip /
-        self.tail_carry are reset on entry so the call returns a snapshot
-        of just the buffers that arrived since the previous call; live
-        mode always processes synchronously.
+        In live mode (live_mode=1) each returned curve is a snapshot of
+        one complete phase cycle: the accumulators are reset when the first
+        buffer after the previous snapshot arrives, and buffers are summed
+        until every nid has a packet, which may take several buffers when
+        the phase cycle is longer than one buffer. Until then the call
+        returns (None, None). Live mode always processes synchronously.
 
         skip_redundant=False (default): every parsed packet is summed into
             the running average — correct on-board-averaging semantics.
@@ -2402,38 +2440,10 @@ class Insys_FPGA:
             total_points = int(p * ph)
             adc_window = self.adc_window
 
-            # Lazy allocate on first non-test call (or every live-mode call).
-            if (self.flag_adc_buffer == 0 and live_mode == 0) or live_mode == 1:
-                # A previous acquisition (or a mode switch) may still have
-                # buffers queued to the background worker: wait for them
-                # BEFORE resetting the accumulators the worker writes into.
-                if self._acq_worker is not None:
-                    self._acq_flush(raise_error=False)
-                    with self._acq_lock:
-                        self._acq_dirty = None
-                # v5 decimate-on-accumulate: with dec_coef > 1 data_raw
-                # stores dec-SUMMED samples, dec times fewer of them, in
-                # int64 (headroom: values are bounded by
-                # scans * gimSum * 2^13 * dec, which can overflow int32).
-                # The layout is locked here as _acc_dec: changing the
-                # decimation mid-experiment has no effect until the next
-                # allocation (live mode re-allocates every call).
-                self._acc_dec = int(self.dec_coef)
-                if self._acc_dec > 1:
-                    self.data_raw = np.zeros(
-                        int(total_points * adc_window * 16
-                            // self._acc_dec), dtype=np.int64)
-                else:
-                    self.data_raw = np.zeros(
-                        int(total_points * adc_window * 16), dtype=np.int32)
-                self.count_nip = np.zeros(total_points, dtype=np.int32)
-                self.tail_carry = np.empty(0, dtype=np.int32)
-                self._last_processed_nid = -1
-                # Force re-allocation of self.answer in pulser_acquisition_cycle.
-                if hasattr(self, 'answer'):
-                    del self.answer
-                if live_mode == 0:
-                    self.flag_adc_buffer = 1
+            # Lazy allocate on first non-test call; live mode resets when the
+            # first buffer of a new snapshot arrives (see the drain loop).
+            if self.flag_adc_buffer == 0 and live_mode == 0:
+                self._acq_reset(total_points, adc_window, live_mode)
 
             is_drain = (self.nIP_No_brd == total_points
                         and current_scan == total_scan
@@ -2474,6 +2484,9 @@ class Insys_FPGA:
 
                 if new_bufs > 0:
                     _last_progress_t = time.monotonic()
+                    if live_mode == 1 and (getattr(self, '_live_fresh', 1)
+                                           or self.count_nip.size != total_points):
+                        self._acq_reset(total_points, adc_window, live_mode)
                     for _ in range(new_bufs):
                         if threaded:
                             # Rotate pool buffers: the driver copies into a
@@ -2545,6 +2558,12 @@ class Insys_FPGA:
             else:
                 if not any_processed:
                     return (None, None, None) if partial else (None, None)
+                if live_mode == 1:
+                    # a live snapshot is returned only once every phase has arrived
+                    if not self.count_nip.all():
+                        return (None, None, None) if partial else (None, None)
+                    self._live_fresh = 1
+                    lo, hi = 0, total_points - 1
 
                 di, dq = self.pulser_acquisition_cycle(
                     None, None, p, ph, adc_window,
