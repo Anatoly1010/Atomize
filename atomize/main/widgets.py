@@ -885,6 +885,7 @@ class CrosshairDock(CloseableDock):
         (153, 207, 255),   # sky
         (255, 221, 153),   # sand
     ]
+    TRACK_COLORS = (CURVE_PALETTE[7], CURVE_PALETTE[2])
 
     @staticmethod
     def _overflow_color(n):
@@ -1441,12 +1442,14 @@ class CrosshairDock(CloseableDock):
                              or not len(curve.xData) for curve in curves):
             return False
         self.clear_track()
-        for curve in curves:
+        for label, curve, color in zip(labels, curves, self.TRACK_COLORS):
+            pen = pg.mkPen(curve.opts['pen'])
+            pen.setColor(pg.mkColor(color))
             reference = self.plot_widget.plot(
-                curve.xData.copy(), curve.yData.copy(), pen=pg.mkPen(curve.opts['pen']))
+                curve.xData.copy(), curve.yData.copy(), pen=pen, name=f'{label} ref')
             reference.setPos(curve.pos().x(), curve.pos().y())
             reference.setTransform(curve.transform())
-            reference.setOpacity(0.3)
+            reference.setOpacity(0.7)
             reference.setZValue(-10)
             self.track_curves.append(reference)
         self.track_owner = owner
