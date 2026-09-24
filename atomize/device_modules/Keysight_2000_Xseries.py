@@ -152,6 +152,7 @@ class Keysight_2000_Xseries:
             self.test_mod_hop = '1 kHz'
             self.test_mod_rate = '100 Hz'
             self.test_mod_span_frequency = '50 Hz'
+            self.test_timeout = '180 s'
 
     def close_connection(self):
         if self.test_flag != 'test':
@@ -347,6 +348,36 @@ class Keysight_2000_Xseries:
             self.device_query('*OPC?')
         elif self.test_flag == 'test':
             pass
+
+    def oscilloscope_timeout(self, *timeout):
+        if self.test_flag != 'test':
+            if len(timeout) == 1:
+                temp = timeout[0].split(" ")
+                tm = float(temp[0])
+                scaling = temp[1]
+                if scaling in self.timebase_dict:
+                    coef = self.timebase_dict[scaling]
+                    self.device.timeout = int(round(tm / coef * 1000))
+            elif len(timeout) == 0:
+                raw_answer = self.device.timeout / 1000
+                answer = pg.siFormat( raw_answer, suffix = 's', precision = 6, allowUnicode = False)
+                return answer
+
+        elif self.test_flag == 'test':
+            if len(timeout) == 1:
+                temp = timeout[0].split(" ")
+                tm = float(temp[0])
+                scaling = temp[1]
+                if scaling in self.timebase_dict:
+                    coef = self.timebase_dict[scaling]
+                    self.test_timeout = pg.siFormat( tm / coef, suffix = 's', precision = 6, allowUnicode = False)
+                else:
+                    assert(1 == 2), "Incorrect timeout argument; timeout: float + [' s', ' ms', ' us', ' ns']"
+            elif len(timeout) == 0:
+                answer = self.test_timeout
+                return answer
+            else:
+                assert(1 == 2), "Incorrect timeout argument; timeout: float + [' s', ' ms', ' us', ' ns']"
 
     def oscilloscope_preamble(self, channel):
         if self.test_flag != 'test':

@@ -141,6 +141,20 @@ For Rigol MSO8000 Series this function clears all the waveforms on the screen an
 
 ---
 
+### oscilloscope_timeout(*timeout) { #oscilloscope_timeout data-toc-label="oscilloscope_timeout" }
+
+```python
+oscilloscope_timeout()        # -> str (query)
+oscilloscope_timeout('5 s')   # set the communication timeout to 5 s
+```
+
+Keysight 2000, 3000 and 4000 X-series. This function queries or sets the timeout of the connection to the oscilloscope, that is, how long a single query may wait for an answer before an error is raised. If there is no argument the function will return the current timeout. If there is an argument the specified timeout will be set. The initial value is taken from the `timeout` field of the configuration file. A short timeout is useful when the acquisition is armed with [`oscilloscope_command(':SINGle')`](#oscilloscope_command) and its state is polled with [`oscilloscope_query()`](#oscilloscope_query) instead of waiting with [`oscilloscope_wait_acquisition()`](#oscilloscope_wait_acquisition): no query then has to wait for the whole accumulation, and a lost connection is reported within the timeout.
+
+**Output format:** `'number'` + `'s'` | `'ms'` | `'us'` | `'ns'`
+{: .enum }
+
+---
+
 ### oscilloscope_preamble(channel) { #oscilloscope_preamble data-toc-label="oscilloscope_preamble" }
 
 ```python
