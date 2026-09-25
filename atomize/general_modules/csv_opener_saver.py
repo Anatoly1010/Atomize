@@ -133,7 +133,7 @@ class Saver_Opener():
                         self._write_h5_attrs(file_for_save, header)
                     return
 
-                with open(filename, mode) as file_for_save:
+                with open(filename, mode, encoding = 'utf-8') as file_for_save:
                     np.savetxt(
                         file_for_save, 
                         [], 
@@ -165,7 +165,7 @@ class Saver_Opener():
                     return
 
                 if len( data.shape ) == 2:
-                    with open(filename, mode) as file_for_save:
+                    with open(filename, mode, encoding = 'utf-8') as file_for_save:
                         np.savetxt(
                             file_for_save,
                             data,
@@ -185,7 +185,7 @@ class Saver_Opener():
                     for i in range(data.shape[0]):
                         current_filename = filename if i == 0 else f"{base_name}_{i}{ext}"
 
-                        with open(current_filename, mode) as f:
+                        with open(current_filename, mode, encoding = 'utf-8') as f:
                             np.savetxt(
                                 f,
                                 np.transpose(data[i]),
@@ -376,7 +376,7 @@ class Saver_Opener():
                 return header_array, np.transpose(temp)
 
             header_array = []
-            file_to_read = open(file_path, 'r', errors = 'ignore')
+            file_to_read = open(file_path, 'r', encoding = 'utf-8', errors = 'ignore')
             for i, line in enumerate(file_to_read):
                 if i is header: break
                 temp = line.split(":")
@@ -397,7 +397,7 @@ class Saver_Opener():
                 return self._open_h5(file_path, header = header)
 
             header_array = []
-            file_to_read = open(file_path, 'r', errors = 'ignore')
+            file_to_read = open(file_path, 'r', encoding = 'utf-8', errors = 'ignore')
             for i, line in enumerate(file_to_read):
                 if i is header: break
                 temp=line.split(":")
@@ -419,7 +419,7 @@ class Saver_Opener():
                 return header_array, temp if isinstance(temp, list) else np.array_split(temp, chunk_size)
 
             header_array = []
-            file_to_read = open(file_path, 'r', errors = 'ignore')
+            file_to_read = open(file_path, 'r', encoding = 'utf-8', errors = 'ignore')
             for i, line in enumerate(file_to_read):
                 if i is header: break
                 temp=line.split(":")
