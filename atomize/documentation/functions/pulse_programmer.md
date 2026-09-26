@@ -322,14 +322,14 @@ For Insys FM214x3GDA, call this function in a `finally` block so that handled er
 
 ---
 
-### pulser_default_synt(num) { #pulser_default_synt data-toc-label="pulser_default_synt" }
+### pulser_default_synt(num, *pulses) { #pulser_default_synt data-toc-label="pulser_default_synt" }
 
 ```python
-pulser_default_synt(1)    # select synthesizer 1
-pulser_default_synt(2)    # select synthesizer 2
+pulser_default_synt(1)              # all AWG pulses from synthesizer 1
+pulser_default_synt(2, 'P3', 'P5')  # AWG pulses of the TRIGGER_AWG pulses 'P3' and 'P5' from synthesizer 2
 ```
 
-This function should be called only with one argument and selects the default sources for microwave pulse generation.
+This function selects the source of the AWG path of the microwave bridge. With `1` (default) all AWG pulses use synthesizer 1: the `SYNT2` channel is kept on during the whole pulse sequence. With `2` the listed pulses, given by the names of their `TRIGGER_AWG` pulses, use synthesizer 2 and all other AWG pulses stay on synthesizer 1: the `SYNT2` channel is switched off around the listed pulses, starting `synt2_lead` before and ending `synt2_trail` after their gate (both 16 ns by default, set in the config file). The switching follows start and length changes of these pulses. It should be called after the pulses are defined. In test mode the function checks that at least one pulse is given with `2`, that the names are `TRIGGER_AWG` pulses, and that a switching window does not overlap an AWG pulse that stays on synthesizer 1. The `SYNT2` channel cannot be set with [`pulser_pulse()`](#pulser_pulse).
 
 **Allowed:** `1`, `2`
 

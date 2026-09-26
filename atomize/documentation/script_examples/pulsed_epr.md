@@ -61,7 +61,7 @@ The mapping between channel names and physical outputs is also defined in the co
 | `-X`, `+Y`     | fast microwave phase switches    | **auto-generated** (phase cycling) |
 | `AWG`          | shaped microwave pulse           | user                      |
 | `LASER_1`, `LASER_2` | laser triggers (two lasers, or the lamp and Q-switch of one laser) | user |
-| `SYNT2`        | second synthesizer gate          | user                      |
+| `SYNT2`        | source switch of the AWG path    | **auto-generated** ([`pulser_default_synt()`](../functions/pulse_programmer.md#pulser_default_synt)) |
 
 Because of all this, defining a microwave pulse in a script is short — the supporting channels never appear:
 

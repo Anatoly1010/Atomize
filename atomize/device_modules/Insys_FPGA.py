@@ -175,8 +175,10 @@ class Insys_FPGA:
 
         self.trigger_awg_shift = 160
         self.internal_pause_pulser = '0 us'
-        self.synt2_shift = 0
-        self.synt2_ext = 32
+        # SYNT2 window edges around the RECT_AWG gate of a SYNT2 pulse; in clock
+        self.synt2_lead_pulser = int(round(float(self.specific_parameters_pulser.get('synt2_lead', 16)) / self.timebase_pulser))
+        self.synt2_trail_pulser = int(round(float(self.specific_parameters_pulser.get('synt2_trail', 16)) / self.timebase_pulser))
+        self.synt2_pulses_pulser = []
 
         # interval that shift the first pulse in the sequence
         # start times of other pulses can be calculated from this time.
@@ -205,7 +207,7 @@ class Insys_FPGA:
             self.awg_pulses_pulser = 0
             self.phase_pulses_pulser = 0
             # Default synt for AWG channel
-            self.synt_number = 2
+            self.synt_number = 1
 
         elif self.test_flag == 'test':
             self.test_rep_rate_pulser = '200 Hz'
@@ -224,7 +226,7 @@ class Insys_FPGA:
             self.awg_pulses_pulser = 0
             self.phase_pulses_pulser = 0
             # Default synt for AWG channel
-            self.synt_number = 2
+            self.synt_number = 1
 
         #### Inizialization
         # setting path to *.ini file
@@ -830,6 +832,7 @@ class Insys_FPGA:
                     self.pulse_array_pulser.append( pulse_awg )
                     self.pulse_name_array_pulser.append( pulse['name'] )
 
+                assert(channel != 'SYNT2'), 'SYNT2 is set automatically; use pulser_default_synt()'
                 if channel in self.laser_channels_pulser:
                     assert(p_length <= self.max_laser_length_pulser), f'LASER pulse is longer than maximum available length ({self.max_laser_length_pulser} ns)'
                 elif channel != 'DETECTION':
@@ -1400,8 +1403,8 @@ class Insys_FPGA:
             to_spinapi = self.split_into_parts_pulser(self.pulse_array_pulser, rep_time)
             to_spinapi2 = np.array(to_spinapi, dtype=np.int64)
             if self.awg_pulses_pulser == 1:
-                # mod; offset all but the last instruction by 512 on column 0
-                to_spinapi2[:-1, 0] += 512
+                # SYNT2 line on for the whole sequence (AWG path on SYNT1), off in the SYNT2 windows
+                to_spinapi2[:-1, 0] ^= 2**self.channel_dict_pulser['SYNT2']
             self.gen_GIM_words(to_spinapi2)  # Создает главный буфер
 
             if self.nIP_NoKeeper_brd != self.nIP_No_brd:
@@ -1460,8 +1463,8 @@ class Insys_FPGA:
             to_spinapi2 = np.array(to_spinapi, dtype=np.int64)
 
             if self.awg_pulses_pulser == 1:
-                # mod; offset all but the last instruction by 512 on column 0
-                to_spinapi2[:-1, 0] += 512
+                # SYNT2 line on for the whole sequence (AWG path on SYNT1), off in the SYNT2 windows
+                to_spinapi2[:-1, 0] ^= 2**self.channel_dict_pulser['SYNT2']
             self.gen_GIM_words(to_spinapi2)  # Создает главный буфер
 
             if self.awg_pulses_pulser == 1:
@@ -2213,14 +2216,22 @@ class Insys_FPGA:
         insys_status.release(self._status_owner, self.path_status_file)
         self._status_owner = None
 
-    def pulser_default_synt(self, num):
+    def pulser_default_synt(self, num, *pulses):
         """
-        Function to change synthetizer for AWG channel of the ITC microwave bridge
+        Source of the AWG path of the ITC microwave bridge. With 1 every AWG pulse
+        uses SYNT1: the SYNT2 line is held on for the whole sequence. With 2 the
+        listed TRIGGER_AWG pulses use SYNT2: the line is switched off around their
+        RECT_AWG gates, e.g. pulser_default_synt(2, 'P3', 'P5')
         """
         if self.test_flag != 'test':
             self.synt_number = num
+            self.synt2_pulses_pulser = list(pulses) if num == 2 else []
         elif self.test_flag == 'test':
             assert(num == 1 or num == 2), 'Incorrect synthetizer number'
+            assert(num == 1 or len(pulses) > 0), 'Specify the pulses for SYNT2, e.g. pulser_default_synt(2, "P3")'
+            assert(num == 2 or len(pulses) == 0), 'Pulses can be specified only for synthetizer 2'
+            self.synt_number = num
+            self.synt2_pulses_pulser = list(pulses)
 
     ####################ADC###############################
     def digitizer_name(self):
@@ -4810,6 +4821,37 @@ class Insys_FPGA:
 
         return final_result
 
+    def add_synt2_pulses_pulser(self, pulses):
+        """
+        SYNT2 windows for the pulses listed in pulser_default_synt(2, ...): rows on
+        the SYNT2 channel covering each RECT_AWG gate from synt2_lead before to
+        synt2_trail after. pulser_update() inverts the SYNT2 bit over the sequence,
+        so the line is on everywhere except these windows. Rebuilt on every update,
+        so the windows follow shifts, increments, resets and live edits
+        """
+        if self.synt_number != 2 or len(self.synt2_pulses_pulser) == 0:
+            return pulses
+        awg_pairs = { p['name']: p for p in self.pulse_array_pulser if p['channel'] == 'AWG' }
+        triggers = { p['name'] for p in self.pulse_array_pulser if p['channel'] == 'TRIGGER_AWG' }
+        windows = []
+        for name in self.synt2_pulses_pulser:
+            if self.test_flag == 'test':
+                assert(name in triggers), f'SYNT2 pulse {name} is not a TRIGGER_AWG pulse'
+            if name + 'AWG' in awg_pairs:
+                gate = self.convertion_to_numpy_pulser( [awg_pairs[name + 'AWG']] )[0]
+                windows.append( [2**self.channel_dict_pulser['SYNT2'], gate[1] - self.synt2_lead_pulser, gate[2] + self.synt2_trail_pulser] )
+        if len(windows) == 0:
+            return pulses
+        if self.test_flag == 'test':
+            selected = { n + 'AWG' for n in self.synt2_pulses_pulser }
+            for pair_name, pair in awg_pairs.items():
+                if pair_name in selected:
+                    continue
+                gate = self.convertion_to_numpy_pulser( [pair] )[0]
+                for w in windows:
+                    assert(gate[2] <= w[1] or gate[1] >= w[2]), f'SYNT2 window overlaps the SYNT1 AWG pulse {pair_name[:-3]}'
+        return np.row_stack( (pulses, np.asarray(windows, dtype = np.int64)) ).astype(np.int64)
+
     def extending_rect_awg_pulser(self, np_array):
         """
         Replace RECT_AWG pulse with the extending one (in the same way as AMP_ON and LNA_PROTECT)
@@ -5227,6 +5269,7 @@ class Insys_FPGA:
             answer = []
             min_list = []
             pulses = self.preparing_to_bit_pulse_pulser(np_array)
+            pulses = self.add_synt2_pulses_pulser(pulses)
 
             sorted_pulses_start = np.asarray(sorted(pulses, key = lambda x: int(x[1])), dtype = np.int64)
 
@@ -5294,6 +5337,7 @@ class Insys_FPGA:
             min_list = []
 
             pulses = self.preparing_to_bit_pulse_pulser(np_array)
+            pulses = self.add_synt2_pulses_pulser(pulses)
 
             sorted_pulses_start = np.asarray(sorted(pulses, key = lambda x: int(x[1])), dtype = np.int64)
             # self.max_pulse_length_pulser is 2000 ns now
