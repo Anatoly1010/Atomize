@@ -86,8 +86,11 @@ class Insys_FPGA:
         self.ch5 = self.specific_parameters_pulser['ch5'] # -X 
         self.ch6 = self.specific_parameters_pulser['ch6'] # +Y
         self.ch7 = self.specific_parameters_pulser['ch7'] # AWG
-        self.ch8 = self.specific_parameters_pulser['ch8'] # LASER
+        self.ch8 = self.specific_parameters_pulser['ch8'] # LASER_1
         self.ch9 = self.specific_parameters_pulser['ch9'] # SYNT2
+        if 'ch10' not in self.specific_parameters_pulser:
+            raise KeyError(f'ch10 (LASER_2) is missing in {self.path_config_file_pulser}; set ch8 = LASER_1, ch9 = SYNT2, ch10 = LASER_2')
+        self.ch10 = self.specific_parameters_pulser['ch10'] # LASER_2
 
         # AWG pulse will be substitued by a shifted RECT_AWG pulse and AMP_ON pulse
         # TRIGGER_AWG is used to trigger AWG card
@@ -95,10 +98,15 @@ class Insys_FPGA:
         self.timebase_dict = {'s': 1000000000, 'ms': 1000000, 'us': 1000, 'ns': 1, }
         # -Y for Mikran bridge is simutaneously turned on -X; +Y
         # that is why there is no -Y channel instead we add both -X and +Y pulses
+        # bit 15 of the GIM word is the end-of-sequence flag, so CH14 is the last channel
         self.channel_dict_pulser = {self.ch0: 0, self.ch1: 1, self.ch2: 2, self.ch3: 3, 
             self.ch4: 4, self.ch5: 5, self.ch6: 6, self.ch7: 7, self.ch8: 8, self.ch9: 9, 
-            'CH10': 10, 'CH11': 11, 'CH12': 12, 'CH13': 13, 'CH14': 14, 'CH15': 15, 'CH16': 16, 
-            'CH17': 17, 'CH18': 18, 'CH19': 19, 'CH20': 20, 'CH21': 21, }
+            self.ch10: 10, 'CH11': 11, 'CH12': 12, 'CH13': 13, 'CH14': 14, }
+        # legacy name of LASER_1
+        if 'LASER_1' in self.channel_dict_pulser:
+            self.channel_dict_pulser.setdefault('LASER', self.channel_dict_pulser['LASER_1'])
+        self.laser_channels_pulser = ('LASER', 'LASER_1', 'LASER_2')
+        self.max_laser_length_pulser = 15001.6 # in ns; 15 us on the 3.2 ns grid
 
         # Limits and Ranges (depends on the exact model):
         self.clock_pulser = float(self.specific_parameters_pulser['clock'])
@@ -709,10 +717,6 @@ class Insys_FPGA:
                     pulse_awg = {'name': name + 'AWG', 'channel': 'AWG', 'start': start, 'length': length, 'delta_start' : delta_start, 'length_increment': length_increment, 'phase_list': phase_list}
                     self.pulse_array_pulser.append( pulse_awg )
                     self.pulse_name_array_pulser.append( pulse['name'] )
-                    #mod
-                    #if default_source == 0:
-                    #    pulse_synt2 = {'name': name + 'SYNT2', 'channel': 'SYNT2', 'start': start, 'length': str(self.round_to_closest(p_length + self.synt2_ext, 3.2)) + ' ns', 'delta_start' : delta_start, 'length_increment': length_increment, 'phase_list': phase_list}
-                    #    self.pulse_array_pulser.append( pulse_synt2 )
 
             temp_start = start.split(" ")
             if temp_start[1] in self.timebase_dict:
@@ -825,12 +829,10 @@ class Insys_FPGA:
                             'length_increment': length_increment, 'phase_list': phase_list}
                     self.pulse_array_pulser.append( pulse_awg )
                     self.pulse_name_array_pulser.append( pulse['name'] )
-                    #mod
-                    #if default_source == 0:
-                    #    pulse_synt2 = {'name': name + 'SYNT2', 'channel': 'SYNT2', 'start': start, 'length': length, 'delta_start' : delta_start, 'length_increment': length_increment, 'phase_list': phase_list}
-                    #    self.pulse_array_pulser.append( pulse_synt2 )
 
-                if channel not in ('DETECTION', 'LASER', 'SYNT2'):
+                if channel in self.laser_channels_pulser:
+                    assert(p_length <= self.max_laser_length_pulser), f'LASER pulse is longer than maximum available length ({self.max_laser_length_pulser} ns)'
+                elif channel != 'DETECTION':
                     assert(p_length >= self.min_pulse_length_pulser), 'Pulse is shorter than minimum available length (' + str(self.min_pulse_length_pulser) +' ns)'
                     assert(p_length <  self.max_pulse_length_pulser), 'Pulse is longer than maximum available length (' + str(self.max_pulse_length_pulser) +' ns)'
             else:
@@ -5233,7 +5235,7 @@ class Insys_FPGA:
 
 
             # self.max_pulse_length_pulser is 2000 ns now
-            index_jump = np.where(np.diff(sorted_pulses_start[:,1], axis = 0) > int(self.max_pulse_length_pulser / self.timebase_pulser) )[0]
+            index_jump = self.split_points_pulser(sorted_pulses_start)
             sorted_arrays_parts = np.split(sorted_pulses_start, index_jump + 1)
 
             for index, element in enumerate(sorted_arrays_parts):
@@ -5295,7 +5297,7 @@ class Insys_FPGA:
 
             sorted_pulses_start = np.asarray(sorted(pulses, key = lambda x: int(x[1])), dtype = np.int64)
             # self.max_pulse_length_pulser is 2000 ns now
-            index_jump = np.where(np.diff(sorted_pulses_start[:,1], axis = 0) > int(self.max_pulse_length_pulser / self.timebase_pulser) )[0]
+            index_jump = self.split_points_pulser(sorted_pulses_start)
             sorted_arrays_parts = np.split(sorted_pulses_start, index_jump + 1)
 
             for index, element in enumerate(sorted_arrays_parts):
@@ -5337,6 +5339,17 @@ class Insys_FPGA:
                 return one_array
             else:
                 assert(1 == 2), 'Pulse sequence is longer than one period of the repetition rate'             
+
+    def split_points_pulser(self, sorted_pulses):
+        """
+        Indices after which a start-sorted pulse array can be cut into parts:
+        the gap to the next start exceeds max_pulse_length_pulser and every
+        earlier pulse (including long LASER / DETECTION pulses) has already ended
+        """
+        starts = sorted_pulses[:, 1]
+        ends_so_far = np.maximum.accumulate(sorted_pulses[:, 2])
+        long_gap = np.diff(starts, axis = 0) > int(self.max_pulse_length_pulser / self.timebase_pulser)
+        return np.where( long_gap & (starts[1:] > ends_so_far[:-1]) )[0]
 
     def instructions_from_part_pulser(self, np_array):
         """
@@ -5545,17 +5558,6 @@ class Insys_FPGA:
                     # appending each pulses individually
                     bit_array_pulses.append(translation_array)
 
-                    # ITC bridge with two syntetizer
-                    # AWG channel uses synt2 as default
-                    # we need to add a pulse
-                    # RECT/AWG pulse: pulses[i, 0] == 2**7
-                    #if self.synt_number == 1 and pulses[i, 0] == 2**7:
-
-                    #    translation_array = 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( 1*(pulses[i, 1] - min_pulse + self.synt2_shift), dtype = np.int64), \
-                    #        np.ones(1*(pulses[i, 2] - pulses[i, 1] + self.synt2_ext), dtype = np.int64), \
-                    #        np.zeros(1*(max_pulse - pulses[i, 2] - self.synt2_shift - self.synt2_ext), dtype = np.int64)), axis = None)
-                    #    bit_array_pulses.append(translation_array)
-
                 i += 1
 
             return bit_array_pulses
@@ -5586,17 +5588,6 @@ class Insys_FPGA:
                     # summing arrays for each pulse into the finalbit_array
                     bit_array_pulses.append(translation_array)
 
-
-                    # ITC bridge with two syntetizer
-                    # AWG channel uses synt2 as default
-                    # we need to add a pulse
-                    # RECT/AWG pulse: pulses[i, 0] == 2**7
-                    #if self.synt_number == 1 and pulses[i, 0] == 2**7:
-                    #    
-                    #    translation_array = 2**self.channel_dict_pulser[self.ch9]*np.concatenate( (np.zeros( 1*(pulses[i, 1] - min_pulse + self.synt2_shift), dtype = np.int64), \
-                    #        np.ones(1*(pulses[i, 2] - pulses[i, 1] + self.synt2_ext), dtype = np.int64), \
-                    #        np.zeros(1*(max_pulse - pulses[i, 2] - self.synt2_shift - self.synt2_ext), dtype = np.int64)), axis = None)
-                    #    bit_array_pulses.append(translation_array)
 
 
                 i += 1

@@ -49,7 +49,7 @@ Besides plain rectangular `MW` pulses, the spectrometer can play **shaped pulses
 
 ### Channels
 
-The mapping between channel names and physical outputs is also defined in the config (`ch0` … `ch9`). The user works only with the names, not the numbers:
+The mapping between channel names and physical outputs is also defined in the config (`ch0` … `ch10`). The user works only with the names, not the numbers:
 
 | Channel        | Role                              | Defined by                |
 | -------------- | -------------------------------- | ------------------------- |
@@ -60,7 +60,7 @@ The mapping between channel names and physical outputs is also defined in the co
 | `LNA_PROTECT`  | receiver (LNA) protection        | **auto-generated**        |
 | `-X`, `+Y`     | fast microwave phase switches    | **auto-generated** (phase cycling) |
 | `AWG`          | shaped microwave pulse           | user                      |
-| `LASER`        | laser trigger (e.g. for LASER/light experiments) | user      |
+| `LASER_1`, `LASER_2` | laser triggers (two lasers, or the lamp and Q-switch of one laser) | user |
 | `SYNT2`        | second synthesizer gate          | user                      |
 
 Because of all this, defining a microwave pulse in a script is short — the supporting channels never appear:

@@ -45,7 +45,10 @@ class PB_ESR_500_Pro:
         self.ch5 = self.specific_parameters['ch5'] # +Y
         self.ch6 = self.specific_parameters['ch6'] # TRIGGER_AWG
         self.ch7 = self.specific_parameters['ch7'] # AWG
-        self.ch8 = self.specific_parameters['ch8'] # LASER
+        self.ch8 = self.specific_parameters['ch8'] # LASER_1
+        if 'ch9' not in self.specific_parameters:
+            raise KeyError(f'ch9 (LASER_2) is missing in {self.path_config_file}; set ch8 = LASER_1, ch9 = LASER_2')
+        self.ch9 = self.specific_parameters['ch9'] # LASER_2
 
         # AWG pulse will be substitued by a shifted RECT_AWG pulse and AMP_ON pulse
         # TRIGGER_AWG is used to trigger AWG card
@@ -56,10 +59,16 @@ class PB_ESR_500_Pro:
         # 'DETECTION' shares the physical digitizer-trigger line (ch0) but, unlike
         # the plain 'TRIGGER' channel, it carries the acquisition phase_list used
         # by pulser_acquisition_cycle() (mirrors Insys_FPGA's DETECTION channel).
+        # bits 21-23 of the output word are the ON / short-pulse flags, so CH20 is the last channel
         self.channel_dict = {self.ch0: 0, 'DETECTION': 0, self.ch1: 1, self.ch2: 2, self.ch3: 3, self.ch4: 4, self.ch5: 5, \
-                        self.ch6: 6, self.ch7: 7, self.ch8: 8, 'CH9': 9, 'CH10': 10, 'CH11': 11,\
+                        self.ch6: 6, self.ch7: 7, self.ch8: 8, self.ch9: 9, 'CH10': 10, 'CH11': 11,\
                         'CH12': 12, 'CH13': 13, 'CH14': 14, 'CH15': 15, 'CH16': 16, 'CH17': 17,\
-                        'CH18': 18, 'CH19': 19, 'CH20': 20, 'CH21': 21, }
+                        'CH18': 18, 'CH19': 19, 'CH20': 20, }
+        # legacy name of LASER_1
+        if 'LASER_1' in self.channel_dict:
+            self.channel_dict.setdefault('LASER', self.channel_dict['LASER_1'])
+        self.laser_channels = ('LASER', 'LASER_1', 'LASER_2')
+        self.max_laser_length = 15000 # in ns
 
         # Limits and Ranges (depends on the exact model):
         self.clock = float(self.specific_parameters['clock'])
@@ -209,7 +218,10 @@ class PB_ESR_500_Pro:
                 p_length = coef*float(temp_length[0])
                 assert(p_length % 2 == 0), 'Pulse length should be divisible by 2'
                 assert(p_length >= self.min_pulse_length), 'Pulse is shorter than minimum available length (' + str(self.min_pulse_length) +' ns)'
-                assert(p_length < self.max_pulse_length), 'Pulse is longer than maximum available length (' + str(self.max_pulse_length) +' ns)'
+                if channel in self.laser_channels:
+                    assert(p_length <= self.max_laser_length), f'LASER pulse is longer than maximum available length ({self.max_laser_length} ns)'
+                else:
+                    assert(p_length < self.max_pulse_length), 'Pulse is longer than maximum available length (' + str(self.max_pulse_length) +' ns)'
             else:
                 assert( 1 == 2 ), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
@@ -2109,11 +2121,14 @@ class PB_ESR_500_Pro:
             # split where the distance between the starts of two
             # consecutive pulses exceeds max_pulse_length
             sorted_arrays_parts = [ [sorted_pulses_start[0]] ]
+            # a cut is safe only after every earlier pulse has ended
+            ends_so_far = sorted_pulses_start[0][2]
             for row in sorted_pulses_start[1:]:
-                if row[1] - sorted_arrays_parts[-1][-1][1] > self.max_pulse_length:
+                if row[1] - sorted_arrays_parts[-1][-1][1] > self.max_pulse_length and row[1] > ends_so_far:
                     sorted_arrays_parts.append([row])
                 else:
                     sorted_arrays_parts[-1].append(row)
+                ends_so_far = max(ends_so_far, row[2])
 
             for index, element in enumerate(sorted_arrays_parts):
                 instructions, min_value = self.instructions_from_part(element)
@@ -2173,11 +2188,14 @@ class PB_ESR_500_Pro:
             # split where the distance between the starts of two
             # consecutive pulses exceeds max_pulse_length (in clock ticks)
             sorted_arrays_parts = [ [sorted_pulses_start[0]] ]
+            # a cut is safe only after every earlier pulse has ended
+            ends_so_far = sorted_pulses_start[0][2]
             for row in sorted_pulses_start[1:]:
-                if row[1] - sorted_arrays_parts[-1][-1][1] > self.max_pulse_length/self.timebase:
+                if row[1] - sorted_arrays_parts[-1][-1][1] > self.max_pulse_length/self.timebase and row[1] > ends_so_far:
                     sorted_arrays_parts.append([row])
                 else:
                     sorted_arrays_parts[-1].append(row)
+                ends_so_far = max(ends_so_far, row[2])
 
 
             for index, element in enumerate(sorted_arrays_parts):

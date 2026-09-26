@@ -51,22 +51,19 @@ The keyword arguments:
 
 This function sets a pulse with specified parameters. The default argument is `name = 'P0'`, `channel = 'DETECTION'`, `start = '0 ns'`, `length = '100 ns'`, `delta_start = '0 ns'`, `length_increment = '0 ns'`, `phase_list = []`. The pulse sequence will be checked for overlap. In the auto defence mode (default option; can be changed in the config file) channels `AMP_ON` and `LNA_PROTECT` will be added automatically according to the delays indicated in the config file. In this mode `AMP_ON` and `LNA_PROTECT` pulses will be joined in one pulse if the distance between them is less than 12 ns (can be changed in the config file).
 
-**Allowed channels:** `'DETECTION'`, `'TRIGGER'`, `'AMP_ON'`, `'LNA_PROTECT'`, `'MW'`, `'-X'`, `'+Y'`, `'TRIGGER_AWG'`, `'AWG'`, `'LASER'`, `'SYNT2'`, `'CH10'`, …, `'CH20'`
-{: .enum }
+**Allowed channels:** `'DETECTION'`, `'TRIGGER'`, `'AMP_ON'`, `'LNA_PROTECT'`, `'MW'`, `'-X'`, `'+Y'`, `'TRIGGER_AWG'`, `'AWG'`, `'LASER_1'`, `'LASER_2'` (`'LASER'` is accepted as `'LASER_1'`), `'SYNT2'` (Insys FM214x3GDA only), and the free channels `'CH10'`, …, `'CH20'` (Pulse Blaster ESR 500 Pro) or `'CH11'`, …, `'CH14'` (Insys FM214x3GDA). Pulse Blaster Micran has no free channels.
 
 **Allowed phase_list values:** `'+x'`, `'-x'`, `'+y'`, `'-y'`
-{: .enum }
 
 **Output format (time args):** `'number'` + `'ns'` | `'us'` | `'ms'` | `'s'`
-{: .enum }
 
 **Range (Pulse Blaster ESR 500 Pro):** pulse length `10 ns` – `1900 ns`; sequence ≈ `10 s` max
-{: .enum }
 
 **Range (Insys FM214x3GDA):** pulse length `3.2 ns` – `1900 ns`; sequence ≈ `10 s` max
-{: .enum }
 
-In the case of Insys FM214x3GDA `start`, `length`, `delta_start`, and `length_increment` will be rounded to a multiple of 3.2.
+`LASER_1` and `LASER_2` are trigger pulses for two lasers, or for the flash lamp and the Q-switch of one laser. They can be up to `15 µs` long (`15001.6 ns` for Insys FM214x3GDA) and may overlap other pulses.
+
+In the case of Insys FM214x3GDA `start`, `length`, `delta_start`, and `length_increment` will be rounded to a multiple of 3.2 (`TRIGGER_AWG` timing, and the `DETECTION` `start`/`delta_start`, follow the grid set by [`awg_time_resolution()`](#awg_time_resolution): 3.2 ns by default, optionally 0.8 ns).
 
 In the case of Pulse Blaster ESR 500 Pro and Pulse Blaster Micran the `DETECTION` pulse may carry a `phase_list`. This list declares the acquisition phase cycle and is used by [`pulser_acquisition_cycle()`](#pulser_acquisition_cycle) whenever that function is called without an explicit `acq_cycle` argument; passing `acq_cycle` directly still overrides it. Alternatively, the acquisition phases can be indicated directly in [`pulser_acquisition_cycle()`](#pulser_acquisition_cycle) and the `DETECTION` pulse left without a `phase_list`. The plain `TRIGGER` channel must always have an empty `phase_list`. In the case of Insys FM214x3GDA a `phase_list` of `DETECTION` pulse is used to [phase cycle](digitizer.md#digitizer_get_curve-points) the data.
 
@@ -113,7 +110,6 @@ answer = np.zeros( data1.shape ) + 1j*np.zeros( data2.shape )
 The symbol at the index `J` of the `acq_cycle` array means that the corresponding values from the data arrays will be added with the following factor to the resulting array:
 
 **Allowed operations:** `'+x'`, `'-x'`, `'+y'`, `'-y'`
-{: .enum }
 
 | Symbol | Factor | Operation                                       |
 | ------ | ------ | ----------------------------------------------- |
@@ -140,7 +136,6 @@ pulser_repetition_rate('2 Hz')    # set to 2 Hz
 This function queries (if called without argument) or sets (if called with one argument) the repetition rate of the pulse sequence. If there is an argument it will be set as a repetition rate. If there is no argument the current repetition rate is returned as a string. The maximum available repetition rate depends on the total length of the pulse sequence.
 
 **Max:** `5 MHz`
-{: .enum }
 
 ---
 
@@ -177,7 +172,7 @@ pulser_redefine_start(name=['P0', 'P1'], start=['0 ns', '320 ns'])
 
 This function should be called with two keyword arguments, namely `name` and `start`. The first argument specifies the name of the pulse as a string. The second argument defines a new value of pulse start as a string in the format `number + [' ms', ' us', ' ns']`. Arguments can be either single strings or lists, for example: `name = ['P0', 'P1']`, `start = ['0 ns', '320 ns']`. The main purpose of the function is non-uniform sampling. Please note, that the function does not update the pulse programmer. The [`pulser_update()`](#pulser_update) function should be called to apply changes.
 
-In the case of Insys FM214x3GDA `start` will be rounded to a multiple of 3.2.
+In the case of Insys FM214x3GDA `start` will be rounded to a multiple of 3.2 (for `TRIGGER_AWG`/`DETECTION` pulses: to the grid set by [`awg_time_resolution()`](#awg_time_resolution)).
 
 ---
 
@@ -193,7 +188,7 @@ pulser_redefine_delta_start(
 
 This function should be called with two keyword arguments, namely `name` and `delta_start`. The first argument specifies the name of the pulse as a string. The second argument defines a new value of `delta_start` as a string in the format `number + [' ms', ' us', ' ns']`. Arguments can be either single strings or lists, for example: `name = ['P0', 'P1']`, `delta_start = ['0 ns', '32 ns']`. The main purpose of the function is non-uniform sampling. Please note, that the function does not update the pulse programmer. The [`pulser_update()`](#pulser_update) function should be called to apply changes.
 
-In the case of Insys FM214x3GDA `delta_start` will be rounded to a multiple of 3.2.
+In the case of Insys FM214x3GDA `delta_start` will be rounded to a multiple of 3.2 (for `TRIGGER_AWG`/`DETECTION` pulses: to the grid set by [`awg_time_resolution()`](#awg_time_resolution)).
 
 ---
 
@@ -209,23 +204,32 @@ pulser_redefine_length_increment(
 
 This function should be called with two keyword arguments, namely `name` and `length_increment`. The first argument specifies the name of the pulse as a string. The second argument defines a new value of length increment as a string in the format `number + [' ms', ' us', ' ns']`. Arguments can be either single strings or lists, for example: `name = ['P0', 'P1']`, `length_increment = ['0 ns', '3.2 ns']`. The main purpose of the function is non-uniform sampling. Please note, that the function does not update the pulse programmer. The [`pulser_update()`](#pulser_update) function should be called to apply changes.
 
-In the case of Insys FM214x3GDA `length_increment` will be rounded to a multiple of 3.2.
+In the case of Insys FM214x3GDA `length_increment` will be rounded to a multiple of 3.2 (for `TRIGGER_AWG` pulses: to the grid set by [`awg_time_resolution()`](#awg_time_resolution)).
+
+---
+
+### awg_time_resolution(resolution) { #awg_time_resolution data-toc-label="awg_time_resolution" }
+
+```python
+awg_time_resolution('3.2 ns')    # default 3.2 ns grid
+awg_time_resolution('0.8 ns')    # enable the 0.8 ns AWG timing grid
+```
+
+This function sets the effective time grid for AWG pulse timing and is only available for Insys FM214x3GDA. The grid applies to the `start`, `length`, `delta_start`, and `length_increment` of `TRIGGER_AWG` pulses and [`awg_pulse()`](awg.md#awg_pulse) pulses, and to the `start` and `delta_start` of the `DETECTION` pulse. All other TTL channels always stay on the 3.2 ns grid. The function should be used before defining pulses.
+
+The default resolution is `'3.2 ns'`, which is one pulser tick. With `'0.8 ns'`, which is one DAC sample, the TTL trigger and gate stay on the 3.2 ns hardware grid and the sub-tick remainder is produced by leading zero samples inside the pulse's DAC gate segment. The `DETECTION` window is likewise placed on the 3.2 ns grid and its sub-tick residual is corrected digitally at readout by shifting the integration window and aligning the trace. This correction is exact for a decimation of 1 or 2 and is rounded to 1.6 ns for a decimation of 4.
+
+**Allowed:** `'3.2 ns'`, `'0.8 ns'`
 
 ---
 
 ### pulser_reset() { #pulser_reset data-toc-label="pulser_reset" }
 
 ```python
-pulser_reset()                       # default
-pulser_reset(internal_cycle=True)    # for use with pulser_instruction_from_file
+pulser_reset()    # reset all pulses and update the pulse programmer
 ```
 
 The function switches the pulse programmer back to the initial state (including phase) in which it was in at the start of the experiment. This function can be called only without arguments. It includes the complete functionality of [`pulser_pulse_reset()`](#pulser_pulse_reset), but also immediately updates the pulse programmer as it is done by calling [`pulser_update()`](#pulser_update).
-
-The additional keyword `internal_cycle` can be used in combination with the [`pulser_instruction_from_file()`](#pulser_instruction_from_file) function to achieve correct update of the pulse programmer. The default option is `False`.
-
-**Allowed internal_cycle:** `True`, `False`
-{: .enum }
 
 !!! note
     This function is not available for Insys FM214x3GDA. The function
@@ -241,11 +245,6 @@ pulser_pulse_reset('P1')    # reset only the named pulses
 ```
 
 This function switches the pulse programmer back to the initial state in which it was in at the start of the experiment. This function can be called with either no argument or with a list of comma separated pulse names. If no argument is given all pulses are reset to their initial states (including phases). The function does not update the pulser, if you want to reset all pulses and also update the pulser use the function [`pulser_reset()`](#pulser_reset) instead.
-
-The additional keyword `internal_cycle` can be used in combination with the [`pulser_instruction_from_file()`](#pulser_instruction_from_file) function to achieve correct update of the pulse programmer. The default option is `False`.
-
-**Allowed internal_cycle:** `True`, `False`
-{: .enum }
 
 ---
 
@@ -304,6 +303,8 @@ pulser_open()    # open the board for use
 
 This function should be called only without arguments and is only available for Insys FM214x3GDA and Pulse Blaster Micran. In the case of Insys FM214x3GDA, the function should be used after defining pulses and repetition rate with [`pulser_pulse()`](#pulser_pulse) and [`pulser_repetition_rate()`](#pulser_repetition_rate).
 
+For Insys FM214x3GDA this function checks whether the FPGA is available in both test mode and real execution. In test mode it only reads the board status and does not mark the board as busy. During real execution it reserves the board before initialization and raises `RuntimeError` if another acquisition is using the FPGA or recovery requires a reboot. This protection applies to scripts launched from the GUI or a terminal using the same Atomize installation.
+
 ---
 
 ### pulser_close() { #pulser_close data-toc-label="pulser_close" }
@@ -313,6 +314,11 @@ pulser_close()    # gracefully close the board
 ```
 
 This function should be called only without arguments and is only available for Insys FM214x3GDA and Pulse Blaster Micran. The function must be used at the end of an experimental script to gracefully close the board.
+
+For Insys FM214x3GDA, call this function in a `finally` block so that handled errors also release the board. Only the process and driver instance that opened the FPGA may clear its busy status. Calling it in test mode, after a rejected open, or again after successful closing leaves the status unchanged. Reported cleanup failures raise `RuntimeError` and keep further acquisition blocked.
+
+!!! warning
+    For Insys FM214x3GDA, if the acquisition process terminates without releasing the FPGA, or initialization or cleanup reports an uncertain hardware state, the computer must be rebooted before another acquisition. Restarting Atomize does not clear this condition. Status records from an earlier boot are ignored after reboot. Do not manually clear the busy status to bypass recovery.
 
 ---
 
@@ -326,7 +332,6 @@ pulser_default_synt(2)    # select synthesizer 2
 This function should be called only with one argument and selects the default sources for microwave pulse generation.
 
 **Allowed:** `1`, `2`
-{: .enum }
 
 !!! note
     This function is only available for Insys FM214x3GDA.
@@ -340,23 +345,6 @@ pulser_phase_reset()    # reset the phase index to zero
 ```
 
 This function resets the phase index to zero in order to start phase cycling once again.
-
-!!! note
-    This function is only available for Pulse Blaster ESR 500 Pro and
-    Pulse Blaster Micran.
-
----
-
-### pulser_instruction_from_file(flag, filename) { #pulser_instruction_from_file data-toc-label="pulser_instruction_from_file" }
-
-```python
-pulser_instruction_from_file(1, filename='instructions.out')
-```
-
-This special function reads the instructions for pulse programmer from the specified file. The keyword argument `filename` corresponds to the file to read. `1` means that the instructions will be read from the file.
-
-**Allowed flag:** `0`, `1`
-{: .enum }
 
 !!! note
     This function is only available for Pulse Blaster ESR 500 Pro and
@@ -397,4 +385,3 @@ pulser_test_flag('test')    # test mode
 This is a special function for changing test mode. The function is usually used in GUI applications that use the device module.
 
 **Allowed:** `'None'`, `'test'`
-{: .enum }

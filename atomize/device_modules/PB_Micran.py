@@ -37,7 +37,7 @@ class PB_Micran:
         self.ch6 = self.specific_parameters['ch6'] # +Y
         self.ch7 = self.specific_parameters['ch7'] # TRIGGER_AWG
         self.ch8 = self.specific_parameters['ch8'] # AWG
-        self.ch9 = self.specific_parameters['ch9'] # LASER
+        self.ch9 = self.specific_parameters['ch9'] # LASER_1
         self.ch10 = self.specific_parameters['ch10'] # SHAPER
         self.ch11 = self.specific_parameters['ch11'] # VIDEO_PROTECT
         self.ch12 = self.specific_parameters['ch12'] # LASER_2
@@ -51,10 +51,14 @@ class PB_Micran:
         # 'DETECTION' shares the physical digitizer-trigger line (ch1) but, unlike
         # the plain 'TRIGGER' channel, it carries the acquisition phase_list used
         # by pulser_acquisition_cycle() (mirrors Insys_FPGA's DETECTION channel).
+        # only these channels have output registers (see pulser_update)
         self.channel_dict = {self.ch1: 1, 'DETECTION': 1, self.ch2: 2, self.ch3: 3, self.ch4: 4, self.ch5: 5, self.ch6: 6, \
-                        self.ch7: 7, self.ch8: 8, self.ch9: 9, self.ch10: 10, self.ch11: 11, self.ch12: 12,\
-                        'CH13': 13, 'CH14': 14, 'CH15': 15, 'CH16': 16, 'CH17': 17,\
-                        'CH18': 18, 'CH19': 19, 'CH20': 20, 'CH21': 21, }
+                        self.ch7: 7, self.ch8: 8, self.ch9: 9, self.ch10: 10, self.ch11: 11, self.ch12: 12, }
+        # legacy name of LASER_1
+        if 'LASER_1' in self.channel_dict:
+            self.channel_dict.setdefault('LASER', self.channel_dict['LASER_1'])
+        self.laser_channels = ('LASER', 'LASER_1', 'LASER_2')
+        self.max_laser_length = 15000 # in ns
 
         # Limits and Ranges (depends on the exact model):
         self.clock = float(self.specific_parameters['clock'])
@@ -226,7 +230,10 @@ class PB_Micran:
                 p_length = coef*float(temp_length[0])
                 assert(p_length % 4 == 0), 'Pulse length should be divisible by 4'
                 assert(p_length >= self.min_pulse_length), 'Pulse is shorter than minimum available length (' + str(self.min_pulse_length) +' ns)'
-                assert(p_length < self.max_pulse_length), 'Pulse is longer than maximum available length (' + str(self.max_pulse_length) +' ns)'
+                if channel in self.laser_channels:
+                    assert(p_length <= self.max_laser_length), f'LASER pulse is longer than maximum available length ({self.max_laser_length} ns)'
+                else:
+                    assert(p_length < self.max_pulse_length), 'Pulse is longer than maximum available length (' + str(self.max_pulse_length) +' ns)'
             else:
                 assert( 1 == 2 ), 'Incorrect time; time: int + [" ms", " us", " ns"]'
 
