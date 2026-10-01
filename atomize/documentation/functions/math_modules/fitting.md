@@ -82,7 +82,7 @@ x-axis: with `x` in ns, `f` comes out in 1/ns (GHz); with `x` in µs, in 1/µs
 ## fit() { #fit data-toc-label="fit" }
 
 ```python
-result = fitter.fit(model, x, y, guess=None, no_offset=False)
+result = fitter.fit(model, x, y, guess=None, no_offset=False, fixed=None)
 ```
 
 Fits `(x, y)` with the named `model`.
@@ -93,6 +93,9 @@ Fits `(x, y)` with the named `model`.
 - **`no_offset`** — when `True`, the constant baseline term (`b` or `c`) is fixed
   at `0` and removed from the free parameters, forcing the curve through the
   baseline instead of floating it.
+- **`fixed`** — optional `{parameter name: value}` dict of parameters held
+  constant and removed from the free parameters, e.g. `{'beta': 0.9}`. Names
+  the model does not have are ignored.
 
 Returns a dict:
 
@@ -103,7 +106,7 @@ Returns a dict:
 | `popt` | Best-fit parameters |
 | `perr` | 1-σ parameter errors (sqrt of the covariance diagonal) |
 | `r_squared` | Coefficient of determination |
-| `param_names` | Names matching the `popt` order (with `b`/`c` removed when `no_offset=True`) |
+| `param_names` | Names matching the `popt` order (without `b`/`c` when `no_offset=True` and without any `fixed` parameter) |
 
 ```python
 import numpy as np

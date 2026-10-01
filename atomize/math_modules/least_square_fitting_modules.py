@@ -294,13 +294,16 @@ class math():
     # parameter name treated as the constant baseline offset, per model
     _OFFSET_NAMES = ('b', 'c')
 
-    def fit(self, model, x, y, guess=None, no_offset=False):
+    def fit(self, model, x, y, guess=None, no_offset=False, fixed=None):
         """
         Fit (x, y) with the named model using scipy.optimize.curve_fit.
 
         no_offset: when True, the model's constant baseline term (the parameter
         named 'b' or 'c') is fixed at 0 and removed from the free parameters, so
         the curve is forced through the baseline instead of floating it.
+
+        fixed: optional {parameter name: value} held constant and removed from
+        the free parameters, e.g. {'beta': 0.9}; names the model lacks are ignored.
 
         Returns a dict:
             y_fit       : model evaluated at x with the best-fit parameters
@@ -322,24 +325,25 @@ class math():
         if guess is None or len(guess) != len(names):
             guess = self.default_guess(model, x, y)
 
-        # Optionally fix the constant offset at 0: drop the 'b'/'c' parameter and
-        # wrap the model so it is always called with that slot set to zero.
-        offset_idx = None
+        fixed = {nm: float(v) for nm, v in (fixed or {}).items() if nm in names}
         if no_offset:
-            offset_idx = next((i for i, nm in enumerate(names)
-                               if nm in self._OFFSET_NAMES), None)
-        if offset_idx is None:
+            off = next((nm for nm in names if nm in self._OFFSET_NAMES), None)
+            if off is not None:
+                fixed[off] = 0.0
+        if not fixed:
             fit_func, fit_names, fit_guess = func, names, guess
         else:
-            oi = offset_idx
+            free = [j for j, nm in enumerate(names) if nm not in fixed]
+            base = [fixed.get(nm, 0.0) for nm in names]
 
             def fit_func(xx, *p):
-                full = list(p)
-                full.insert(oi, 0.0)
+                full = list(base)
+                for j, v in zip(free, p):
+                    full[j] = v
                 return func(xx, *full)
 
-            fit_names = [nm for j, nm in enumerate(names) if j != oi]
-            fit_guess = [g for j, g in enumerate(guess) if j != oi]
+            fit_names = [names[j] for j in free]
+            fit_guess = [guess[j] for j in free]
 
         popt, pcov = optimize.curve_fit(fit_func, x, y, p0=fit_guess, maxfev=100000)
         perr = np.sqrt(np.abs(np.diag(pcov)))
