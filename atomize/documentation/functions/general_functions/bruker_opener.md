@@ -50,7 +50,7 @@ The returned dict:
 | `format` | `'BES3T'` or `'ESP/WinEPR'` |
 | `ndim` | `1` or `2` |
 | `x` | The X (within-trace) abscissa array |
-| `x_name`, `x_unit` | X axis name and unit (from the descriptor) |
+| `x_name`, `x_unit` | X axis name and unit (from the descriptor); `x_unit` is empty when the file states none |
 | `y` | The Y (indirect) abscissa array (2D only) |
 | `y_name`, `y_unit` | Y axis name and unit |
 | `complex` | `True` if the data carry quadrature (I/Q) |
@@ -82,3 +82,13 @@ if res['complex']:
     re = dict(res['channels'])['real']
     general.plot_1d('Bruker', res['x'], re, xname='Time', xscale=res['x_unit'])
 ```
+
+!!! warning "Files that state no time unit"
+    Not every dataset carries a unit for its abscissa — hand-saved and
+    third-party-converted files often omit it, and `x_unit` then comes back empty.
+    A time axis read in the wrong unit rescales every dipolar distance by a factor
+    of ten, so check `x_unit` before using it: if it is empty, infer the unit from
+    the span of `x` (a DEER trace is microseconds long, so a span of several
+    thousand is nanoseconds) rather than assuming one. The Data Treatment and DEER
+    windows do this automatically when loading such a file, and say in the status
+    line which unit they assumed.

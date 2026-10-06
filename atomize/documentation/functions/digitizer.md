@@ -104,6 +104,8 @@ The keyword `live_mode` controls the accumulation behaviour. In the default mode
 
 The keyword `partial` (default `False`) enables the **partial-range readout**. With `partial=True` the function returns three values instead of two: only the point range recomputed from the buffers of *this* call and its bounds — `(data_i[:, i:j].T, data_q[:, i:j].T, (i, j))` for a curve, or the length-`(j - i)` integral arrays plus `(i, j)` with `integral=True`; `(None, None, None)` is returned when no new buffer has arrived. The script patches the slice into its own persistent full-size array (`data[..., i:j] = a`) instead of copying the whole `points × window` frame on every readout, which makes the per-readout overhead independent of the detection-window length and the number of points. The returned values always reflect the full running average for the touched points, so assignment (not accumulation) is the correct way to apply them. For live plotting of a partial curve use [`general.update_2d()`](plotting_functions/usage.md#2d-partial-updates), which pushes only the changed columns; the integral form returns plain 1D slices, so the usual [`plot_1d()`](plotting_functions/usage.md#1d-plotting) of the persistent arrays needs no change. The full-array form (default) is unaffected.
 
+For Insys FM214x3GDA the buffer processing itself (parsing, averaging, normalization and phase cycling) runs in a **background thread** by default: the function only hands the arrived ADC buffers to a worker thread and returns the measurement points completed since the previous call, so the acquisition loop is never blocked by the data processing. See [`digitizer_processing_thread()`](#digitizer_processing_thread) for details and how to disable it.
+
 !!! note "Performance tip"
     Since the function returns `None, None` when no new buffer has been transferred,
     guard the returned data with an `is not None` check and only run the
@@ -469,8 +471,28 @@ digitizer_decimation(4)    # 1.6 ns/point
 
 This function queries or sets the decimation coefficient for Insys FM214x3GDA. If there is no argument the function will return the decimation coefficient of the digitizer. If there is an argument the specified decimation will be set. It can be used instead of the function [`digitizer_sample_rate()`](#digitizer_sample_rate). The values 1, 2, 4 correspond to 0.4 ns/point, 0.8 ns/point, and 1.6 ns/point. Decimation is performed by boxcar-averaging: each output point is the mean of a group of `dec` consecutive samples, so the effective SNR / anti-aliasing improves. Because the mean is used, the amplitude scale is identical to `dec = 1`, so no additional calibration change is needed. The decimation coefficient is also used by the [`digitizer_demodulate()`](#digitizer_demodulate) function to build the time axis. This function should be called before [`pulser_open()`](pulse_programmer.md#pulser_open).
 
+The decimation is applied on the fly, while the ADC stream is being accumulated, which also reduces the amount of data processed on every readout by the same factor. As a consequence the coefficient is locked in when the acquisition starts: changing it in the middle of an experiment takes effect only from the next experiment (in [`live_mode=1`](#digitizer_get_curve-points) from the next snapshot).
+
 **Allowed:** `1`, `2`, `4`
 {: .enum }
+
+---
+
+### digitizer_processing_thread(*state) { #digitizer_processing_thread data-toc-label="digitizer_processing_thread" }
+
+```python
+digitizer_processing_thread()     # -> int (query)
+digitizer_processing_thread(1)    # default; background processing
+digitizer_processing_thread(0)    # synchronous processing
+```
+
+This function queries or sets the background processing of the ADC data stream for Insys FM214x3GDA. With the default `1`, the transferred ADC buffers are parsed, averaged, normalized and phase-cycled in a dedicated worker thread that overlaps the acquisition; [`digitizer_get_curve()`](#digitizer_get_curve-points) only drains the ready buffers into a rotating buffer pool and returns the measurement points completed since the previous call. With `0` every buffer is processed synchronously inside [`digitizer_get_curve()`](#digitizer_get_curve-points). Both modes give identical results; the background mode removes the processing time from the acquisition loop, which matters for long detection windows and short per-phase times. Live mode ([`live_mode=1`](#digitizer_get_curve-points)) always processes synchronously. The function should be called before the acquisition starts.
+
+**Allowed:** `0`, `1`
+{: .enum }
+
+!!! note
+    This function is available only for Insys FM214x3GDA.
 
 ---
 
@@ -534,7 +556,7 @@ digitizer_at_exit()                 # -> arrays
 digitizer_at_exit(integral=True)    # -> integrated arrays
 ```
 
-This function is available only for Insys FM214x3GDA and is similar to the [`digitizer_get_curve()`](#digitizer_get_curve-integral) function. The main difference is that this function always return the current accumulated arrays, while [`digitizer_get_curve()`](#digitizer_get_curve-integral) may return `np.nan` if no new buffer has been transferred from the card to the computer at the time of execution.
+This function is available only for Insys FM214x3GDA and is similar to the [`digitizer_get_curve()`](#digitizer_get_curve-integral) function. The main difference is that this function always return the current accumulated arrays, while [`digitizer_get_curve()`](#digitizer_get_curve-integral) may return `np.nan` if no new buffer has been transferred from the card to the computer at the time of execution. It also waits for the [background processing thread](#digitizer_processing_thread) to finish any queued buffers and recomputes the final arrays from the accumulators, so the returned data is always complete and exact regardless of how the experiment ended; call it at the end of the experiment and in Stop/exit handlers to read the final state.
 
 ---
 

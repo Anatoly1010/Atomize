@@ -33,9 +33,12 @@ oscilloscope_record_length(4000)    # set number of waveform points to 4000
 
 This function queries or sets the number of waveform points to be transferred using [`oscilloscope_get_curve()`](#oscilloscope_get_curve) function. If there is no number of points setting fitting the argument the nearest available value is used and warning is printed.
 
-If one would like to use Keysight oscilloscopes without [averaging](#oscilloscope_acquisition_type) (in normal, peak or high-resolution mode), the number of points in the waveform is usually `[100, 250, 500, 1000, 2000, 5000, 10000]`.
+For Keysight 2000 and 3000 X-series the requested number of points is sent directly to the oscilloscope. The oscilloscope selects the actual number of points according to the acquisition [mode](#oscilloscope_acquisition_type), the [timebase](#oscilloscope_timebase) and the memory in use. If this value differs from the request, the module prints a warning with the actual number of points. The queried value should be used to determine the size of the data arrays.
 
-As stated in the programming manual, the number of points acquired cannot be directly controlled. For Keysight 3000 X-series the number of points are usually from the following array: `[100, 250, 500, 1000, 2000, 4000, 8000]`. For Keysight 2000 X-series: `[99, 247, 479, 959, 1919, 3839, 7679]`. For Keysight 4000 X-series the number of points should be checked. There is also a known bug in older firmware versions that causes an incorrect number of points to be returned during the first data collection after changing the data collection settings. Please update the oscilloscope [firmware](https://www.keysight.com/us/en/assets/9922-03906/release-notes/Keysight-3000T-X-Series-Oscilloscope-Release-Notes-07-56.pdf).
+For example, a request of 4000 points on the tested Keysight 2000 X-series oscilloscope gives 3839 points in average mode, 3840 in high-resolution mode and 3846 in normal mode. On the tested 3000 X-series oscilloscope it gives 3999 points in average and high-resolution modes and 3829 in normal mode. These values depend on the acquisition settings. For Keysight 4000 X-series the number of points should be checked.
+
+!!! warning
+    Older Keysight firmware versions may return an incorrect number of points during the first acquisition after changing the acquisition settings. Please update the oscilloscope [firmware](https://www.keysight.com/us/en/assets/9922-03906/release-notes/Keysight-3000T-X-Series-Oscilloscope-Release-Notes-07-56.pdf).
 
 For Rigol MSO8000 Series the number of points in the waveform for normal, peak or high-resolution [mode](#oscilloscope_acquisition_type) is `[1000, 10000, 1e5, 1e6, 1e7, 2.5e7, 5e7, 1e8, 1.25e8]`. For the average [mode](#oscilloscope_acquisition_type) the number of points is `[1000, 10000, 1e5, 1e6, 1e7, 2.5e7]`. To use this feature effectively, one should disable the Auto ROLL option.
 
@@ -58,7 +61,6 @@ This function queries or sets the acquisition type. If there is no argument the 
     For Tektronix 3000 Series `'Hres'` option is not available.
 
 **Allowed:** `'Normal'`, `'Average'`, `'Hres'`, `'Peak'`
-{: .enum }
 
 ---
 
@@ -72,13 +74,10 @@ oscilloscope_number_of_averages(2)      # set number of averages to 2
 This function queries or sets the number of averages. If there is no argument the function will return the current number of averages. If there is an argument the specified number of averages type will be set. If the oscilloscopes is not in the averaging acquisition mode the error message will be printed.
 
 **Range (Keysight):** `2` – `65536`
-{: .enum }
 
 **Range (Tektronix 4000 Series):** `2` – `512` in powers of two (some models limited to `128`)
-{: .enum }
 
 **Range (Rigol MSO8000):** `2` – `65536` in powers of two
-{: .enum }
 
 ---
 
@@ -96,7 +95,6 @@ For Tektronix 3000 X-series the horizontal scale is discrete and can take on a v
 For Tektronix 4000 X-series (at least for the device used for testing), the horizontal scale is discrete and can take on a value from the following array: `[1, 2, 4, 10, 20, 40, 100, 200, 400]` for ns, us, ms, and s scaling. In addtition timescale equals to 800 ns also can be set. If there is no timebase setting fitting the argument the nearest available value is used and warning is printed.
 
 **Output format:** `'number'` + `'s'` | `'ms'` | `'us'` | `'ns'`
-{: .enum }
 
 ---
 
@@ -123,7 +121,6 @@ oscilloscope_time_resolution()    # -> str; current time resolution per point
 This function takes no arguments and returns the time resolution per point.
 
 **Output format:** `'number'` + `'s'` | `'ms'` | `'us'` | `'ns'`
-{: .enum }
 
 ---
 
@@ -141,6 +138,23 @@ For Rigol MSO8000 Series this function clears all the waveforms on the screen an
 
 ---
 
+### oscilloscope_wait_acquisition() { #oscilloscope_wait_acquisition data-toc-label="oscilloscope_wait_acquisition" }
+
+```python
+oscilloscope_wait_acquisition()    # wait for acquisition to finish
+```
+
+This function waits until the acquisition started by [`oscilloscope_start_acquisition()`](#oscilloscope_start_acquisition) is complete. The function should be called only without arguments.
+
+For Keysight 2000 X-series the start function returns before the acquisition is complete, allowing several oscilloscopes to be started before waiting for their data. This function should be used when another action, such as changing the magnetic field, must take place after acquisition but before reading the waveform. The [`oscilloscope_get_curve()`](#oscilloscope_get_curve) function also waits for acquisition to finish, so a separate wait is not required when reading the waveform immediately after starting acquisition.
+
+For Keysight 3000 and 4000 X-series the start function already waits for acquisition to finish. Calling this function afterwards does not wait for another acquisition.
+
+!!! note
+    This function is only available for Keysight 2000, 3000 and 4000 X-series oscilloscopes.
+
+---
+
 ### oscilloscope_timeout(*timeout) { #oscilloscope_timeout data-toc-label="oscilloscope_timeout" }
 
 ```python
@@ -148,10 +162,14 @@ oscilloscope_timeout()        # -> str (query)
 oscilloscope_timeout('5 s')   # set the communication timeout to 5 s
 ```
 
-Keysight 2000, 3000 and 4000 X-series. This function queries or sets the timeout of the connection to the oscilloscope, that is, how long a single query may wait for an answer before an error is raised. If there is no argument the function will return the current timeout. If there is an argument the specified timeout will be set. The initial value is taken from the `timeout` field of the configuration file. A short timeout is useful when the acquisition is armed with [`oscilloscope_command(':SINGle')`](#oscilloscope_command) and its state is polled with [`oscilloscope_query()`](#oscilloscope_query) instead of waiting with [`oscilloscope_wait_acquisition()`](#oscilloscope_wait_acquisition): no query then has to wait for the whole accumulation, and a lost connection is reported within the timeout.
+This function queries or sets the communication timeout of the oscilloscope connection, that is, how long a single query may wait for an answer before an error is raised. If there is no argument the function will return the current timeout. If there is an argument the specified timeout will be set. The initial value is taken from the `timeout` field of the configuration file.
+
+A short timeout is useful when the acquisition is armed with [`oscilloscope_command(':SINGle')`](#oscilloscope_command) and its state is polled with [`oscilloscope_query()`](#oscilloscope_query) instead of waiting with [`oscilloscope_wait_acquisition()`](#oscilloscope_wait_acquisition): no query then has to wait for the whole accumulation, and a lost connection is reported within the timeout.
 
 **Output format:** `'number'` + `'s'` | `'ms'` | `'us'` | `'ns'`
-{: .enum }
+
+!!! note
+    This function is only available for Keysight 2000 X-series oscilloscopes.
 
 ---
 
@@ -170,7 +188,6 @@ This function requests the preamble information for the selected waveform source
 **Preamble format (Rigol):** `[format, type, points, count, xincrement, xorigin, xreference, yincrement, yorigin, yreference]`
 
 **Allowed channels:** `'CH1'`, `'CH2'`, `'CH3'`, `'CH4'`
-{: .enum }
 
 ---
 
@@ -207,7 +224,6 @@ If you need to get both the x- and y-axis, consider using the [`oscilloscope_get
 For Rigol MSO8000 Series, it is not possible to control the number of averages in the waveform for the `'Average'` [acquisition type](#oscilloscope_acquisition_type). This function [returns](#oscilloscope_get_curve-mode) the waveform data on the screen or from the internal memory.
 
 **Allowed channels:** `'CH1'`, `'CH2'`, `'CH3'`, `'CH4'`
-{: .enum }
 
 ---
 
@@ -221,7 +237,6 @@ oscilloscope_get_curve('CH2', mode='Normal')
 For Rigol MSO8000 Series, there is an additional keyword `'mode' = ['Normal', 'Raw']`, which is used to specify the data return mode. The default option is `'Normal'`. In `'Normal'` mode, the oscilloscope returns the waveform data currently displayed on the screen. In `'Raw'` mode, the oscilloscpe returns the waveform data from the internal memory.
 
 **Allowed mode:** `'Normal'`, `'Raw'`
-{: .enum }
 
 ---
 
@@ -238,6 +253,29 @@ For Rigol MSO8000 Series, it is not possible to control the number of averages i
 
 !!! note
     This function is only available for Keysight 2000, 3000, 4000 X-Series and Rigol MSO8000 Series oscilloscopes.
+
+---
+
+### oscilloscope_demodulate(arr_i, arr_q, freq, ph=None, ph1=None, ph2=None, integral=False) { #oscilloscope_demodulate data-toc-label="oscilloscope_demodulate" }
+
+```python
+# Software down-conversion of the quadrature data
+data_i, data_q = oscilloscope_demodulate(data_i, data_q, freq, ph, ph1, ph2)
+
+# Phase corrections taken from oscilloscope_read_settings()
+data_i, data_q = oscilloscope_demodulate(data_i, data_q, freq)
+
+# With integration over the window
+res_i, res_q = oscilloscope_demodulate(
+    data_i, data_q, freq, ph, ph1, ph2, integral=True)
+```
+
+This function performs a software digital down-conversion (IQ demodulation) with phase correction of the quadrature data returned by the [`oscilloscope_get_curve()`](#oscilloscope_get_curve) function. The arguments `arr_i` and `arr_q` are the in-phase and quadrature arrays (both 1D and 2D arrays are accepted). The complex signal `arr_i + 1j*arr_q` is multiplied by `exp(-1j*(2*pi*freq*t + ph + ph1*t + ph2*t**2))`, where `t` is the time axis built from the current sampling step returned by [`oscilloscope_time_resolution()`](#oscilloscope_time_resolution). The argument `freq` (in MHz) is the down-conversion frequency offset, `ph` is the zero-order (constant) phase correction in radians, while `ph1` and `ph2` are the first- and second-order phase-correction coefficients. The first- and second-order terms are applied only if at least one of them is nonzero. If `ph`, `ph1`, or `ph2` is omitted (or `None`), the corresponding coefficient falls back to the value read from `digitizer.param` by [`oscilloscope_read_settings()`](#oscilloscope_read_settings) (or `0.0` if it was never called), so the Zero Order dialed in the phasing control center is applied automatically.
+
+If the keyword `integral` is `True` and the input arrays are 2D, the corrected data is integrated over the [window](#oscilloscope_window) and two 1D arrays (`res_i`, `res_q`) are returned (in volt-seconds, with the sampling step as the integration scale); otherwise the corrected in-phase and quadrature arrays are returned. If the input arrays contain `np.nan` (no new data) they are returned unchanged.
+
+!!! note
+    This function is available for Keysight 2000, 3000, 4000 X-Series oscilloscopes.
 
 ---
 
@@ -264,7 +302,6 @@ oscilloscope_sensitivity('CH2', '100 mV')   # set channel 2 sensitivity to 100 m
 This function queries (if called with one argument) or sets (if called with two arguments) the sensitivity per division of one of the channels of the oscilloscope. If there is a second argument it will be set as a new sensitivity. If there is no second argument the current sensitivity for specified the channel is returned.
 
 **Output format:** `'number'` + `'V'` | `'mV'`
-{: .enum }
 
 ---
 
@@ -278,7 +315,6 @@ oscilloscope_offset('CH2', '100 mV')   # set channel 2 offset to 100 mV
 This function queries (if called with one argument) or sets (if called with two arguments) the offset setting of one of the channels of the oscilloscope. If there is a second argument it will be set as a new offset setting. If there is no second argument the current offset setting for the specified channel is returned. The offset range depends on the type of oscilliscope, the vertical scale factor for used channel, and the impedance. Please, refer to device manuals.
 
 **Output format:** `'number'` + `'V'` | `'mV'`
-{: .enum }
 
 ---
 
@@ -292,7 +328,6 @@ oscilloscope_horizontal_offset('100 ms')    # set time base delay to 100 ms
 This function queries or sets the horizontal delay time (position). This delay is the time between the trigger event and the delay reference point on the screen. If there is no argument the function will return the current delay mode. If there is an argument the specified delay mode will be set. The valid range for delay settings depends on the time/division setting for the main time base.
 
 **Output format:** `'number'` + `'s'` | `'ms'` | `'us'` | `'ns'`
-{: .enum }
 
 ---
 
@@ -309,7 +344,6 @@ This function queries (if called with one argument) or sets (if called with two 
     For Rigol MSO8000 Series `'AC'` option is only available for `'1 M'` [impedance](#oscilloscope_impedance) setting.
 
 **Allowed:** `'AC'`, `'DC'`
-{: .enum }
 
 ---
 
@@ -326,7 +360,6 @@ This function queries (if called with one argument) or sets (if called with two 
     For Keysight 2000 X-Series the only available option is `'1 M'`.
 
 **Allowed:** `'1 M'`, `'50'`
-{: .enum }
 
 ---
 
@@ -340,7 +373,6 @@ oscilloscope_trigger_mode('Auto')    # set trigger mode to Auto
 This function queries or sets the trigger mode of the oscilloscope. If there is no argument the function will return the current trigger mode. If there is an argument the specified trigger mode will be set. When `'Auto'` sweep mode is selected, a baseline is displayed in the absence of a signal. If a signal is present but the oscilloscope is not triggered, the unsynchronized signal is displayed instead of a baseline. When `'Normal'` sweep mode is selected and no trigger is present, the instrument does not sweep, and the data acquired on the previous trigger remains on the screen.
 
 **Allowed:** `'Auto'`, `'Normal'`
-{: .enum }
 
 ---
 
@@ -365,7 +397,6 @@ The `'Ext'` option triggers the oscilloscope using the EXT TRIG IN signal on the
     For Rigol MSO8000 Series arguments `'WGen'` is not available.
 
 **Allowed:** `'CH1'`, `'CH2'`, `'CH3'`, `'CH4'`, `'Ext'`, `'Line'`, `'WGen'`
-{: .enum }
 
 ---
 
@@ -384,7 +415,6 @@ This function queries (if called with one argument) or sets (if called with two 
     For Tektronix 3000 and 4000 Series also presets `'ECL'` and `'TTL'` can be used as the first argument. `'ECL'` sets the threshold level to a preset ECL high level of -1.3 V. `'TTL'` sets the threshold level to a preset TTL high level of 1.4 V.
 
 **Output format:** `'number'` + `'V'` | `'mV'`
-{: .enum }
 
 ---
 
@@ -394,7 +424,7 @@ This function queries (if called with one argument) or sets (if called with two 
 oscilloscope_read_settings()    # read all settings from digitizer.param
 ```
 
-This function reads all the settings from a special text file [digitizer.param](https://github.com/Anatoly1010/Atomize_ITC/tree/master/atomize/control_center).
+This function reads all the settings from a special text file [digitizer.param](https://github.com/Anatoly1010/Atomize_ITC/tree/master/atomize/control_center). It also reads the zero-, first-, and second-order phase-correction coefficients stored in the file; these become the default phase corrections used by the [`oscilloscope_demodulate()`](#oscilloscope_demodulate) function when its corresponding arguments are omitted. The phasing control centers store their Zero Order there and always write `0` for the first and second orders, because their First/Second Order controls apply only to the FFT view.
 
 !!! note
     This function is only available for Keysight 2000, 3000, 4000 X-Series and Rigol MSO8000 Series oscilloscopes.

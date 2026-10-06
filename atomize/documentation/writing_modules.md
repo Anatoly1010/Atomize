@@ -189,7 +189,7 @@ self.ref_ampl_max = 5
 
 ## Configuration Files
 
-Each device should have a configuration file. In this file the communication [protocol settings](protocol_settings.md) and device specific parameters in the case of a module for a series of the devices should be specified. Examples can be found in `atomize/device_modules/config/` directory with a local copy in [`DEVICE CONFIG DIRECTORY`](usage.md). Reading of a local copy of the configuration file should be done inside an `__init__()` function of the device class using special functions from the `config_utils` and `local_config` modules:
+Each device should have a configuration file. In this file the communication [protocol settings](protocol_settings.md) and device specific parameters in the case of a module for a series of the devices should be specified. **The configuration file is named after the module**, not after one instrument, so a module covering a whole series is not tied to a single model; the model itself belongs in the `name` field inside the file. Examples can be found in `atomize/device_modules/config/` directory with a local copy in [`DEVICE CONFIG DIRECTORY`](usage.md). Reading of a local copy of the configuration file should be done inside an `__init__()` function of the device class using special functions from the `config_utils` and `local_config` modules:
 
 ```python
 # Stanford Research Systems SR-860 module

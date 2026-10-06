@@ -1,24 +1,15 @@
 # Math Modules
 
-Helper modules for offline data analysis: least-squares curve fitting, 1D
-signal processing (apodization, zero filling, smoothing, baseline subtraction,
-echo-centre detection), FFT and phase correction, and DEER/PDS
-distance-distribution analysis. They take
-and return plain NumPy arrays, so a result can be pushed straight to LivePlot
-with [`plot_1d()`](../plotting_functions/usage.md) or saved with
-[`save_data()`](../general_functions/data_managment.md#save_data).
+Helper modules for offline data analysis: least-squares curve fitting, 1D signal processing (apodization, zero filling, smoothing, baseline subtraction, echo-centre detection), FFT and phase correction, and DEER/PDS distance-distribution analysis. They take and return plain NumPy arrays, so a result can be pushed straight to LivePlot with [`plot_1d()`](../plotting_functions/usage.md) or saved with [`save_data()`](../general_functions/data_managment.md#save_data).
 
 !!! note "scipy is an optional dependency"
-    The fitting routines, Savitzky–Golay smoothing, and the whole DEER engine
-    require `scipy`, which is part of the `math` extra:
+    The fitting routines, Savitzky–Golay smoothing, and the whole DEER engine require `scipy`, which is part of the `math` extra:
 
     ```bash
     pip install -e .[math]
     ```
 
-    The modules import `scipy` lazily, so importing them never fails on a
-    minimal install — only the functions that need `scipy` raise a
-    `RuntimeError` when it is missing.
+    The modules import `scipy` lazily, so importing them never fails on a minimal install — only the functions that need `scipy` raise a `RuntimeError` when it is missing.
 
 ## [Least-squares fitting](fitting.md)
 
@@ -55,7 +46,9 @@ with [`plot_1d()`](../plotting_functions/usage.md) or saved with
 | Function | Description |
 | -------- | ----------- |
 | [`Fast_Fourier()`](fft.md#class) | Create the FFT / phase-correction helper |
-| [`auto_phase_zero(spectrum, threshold=0.1)`](fft.md#auto_phase_zero) | Zero-order auto-phase (degrees) maximising the magnitude-weighted real part |
+| [`auto_phase_zero(spectrum, threshold=0.1)`](fft.md#auto_phase_zero) | Zero-order auto-phase (degrees) of a **spectrum**; principal-axis estimator, handles bipolar (T₁ inversion-recovery) data |
+| [`auto_phase_zero_echo(signal, frac=0.25)`](fft.md#auto_phase_zero_echo) | Zero-order auto-phase (degrees) of a **time-domain echo**, for a correction applied to the trace; no skip, no origin shift |
+| [`carrier_offset(signal, dt, frac=0.25)`](fft.md#carrier_offset) | Dominant line offset of an echo (cycles per unit `dt`); feed `-f0` to the first-order term |
 | [`ph_correction(freq, data_i, data_q, cor1, cor2, cor3)`](fft.md#ph_correction) | Apply a zero/first/second-order phase polynomial to I+iQ |
 | [`fft(x_axis, data_i, data_q, sample_spacing, re='False')`](fft.md#fft) | FFT of I+iQ; magnitude or real/imag parts (ns → MHz) |
 
@@ -63,23 +56,28 @@ with [`plot_1d()`](../plotting_functions/usage.md) or saved with
 
 `import atomize.math_modules.deer as deer`
 
-Distance-distribution analysis for pulsed-dipolar spectroscopy (DEER/PELDOR,
-RIDME, DQC, SIFTER): background correction + Tikhonov/NNLS inversion of the
-orientation-averaged dipolar kernel, with GCV (or L-curve) regularization and a
-choice of sequential or joint (DeerLab-style) background fitting. Times in µs,
-distances in nm.
+Distance-distribution analysis for pulsed-dipolar spectroscopy (DEER/PELDOR, RIDME, DQC, SIFTER): background correction + inversion of the orientation-averaged dipolar kernel by **Tikhonov/NNLS** (GCV or L-curve regularization, sequential or joint DeerLab-style background) **or** a model-free **analytic Mellin transform**. Times in µs, distances in nm.
 
 | Function | Description |
 | -------- | ----------- |
 | [`deer_invert(t, V, …)`](deer.md#deer_invert) | One-call pipeline: background-correct → kernel → P(r) (`engine`/`method`) |
-| [`deer_invert_joint(t, V, …)`](deer.md#deer_invert_joint) | Joint (separable-NLLS) fit of background + λ together with P(r) |
+| [`deer_invert_joint(t, V, …)`](deer.md#deer_invert_joint) | Joint fit of background + λ (λ-pinned) together with P(r) |
+| [`deer_invert_mellin(t, V, …)`](deer.md#deer_invert_mellin) | Model-free analytic Mellin-transform inversion (auto cutoff, MC CI) |
 | [`deer_validate(t, V, …)`](deer.md#deer_validate) | Ensemble validation: background-sweep → median P(r) + uncertainty band |
+| [`residual_whiteness(resid, …)`](deer.md#residual_whiteness) | Residual goodness-of-fit (Durbin–Watson, lag-1 autocorrelation, ACF) |
+| [`fit_zero_time(t, V, …)`](deer.md#fit_zero_time) | Fit the dipolar zero-time t₀ (reference time) |
+| [`tikhonov_ci(K, F, alpha, P, …)`](deer.md#tikhonov_ci) | Pointwise 95% noise-propagation band on the Tikhonov P(r) (not a calibrated CI) |
 | [`dipolar_kernel(t, r, …)`](deer.md#dipolar_kernel) | Orientation-averaged kernel K(t, r) (Fresnel closed form) |
 | [`dipolar_frequency(r, …)`](deer.md#dipolar_frequency) | Perpendicular dipolar frequency ν⊥(r) = ν_dd/r³ |
-| [`background_fit(t, V, bg_start, bg_end=None, …)`](deer.md#background_fit) | Fit intermolecular background on a tail window |
+| [`background_fit(t, V, bg_start, bg_end=None, …)`](deer.md#background_fit) | Fit intermolecular background on a tail window (sequential) |
+| [`joint_background(t, V, …)`](deer.md#joint_background) | λ-pinned joint background only (coarse, hardened; backs the Mellin engine) |
 | [`tikhonov_nnls(K, F, alpha, L=None)`](deer.md#tikhonov_nnls) | Non-negative Tikhonov solve K P = F |
 | [`regularization_matrix(n, order=2)`](deer.md#regularization_matrix) | Derivative operator L for smoothing |
 | [`l_curve(K, F, alphas, L=None, method='gcv')`](deer.md#l_curve) | Regularization scan; α by GCV (default) or Menger L-corner |
+| [`mellin_kernel_spectrum(tau, …)`](deer.md#mellin_kernel_spectrum) | Mellin image Φ(½+iτ) of the dipolar kernel (closed form) |
+| [`mellin_signal_spectrum(t, F, tau, delta, …)`](deer.md#mellin_signal_spectrum) | Mellin image Ṽ(½+iτ) of the form factor (δ-split) |
+| [`mellin_inverse(P_tau, tau, w)`](deer.md#mellin_inverse) | Inverse Mellin transform → p(w) |
+| [`mellin_delta(t, F, level=0.95, …)`](deer.md#mellin_delta) | Auto Mellin split point δ (F(δ) ≈ 0.95), clipped to the floor/cap window |
 | [`default_r_axis(rmin=1.5, rmax=8.0, n=200)`](deer.md#default_r_axis) | Default distance grid (nm) |
 | [`simulate(t, r, P, …)`](deer.md#simulate) | Forward-simulate a DEER trace from P(r) |
 
@@ -87,10 +85,7 @@ distances in nm.
 
 `import atomize.math_modules.coherence_pathways as coh`
 
-Pure-Python (no scipy) bookkeeping for pulse-EPR phase cycles: expand short
-phase-cycle notation, then enumerate every coherence transfer pathway and see
-which the cycle **keeps** vs **phases out**, where each surviving echo lands, and
-which FIDs survive. Selection rule, not amplitudes (Stoll 2008; Prisner 2016).
+Pure-Python (no scipy) bookkeeping for pulse-EPR phase cycles: expand short phase-cycle notation, then enumerate every coherence transfer pathway and see which the cycle **keeps** vs **phases out**, where each surviving echo lands, and which FIDs survive. Selection rule, not amplitudes (Stoll 2008; Prisner 2016).
 
 | Function | Description |
 | -------- | ----------- |
@@ -103,11 +98,7 @@ which FIDs survive. Selection rule, not amplitudes (Stoll 2008; Prisner 2016).
 
 `import atomize.math_modules.pulse_excitation as pe`
 
-Excitation/inversion profiles of shaped pulses (rectangular, gaussian, sinc,
-sine, WURST, sech/tanh) across resonance offset, by full Bloch/propagator spin
-dynamics of a single S=1/2 — the EasySpin `exciteprofile` approach, correct for
-adiabatic pulses, not just the FFT approximation. Pure NumPy (no scipy).
-Frequencies/offsets in GHz, times in ns; shape params in MHz.
+Excitation/inversion profiles of shaped pulses (rectangular, gaussian, sinc, sine, WURST, sech/tanh) across resonance offset, by full Bloch/propagator spin dynamics of a single S=1/2 — the EasySpin `exciteprofile` approach, correct for adiabatic pulses, not just the FFT approximation. Pure NumPy (no scipy). Frequencies/offsets in GHz, times in ns; shape params in MHz.
 
 | Function | Description |
 | -------- | ----------- |

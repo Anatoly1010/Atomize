@@ -106,6 +106,32 @@ This function returns the minimum field step size (in Gauss) if called without a
 
 ---
 
+### magnet_fast() { #magnet_fast data-toc-label="magnet_fast" }
+
+```python
+magnet_fast()    # switch to the fast settling mode
+```
+
+This function switches the field controller to the fast settling mode, in which a new field value is reached in about 4 s. The function does not take an argument.
+
+!!! note
+    The function is available only for the ITC1 field controller.
+
+---
+
+### magnet_accurate() { #magnet_accurate data-toc-label="magnet_accurate" }
+
+```python
+magnet_accurate()    # switch to the accurate settling mode
+```
+
+This function switches the field controller to the accurate settling mode, in which a new field value is reached in about 8-10 s. The mode is slower than the one set by [`magnet_fast()`](#magnet_fast), but the residual field deviation is smaller. The function does not take an argument.
+
+!!! note
+    The function is available only for the ITC1 field controller.
+
+---
+
 ### magnet_command(command) { #magnet_command data-toc-label="magnet_command" }
 
 ```python

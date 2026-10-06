@@ -80,6 +80,12 @@
 | -------- | ---------- | ------- |
 | IVG-1/1  | RS-485     | 02/2023 |
 
+## [Multimeters](functions/multimeter.md)
+
+| Device                       | Connection     | Tested   |
+| ---------------------------- | -------------- | -------- |
+| Agilent / Keysight 34410A     | GPIB, Ethernet | Untested |
+
 ## [Oscilloscopes](functions/oscilloscope.md)
 
 | Device                                | Connection | Tested   |
@@ -91,6 +97,12 @@
 | Tektronix 4000 Series                 | Ethernet   | 01/2021  |
 | Tektronix 5 Series MSO                | Ethernet   | 12/2023  |
 | Rigol MSO8000 Series                  | Ethernet   | 01/2026  |
+
+## [Preamplifiers](functions/preamplifier.md)
+
+| Device                                | Connection | Tested   |
+| ------------------------------------- | ---------- | -------- |
+| Stanford Research SR560 Preamplifier   | RS-232     | Untested |
 
 ## [Power supplies](functions/power_supply.md)
 

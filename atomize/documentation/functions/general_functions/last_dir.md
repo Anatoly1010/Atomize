@@ -3,13 +3,12 @@
 Every file **open** and **save** dialog in the Atomize GUI reopens in the folder
 you last used, instead of always jumping back to the configured default. The
 folder is remembered **per category** and **survives a relaunch**, so the script
-picker, the data loader and (on the EPR endstation) each preset tool each keep
-their own working directory.
+picker and the data loader each keep their own working directory.
 
 ## Why this is needed
 
-Atomize runs as several independent Qt processes — the main window plus, on the
-EPR endstation, each control-center tool in its own `QProcess`. A plain
+Atomize can run as several independent Qt processes — the main window plus, in
+multi-tool builds, each control-center tool in its own `QProcess`. A plain
 `QFileDialog` has no memory of its own across processes or restarts, and the
 config only provides a single static `open_dir` / `script_dir`. Without help,
 every dialog opens in that one configured folder, even after you have navigated
@@ -26,19 +25,10 @@ Two categories exist in every build:
 | Key | Used by | Remembers |
 | --- | ------- | --------- |
 | `script` | the experimental-script **Open** / **Save** dialogs | your scripts folder |
-| `data`   | the 1D / 2D (and, on the endstation, TR) data-open dialogs, including the *Open 1D Data* item in the pyqtgraph plot menu | your data folder |
+| `data`   | the 1D / 2D data-open dialogs, including the *Open 1D Data* item in the pyqtgraph plot menu | your data folder |
 
-The **EPR endstation** build adds one category per preset tool, so each remembers
-its own folder independently:
-
-| Key | Tool | File type |
-| --- | ---- | --------- |
-| `cw` | CW EPR control | `*.cw` |
-| `tr` | TR EPR control | `*.tr` |
-| `tune` | resonator tune preset | `*.tn` |
-| `phase` | RECT phasing | `*.phase` |
-| `phase_awg` | AWG phasing | `*.phase_awg` |
-| `phase_cor` | phase correction | `*.csv` |
+Specific builds may add further categories — one per extra dialog — so each
+remembers its own folder independently.
 
 The first time a category is used (no note yet) the dialog falls back to the
 configured `open_dir` / `script_dir`; from then on it opens where you left off.
@@ -46,13 +36,9 @@ configured `open_dir` / `script_dir`; from then on it opens where you left off.
 ## Where it is stored
 
 Each category keeps its directory in a one-line text file named
-`<key>_lastdir.txt`:
-
-- **plain Atomize** — under the per-user config directory
-  (`platformdirs.user_config_dir("atomize-py")/lastdir/`), the same place the
-  copied configs live;
-- **EPR endstation build** — under the repo's `libs/` runtime directory, next to
-  the other runtime-IPC files (these files are git-ignored).
+`<key>_lastdir.txt`, stored under the per-user config directory
+(`platformdirs.user_config_dir("atomize-py")/lastdir/`), the same place the
+copied configs live. (Some builds redirect this to their own runtime directory.)
 
 A note is rewritten every time a file is successfully opened **or** saved, so
 saving a preset into a new folder also moves the next open there. A stale note

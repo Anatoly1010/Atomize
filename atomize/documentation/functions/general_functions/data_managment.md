@@ -94,6 +94,41 @@ units = file_handler.open_h5_axis_units(file_path)
 
 ---
 
+### open_h5_params(file_path) { #open_h5_params data-toc-label="open_h5_params" }
+
+```python
+open_h5_params(file_path)    # -> { 'Field': 3450.5, 'Experiment': 'Pulsed EPR AWG Experiment', … }
+```
+
+This function returns the header parameters of an `.h5` file as a dictionary keyed by the name in front of the colon. Every `Name: value unit` line of the header above its first `----` separator is stored once more as a typed attribute when the file is written, so a value that is a number comes back as a float and anything else, a date or an experiment name, as text. Nothing has to be parsed: the field of a hundred files is a loop over this function. A file written before these attributes existed yields an empty dictionary, and the text header, read through `open_1d` or `open_2d`, is unchanged either way.
+
+```python
+params = file_handler.open_h5_params(file_path)
+units = file_handler.open_h5_param_units(file_path)
+# params['Field'] in units.get('Field', '')      -> 3450.5 G
+# params['Temperature']                           -> 80.05
+```
+
+| Argument    | Description |
+| ----------- | ----------- |
+| `file_path` | Path to file |
+
+---
+
+### open_h5_param_units(file_path) { #open_h5_param_units data-toc-label="open_h5_param_units" }
+
+```python
+open_h5_param_units(file_path)    # -> { 'Field': 'G', 'Temperature': 'K', … }
+```
+
+This function returns the units stored beside those parameters, keyed the same way; a parameter whose header line carried no unit does not appear. The unit is the text that followed the number on the header line, so `Record Length: 500 Points` gives `'Points'`.
+
+| Argument    | Description |
+| ----------- | ----------- |
+| `file_path` | Path to file |
+
+---
+
 ### open_file_dialog(directory='') { #open_file_dialog data-toc-label="open_file_dialog" }
 
 ```python
@@ -178,6 +213,9 @@ file_handler.save_data(file_data, data, header=header, mode='w')
 
 ---
 
+!!! note
+    In Atomize_NIOCH, `csv_opener_saver_invert.Saver_Opener.save_data(..., plot=..., label=..., phase=None)` applies the manual I/Q correction for the specified plot and curve. By default it reads the current correction; an explicit `phase` supplies a fixed angle in degrees. The AWG experiment saver captures this angle once after the save dialog and uses it for the integrated average and all ESEEM cycle files. Raw 2D data is not phase-corrected.
+
 ## HDF5 files
 
 A path ending in `.h5` is written as a single HDF5 file instead of comma separated text. It is worth doing for the full 2D arrays of an experiment: such a file is about three times smaller than the same data as text, is written in a fraction of the time, keeps both quadratures and the axes together, and is read by Origin, MATLAB and `h5dump` without any Atomize code. Small 1D result files gain nothing from it and are kept as CSV by every control center window, but the functions accept them at any rank, so an experimental script may use them freely.
@@ -186,17 +224,21 @@ A path ending in `.h5` is written as a single HDF5 file instead of comma separat
 example_2d.h5
 ├── attrs
 │   ├── header          str   exact header text as passed to save_data (no '# ')
-│   ├── format_version  int   1
+│   ├── format_version  int   2
 │   ├── source          str   'atomize'
 │   ├── t_unit          str   unit of the t axis, only when axes_units is passed
 │   └── sweep_unit      str   unit of the sweep axis, only when axes_units is passed
+├── params attrs                          every 'Name: value unit' header line, typed
+│   ├── Field           float 3450.5      (see open_h5_params)
+│   ├── Field_unit      str   'G'
+│   └── …
 ├── I      float32  (npoints, nsamples)   same orientation as the CSV rows
 ├── Q      float32  (npoints, nsamples)   only when the source has a quadrature
 ├── t      float64  (nsamples,)           within-trace axis
 └── sweep  float64  (npoints,)            tau / field / amplitude axis
 ```
 
-The array is stored exactly as `np.savetxt()` would lay it out, so a 1D file is the same layout with one axis fewer and no separate concept: `save_data()` never has to guess what the array means, and `open_1d()` / `open_2d()` differ for HDF5 exactly as they differ for CSV. The `t` and `sweep` datasets are written only when `axes` is passed, and their `t_unit` / `sweep_unit` attributes only when `axes_units` is passed as well. A file written with per-scan snapshots carries one more dataset, `scans`, whose first axis is the scan number and whose slice `j - 1` is the cumulative average after scan `j`.
+The array is stored exactly as `np.savetxt()` would lay it out, so a 1D file is the same layout with one axis fewer and no separate concept: `save_data()` never has to guess what the array means, and `open_1d()` / `open_2d()` differ for HDF5 exactly as they differ for CSV. The `t` and `sweep` datasets are written only when `axes` is passed, and their `t_unit` / `sweep_unit` attributes only when `axes_units` is passed as well. The `params` group repeats the header as typed attributes, one per `Name: value unit` line above the first `----` separator, so an external script or `h5dump` sees the field, the frequency or the temperature as a number with its unit beside it rather than inside one text block; [open_h5_params](#open_h5_params) reads them back. A file written with per-scan snapshots carries one more dataset, `scans`, whose first axis is the scan number and whose slice `j - 1` is the cumulative average after scan `j`.
 
 An axis stored this way keeps its true origin, which a header cannot: a header line gives a step only, so a reader has to start the axis at zero. A field sweep written as an axis dataset comes back running from its real start field rather than from 0 G. This is why the control center windows that save 2D data pass both `axes` and `axes_units`.
 
@@ -214,4 +256,3 @@ np.savetxt(path_to_file, data_to_save, fmt='%.4e', delimiter=' ',
 ```
 
 For saving inside the script by [`create_file_dialog()`](#create_file_dialog) a standard numpy function should be used.
-

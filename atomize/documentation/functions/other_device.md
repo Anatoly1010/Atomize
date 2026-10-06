@@ -95,6 +95,9 @@ This function sets or queries the output channel states of the discrete IO modul
 
 ## Cryomech CPA2896 / CPA1110 Digital Panels
 
+!!! note
+    Every reading below comes from one contiguous block of input registers. The module fetches the whole block in a single Modbus transaction and reuses it for 1 s, so calls made within that window return the same snapshot instead of re-reading the device. This matters on a long or noisy RS-485 line: one transaction per value exposes many more frames to corruption than one transaction per poll. Transport errors — no reply, or a checksum error in RTU mode — are retried three times before being raised.
+
 ### cryogenic_refrigerator_name() { #cryogenic_refrigerator_name data-toc-label="cryogenic_refrigerator_name" }
 
 ```python
@@ -359,6 +362,9 @@ This function sets or queries the target operating pressure for the HRC (Helium 
 
 !!! note
     This function is only available for HRC (Helium Recondenser Controller) channel. This setting should be specified in the configuration file in the field: `hrc_second_channel`.
+
+!!! warning
+    The LM-510 silently ignores a `PSET` outside the range below — the write appears to succeed while the target pressure never moves — so the module rejects an out-of-range argument with an assertion instead of sending it. Note that the instrument's front panel accepts target pressures below `0.15 psi` that this command can neither set nor restore afterwards.
 
 **Range:** `0.15 psi` – `14.25 psi`
 {: .enum }
