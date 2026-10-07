@@ -1255,6 +1255,7 @@ class CrosshairDock(CloseableDock):
             
             curve.setTransform(QtGui.QTransform()) 
             curve.setPos(0, 0)
+            curve.setClipToView(self.plot_widget.plot_item.clipToViewMode())
 
             self.flash_curve(curve)
 
@@ -1298,6 +1299,9 @@ class CrosshairDock(CloseableDock):
 
             if ev.isStart():
                 self.flash_curve(curve)
+                # clip-to-view ignores the item offset, so a shifted curve is clipped wrong
+                if modifiers == QtCore.Qt.KeyboardModifier.AltModifier:
+                    curve.setClipToView(False)
 
             if not ev.isFinish():
                 delta_scene = ev.scenePos() - ev.lastScenePos()
@@ -1455,6 +1459,7 @@ class CrosshairDock(CloseableDock):
                 curve.xData.copy(), curve.yData.copy(), pen=pen, name=f'{label} ref')
             reference.setPos(curve.pos().x(), curve.pos().y())
             reference.setTransform(curve.transform())
+            reference.setClipToView(curve.opts['clipToView'])
             reference.setOpacity(0.7)
             reference.setZValue(-10)
             self.track_curves.append(reference)
