@@ -34,7 +34,7 @@ Right-click in the Current Plots dock area to access:
 | ------ | ------ |
 | Middle-click curve name in legend  | Remove the curve from the graph |
 | Left-click curve name in legend    | Bring the curve to the top layer |
-| Drag a curve                       | Shift it vertically or horizontally |
+| `Alt` + drag a curve               | Shift it vertically or horizontally |
 | `Ctrl` + drag a curve              | Scale it vertically |
 | `Alt` + Left-click a curve         | Reset its shift and scale to original values |
 | Double-click                       | Show/hide cross-hair (1D) or cross-section (2D) widget |

@@ -1071,7 +1071,7 @@ class CrosshairDock(CloseableDock):
                                 curve_item.setClickable(True)#, width=10)
                                 
                                 curve_item.mouseDragEvent = lambda ev, c=curve: self.handle_drag(c, ev)
-                                curve_item.mousePressEvent = lambda ev, c=curve: self.handle_press(c, ev)
+                                curve_item.mouseClickEvent = lambda ev, c=curve: self.handle_click(c, ev)
                                 self.curves[name] = curve
 
                                 # Text label above the graph
@@ -1135,7 +1135,7 @@ class CrosshairDock(CloseableDock):
                             curve_item.setClickable(True)#, width=10)
                             
                             curve_item.mouseDragEvent = lambda ev, c=curve: self.handle_drag(c, ev)
-                            curve_item.mousePressEvent = lambda ev, c=curve: self.handle_press(c, ev)
+                            curve_item.mouseClickEvent = lambda ev, c=curve: self.handle_click(c, ev)
                             self.curves[name] = curve
 
                         else:
@@ -1179,7 +1179,7 @@ class CrosshairDock(CloseableDock):
                                 curve_item = curve.curve 
                                 curve_item.setClickable(True)#, width=10)
                                 curve_item.mouseDragEvent = lambda ev, c=curve: self.handle_drag(c, ev)
-                                curve_item.mousePressEvent = lambda ev, c=curve: self.handle_press(c, ev)
+                                curve_item.mouseClickEvent = lambda ev, c=curve: self.handle_click(c, ev)
                                 self.curves[name] = curve
 
                                 # Text label above the graph
@@ -1204,7 +1204,7 @@ class CrosshairDock(CloseableDock):
                     curve_item = curve.curve 
                     curve_item.setClickable(True)#, width=10)
                     curve_item.mouseDragEvent = lambda ev, c=curve: self.handle_drag(c, ev)
-                    curve_item.mousePressEvent = lambda ev, c=curve: self.handle_press(c, ev)
+                    curve_item.mouseClickEvent = lambda ev, c=curve: self.handle_click(c, ev)
                     self.curves[name] = curve
 
                     # Text label above the graph
@@ -1246,10 +1246,10 @@ class CrosshairDock(CloseableDock):
             ev.accept()
             self.del_item(curve)
 
-    def handle_press(self, curve, ev):
+    def handle_click(self, curve, ev):
         modifiers = QtGui.QGuiApplication.keyboardModifiers()
-        
-        if (ev.button() == QtCore.Qt.MouseButton.LeftButton and 
+
+        if (ev.button() == QtCore.Qt.MouseButton.LeftButton and
             modifiers == QtCore.Qt.KeyboardModifier.AltModifier):
             ev.accept()
             
@@ -1286,6 +1286,12 @@ class CrosshairDock(CloseableDock):
             if modifiers & QtCore.Qt.KeyboardModifier.ShiftModifier:
                 ev.accept()
                 self.plot_widget._on_ruler_drag(ev)
+                return
+
+            # plain drag stays with the view (pan / zoom box)
+            if ev.isStart() and modifiers not in (QtCore.Qt.KeyboardModifier.ControlModifier,
+                                                  QtCore.Qt.KeyboardModifier.AltModifier):
+                ev.ignore()
                 return
 
             ev.accept()
@@ -1326,7 +1332,7 @@ class CrosshairDock(CloseableDock):
                             curve.setY(curve._scale_pivot_view_y
                                        - curve._scale_pivot_data_y * new_sy)
 
-                elif modifiers == QtCore.Qt.KeyboardModifier.NoModifier:
+                elif modifiers == QtCore.Qt.KeyboardModifier.AltModifier:
                     p1 = curve.mapToParent(ev.pos())
                     p2 = curve.mapToParent(ev.lastPos())
                     diff = p1 - p2

@@ -327,7 +327,7 @@ class MainWindow(QMainWindow):
         meta = self.meta
         operation = meta['operation']
         name = meta['name']
-        is_data = operation.startswith(('plot_', 'append_')) and name != '*'
+        is_data = operation.startswith(('plot_', 'append_', 'update_')) and name != '*'
         if is_data and source is not None and not source.property('liveplot_run_started'):
             source.setProperty('liveplot_run_started', True)
             self.namelist.begin_run(source)
