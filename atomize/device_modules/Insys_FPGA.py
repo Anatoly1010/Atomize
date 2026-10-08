@@ -249,6 +249,34 @@ class Insys_FPGA:
         self.max_freq_awg = int(float(self.specific_parameters_awg['max_freq'])) # in MHz
         self.min_freq_awg = int(float(self.specific_parameters_awg['min_freq'])) # in MHz
         self.phase_shift_ch1_seq_mode_awg = float(self.specific_parameters_awg['ch1_phase_shift']) # in radians
+        # per-IF transmit I/Q correction table (CH1 phase offset on top of ch1_phase_shift, CH1/CH0 ratio)
+        iq_keys = ('iq_cal_freq_mhz', 'iq_cal_dphase_ch1_deg', 'iq_cal_ratio_ch1_ch0')
+        if all(k in self.specific_parameters_awg for k in iq_keys):
+            iq_cols = [np.array([float(v) for v in self.specific_parameters_awg[k].split(',')]) for k in iq_keys]
+            assert(len(iq_cols[0]) >= 1 and len(iq_cols[0]) == len(iq_cols[1]) == len(iq_cols[2])), \
+                'Incorrect I/Q calibration table in PB_Insys_DAC_config.ini; iq_cal_* lists must have equal nonzero length'
+            assert(np.all(np.diff(iq_cols[0]) > 0)), \
+                'Incorrect I/Q calibration table in PB_Insys_DAC_config.ini; iq_cal_freq_MHz must be strictly increasing'
+            self.iq_cal_freq_awg = iq_cols[0]
+            self.iq_cal_dphase_awg = np.deg2rad(iq_cols[1])
+            self.iq_cal_ratio_awg = iq_cols[2]
+            self.iq_cal_on_awg = bool(int(float(self.specific_parameters_awg.get('iq_cal_enable', '0'))))
+        else:
+            self.iq_cal_freq_awg = self.iq_cal_dphase_awg = self.iq_cal_ratio_awg = np.array([])
+            self.iq_cal_on_awg = False
+        # per-IF receive I/Q mirror coefficient b, keyed by AWG IF = -demodulation frequency
+        rx_keys = ('rx_cal_freq_mhz', 'rx_cal_b_re', 'rx_cal_b_im')
+        if all(k in self.specific_parameters_awg for k in rx_keys):
+            rx_cols = [np.array([float(v) for v in self.specific_parameters_awg[k].split(',')]) for k in rx_keys]
+            assert(len(rx_cols[0]) >= 1 and len(rx_cols[0]) == len(rx_cols[1]) == len(rx_cols[2])), \
+                'Incorrect receive I/Q table in PB_Insys_DAC_config.ini; rx_cal_* lists must have equal nonzero length'
+            assert(np.all(np.diff(rx_cols[0]) > 0)), \
+                'Incorrect receive I/Q table in PB_Insys_DAC_config.ini; rx_cal_freq_MHz must be strictly increasing'
+            self.rx_cal_freq_adc, self.rx_cal_b_re_adc, self.rx_cal_b_im_adc = rx_cols
+            self.rx_cal_on_adc = bool(int(float(self.specific_parameters_awg.get('rx_cal_enable', '0'))))
+        else:
+            self.rx_cal_freq_adc = self.rx_cal_b_re_adc = self.rx_cal_b_im_adc = np.array([])
+            self.rx_cal_on_adc = False
 
         ###self.phase_x = np.pi/2
         self.maxCAD_awg = 32767 # MaxCADValue of the AWG card - 1
@@ -951,7 +979,10 @@ class Insys_FPGA:
 
                 for i, pulse in enumerate(self.pulse_array_pulser):
                     if pulse['name'] == name:
-                        new_val = f"{p_start} ns"
+                        if pulse['channel'] == 'TRIGGER_AWG':
+                            new_val = f"{self.round_to_closest(p_start - self.trigger_awg_shift, time_grid)} ns"
+                        else:
+                            new_val = f"{p_start} ns"
                         if pulse['channel'] == 'TRIGGER_AWG' and \
                            self._sub_tick_residue(new_val) != self._sub_tick_residue(pulse['start']):
                             # sub-tick padding in the DAC buffer changed ->
@@ -961,7 +992,7 @@ class Insys_FPGA:
                         self.shift_count_pulser = 1
 
                         if pulse['channel'] == 'TRIGGER_AWG' and i > 0:
-                            self.pulse_array_pulser[i-1]['start'] = new_val
+                            self.pulse_array_pulser[i-1]['start'] = f"{p_start} ns"
 
         elif self.test_flag == 'test':
             
@@ -988,7 +1019,10 @@ class Insys_FPGA:
 
                 for i, pulse in enumerate(self.pulse_array_pulser):
                     if pulse['name'] == name:
-                        new_val = f"{p_start} ns"
+                        if pulse['channel'] == 'TRIGGER_AWG':
+                            new_val = f"{self.round_to_closest(p_start - self.trigger_awg_shift, time_grid)} ns"
+                        else:
+                            new_val = f"{p_start} ns"
                         if pulse['channel'] == 'TRIGGER_AWG' and \
                            self._sub_tick_residue(new_val) != self._sub_tick_residue(pulse['start']):
                             # sub-tick padding in the DAC buffer changed ->
@@ -998,7 +1032,7 @@ class Insys_FPGA:
                         self.shift_count_pulser = 1
 
                         if pulse['channel'] == 'TRIGGER_AWG' and i > 0:
-                            self.pulse_array_pulser[i-1]['start'] = new_val
+                            self.pulse_array_pulser[i-1]['start'] = f"{p_start} ns"
 
     def pulser_redefine_delta_start(self, *, name, delta_start):
         """
@@ -2481,7 +2515,9 @@ class Insys_FPGA:
             # worker's teardown can release the card.
             try:
                 _per_point_s = max(1e-3, self.gimSum_brd * self._rep_time_ns() / 1e9)
-                _stall_timeout_s = max(60.0, 10.0 * _per_point_s)
+                # the drain waits for the last stream buffer to fill; allow 2x the estimated fill time
+                _fill_s = self.number_adc_window_in_buffer() * _per_point_s
+                _stall_timeout_s = max(60.0, 10.0 * _per_point_s, 2.0 * _fill_s + 10.0)
             except Exception:
                 _stall_timeout_s = 60.0
             _last_progress_t = time.monotonic()
@@ -2775,6 +2811,42 @@ class Insys_FPGA:
                 self.dec_coef = int(dec[0])
             elif len(dec) == 0:
                 return self.dec_coef
+
+    def digitizer_iq_correction(self, *state):
+        """
+        Enable, disable or query the receive I/Q correction;
+        Removes the mirror term b*conj(s) of the receiver from the I/Q data inside
+        digitizer_demodulate, with b taken from the per-IF rx_cal_* table of
+        PB_Insys_DAC_config.ini at the AWG IF = -demodulation frequency;
+        b is scaled by the mean square of the detection phase factors (+-x: 1, +-y: -1),
+        since a cycle with as many +-y as +-x receiver steps already cancels the mirror.
+        Input: digitizer_iq_correction('On'); digitizer_iq_correction('Off')
+        Default: rx_cal_enable from the config file;
+        Output: 'On'
+        """
+        if self.test_flag != 'test':
+            if len(state) == 1:
+                self.rx_cal_on_adc = ( str(state[0]) == 'On' )
+            elif len(state) == 0:
+                return 'On' if self.rx_cal_on_adc else 'Off'
+
+        elif self.test_flag == 'test':
+            if len(state) == 1:
+                assert( str(state[0]) == 'On' or str(state[0]) == 'Off' ), "Incorrect state; Should be 'On' or 'Off'"
+                self.rx_cal_on_adc = ( str(state[0]) == 'On' )
+            elif len(state) == 0:
+                return 'On' if self.rx_cal_on_adc else 'Off'
+            else:
+                assert( 1 == 2 ), 'Incorrect arguments'
+
+    def _rx_cal_b(self, iq_freq_mhz):
+        """Return the complex receive mirror coefficient b at demodulation frequency iq_freq_mhz (scalar or array); 0 when off or at 0 MHz."""
+        f = -np.asarray(iq_freq_mhz, dtype = float)
+        if not self.rx_cal_on_adc or len(self.rx_cal_freq_adc) == 0:
+            return np.zeros_like(f, dtype = complex)
+        b = np.interp(f, self.rx_cal_freq_adc, self.rx_cal_b_re_adc) + 1j * np.interp(f, self.rx_cal_freq_adc, self.rx_cal_b_im_adc)
+        # 0 MHz means no demodulation (RECT, raw preview); the table has no data there
+        return np.where(f == 0, 0j, b)
 
     def digitizer_read_settings(self):
         """
@@ -4089,6 +4161,48 @@ class Insys_FPGA:
                     return str(self.amplitude_1_awg) + ' mV'
             else:
                 assert( 1 == 2 ), 'Incorrect arguments'
+
+    def awg_iq_correction(self, *state):
+        """
+        Enable, disable or query the transmit I/Q correction;
+        Applies the per-IF CH1 phase / CH1-CH0 ratio table from PB_Insys_DAC_config.ini
+        at each tone pulse's frequency and, sample by sample, at the instantaneous frequency
+        of WURST and SECH/TANH chirps, never raising a channel above its set amplitude;
+        the table covers both signs of the frequency (-400 ... 400 MHz).
+        Input: awg_iq_correction('On'); awg_iq_correction('Off')
+        Default: iq_cal_enable from the config file;
+        Output: 'On'
+        """
+        if self.test_flag != 'test':
+            self.setting_change_count_awg = 1
+
+            if len(state) == 1:
+                self.iq_cal_on_awg = ( str(state[0]) == 'On' )
+            elif len(state) == 0:
+                return 'On' if self.iq_cal_on_awg else 'Off'
+
+        elif self.test_flag == 'test':
+            self.setting_change_count_awg = 1
+
+            if len(state) == 1:
+                assert( str(state[0]) == 'On' or str(state[0]) == 'Off' ), "Incorrect state; Should be 'On' or 'Off'"
+                self.iq_cal_on_awg = ( str(state[0]) == 'On' )
+            elif len(state) == 0:
+                return 'On' if self.iq_cal_on_awg else 'Off'
+            else:
+                assert( 1 == 2 ), 'Incorrect arguments'
+
+    def _iq_cal_awg(self, freq_mhz):
+        """Return (dphase_rad, s0, s1) of the transmit I/Q correction at freq_mhz (scalar or array); s0, s1 <= 1."""
+        f = np.asarray(freq_mhz, dtype = float)
+        if not self.iq_cal_on_awg or len(self.iq_cal_freq_awg) == 0:
+            return np.zeros_like(f), np.ones_like(f), np.ones_like(f)
+        dphase = np.interp(f, self.iq_cal_freq_awg, self.iq_cal_dphase_awg)
+        r = np.interp(f, self.iq_cal_freq_awg, self.iq_cal_ratio_awg)
+        if self.iq_cal_freq_awg[0] > 0:
+            dphase = np.where(f < 0, 0.0, dphase)
+            r = np.where(f < 0, 1.0, r)
+        return dphase, np.minimum(1.0, 1.0 / r), np.minimum(1.0, r)
 
     def awg_test_flag(self, flag):
         """
@@ -6557,7 +6671,7 @@ class Insys_FPGA:
                 freq_key = tuple(freq) if isinstance(freq, (list, tuple, np.ndarray)) else float(freq)
                 key = (element, length, float(pulse_phase_np[index]), freq_key, float(pulse_sigma_smp[index]), \
                        float(pulse_amp[index]), float(pulse_n_wurst[index]), float(pulse_b_sech[index]), \
-                       self.sample_rate_awg, self.amplitude_0_awg, self.amplitude_1_awg, self.cor_version_awg)
+                       self.sample_rate_awg, self.amplitude_0_awg, self.amplitude_1_awg, self.cor_version_awg, self.iq_cal_on_awg)
                 cached = self.waveform_cache_awg.get(key)
                 if cached is not None:
                     channel_1[current_pos + k_pad : current_pos + k_pad + length] = cached[0]
@@ -6569,11 +6683,12 @@ class Insys_FPGA:
             if element == 0:  # 'SINE'
                 n = np.arange(length)
                 phase_arg = 2 * np.pi * n * pulse_frequency[index] / self.sample_rate_awg
+                dph, s0, s1 = self._iq_cal_awg(pulse_frequency[index])
 
-                y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index] *
+                y1 = (norm_c * self.amplitude_0_awg * s0 / pulse_amp[index] *
                       np.sin(phase_arg + pulse_phase_np[index]))
-                y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index] *
-                      np.sin(phase_arg + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg))
+                y2 = (norm_c * self.amplitude_1_awg * s1 / pulse_amp[index] *
+                      np.sin(phase_arg + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg + dph))
 
             elif element == 1: # GAUSS
                 sigma = pulse_sigma_smp[index]
@@ -6582,11 +6697,12 @@ class Insys_FPGA:
 
                 phase_arg = 2 * np.pi * n * pulse_frequency[index] / self.sample_rate_awg
                 envelope = np.exp(-0.5 * ((n - x_mean) / sigma)**2)
+                dph, s0, s1 = self._iq_cal_awg(pulse_frequency[index])
 
-                y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index] *
+                y1 = (norm_c * self.amplitude_0_awg * s0 / pulse_amp[index] *
                       np.sin(phase_arg + pulse_phase_np[index]) * envelope)
-                y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index] *
-                      np.sin(phase_arg + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg) * envelope)
+                y2 = (norm_c * self.amplitude_1_awg * s1 / pulse_amp[index] *
+                      np.sin(phase_arg + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg + dph) * envelope)
 
             elif element == 2: # SINC
                 sigma = pulse_sigma_smp[index]
@@ -6597,11 +6713,12 @@ class Insys_FPGA:
                 phase_arg = 2 * np.pi * n * pulse_frequency[index] / self.sample_rate_awg
                 envelope = np.sinc(2 * (n - x_mean) / sigma)
 
-                amp_scale_0 = norm_c * self.amplitude_0_awg / pulse_amp[index]
-                amp_scale_1 = norm_c * self.amplitude_1_awg / pulse_amp[index]
+                dph, s0, s1 = self._iq_cal_awg(pulse_frequency[index])
+                amp_scale_0 = norm_c * self.amplitude_0_awg * s0 / pulse_amp[index]
+                amp_scale_1 = norm_c * self.amplitude_1_awg * s1 / pulse_amp[index]
 
                 y1 = amp_scale_0 * np.sin(phase_arg + pulse_phase_np[index]) * envelope
-                y2 = amp_scale_1 * np.sin(phase_arg + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg) * envelope
+                y2 = amp_scale_1 * np.sin(phase_arg + pulse_phase_np[index] + self.phase_shift_ch1_seq_mode_awg + dph) * envelope
 
             elif element == 3: # BLANK
                 pass
@@ -6634,11 +6751,13 @@ class Insys_FPGA:
                 phase_chirp = 2 * np.pi * (f_start * t + 0.5 * (f_end - f_start) / T_p * t**2)
 
                 common_phase = phase_chirp + pulse_phase_np[index] + ph_cor
+                # instantaneous frequency of phase_chirp (ph_cor not included)
+                dph, s0, s1 = self._iq_cal_awg(f_start + (f_end - f_start) * n / length)
 
-                y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index] *
+                y1 = (norm_c * self.amplitude_0_awg * s0 / pulse_amp[index] *
                       envelope * np.sin(common_phase))
-                y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index] *
-                      envelope * np.sin(common_phase + self.phase_shift_ch1_seq_mode_awg))
+                y2 = (norm_c * self.amplitude_1_awg * s1 / pulse_amp[index] *
+                      envelope * np.sin(common_phase + self.phase_shift_ch1_seq_mode_awg + dph))
 
             elif element == 5: # 'SECH/TANH'
                 # mid_point for GAUSS and SINC and WURST and SECH/TANH
@@ -6672,8 +6791,10 @@ class Insys_FPGA:
                 phase_carrier = 2 * np.pi * center_freq / self.sample_rate_awg * xs
                 total_phase = 2 * np.pi * phase_arg + phase_carrier + pulse_phase_np[index] + ph_cor
 
-                y1 = (norm_c * self.amplitude_0_awg / pulse_amp[index]) * envelope * np.sin(total_phase)
-                y2 = (norm_c * self.amplitude_1_awg / pulse_amp[index]) * envelope * np.sin(total_phase + self.phase_shift_ch1_seq_mode_awg)
+                # instantaneous frequency of the chirp (ph_cor not included)
+                dph, s0, s1 = self._iq_cal_awg(center_freq + (f_end - f_start) * np.tanh(b * dx) / norm_factor)
+                y1 = (norm_c * self.amplitude_0_awg * s0 / pulse_amp[index]) * envelope * np.sin(total_phase)
+                y2 = (norm_c * self.amplitude_1_awg * s1 / pulse_amp[index]) * envelope * np.sin(total_phase + self.phase_shift_ch1_seq_mode_awg + dph)
 
             # shaped pulses (SINE..SECH/TANH) write through the common tail;
             # BLANK leaves y1 as None (zeros are already in the buffer)
@@ -6916,6 +7037,11 @@ class Insys_FPGA:
         #phi_rad = np.radians(ph)
 
         signal = arr_i + 1j * arr_q
+        b = complex(self._rx_cal_b(freq))
+        if b != 0 and self.detection_phase_list:
+            b *= np.mean([-1.0 if str(l)[-1] in 'yi' else 1.0 for l in self.detection_phase_list])
+        if b != 0:
+            signal = (signal - b * np.conj(signal)) / (1.0 - abs(b) ** 2)
         timeaxis = signal.shape[0]
         
         fs = 2.5e9 / self.dec_coef
