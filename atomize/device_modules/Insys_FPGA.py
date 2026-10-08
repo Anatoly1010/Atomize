@@ -3015,7 +3015,7 @@ class Insys_FPGA:
         Default settings:
         Sample clock is 1250 MHz; Clock mode is 'Internal'; Reference clock is 100 MHz; Card mode is 'Single';
         Trigger channel is 'External'; Trigger mode is 'Positive'; Loop is infinity; Trigger delay is 0;
-        Enabled channels is CH0 and CH1; Amplitude of CH0 is '600 mV'; Amplitude of CH1 is '533 mV';
+        Enabled channels is CH0 and CH1; Amplitude of CH0 is '260 mV'; Amplitude of CH1 is '260 mV';
         Number of segments is 1; Card memory size is 64 samples;
         """
         if self.test_flag != 'test':
@@ -4084,10 +4084,10 @@ class Insys_FPGA:
     def awg_amplitude(self, *amplitude):
         """
         Set or query amplitude of the channel;
-        Input: awg_amplitude('CH0', '600'); amplitude is in mV
-        awg_amplitude('CH0', '600', 'CH1', '600')
-        Default: CH0 - 600 mV; CH1 - 533 mV;
-        Output: '600 mV'
+        Input: awg_amplitude('CH0', '260'); amplitude is in mV
+        awg_amplitude('CH0', '260', 'CH1', '260')
+        Default: CH0 - 260 mV; CH1 - 260 mV (full scale);
+        Output: '260 mV'
         """
         if self.test_flag != 'test':
             self.setting_change_count_awg = 1
