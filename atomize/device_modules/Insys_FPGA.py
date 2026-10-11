@@ -1827,29 +1827,26 @@ class Insys_FPGA:
                     else:
                         assert(1 == 2), "There is no pulse with the specified name"
 
-    def pulser_pulse_reset(self, *pulses):
+    def pulser_pulse_reset(self, *pulses, reset_index = True):
         """
         Reset all pulses to the initial state it was in at the start of the experiment.
         It does not update the pulser, if you want to reset all pulses and and also update 
         the pulser use the function pulser_reset() instead.
+        Set reset_index=False to restore pulses between rows of a 2D scan while
+        preserving the acquisition index. The default starts a new full scan.
         """
         if self.test_flag != 'test':
 
             #general.wait('10 ms')
             #self.pulser_stop()
-            self.nIP_No_brd = 0
-            #self.nBufToClcNum_brd = 0
-            #self.nStrmBufTotalCnt_brd = 0
-            self.nIP_NoKeeper_brd = -1
-            ###self.buffer_ready = 1
-            self.reset_count_nip = 1
-            self.sub_flag = 0
-            # 1 -> 0
-            self.reset_flag = 0
-            #self.flag_adc_buffer = 0
-            #self.flag_phase_cycle = 0
-            self.nid_pc_prev = 0
-            self.N_IP = 0
+            if reset_index:
+                self.nIP_No_brd = 0
+                self.nIP_NoKeeper_brd = -1
+                self.reset_count_nip = 1
+                self.sub_flag = 0
+                self.reset_flag = 0
+                self.nid_pc_prev = 0
+                self.N_IP = 0
 
             if len(pulses) == 0:
                 self.pulse_array_pulser = deepcopy(self.pulse_array_init_pulser)
@@ -1875,18 +1872,14 @@ class Insys_FPGA:
         elif self.test_flag == 'test':
 
             #self.pulser_stop()
-            self.nIP_No_brd = 0
-            #self.nBufToClcNum_brd = 0
-            #self.nStrmBufTotalCnt_brd = 0
-            self.nIP_NoKeeper_brd = -1
-            ###self.buffer_ready = 1
-            self.reset_count_nip = 1
-            self.sub_flag = 0
-            self.reset_flag = 0
-            #self.flag_adc_buffer = 0
-            #self.flag_phase_cycle = 0
-            self.N_IP = 0
-            self.nid_pc_prev = 0
+            if reset_index:
+                self.nIP_No_brd = 0
+                self.nIP_NoKeeper_brd = -1
+                self.reset_count_nip = 1
+                self.sub_flag = 0
+                self.reset_flag = 0
+                self.N_IP = 0
+                self.nid_pc_prev = 0
 
             if len(pulses) == 0:
                 self.pulse_array_pulser = deepcopy(self.pulse_array_init_pulser)

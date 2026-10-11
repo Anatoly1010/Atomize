@@ -246,6 +246,9 @@ pulser_pulse_reset('P1')    # reset only the named pulses
 
 This function switches the pulse programmer back to the initial state in which it was in at the start of the experiment. This function can be called with either no argument or with a list of comma separated pulse names. If no argument is given all pulses are reset to their initial states (including phases). The function does not update the pulser, if you want to reset all pulses and also update the pulser use the function [`pulser_reset()`](#pulser_reset) instead.
 
+!!! note
+    For Insys FM214x3GDA, `pulser_pulse_reset()` also resets the acquisition index for the next full scan. Use `pulser_pulse_reset(reset_index=False)` to restore pulse parameters between rows of a 2D scan while preserving the acquisition index and accumulated data. This does not reopen the board. Reset AWG pulse parameters separately with `awg_pulse_reset()`; call the default `pulser_pulse_reset()` after the complete 2D scan.
+
 ---
 
 ### pulser_stop() { #pulser_stop data-toc-label="pulser_stop" }
