@@ -4,6 +4,8 @@
 import sys
 import numpy as np
 
+_trapz = getattr(np, 'trapezoid', None) or np.trapz
+
 # scipy.signal is an optional dependency (pip install -e .[math]) and slow to
 # import (~0.5 s on Windows). Probe availability cheaply -- find_spec does NOT
 # import scipy -- and defer the real import to savitzky_golay(), so importing
@@ -206,7 +208,7 @@ class Signal_Processing():
             peak = float(np.max(np.abs(y))) or 1.0
             return y/peak
         elif mode == 'area':
-            area = float(np.trapz(np.abs(y))) or 1.0
+            area = float(_trapz(np.abs(y))) or 1.0
             return y/area
         return y.copy()
 

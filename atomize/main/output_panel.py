@@ -135,7 +135,20 @@ class OutputPanel(QtCore.QObject):
         content_layout.addWidget(window.dockarea2, 1)
         self.local_splitter = self._splitter()
         self.local_splitter.addWidget(main_content)
-        grid.addWidget(self.local_splitter, 0, 0, 1, 2)
+        grid.removeWidget(window.dockarea4)
+        self.queue_splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
+        self.queue_splitter.setChildrenCollapsible(False)
+        self.queue_splitter.setHandleWidth(6)
+        self.queue_splitter.addWidget(self.local_splitter)
+        self.queue_splitter.addWidget(window.dockarea4)
+        self.queue_splitter.setStretchFactor(0, 1)
+        self.queue_splitter.setStretchFactor(1, 0)
+        try:
+            self.queue_splitter.setSizes([int(size) for size in self.settings.value('queue/sizes', [700, 100])])
+        except (TypeError, ValueError):
+            self.queue_splitter.setSizes([700, 100])
+        self.queue_splitter.splitterMoved.connect(self._save_queue_sizes)
+        grid.addWidget(self.queue_splitter, 0, 0, 1, 2)
         grid.setRowStretch(1, 0)
 
         central_layout = window.centralWidget().layout()
@@ -174,6 +187,10 @@ class OutputPanel(QtCore.QObject):
         splitter.setHandleWidth(6)
         splitter.splitterMoved.connect(self._save_sizes)
         return splitter
+
+    def _save_queue_sizes(self, *args):
+        self.settings.setValue('queue/sizes', self.queue_splitter.sizes())
+        self.settings.sync()
 
     def _button(self, callback):
         button = QtWidgets.QPushButton()

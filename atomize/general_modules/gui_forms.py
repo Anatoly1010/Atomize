@@ -337,6 +337,8 @@ class FormPanel(QWidget):
         for i, w in enumerate(widgets):
             s = stretch[i] if stretch and i < len(stretch) else 1
             if isinstance(w, QWidget):
+                if isinstance(w, QPushButton):
+                    row_button(w)
                 # a width the caller pinned already wins: some fields need more
                 # room than the common one (a combo with long item text)
                 pinned = w.maximumWidth() < _QT_MAX_W
@@ -516,6 +518,15 @@ def apply_row_metrics(root, row_h=ROW_H, edit_h=EDIT_H):
         spin.setMinimumHeight(row_h)
     for le in root.findChildren(QLineEdit):
         le.setMinimumHeight(edit_h)
+
+
+def row_button(button):
+    """Pin a button that shares a row with fields to the field height."""
+    button.setFixedHeight(ROW_H)
+    # padding trimmed so the text still fits the shorter button
+    button.setStyleSheet(button.styleSheet()
+                         + ' QPushButton { padding-top: 0px; padding-bottom: 0px; }')
+    return button
 
 
 def equal_grid(columns, spacing=6):

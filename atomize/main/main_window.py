@@ -702,8 +702,6 @@ class MainWindow(QMainWindow):
         self.gridLayout_tab.addWidget(self.dockarea3, 1, 0, 1, 2)
 
         self.dockarea4 = DockArea()
-        self.dockarea4.setMaximumHeight(60)
-        self.dockarea4.setMaximumHeight(100)
         self.script_queue = queue.QueueList(self)
         self.dock_queue = self.dockarea4.addDock(WorkspaceDock(name="Queue"))
         self.dock_queue.addWidget(widget=self.script_queue)

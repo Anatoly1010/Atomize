@@ -44,7 +44,7 @@ fresnel = nnls = curve_fit = isotonic_regression = None
 
 # np.trapz was renamed np.trapezoid in NumPy 2.0 (np.trapz deprecated); pick
 # whichever exists so the Mellin quadrature stays warning-free on either.
-_trapz = getattr(np, 'trapezoid', getattr(np, 'trapz'))
+_trapz = getattr(np, 'trapezoid', None) or np.trapz
 
 # Perpendicular dipolar frequency constant: nu_perp = NU_DD / r^3 [MHz], r in nm
 # (g = 2.0023). w(r) = 2*pi*nu_perp is then in rad/us for t in us.
