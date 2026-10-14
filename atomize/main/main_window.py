@@ -22,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from PyQt6.QtCore import QSharedMemory, QSize, QEventLoop
 from PyQt6.QtGui import QColor, QIcon, QStandardItem, QStandardItemModel, QAction
-from PyQt6.QtWidgets import QFileDialog, QMessageBox, QListView, QDockWidget, QVBoxLayout, QWidget, QGridLayout, QTabWidget, QMainWindow, QPlainTextEdit, QHBoxLayout, QApplication, QPushButton, QWidget, QFileDialog, QLabel, QSizePolicy, QSizeGrip, QLineEdit, QFileIconProvider, QTreeView, QHeaderView
+from PyQt6.QtWidgets import QFileDialog, QMessageBox, QListView, QDockWidget, QVBoxLayout, QWidget, QGridLayout, QTabWidget, QMainWindow, QPlainTextEdit, QHBoxLayout, QApplication, QPushButton, QWidget, QFileDialog, QLabel, QMenu, QSizePolicy, QSizeGrip, QLineEdit, QFileIconProvider, QTreeView, QHeaderView
 from PyQt6.QtNetwork import QLocalServer
 from PyQt6 import QtCore, QtGui
 from pyqtgraph.dockarea import DockArea
@@ -37,6 +37,8 @@ import atomize.general_modules.last_dir as ldir
 os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
 
 IDLE_PLOT_S = 10
+LAYOUTS = {'Free': None, 'Rows': (None, 1), 'Columns': (1, None), '2 per row': (2, 2), '3 per row': (3, 3)}
+LAYOUT_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'libs', 'liveplot_layout.txt')
 
 class MainWindow(QMainWindow):
     """
@@ -742,8 +744,8 @@ class MainWindow(QMainWindow):
         self.dockarea = DockArea()
         self.namelist = self.create_namelist()
 
-        self.namelist.setFixedWidth(220)
-        self.gridLayout_tab_liveplot.setColumnMinimumWidth(0, 220)
+        self.namelist.setFixedWidth(260)
+        self.gridLayout_tab_liveplot.setColumnMinimumWidth(0, 260)
         self.gridLayout_tab_liveplot.setColumnStretch(1, 2000)
         self.gridLayout_tab_liveplot.addWidget(self.namelist, 0, 0)
         self.gridLayout_tab_liveplot.setAlignment(self.namelist, QtCore.Qt.AlignmentFlag.AlignLeft)
@@ -1149,7 +1151,14 @@ class NameList(QDockWidget):
         self.idle_timer.timeout.connect(self.refresh_idle_plots)
         self.idle_timer.start()
         self.pinned = set()
-        self.last_visible = []
+        try:
+            with open(LAYOUT_FILE) as layout_file:
+                self.layout_name = layout_file.read().strip()
+        except OSError:
+            self.layout_name = 'Free'
+        if self.layout_name not in LAYOUTS:
+            self.layout_name = 'Free'
+        self.last_docked = []
         self.run_source = None
         self.run_plots = None
         self.following_run = False
@@ -1162,30 +1171,39 @@ class NameList(QDockWidget):
         layout.setSpacing(4)
         controls = QHBoxLayout()
         self.pin_button = QPushButton("Pin")
-        self.pin_button.setToolTip("Keep the current plot visible while browsing others")
+        self.pin_button.setToolTip("Keep the selected plots visible while browsing others")
         self.pin_button.setCheckable(True)
         self.pin_button.clicked.connect(self.toggle_pin)
-        self.grid_button = QPushButton("Grid")
-        self.grid_button.setToolTip("Click plots to add or remove them from the grid")
-        self.grid_button.setCheckable(True)
-        self.grid_button.toggled.connect(self.change_view_mode)
-        for button in (self.pin_button, self.grid_button):
-            button.setStyleSheet(REFINED_STYLES['BUTTON_STYLE'] +
-                                "QPushButton:checked { border-color: #d3c24e; color: #d3c24e; }")
+        self.layout_button = QPushButton("Layout")
+        self.layout_button.setToolTip("Free keeps your arrangement; other layouts re-tile the shown plots as they change")
+        layout_menu = QMenu(self.layout_button)
+        layout_group = QtGui.QActionGroup(layout_menu)
+        for name in LAYOUTS:
+            action = layout_menu.addAction(name, lambda name=name: self.choose_layout(name))
+            action.setCheckable(True)
+            action.setChecked(name == self.layout_name)
+            layout_group.addAction(action)
+        self.layout_button.setMenu(layout_menu)
+        self.hide_all_button = QPushButton("Hide all")
+        self.hide_all_button.setToolTip("Hide every shown plot; they stay in the list")
+        self.hide_all_button.clicked.connect(self.hide_all)
+        toggle_style = REFINED_STYLES['BUTTON_STYLE'] + "QPushButton:checked { border-color: #d3c24e; color: #d3c24e; }"
+        for button in (self.pin_button, self.layout_button, self.hide_all_button):
+            button.setStyleSheet(toggle_style)
             controls.addWidget(button)
         layout.addLayout(controls)
         self.show_run_button = QPushButton("Show current run")
         self.show_run_button.setToolTip("Show all green-dot plots and follow connected sources")
         self.show_run_button.setCheckable(True)
-        self.show_run_button.setStyleSheet(self.grid_button.styleSheet())
+        self.show_run_button.setStyleSheet(toggle_style)
         self.show_run_button.setEnabled(False)
         self.show_run_button.clicked.connect(self.show_current_run)
         layout.addWidget(self.show_run_button)
-        self.selection_hint = QLabel("Click to add/remove plots.\nPinned plots stay visible.")
+        self.selection_hint = QLabel("Ctrl+click shows several plots.")
         self.selection_hint.setStyleSheet(REFINED_STYLES['HINT_STYLE'])
         self.selection_hint.setWordWrap(True)
-        self.selection_hint.hide()
         layout.addWidget(self.selection_hint)
+        self.namelist_view.setSelectionMode(QListView.SelectionMode.ExtendedSelection)
         layout.addWidget(self.namelist_view)
         self.setWidget(panel)
         self.namelist_view.selectionModel().selectionChanged.connect(self.refresh_view)
@@ -1222,7 +1240,7 @@ class NameList(QDockWidget):
                 sources.discard(source)
                 self.update_plot_status(name)
                 plot = self.plot_dict.get(name)
-                if not sources and self.following_run and plot is not None and plot.area is self.window.dockarea and not plot.closed:
+                if not sources and self.following_run and plot is not None and self.on_screen(plot):
                     self.finished_plots.add(name)
         self.refresh_view()
 
@@ -1257,7 +1275,7 @@ class NameList(QDockWidget):
     def begin_run(self, source=None):
         self.run_source = source
         self.run_plots = set()
-        if self.grid_button.isChecked():
+        if self.several_selected():
             return
         self.finished_plots.clear()
         self.following_run = True
@@ -1267,7 +1285,6 @@ class NameList(QDockWidget):
     def show_current_run(self):
         if not any(self.plot_sources.values()):
             return
-        self.grid_button.setChecked(False)
         self.finished_plots.clear()
         self.following_run = True
         self.namelist_view.selectionModel().clear()
@@ -1277,11 +1294,20 @@ class NameList(QDockWidget):
                 self.window.add_plot(plot)
         self.refresh_view()
 
+    def hide_all(self):
+        self.following_run = False
+        for plot in self.plot_dict.values():
+            if self.on_screen(plot):
+                for dock in self.plot_docks(plot):
+                    self.hidden_area.addDock(dock)
+                plot.close()
+        self.refresh_view()
+
     def select_plot(self, name):
         item = self.namelist_model.findItems(name)[0]
         selection = self.namelist_view.selectionModel()
         selection.setCurrentIndex(item.index(), QtCore.QItemSelectionModel.SelectionFlag.NoUpdate)
-        flag = QtCore.QItemSelectionModel.SelectionFlag.Select if self.grid_button.isChecked() else QtCore.QItemSelectionModel.SelectionFlag.ClearAndSelect
+        flag = QtCore.QItemSelectionModel.SelectionFlag.Select if self.several_selected() else QtCore.QItemSelectionModel.SelectionFlag.ClearAndSelect
         selection.select(item.index(), flag)
         self.refresh_view()
 
@@ -1295,68 +1321,55 @@ class NameList(QDockWidget):
             self.window.add_plot(plot)
         self.select_plot(name)
 
-    def change_view_mode(self, grid):
-        shown = [name for name, plot in self.plot_dict.items()
-                 if plot.area is self.window.dockarea and not plot.closed]
-        self.following_run = False
-        mode = QListView.SelectionMode.MultiSelection if grid else QListView.SelectionMode.SingleSelection
-        self.namelist_view.setSelectionMode(mode)
-        self.selection_hint.setVisible(grid)
-        if grid:
-            for name in shown:
-                self.select_plot(name)
-        else:
-            index = self.namelist_view.currentIndex()
-            self.namelist_view.selectionModel().select(index, QtCore.QItemSelectionModel.SelectionFlag.ClearAndSelect)
-        self.refresh_view()
+    def several_selected(self):
+        return len(self.namelist_view.selectedIndexes()) > 1
+
+    def pin_targets(self):
+        return {index.data() for index in self.namelist_view.selectedIndexes()}
 
     def toggle_pin(self):
-        index = self.namelist_view.currentIndex()
-        if not index.isValid():
-            return
-        name = index.data()
-        if name in self.pinned:
-            self.pinned.remove(name)
+        names = self.pin_targets()
+        if names <= self.pinned:
+            self.pinned -= names
         else:
-            self.pinned.add(name)
+            self.pinned |= names
         self.refresh_view()
+
+    def wanted_plots(self):
+        active = {name for name in self.plot_dict if self.plot_sources.get(name)}
+        if self.following_run:
+            return active | self.finished_plots | self.pinned
+        return self.pinned | {index.data() for index in self.namelist_view.selectedIndexes()}
 
     def refresh_view(self, *args):
         current = self.namelist_view.currentIndex().data()
-        selected = {index.data() for index in self.namelist_view.selectedIndexes()}
         active = {name for name in self.plot_dict if self.plot_sources.get(name)}
-        following = self.following_run and not self.grid_button.isChecked()
-        if following:
-            wanted = active | self.finished_plots | self.pinned
-        elif not self.grid_button.isChecked():
-            wanted = self.pinned | {current}
-        else:
-            wanted = self.pinned | selected
-        visible = []
+        following = self.following_run
+        wanted = self.wanted_plots()
         shown = set()
+        # only docks that change are moved, so the user's arrangement and floating windows stay put
         for name, plot in self.plot_dict.items():
-            traces = [getattr(plot, attr, None) for attr in ('h_cross_dock', 'v_cross_dock')]
-            docks = [plot] + [dock for dock in traces if dock is not None and dock.parent() is not None]
+            docks = self.plot_docks(plot)
             if name in wanted and not plot.closed:
                 shown.add(name)
-                visible.extend(docks)
+                for dock in docks:
+                    if dock.area is not self.window.dockarea and not self.floating(dock):
+                        self.place_dock(dock, plot)
             else:
                 for dock in docks:
-                    if dock.parent() is not None and dock.area is not self.hidden_area:
+                    if dock.area is self.window.dockarea:
                         self.hidden_area.addDock(dock)
-        # re-adding docks resets the splitter sizes, so keep an unchanged layout as the user arranged it
-        if visible != self.last_visible or any(dock.area is not self.window.dockarea for dock in visible):
-            for position, dock in enumerate(visible):
-                if len(visible) > 2 and position % 2:
-                    self.window.dockarea.addDock(dock, position='right', relativeTo=visible[position - 1])
-                else:
-                    self.window.dockarea.addDock(dock, position='bottom')
-        self.last_visible = visible
-        self.pin_button.setEnabled(current in self.plot_dict)
+        docked = [plot for name, plot in self.plot_dict.items() if name in shown and plot.area is self.window.dockarea]
+        if LAYOUTS[self.layout_name] and docked != self.last_docked:
+            self.apply_layout(docked)
+        self.last_docked = docked
+        targets = self.pin_targets()
+        self.pin_button.setEnabled(bool(targets))
         self.show_run_button.setEnabled(bool(active))
         self.show_run_button.setChecked(bool(active) and following and shown == active)
-        self.pin_button.setChecked(current in self.pinned)
-        self.pin_button.setText("Unpin" if current in self.pinned else "Pin")
+        all_pinned = bool(targets) and targets <= self.pinned
+        self.pin_button.setChecked(all_pinned)
+        self.pin_button.setText("Unpin" if all_pinned else "Pin")
         for row in range(self.namelist_model.rowCount()):
             item = self.namelist_model.item(row)
             font = item.font()
@@ -1365,8 +1378,69 @@ class NameList(QDockWidget):
             self.update_plot_status(item.text())
         self.update_plot_count()
 
+    def plot_docks(self, plot):
+        traces = [getattr(plot, attr, None) for attr in ('h_cross_dock', 'v_cross_dock')]
+        return [plot] + [dock for dock in traces if dock is not None and dock.parent() is not None]
+
+    def floating(self, dock):
+        return getattr(dock.area, 'temporary', False)
+
+    def on_screen(self, plot):
+        return not plot.closed and (plot.area is self.window.dockarea or self.floating(plot))
+
+    def place_dock(self, dock, plot):
+        area = self.window.dockarea
+        if dock is plot:
+            area.addDock(dock, position='bottom')
+        elif dock is plot.h_cross_dock and plot.area is area:
+            area.addDock(dock, position='bottom', relativeTo=plot)
+        elif dock is plot.v_cross_dock and plot.h_cross_dock.area is area:
+            area.addDock(dock, position='right', relativeTo=plot.h_cross_dock)
+        else:
+            area.addDock(dock, position='bottom')
+
+    def choose_layout(self, name):
+        self.layout_name = name
+        try:
+            with open(LAYOUT_FILE, 'w') as layout_file:
+                layout_file.write(name)
+        except OSError:
+            pass
+        wanted = self.wanted_plots()
+        if LAYOUTS[name]:
+            self.apply_layout([plot for plot_name, plot in self.plot_dict.items() if plot_name in wanted and not plot.closed])
+        self.refresh_view()
+
+    def apply_layout(self, plots):
+        self.last_docked = plots
+        if not plots:
+            return
+        rows, cols = LAYOUTS[self.layout_name]
+        area = self.window.dockarea
+        for plot in plots:
+            for dock in self.plot_docks(plot):
+                self.hidden_area.addDock(dock)
+        rows, cols = rows or len(plots), cols or len(plots)
+        cells = rows * cols
+        heads = plots[:cells]
+        for index, plot in enumerate(heads):
+            if index % cols:
+                area.addDock(plot, position='right', relativeTo=heads[index - 1])
+            else:
+                area.addDock(plot, position='bottom')
+        tails = list(heads)
+        for index, plot in enumerate(plots[cells:]):
+            area.addDock(plot, position='below', relativeTo=tails[index % cells])
+            tails[index % cells] = plot
+        for plot in plots:
+            for dock in self.plot_docks(plot)[1:]:
+                self.place_dock(dock, plot)
+        for plot in heads:
+            if plot.container().type() == 'tab':
+                plot.raiseDock()
+
     def update_plot_count(self, *args):
-        shown = sum(plot.area is self.window.dockarea and not plot.closed for plot in self.plot_dict.values())
+        shown = sum(self.on_screen(plot) for plot in self.plot_dict.values())
         self.plot_list_heading.setText(f"Plots · {self.namelist_model.rowCount()} · {shown} shown")
 
     def open_file(self, filename):
@@ -1579,9 +1653,13 @@ class NameList(QDockWidget):
         if item is None:
             return
         if not self.plot_sources.get(item.text()):
+            if self.following_run and QApplication.keyboardModifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
+                for name, plot in self.plot_dict.items():
+                    if self.on_screen(plot):
+                        self.namelist_view.selectionModel().select(self.namelist_model.findItems(name)[0].index(), QtCore.QItemSelectionModel.SelectionFlag.Select)
             self.following_run = False
         plot = self.plot_dict[str(item.text())]
-        if plot.closed:
+        if plot.closed and self.namelist_view.selectionModel().isSelected(index):
             plot.closed = False
             self.window.add_plot(plot)
         self.refresh_view()
