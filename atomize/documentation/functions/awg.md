@@ -604,19 +604,19 @@ awg_correction(only_pi_half = 'True', coef_array = [bl, a1, x1, w1, a2, x2, w2, 
 
 # ideal RLC resonator, amplitude + phase, applied to every swept pulse
 awg_correction(only_pi_half = 'False', model = 'ideal', f0 = 9700, q_factor = 88, \
-               phase_correction = 'True', low_level = 16, limit = 23)
+               phase_correction = 'True', low_level = 16, limit = 23, lo = 9750)
 
 # measured complex transfer (magnitude AND phase), applied to every swept pulse
 awg_correction(only_pi_half = 'False', model = 'measured', f0 = 9700, \
                meas_freq = freq_MHz, meas_H = H_complex, low_level = 16, limit = 23)
 ```
 
-This function (Insys FM214x3GDA and Spectrum M4I 6631 X8) enables resonator-profile predistortion of the frequency-swept pulses (`'WURST'` and `'SECH/TANH'`, see [`awg_pulse()`](#awg_pulse)) so that the effective excitation B<sub>1</sub> is equalized across the swept band. Each sample of a swept pulse is mapped to its instantaneous chirp frequency (flipped high-frequency-first for an `LO − RF` bridge) and its amplitude — and optionally phase — is corrected accordingly. The correction has no effect on non-swept pulses.
+This function (Insys FM214x3GDA and Spectrum M4I 6631 X8) enables resonator-profile predistortion of the frequency-swept pulses (`'WURST'` and `'SECH/TANH'`, see [`awg_pulse()`](#awg_pulse)) so that the effective excitation B<sub>1</sub> is equalized across the swept band. Each sample of a swept pulse is mapped to its absolute microwave frequency `lo − IF` (an `LO − RF` bridge) and its amplitude — and optionally phase — is corrected accordingly. The correction has no effect on non-swept pulses.
 
 There are two correction models:
 
 - **`model = 'measured'`** (default) — the amplitude is corrected with the measured resonator magnitude profile, given as a triple-Lorentzian fit in `coef_array = [bl, a1, x1, w1, a2, x2, w2, a3, x3, w3]` (the same coefficients written to `correction.param` by the resonator-tuning tool); no phase correction is applied. If, instead, a **measured complex transfer function** is supplied via `meas_freq` (absolute microwave frequency in MHz of each point) and `meas_H` (the complex transfer, e.g. a VNA S<sub>21</sub> sweep), both the magnitude (`1/|H|`) **and** the phase (`+angle(H)`, the `LO − RF` sign) are corrected: the real, non-Lorentzian magnitude ripple and the dispersion are equalized. Magnitude and unwrapped phase are interpolated per sample onto the chirp frequency; out-of-band samples clamp to the nearest measured point.
-- **`model = 'ideal'`** — the amplitude (`1/|H|`) and, when `phase_correction = 'True'`, the phase are corrected with an ideal RLC resonator transfer function `H = 1 / (1 + i Q (ν/f0 − f0/ν))`, where `f0` is the resonator centre frequency in MHz and `q_factor` the loaded Q. The phase term is `+angle(H)`, the sign for an `LO − RF` (lower-sideband) bridge; verify it once on the bench for your setup.
+- **`model = 'ideal'`** — the amplitude (`1/|H|`) and, when `phase_correction = 'True'`, the phase are corrected with an ideal RLC resonator transfer function `H = 1 / (1 + i Q (ν/f0 − f0/ν))`, where `f0` is the resonator centre frequency in MHz and `q_factor` the loaded Q. `lo` is the synthesizer frequency in MHz, so `f0` may lie anywhere in the swept band; without it the LO is assumed at `f0`. The phase term is `+angle(H)`, the sign for an `LO − RF` (lower-sideband) bridge; verify it once on the bench for your setup.
 
 The minimum effective B<sub>1</sub> is clamped by the ratio `low_level / limit` (both in MHz), which also caps the amplitude boost applied to the band edges. `only_pi_half = 'True'` restricts the correction to the high-amplitude (pi) pulses (those with `amplitude` coefficient `> 1` in [`awg_pulse()`](#awg_pulse)); `only_pi_half = 'False'` applies it to every swept pulse.
 
@@ -626,7 +626,7 @@ The minimum effective B<sub>1</sub> is clamped by the ratio `low_level / limit` 
 **Allowed model:** `'measured'`, `'ideal'`
 {: .enum }
 
-**Default (Insys FM214x3GDA, Spectrum M4I 6631 X8):** `f0 = 9700 MHz`, `q_factor = 88`, `low_level = 16`, `limit = 23`
+**Default (Insys FM214x3GDA, Spectrum M4I 6631 X8):** `f0 = 9700 MHz`, `q_factor = 88`, `low_level = 16`, `limit = 23`, `lo = None`
 {: .enum }
 
 ---

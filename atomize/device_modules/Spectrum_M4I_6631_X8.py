@@ -147,6 +147,7 @@ class Spectrum_M4I_6631_X8:
             self.cor_model_awg = 'measured'
             self.f0_awg = 9700      # resonator centre (MHz), ideal model
             self.q_awg = 88         # loaded Q, ideal model
+            self.lo_awg = None      # synthesizer (MHz); None = LO at f0
             self.phase_cor_awg = 0  # 1 = also predistort phase (ideal model)
             self.pi2flag_awg = 0    # 1 = correct only high-amplitude (pi) pulses
             self.cor_enable_awg = 0 # 1 once awg_correction() has been called
@@ -236,6 +237,7 @@ class Spectrum_M4I_6631_X8:
             self.cor_model_awg = 'measured'
             self.f0_awg = 9700
             self.q_awg = 88
+            self.lo_awg = None
             self.phase_cor_awg = 0
             self.pi2flag_awg = 0
             self.cor_enable_awg = 0
@@ -2232,7 +2234,7 @@ class Spectrum_M4I_6631_X8:
 
     def awg_correction(self, only_pi_half = 'True', coef_array = [1, 0, 0, 1, 0, 0, 1, 0, 0, 1], low_level = 16, limit = 23, \
                        model = 'measured', f0 = 9700, q_factor = 88, phase_correction = 'False', \
-                       meas_freq = None, meas_H = None):
+                       meas_freq = None, meas_H = None, lo = None):
         """
         Resonator-profile predistortion of swept (WURST / sech-tanh) AWG pulses.
 
@@ -2246,6 +2248,9 @@ class Spectrum_M4I_6631_X8:
                              phase (+angle(H), the sign for an LO - RF / lower-
                              sideband bridge) from an ideal RLC resonator with
                              centre f0 (MHz) and loaded Q = q_factor.
+
+        lo : synthesizer frequency (MHz). Sample frequencies are lo - IF, so
+             f0 may sit off the band centre; None places the LO at f0.
 
         meas_freq / meas_H : optional measured complex transfer for the 'measured'
                              model. meas_freq is the absolute microwave frequency
@@ -2280,6 +2285,7 @@ class Spectrum_M4I_6631_X8:
         self.cor_model_awg = 'ideal' if str(model).lower().startswith('ideal') else 'measured'
         self.f0_awg = float(f0)
         self.q_awg = float(q_factor)
+        self.lo_awg = None if lo is None else float(lo)
         self.phase_cor_awg = 1 if phase_correction == 'True' else 0
         self.cor_enable_awg = 1
         self.cor_version_awg += 1
@@ -2311,9 +2317,9 @@ class Spectrum_M4I_6631_X8:
 
         Returns (c, ph_cor): ``c`` is a length-``length`` amplitude factor (or the
         scalar ``1.0`` when this pulse is excluded) and ``ph_cor`` is a phase array
-        in radians (or the scalar ``0.0``). Maps each sample to its instantaneous
-        chirp frequency, flipped high-frequency-first for the LO - RF bridge, then
-        applies either the measured magnitude profile or the ideal RLC response.
+        in radians (or the scalar ``0.0``). Maps each sample to its absolute
+        microwave frequency (lo - IF, LO - RF bridge), then applies either the
+        measured profile or the ideal RLC response.
 
         Note: the buffer in 'Single Joined' mode places each pulse at its absolute
         position (zeros between pulses), so the caller passes ``x_mean`` as the
@@ -2330,11 +2336,12 @@ class Spectrum_M4I_6631_X8:
         # rel_freq is the instantaneous sweep frequency relative to the band centre.
         rel_freq = np.flip(np.arange(0, length) - m_p) * freq_sweep / length
 
+        # absolute microwave frequency of each sample, lower sideband: lo - IF
+        lo = self.f0_awg if self.lo_awg is None else self.lo_awg
+        abs_freq = lo - (f_start + freq_sweep * np.arange(length) / length)
+
         ph_cor = 0.0
         if self.cor_model_awg == 'ideal':
-            # absolute microwave frequency at each sample (LO = f0 assumed)
-            center_freq = 0.5 * (f_start + f_end)
-            abs_freq = self.f0_awg + center_freq + rel_freq
             H = 1.0 / (1.0 + 1j * self.q_awg * (abs_freq / self.f0_awg - self.f0_awg / abs_freq))
             amp = 1.0 / np.abs(H)
             c = amp / amp[0]
@@ -2345,11 +2352,9 @@ class Spectrum_M4I_6631_X8:
                 ph_cor = ph_cor - ph_cor[0]
         elif self.meas_H_awg is not None:
             # measured complex transfer: interpolate |H| and unwrapped phase onto
-            # each sample's absolute MW frequency (LO = f0 assumed). Same
-            # convention as the ideal branch -- amplitude 1/|H|, phase +angle(H)
-            # for the LO - RF bridge, both referenced to the pulse start.
-            center_freq = 0.5 * (f_start + f_end)
-            abs_freq = self.f0_awg + center_freq + rel_freq
+            # each sample's absolute MW frequency. Same convention as the ideal
+            # branch -- amplitude 1/|H|, phase +angle(H) for the LO - RF bridge,
+            # both referenced to the pulse start.
             order = np.argsort(self.meas_freq_awg)
             fm = self.meas_freq_awg[order]
             mag_m = np.abs(self.meas_H_awg)[order]
