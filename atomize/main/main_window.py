@@ -1149,6 +1149,7 @@ class NameList(QDockWidget):
         self.idle_timer.timeout.connect(self.refresh_idle_plots)
         self.idle_timer.start()
         self.pinned = set()
+        self.last_visible = []
         self.run_source = None
         self.run_plots = None
         self.following_run = False
@@ -1254,9 +1255,10 @@ class NameList(QDockWidget):
         items[0].setToolTip('\n'.join(status))
 
     def begin_run(self, source=None):
-        self.grid_button.setChecked(False)
         self.run_source = source
         self.run_plots = set()
+        if self.grid_button.isChecked():
+            return
         self.finished_plots.clear()
         self.following_run = True
         self.namelist_view.selectionModel().clear()
@@ -1325,7 +1327,7 @@ class NameList(QDockWidget):
         active = {name for name in self.plot_dict if self.plot_sources.get(name)}
         following = self.following_run and not self.grid_button.isChecked()
         if following:
-            wanted = active | self.finished_plots
+            wanted = active | self.finished_plots | self.pinned
         elif not self.grid_button.isChecked():
             wanted = self.pinned | {current}
         else:
@@ -1342,11 +1344,14 @@ class NameList(QDockWidget):
                 for dock in docks:
                     if dock.parent() is not None and dock.area is not self.hidden_area:
                         self.hidden_area.addDock(dock)
-        for position, dock in enumerate(visible):
-            if len(visible) > 2 and position % 2:
-                self.window.dockarea.addDock(dock, position='right', relativeTo=visible[position - 1])
-            else:
-                self.window.dockarea.addDock(dock, position='bottom')
+        # re-adding docks resets the splitter sizes, so keep an unchanged layout as the user arranged it
+        if visible != self.last_visible or any(dock.area is not self.window.dockarea for dock in visible):
+            for position, dock in enumerate(visible):
+                if len(visible) > 2 and position % 2:
+                    self.window.dockarea.addDock(dock, position='right', relativeTo=visible[position - 1])
+                else:
+                    self.window.dockarea.addDock(dock, position='bottom')
+        self.last_visible = visible
         self.pin_button.setEnabled(current in self.plot_dict)
         self.show_run_button.setEnabled(bool(active))
         self.show_run_button.setChecked(bool(active) and following and shown == active)
