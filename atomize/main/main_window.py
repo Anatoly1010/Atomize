@@ -37,6 +37,7 @@ import atomize.general_modules.last_dir as ldir
 os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
 
 IDLE_PLOT_S = 10
+TOOLTIP_CURVES = 10
 LAYOUTS = {'Free': None, 'Rows': (None, 1), 'Columns': (1, None), '2 per row': (2, 2), '3 per row': (3, 3)}
 LAYOUT_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'libs', 'liveplot_layout.txt')
 
@@ -1094,6 +1095,18 @@ class MainWindow(QMainWindow):
         else:
             print(f"Unsupported operating system: {os.name}")
 
+class PlotListModel(QStandardItemModel):
+    """Build each row's tooltip when it is asked for, so it matches the plot as it is now."""
+
+    def __init__(self, tooltip):
+        super().__init__()
+        self.tooltip = tooltip
+
+    def data(self, index, role=QtCore.Qt.ItemDataRole.DisplayRole):
+        if role == QtCore.Qt.ItemDataRole.ToolTipRole:
+            return self.tooltip(super().data(index))
+        return super().data(index, role)
+
 class NameList(QDockWidget):
     def __init__(self, window):
         super(NameList, self).__init__('Current Plots:')
@@ -1117,7 +1130,7 @@ class NameList(QDockWidget):
         if self.open_dir == '':
             self.open_dir = lconf.load_scripts(os.path.join(path_to_main, '..', 'tests'))
 
-        self.namelist_model = QStandardItemModel()
+        self.namelist_model = PlotListModel(self.tooltip_text)
         self.namelist_view = QListView()
         self.namelist_view.setStyleSheet(REFINED_STYLES['PLOT_LIST_STYLE'])
         self.namelist_view.setTextElideMode(QtCore.Qt.TextElideMode.ElideMiddle)
@@ -1249,16 +1262,25 @@ class NameList(QDockWidget):
             if sources:
                 self.update_plot_status(name)
 
+    def plot_state(self, name):
+        active = bool(self.plot_sources.get(name))
+        idle = active and time.monotonic() - self.last_plot_time.get(name, 0.0) > IDLE_PLOT_S
+        return active, idle
+
     def update_plot_status(self, name):
         items = self.namelist_model.findItems(name)
         if not items:
             return
-        active = bool(self.plot_sources.get(name))
-        idle = active and time.monotonic() - self.last_plot_time.get(name, 0.0) > IDLE_PLOT_S
+        active, idle = self.plot_state(name)
         if not active:
             items[0].setIcon(QIcon())
         else:
             items[0].setIcon(self.idle_plot_icon if idle else self.active_plot_icon)
+
+    def tooltip_text(self, name):
+        if name not in self.plot_dict:
+            return name
+        active, idle = self.plot_state(name)
         status = [name]
         if name in self.pinned:
             status.append('Pinned')
@@ -1270,7 +1292,18 @@ class NameList(QDockWidget):
             else:
                 status.append('Live source connected')
             status.append(f'Last data: {self.last_plot_update[name]}')
-        items[0].setToolTip('\n'.join(status))
+        curves = getattr(self.plot_dict[name], 'curves', None)
+        if curves is None:
+            status.append('2D image')
+        elif not curves:
+            status.append('No curves')
+        else:
+            labels = [label or '(unnamed)' for label in curves]
+            status.append(f'Curves ({len(labels)}):')
+            status.extend(f'• {label}' for label in labels[:TOOLTIP_CURVES])
+            if len(labels) > TOOLTIP_CURVES:
+                status.append(f'… +{len(labels) - TOOLTIP_CURVES} more')
+        return '\n'.join(status)
 
     def begin_run(self, source=None):
         self.run_source = source
@@ -1675,7 +1708,6 @@ class NameList(QDockWidget):
     def __setitem__(self, name, plot):
         model = QStandardItem(name)
         model.setEditable(False)
-        model.setToolTip(name)
         if name in self.plot_dict:
             del self[name]
         self.plot_dict[name] = plot

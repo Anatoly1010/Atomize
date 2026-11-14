@@ -949,6 +949,18 @@ class CrosshairDock(CloseableDock):
         open_action.triggered.connect(self.file_dialog)
         plot_item.vb.menu.addAction(open_action)
 
+        self.white_pen = pg.mkPen(color=(255, 255, 255), width=1)
+        self.yellow_pen = pg.mkPen(color=(255, 255, 0), width=1)
+
+        self.reset_curves()
+        self.track_curves = []
+        self.track_owner = None
+
+        self.plot_item = self.plot_widget.getPlotItem()
+        self.plot_item.ctrl.fftCheck.toggled.connect(self.on_fft_toggled)
+
+    def reset_curves(self):
+        """Forget every curve and refill the colour / symbol pools."""
         # Curve palette tuned for the dark (63,63,97) plot background: bright,
         # saturated hues that all stay legible. The old list held near-black
         # (0,0,0) / pure-blue (0,0,255) / dark-slate (47,79,79) colours that
@@ -962,19 +974,14 @@ class CrosshairDock(CloseableDock):
         self.avail_sym_pens = [ pg.mkPen(color=(0, 0, 0), width=0), pg.mkPen(color=(255, 255, 255), width=0), pg.mkPen(color=(0, 255, 0), width=0), pg.mkPen(color=(0, 0, 255), width=0),pg.mkPen(color=(255, 0, 0), width=0),pg.mkPen(color=(255, 0, 255), width=0)]
         self.avail_sym_brush = [pg.mkBrush(0, 0, 0, 255), pg.mkBrush(255, 255, 255, 255),pg.mkBrush(0, 255, 0, 255),pg.mkBrush(0, 0, 255, 255), pg.mkBrush(255, 0, 0, 255),pg.mkBrush(255, 0, 255, 255)]
 
-        self.white_pen = pg.mkPen(color=(255, 255, 255), width=1)
-        self.yellow_pen = pg.mkPen(color=(255, 255, 0), width=1)
-
         self.used_colors = {}
         self.used_pens = {}
         self.used_symbols = {}
         self.used_brush = {}
         self.curves = {}
-        self.track_curves = []
-        self.track_owner = None
-
-        self.plot_item = self.plot_widget.getPlotItem()
-        self.plot_item.ctrl.fftCheck.toggled.connect(self.on_fft_toggled)
+        # the vertical marker lines go with the plot items; let the next plot re-add them
+        self.ver_line_1 = 0
+        self.ver_line_2 = 0
 
     def hide_cross_hair(self):
         self.plot_widget.hide_cross_hair()
@@ -1444,6 +1451,9 @@ class CrosshairDock(CloseableDock):
         self.clear_track()
         self.plot_widget._clear_ruler()
         self.plot_widget.clear()
+        # The removed curves must not linger here, or the next plot under the
+        # same label would update a curve that is no longer drawn.
+        self.reset_curves()
 
     def capture_track(self, labels, owner):
         """Keep independent, faded copies of the requested curves."""
