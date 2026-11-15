@@ -7,7 +7,7 @@ import atomize.general_modules.csv_opener_saver as openfile
 file_handler = openfile.Saver_Opener()
 ```
 
-Alternatively, it is possible to use the CSV Exporter embedded into Pyqtgraph for saving 1D data and a special option in Liveplot (right click → Save Data Action) for saving 2D data as comma separated two dimensional numpy array.
+Alternatively, data shown in Liveplot can be saved from the plot itself: right click → Save Data writes the curves of a 1D plot as comma separated columns (X followed by one column per curve, or one file per curve when their X axes differ; such a file opens again with Open 1D Data) and a 2D plot as comma separated two dimensional numpy array. The CSV Exporter embedded into Pyqtgraph (right click → Export...) is also available.
 
 Every function below works with comma separated files and with HDF5 files; the format is chosen by the extension of the path, `.h5` meaning HDF5 and anything else meaning CSV. See [HDF5 files](#hdf5-files) for the layout and for when it is worth using.
 

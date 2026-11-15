@@ -37,6 +37,49 @@ def si_cursor_label(value, unit, precision=5):
     num = f"{value:.{precision}g}"
     return f"{num} {u}" if u else num
 
+def save_data_dialog(parent, on_selected):
+    """Open the styled non-native Save File dialog used by the plot menus' Save Data."""
+    dialog = QtWidgets.QFileDialog(parent, 'Save File', options = QtWidgets.QFileDialog.Option.DontUseNativeDialog)
+    dialog.resize(800, 450) 
+    # use QFileDialog.Option.DontUseNativeDialog to change directory
+    dialog.setIconProvider(QtWidgets.QFileIconProvider())
+    line_edit = dialog.findChild(QtWidgets.QLineEdit)
+
+    tree = dialog.findChild(QtWidgets.QTreeView)
+    header = tree.header()
+    for i in range(header.count()):
+        header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+
+    header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Stretch)
+    
+    buttons = dialog.findChildren(QtWidgets.QPushButton)
+    seen_texts = []
+    for btn in buttons:
+        if btn.text() in seen_texts:
+            btn.hide()
+        else:
+            seen_texts.append(btn.text())
+
+    if line_edit:
+        line_edit.setCompleter(None)
+    
+    size_grip = dialog.findChild(QtWidgets.QSizeGrip)
+    if size_grip:
+        size_grip.setVisible(False)
+
+    style_file_dialog(dialog)
+
+
+    dialog.setNameFilters(['*.csv','*.txt','*.dat'])
+    dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptMode.AcceptSave)
+    exportDir = LastExportDirectory
+    if exportDir is not None:
+        dialog.setDirectory(exportDir)
+
+    dialog.show()
+    dialog.fileSelected.connect(on_selected)
+    return dialog
+
 def get_widget(rank, name):
     return {
         1: CrosshairDock,
@@ -948,6 +991,9 @@ class CrosshairDock(CloseableDock):
         open_action = QtGui.QAction('Open 1D Data', self)
         open_action.triggered.connect(self.file_dialog)
         plot_item.vb.menu.addAction(open_action)
+        save_action = QtGui.QAction('Save Data', self)
+        save_action.triggered.connect(lambda: save_data_dialog(self, self.save_curves))
+        plot_item.vb.menu.addAction(save_action)
 
         self.white_pen = pg.mkPen(color=(255, 255, 255), width=1)
         self.yellow_pen = pg.mkPen(color=(255, 255, 0), width=1)
@@ -1482,6 +1528,28 @@ class CrosshairDock(CloseableDock):
             self.plot_item.removeItem(curve)
         self.track_curves.clear()
         self.track_owner = None
+
+    def save_curves(self, filename):
+        """Save the shown curves as CSV columns X, curve 1, curve 2, ...; one file per curve if their X differ."""
+        global LastExportDirectory
+        LastExportDirectory = os.path.dirname(filename)
+        base = os.path.splitext(filename)[0]
+        curves = {}
+        for name in self.curves:
+            x, y = self.get_raw_data(name)
+            if len(x):
+                curves[name] = (np.asarray(x, dtype = float), np.asarray(y, dtype = float))
+        if not curves:
+            return
+        stamp = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+        xs = [x for x, _ in curves.values()]
+        if all(np.array_equal(x, xs[0]) for x in xs):
+            np.savetxt(f'{base}.csv', np.column_stack([xs[0]] + [y for _, y in curves.values()]),
+                       fmt = '%.6e', delimiter = ',', header = f"{stamp}\nX, {', '.join(curves)}", comments = '# ')
+        else:
+            for name, (x, y) in curves.items():
+                np.savetxt(f'{base}_{name}.csv', np.c_[x, y],
+                           fmt = '%.6e', delimiter = ',', header = f"{stamp}\nX, {name}", comments = '# ')
 
     def get_data(self, label):
         if label in self.curves:
@@ -2032,47 +2100,7 @@ class CrossSectionDock(CloseableDock):
                            header=current_header, footer='', comments='#', encoding=None)
 
     def fileSaveDialog(self):
-        self.fileDialog = QtWidgets.QFileDialog(self, 'Save File', options = QtWidgets.QFileDialog.Option.DontUseNativeDialog)
-        self.fileDialog.resize(800, 450) 
-        # use QFileDialog.Option.DontUseNativeDialog to change directory
-        self.fileDialog.setIconProvider(QtWidgets.QFileIconProvider())
-        line_edit = self.fileDialog.findChild(QtWidgets.QLineEdit)
-
-        tree = self.fileDialog.findChild(QtWidgets.QTreeView)
-        header = tree.header()
-        for i in range(header.count()):
-            header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
-
-        header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Stretch)
-        
-        buttons = self.fileDialog.findChildren(QtWidgets.QPushButton)
-        seen_texts = []
-        for btn in buttons:
-            if btn.text() in seen_texts:
-                btn.hide()
-            else:
-                seen_texts.append(btn.text())
-    
-        if line_edit:
-            line_edit.setCompleter(None)
-        
-        size_grip = self.fileDialog.findChild(QtWidgets.QSizeGrip)
-        if size_grip:
-            size_grip.setVisible(False)
-
-        style_file_dialog(self.fileDialog)
-
-
-        self.fileDialog.setNameFilters(['*.csv','*.txt','*.dat'])
-        self.fileDialog.setAcceptMode(QtWidgets.QFileDialog.AcceptMode.AcceptSave)
-        global LastExportDirectory
-        exportDir = LastExportDirectory
-        if exportDir is not None:
-            self.fileDialog.setDirectory(exportDir)
-
-        self.fileDialog.show()
-        self.fileDialog.fileSelected.connect(self.save_image_data)
-        return
+        self.fileDialog = save_data_dialog(self, self.save_image_data)
 
     def add_cross_section(self):
         if self.imageItem.image is not None:
