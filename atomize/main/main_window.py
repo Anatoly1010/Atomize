@@ -39,7 +39,7 @@ os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
 IDLE_PLOT_S = 10
 TOOLTIP_CURVES = 10
 LAYOUTS = {'Free': None, 'Rows': (None, 1), 'Columns': (1, None), '2 per row': (2, 2), '3 per row': (3, 3)}
-LAYOUT_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'libs', 'liveplot_layout.txt')
+LAYOUT_FILE = os.path.join(lconf.ROOT_DIR, 'libs', 'liveplot_layout.txt')
 
 class MainWindow(QMainWindow):
     """
@@ -1399,7 +1399,7 @@ class NameList(QDockWidget):
         targets = self.pin_targets()
         self.pin_button.setEnabled(bool(targets))
         self.show_run_button.setEnabled(bool(active))
-        self.show_run_button.setChecked(bool(active) and following and shown == active)
+        self.show_run_button.setChecked(bool(active) and following and active <= shown <= active | self.pinned)
         all_pinned = bool(targets) and targets <= self.pinned
         self.pin_button.setChecked(all_pinned)
         self.pin_button.setText("Unpin" if all_pinned else "Pin")

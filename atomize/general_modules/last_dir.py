@@ -15,8 +15,9 @@ Two keys are used by the app:
 
 import os
 from platformdirs import user_config_dir
+from atomize.main.local_config import APP_NAME
 
-_DIR = os.path.join(user_config_dir("atomize-py"), "lastdir")
+_DIR = os.path.join(user_config_dir(APP_NAME), "lastdir")
 
 
 def _path(key):

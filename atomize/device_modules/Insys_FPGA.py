@@ -231,8 +231,7 @@ class Insys_FPGA:
         #### Inizialization
         # setting path to *.ini file
         ####################DAC################################################################################
-        self.path_current_directory = os.path.dirname(__file__)
-        self.path_config_file_awg = os.path.join(self.path_current_directory, 'config', 'PB_Insys_DAC_config.ini')
+        self.path_config_file_awg = os.path.join(lconf.load_config_device(), 'PB_Insys_DAC_config.ini')
 
         # configuration data
         #config = cutil.read_conf_util(self.path_config_file_awg)
@@ -434,11 +433,7 @@ class Insys_FPGA:
             
             file_brdLib = 'libNvsbLib.so'
             #path_brdLib = "/".join(  (*(__file__.split("/")), )[:-3] + ("libs", ) + (file_brdLib, ) )
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-
-            path_brdLib = os.path.normpath(
-                os.path.join(current_dir, "..", "..", "libs", file_brdLib)
-            )
+            path_brdLib = os.path.join(lconf.ROOT_DIR, "libs", file_brdLib)
             
             brdLib = ctypes.cdll.LoadLibrary(path_brdLib)
             
@@ -2198,9 +2193,7 @@ class Insys_FPGA:
                     self._rep_time_ns(), self.adc_window ) * 2**10
             except (AttributeError, IndexError, TypeError):
                 file_ini = 'exam_adc.ini'
-                current_dir = os.path.dirname(os.path.abspath(__file__))
-                file_path = os.path.join(current_dir, "..", "..", "libs", file_ini)
-                file_path = os.path.normpath(file_path)
+                file_path = os.path.join(lconf.ROOT_DIR, "libs", file_ini)
 
                 text = open( file_path, encoding='utf-8' ).read()
                 lines = text.split('\n')
@@ -4962,7 +4955,7 @@ class Insys_FPGA:
                 gate = self.convertion_to_numpy_pulser( [pair] )[0]
                 for w in windows:
                     assert(gate[2] <= w[1] or gate[1] >= w[2]), f'SYNT2 window overlaps the SYNT1 AWG pulse {pair_name[:-3]}'
-        return np.row_stack( (pulses, np.asarray(windows, dtype = np.int64)) ).astype(np.int64)
+        return np.vstack( (pulses, np.asarray(windows, dtype = np.int64)) ).astype(np.int64)
 
     def extending_rect_awg_pulser(self, np_array):
         """
@@ -5243,7 +5236,7 @@ class Insys_FPGA:
                     if ( element[0, 0] == 2**self.channel_dict_pulser['MW'] or element[0, 0] == 2**self.channel_dict_pulser['AWG'] ) \
                     else element for element in split_pulse_array ]
                 try:
-                    raw = np.row_stack( (np.asarray(list(chain(*extended))), cor_pulses_amp_final, cor_pulses_lna_final))
+                    raw = np.vstack( (np.asarray(list(chain(*extended))), cor_pulses_amp_final, cor_pulses_lna_final))
                     answer = self.process_and_merge_rect_awg(raw, target_channel=128, gap_threshold=75)
                     return answer
 
@@ -5366,7 +5359,7 @@ class Insys_FPGA:
                          or element[0, 0] == 2**self.channel_dict_pulser['TRIGGER_AWG'] ) \
                     else element for element in split_pulse_array ]
                 try:
-                    raw = np.row_stack( (np.asarray(list(chain(*extended))), cor_pulses_amp_final, cor_pulses_lna_final))
+                    raw = np.vstack( (np.asarray(list(chain(*extended))), cor_pulses_amp_final, cor_pulses_lna_final))
                     answer = self.process_and_merge_rect_awg(raw, target_channel=128, gap_threshold=75)
                     return answer
 
@@ -6963,8 +6956,7 @@ class Insys_FPGA:
 
     def _rewrite_ini(self, file_ini, transform):
         """Replace a complete INI atomically, preserving the original on failure."""
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        file_path = os.path.normpath(os.path.join(current_dir, '..', '..', 'libs', file_ini))
+        file_path = os.path.join(lconf.ROOT_DIR, 'libs', file_ini)
         with open(file_path, encoding='utf-8', newline='') as stream:
             original = stream.read()
         if not original.strip():

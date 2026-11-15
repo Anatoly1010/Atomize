@@ -2557,7 +2557,7 @@ class PB_Micran:
                 # equivalent to self.extending_rect_awg( self.pulse_array )
                 # but avoids re-parsing the whole pulse array
                 try:
-                    raw = np.row_stack( (np.asarray(list(chain(*split_pulse_array))), cor_pulses_amp_final, cor_pulses_lna_final))
+                    raw = np.vstack( (np.asarray(list(chain(*split_pulse_array))), cor_pulses_amp_final, cor_pulses_lna_final))
                     return self.process_and_merge_rect_awg(raw, target_channel = self.channel_dict['AWG'], gap_threshold = int(240/self.timebase))
 
                 # when we do not MW pulses at all
@@ -2669,7 +2669,7 @@ class PB_Micran:
                 # pulses; flattening it is equivalent to
                 # self.extending_rect_awg( self.pulse_array )
                 try:
-                    raw = np.row_stack( (np.asarray(list(chain(*split_pulse_array))), cor_pulses_amp_final, cor_pulses_lna_final))
+                    raw = np.vstack( (np.asarray(list(chain(*split_pulse_array))), cor_pulses_amp_final, cor_pulses_lna_final))
                     return self.process_and_merge_rect_awg(raw, target_channel = self.channel_dict['AWG'], gap_threshold = int(240/self.timebase))
                 except UnboundLocalError:
                     return np.asarray(list(chain(*split_pulse_array)))

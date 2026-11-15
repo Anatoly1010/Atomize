@@ -62,8 +62,7 @@ class Micran_X_band_MW_bridge_v2:
             self.test_cut_off = '300 MHz'
 
         try:
-            path_to_main_status = os.path.dirname(os.path.abspath(__file__))
-            self.path_status_file = os.path.join(path_to_main_status, '..', 'control_center/bridge.param')
+            self.path_status_file = os.path.join(lconf.ROOT_DIR, 'atomize', 'control_center', 'bridge.param')
         except FileNotFoundError:
             pass
 

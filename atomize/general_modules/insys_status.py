@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import tempfile
 import uuid
+import atomize.main.local_config as lconf
 
 
 REBOOT_REQUIRED = 'FPGA recovery requires reboot. Reboot the computer before starting another acquisition.'
@@ -11,7 +12,7 @@ _OWNER_KEYS = ('PID', 'Started', 'Boot', 'Token')
 
 
 def status_path():
-    return Path(__file__).resolve().parents[2] / 'libs' / 'status'
+    return Path(lconf.ROOT_DIR) / 'libs' / 'status'
 
 
 def boot_id():

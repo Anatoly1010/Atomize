@@ -578,10 +578,32 @@ This function performs a software digital down-conversion (IQ demodulation) with
 
 If the keyword `integral` is `True` and the input arrays are 2D, the corrected data is integrated over the [window](#digitizer_window) and two 1D arrays (`res_i`, `res_q`) are returned; otherwise the corrected in-phase and quadrature arrays are returned. If the input arrays contain `np.nan` (no new data) they are returned unchanged.
 
+For Insys FM214x3GDA, when the [receive I/Q correction](#digitizer_iq_correction) is on, the mirror term of the receiver is removed from the I/Q data before the down-conversion.
+
 Since the phase correction depends only on the time axis (the first axis of the input arrays), the function can equally be applied to a column subset of the full result — e.g. the slice returned by the [partial-range readout](#digitizer_get_curve-points) — and gives exactly the same per-point integrals as slicing the full-array result. This is how the phasing control-center tools keep the per-readout correction cost proportional to the update size.
 
 !!! note
     This function is available for Insys FM214x3GDA and the Spectrum M4I.4450-X8 / M4I.2211-X8 digitizers.
+
+---
+
+### digitizer_iq_correction(*state) { #digitizer_iq_correction data-toc-label="digitizer_iq_correction" }
+
+```python
+digitizer_iq_correction()         # -> str; 'On' or 'Off'
+digitizer_iq_correction('On')     # enable receive I/Q correction
+```
+
+This function enables, disables or queries the receive I/Q correction. The recorded signal is modelled as `z = s + b*conj(s)`, where `b` is the per-IF mirror coefficient of the receiver. It is read from the `[SPECIFIC]` section of `PB_Insys_DAC_config.ini` (keys `rx_cal_enable`, `rx_cal_freq_MHz`, `rx_cal_b_re`, `rx_cal_b_im`) and linearly interpolated, with the edge values used outside the table. The table is keyed by the AWG IF, i.e. minus the demodulation frequency. The correction `z_c = (z - b*conj(z)) / (1 - |b|**2)` is applied inside [`digitizer_demodulate()`](#digitizer_demodulate) at its demodulation frequency `freq`. Here `b` is multiplied by the mean of `+1` for each `±x` and `-1` for each `±y` step of the [`DETECTION`](pulse_programmer.md#pulser_pulse) phase list, because a cycle with as many `±y` as `±x` receiver steps already cancels the mirror. The raw I/Q data returned by [`digitizer_get_curve()`](#digitizer_get_curve-points) stays uncorrected. At `freq = 0` (no down-conversion) no correction is applied. If the keys are absent, the correction is off.
+
+**Allowed:** `'On'`, `'Off'`
+{: .enum }
+
+**Default:** `rx_cal_enable` from the configuration file
+{: .enum }
+
+!!! note
+    This function is available only for Insys FM214x3GDA.
 
 ---
 

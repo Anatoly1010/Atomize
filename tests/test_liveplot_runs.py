@@ -4,10 +4,11 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 
 import numpy as np
 import pytest
-from PyQt6.QtCore import QObject, QItemSelectionModel, Qt
+from PyQt6.QtCore import QObject, Qt
 from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QApplication, QMainWindow
 
+import atomize.main.main_window as main_window
 from atomize.main.main_window import MainWindow
 from atomize.main import local_config as lconf
 
@@ -16,6 +17,7 @@ from atomize.main import local_config as lconf
 def liveplot(monkeypatch, tmp_path):
     monkeypatch.setenv('XDG_CONFIG_HOME', str(tmp_path))
     monkeypatch.setattr(lconf, 'load_scripts', lambda path: str(tmp_path))
+    monkeypatch.setattr(main_window, 'LAYOUT_FILE', str(tmp_path / 'liveplot_layout.txt'))
     app = QApplication.instance() or QApplication([])
     window = MainWindow.__new__(MainWindow)
     QMainWindow.__init__(window)
@@ -38,7 +40,7 @@ def visible(window):
             if plot.area is window.dockarea and not plot.closed}
 
 
-def test_following_shows_all_connected_sources_and_excludes_inactive_pins(liveplot):
+def test_following_shows_all_connected_sources_and_keeps_inactive_pins(liveplot):
     first, second = QObject(), QObject()
     push(liveplot, first, 'A')
     push(liveplot, first, 'B')
@@ -57,7 +59,7 @@ def test_following_shows_all_connected_sources_and_excludes_inactive_pins(livepl
     assert visible(liveplot) == {'A', 'B', 'C', 'D', 'Late plot'}
     assert not liveplot.namelist.show_run_button.isChecked()
     liveplot.namelist.show_run_button.click()
-    assert visible(liveplot) == {'C', 'D'}
+    assert visible(liveplot) == {'A', 'C', 'D'}
     assert liveplot.namelist.show_run_button.isChecked()
     assert 'A' in liveplot.namelist.pinned
 
@@ -71,9 +73,7 @@ def test_reused_names_reopen_once_without_overriding_manual_selection(liveplot):
     push(liveplot, second, 'B')
     assert liveplot.namelist['A'] is plot
     assert visible(liveplot) == {'A', 'B'}
-    liveplot.namelist.grid_button.setChecked(True)
-    index = liveplot.namelist.namelist_model.findItems('A')[0].index()
-    liveplot.namelist.namelist_view.selectionModel().select(index, QItemSelectionModel.SelectionFlag.Deselect)
+    plot.close_button.click()
     push(liveplot, second, 'A', offset=30)
     assert visible(liveplot) == {'B'}
     np.testing.assert_array_equal(plot.curves['signal'].yData, np.arange(5) + 30)
@@ -91,35 +91,30 @@ def test_run_start_hides_old_plots_before_first_data(liveplot):
     assert visible(liveplot) == {'New A', 'New B'}
 
 
-@pytest.mark.parametrize('grid', [False, True])
-def test_run_resets_grid_mode_and_hidden_plot_keeps_updating(liveplot, grid):
+@pytest.mark.parametrize('layout', ['Free', 'Rows'])
+def test_run_keeps_layout_and_hidden_plot_keeps_updating(liveplot, layout):
     plots = liveplot.namelist
-    plots.grid_button.setChecked(grid)
+    plots.choose_layout(layout)
     source = QObject()
     push(liveplot, source, 'A')
     push(liveplot, source, 'B')
-    assert not plots.grid_button.isChecked()
-    assert plots.selection_hint.isHidden()
-    assert plots.namelist_view.selectionMode() == plots.namelist_view.SelectionMode.SingleSelection
+    assert plots.layout_name == layout
     assert visible(liveplot) == {'A', 'B'}
-    plots.grid_button.setChecked(grid)
     plots['A'].close_button.click()
     push(liveplot, source, 'A', offset=40)
-    assert plots.grid_button.isChecked() == grid
     assert visible(liveplot) == {'B'}
     np.testing.assert_array_equal(plots['A'].curves['signal'].yData, np.arange(5) + 40)
+    plots.select_plot('A')
     plots.activate_item(plots.namelist_model.findItems('A')[0].index())
     assert visible(liveplot) == {'A', 'B'}
     plots.source_disconnected(source)
     push(liveplot, QObject(), 'C')
-    assert not plots.grid_button.isChecked()
-    assert plots.selection_hint.isHidden()
-    assert plots.namelist_view.selectionMode() == plots.namelist_view.SelectionMode.SingleSelection
+    assert plots.layout_name == layout
     assert visible(liveplot) == {'C'}
 
 
-@pytest.mark.parametrize('grid', [False, True])
-def test_show_current_run_restores_closed_plots_after_browsing(liveplot, grid):
+@pytest.mark.parametrize('layout', ['Free', 'Rows'])
+def test_show_current_run_restores_closed_plots_after_browsing(liveplot, layout):
     plots = liveplot.namelist
     assert not plots.show_run_button.isEnabled()
     assert not plots.show_run_button.isChecked()
@@ -143,26 +138,25 @@ def test_show_current_run_restores_closed_plots_after_browsing(liveplot, grid):
                      pos=plots.namelist_view.visualRect(index).center())
     assert visible(liveplot) == {'Pinned', 'Old'}
     assert not plots.show_run_button.isChecked()
-    if grid:
-        QTest.mouseClick(plots.grid_button, Qt.MouseButton.LeftButton)
+    plots.choose_layout(layout)
     push(liveplot, second, 'A', offset=40)
     QTest.mouseClick(plots.show_run_button, Qt.MouseButton.LeftButton)
     QApplication.processEvents()
-    assert visible(liveplot) == {'A', 'B'}
-    assert all(plots[name].isVisible() for name in ('A', 'B'))
+    assert visible(liveplot) == {'Pinned', 'A', 'B'}
+    assert all(plots[name].isVisible() for name in ('Pinned', 'A', 'B'))
     assert plots.show_run_button.isChecked()
-    assert not plots.grid_button.isChecked()
+    assert plots.layout_name == layout
     np.testing.assert_array_equal(plots['A'].curves['signal'].yData, np.arange(5) + 40)
     push(liveplot, second, 'C')
-    assert visible(liveplot) == {'A', 'B', 'C'}
+    assert visible(liveplot) == {'Pinned', 'A', 'B', 'C'}
     plots['A'].close_button.click()
     push(liveplot, second, 'A', offset=50)
-    assert visible(liveplot) == {'B', 'C'}
+    assert visible(liveplot) == {'Pinned', 'B', 'C'}
     plots.show_run_button.click()
-    assert visible(liveplot) == {'A', 'B', 'C'}
+    assert visible(liveplot) == {'Pinned', 'A', 'B', 'C'}
     assert plots.show_run_button.isChecked()
     plots.show_run_button.click()
-    assert visible(liveplot) == {'A', 'B', 'C'}
+    assert visible(liveplot) == {'Pinned', 'A', 'B', 'C'}
     assert plots.show_run_button.isChecked()
 
 
@@ -204,20 +198,20 @@ def test_activity_survives_hiding_and_clears_when_source_disconnects(liveplot):
     push(liveplot, source, 'Dig')
     item = plots.namelist_model.findItems('Dig')[0]
     assert not item.icon().isNull()
-    assert 'Live source connected' in item.toolTip()
-    assert 'Last data:' in item.toolTip()
+    assert 'Live source connected' in plots.tooltip_text('Dig')
+    assert 'Last data:' in plots.tooltip_text('Dig')
     plots['Dig'].close_button.click()
     plots.begin_run()
     plots.refresh_view()
     assert not item.icon().isNull()
     plots.source_disconnected(source)
     assert item.icon().isNull()
-    assert 'Source disconnected' in item.toolTip()
-    assert 'Last data:' in item.toolTip()
+    assert 'Source disconnected' in plots.tooltip_text('Dig')
+    assert 'Last data:' in plots.tooltip_text('Dig')
 
 
-@pytest.mark.parametrize('grid', [False, True])
-def test_disconnection_preserves_manual_browsing(liveplot, grid):
+@pytest.mark.parametrize('layout', ['Free', 'Rows'])
+def test_disconnection_preserves_manual_browsing(liveplot, layout):
     plots = liveplot.namelist
     first, second = QObject(), QObject()
     push(liveplot, first, 'Old')
@@ -225,7 +219,7 @@ def test_disconnection_preserves_manual_browsing(liveplot, grid):
     push(liveplot, second, 'Live')
     plots.select_plot('Old')
     plots.activate_item(plots.namelist_model.findItems('Old')[0].index())
-    plots.grid_button.setChecked(grid)
+    plots.choose_layout(layout)
     assert visible(liveplot) == {'Old'}
     assert not plots.show_run_button.isChecked()
     plots.source_disconnected(second)

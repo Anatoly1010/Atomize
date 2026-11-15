@@ -24,6 +24,7 @@ import platform
 import ctypes
 from ctypes import cdll
 import atomize.general_modules.general_functions as general
+import atomize.main.local_config as lconf
 
 class SpinAPI():
 
@@ -61,9 +62,9 @@ class SpinAPI():
             if arch == ('64bit', 'WindowsPE'):
                 libname = 'spinapi64.dll'
             elif arch == ('32bit', 'ELF'):
-                libname = os.path.join(self.path_to_file, 'libspinapi.so')
+                libname = os.path.join(lconf.ROOT_DIR, 'atomize', 'general_modules', 'libspinapi.so')
             elif arch == ('64bit', 'ELF'):
-                libname = os.path.join(self.path_to_file, 'libspinapi.so')
+                libname = os.path.join(lconf.ROOT_DIR, 'atomize', 'general_modules', 'libspinapi.so')
 
             try:
                 self.spinapi = ctypes.cdll.LoadLibrary(libname)

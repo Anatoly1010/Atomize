@@ -1991,7 +1991,7 @@ class PB_ESR_500_Pro:
                 # equivalent to self.extending_rect_awg( self.pulse_array )
                 # but avoids re-parsing the whole pulse array
                 try:
-                    raw = np.row_stack( (np.asarray(list(chain(*split_pulse_array))), cor_pulses_amp_final, cor_pulses_lna_final))
+                    raw = np.vstack( (np.asarray(list(chain(*split_pulse_array))), cor_pulses_amp_final, cor_pulses_lna_final))
                     return self.process_and_merge_rect_awg(raw, target_channel = 2**self.channel_dict['AWG'], gap_threshold = int(240/self.timebase))
 
                 # when we do not MW pulses at all
@@ -2089,7 +2089,7 @@ class PB_ESR_500_Pro:
                 # combine all pulses
                 #np.concatenate( (self.convertion_to_numpy( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final), axis = None) 
                 try:
-                    raw = np.row_stack( (self.extending_rect_awg( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final))
+                    raw = np.vstack( (self.extending_rect_awg( self.pulse_array ), cor_pulses_amp_final, cor_pulses_lna_final))
                     return self.process_and_merge_rect_awg(raw, target_channel = 2**self.channel_dict['AWG'], gap_threshold = int(240/self.timebase))
                 except UnboundLocalError:
                     return self.extending_rect_awg( self.pulse_array )

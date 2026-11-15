@@ -553,6 +553,29 @@ This function queries or sets the amplitude of the specified channels in mV. If 
 **Range (Insys FM214x3GDA):** `80 mV` – `260 mV`
 {: .enum }
 
+**Default (Insys FM214x3GDA):** `260 mV` for both channels, which is also the full scale
+{: .enum }
+
+---
+
+### awg_iq_correction(*state) { #awg_iq_correction data-toc-label="awg_iq_correction" }
+
+```python
+awg_iq_correction()         # -> str; 'On' or 'Off'
+awg_iq_correction('On')     # enable transmit I/Q correction
+```
+
+This function enables, disables or queries the transmit I/Q correction. The per-IF CH1 phase offset and CH1/CH0 amplitude ratio are read from the `[SPECIFIC]` section of `PB_Insys_DAC_config.ini` (keys `iq_cal_enable`, `iq_cal_freq_MHz`, `iq_cal_dphase_ch1_deg`, `iq_cal_ratio_ch1_ch0`). They are linearly interpolated at the frequency of each tone pulse and, sample by sample, at the instantaneous frequency of `'WURST'` and `'SECH/TANH'` chirps. Outside the table the edge values are used. The phase offset is added to the CH1 phase shift (`ch1_phase_shift`). The amplitude ratio is realized by lowering one channel, so no channel is ever raised above its set [amplitude](#awg_amplitude). The table covers both signs of the frequency (-400 ... 400 MHz). If it holds only positive entries, negative frequencies are not corrected. If the keys are absent, the correction is off.
+
+**Allowed:** `'On'`, `'Off'`
+{: .enum }
+
+**Default:** `iq_cal_enable` from the configuration file
+{: .enum }
+
+!!! note
+    This function is available only for Insys FM214x3GDA.
+
 ---
 
 ### awg_visualize() { #awg_visualize data-toc-label="awg_visualize" }
