@@ -71,8 +71,11 @@ class ITC_FC:
         Calibration curve of the magnet, built on first use. Only magnet_field()
         with calibration = 'True' evaluates it, while scipy.interpolate costs
         0.25 s of start up for every script that opens the field controller.
+        The curve is optional: only a setup whose magnet was measured has the file.
         """
         if self._cs is None:
+            if not os.path.isfile(self.path_calib_file):
+                raise FileNotFoundError(f'No calibration curve for this magnet: {self.path_calib_file}')
             from scipy.interpolate import CubicSpline
             temp = np.genfromtxt(self.path_calib_file, dtype = float, delimiter = ',',
                                  skip_header = 1, comments = '#')
