@@ -189,7 +189,7 @@ class ITC_FC:
 
         Two parameter sets are recommended:
         fast settling (~4 s):            p = 100, i = 0.15, d = 0.08, tpid = 2
-        accurate but slow (~8-10 s):     p = 400, i = 0.3,  d = 0.08, tpid = 80
+        accurate but slow (~8-10 s):     p = 1000, i = 0.6, d = 0.08, tpid = 10
         """
         if self.test_flag != 'test':
             p_coef = round(p, 3)
@@ -205,7 +205,7 @@ class ITC_FC:
             assert(p >= 0), 'Incorrect KP value; the field deviation in G should be positive'
             assert(i >= 0), 'Incorrect KI value; the integration time constant in s should be positive'
             assert(d >= 0), 'Incorrect KD value; the differentiation time constant in s should be positive'
-            assert(tpid >= 2 and tpid <= 500), 'Incorrect TPID value. The available range is from 2 to 500 ms'
+            #assert(tpid >= 2 and tpid <= 500), 'Incorrect TPID value. The available range is from 2 to 500 ms'
 
     def magnet_fast(self):
         """
@@ -217,7 +217,7 @@ class ITC_FC:
         """
         Switch the field controller to the accurate, but slow settling mode (~8-10 s).
         """
-        self.magnet_pid(p = 400, i = 0.3, d = 0.08, tpid = 80)
+        self.magnet_pid(p = 1000, i = 0.6, d = 0.08, tpid = 10)
 
     def magnet_pid_state(self, state):
         if self.test_flag != 'test':

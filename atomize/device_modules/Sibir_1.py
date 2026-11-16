@@ -820,13 +820,12 @@ class Sibir_1():
         command = self.get_command_read_reg_i(i)
         self.sock.sendto( command , (self.ip_UDP, self.port_UDP) )
         data_raw_answer, addr = self.sock.recvfrom( int(4) )
-        # The manual (Fig. 7, Table 5) makes the 0xF4 packet 6 bytes long, with
-        # the register content in bytes 2-5. The block sends 4: measured
-        # "f4 05 00 01" for register 5, so the content is bytes 2-3. The buffer
-        # is oversized because recvfrom() drops whatever does not fit in it
-        data_raw_data, addr = self.sock.recvfrom( int(64) )
+        # 0xF4 packet (manual, Fig. 7, Table 5): bytes 2-5 hold the register, big endian; bits 15-0 are bytes 4-5
+        data_raw_data, addr = self.sock.recvfrom( int(6) )
         self.check_out_read_reg_i(data_raw_answer,data_raw_data,i)
-        return  bytes_to_int(data_raw_data[2:4])
+        if len(data_raw_data) >= 6:
+            return  bytes_to_int(data_raw_data[4:6])
+        return  bytes_to_int(data_raw_data[2:])
 
 #------------------------0x01--------------------------------------------------
     def get_command_read_arr_all_signal(self, i, first = 0):
