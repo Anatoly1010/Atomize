@@ -22,8 +22,7 @@ The idea follows [FSC2](http://users.physik.fu-berlin.de/~jtt/fsc2.phtml) by Jen
 - **Math modules** for fitting, FFT and phase correction, and signal processing.
 - **Test mode** runs any script end to end without hardware, validating the arguments on the way.
 - **Extendable.** A new instrument is one module plus one config file; see [writing modules](https://anatoly1010.github.io/atomize_docs/writing_modules/).
-
-An extended variant with a GUI control window for a pulsed EPR endstation lives in [Atomize_ITC](https://github.com/Anatoly1010/Atomize_ITC).
+- **Stations.** The parts that belong to one spectrometer (its control centers, extra instrument modules and their settings) are installed on top of Atomize as a station; see [Stations](#stations).
 
 ## Installation
 
@@ -49,6 +48,25 @@ pip install "atomize-py[serial,modbus,math]"
 Some instruments also need a vendor driver: [linux-gpib](https://linux-gpib.sourceforge.io/) for GPIB, [SpinAPI](http://www.spincore.com/support/spinapi/) for Pulse Blaster ESR 500 Pro, [Spcm](https://spectrum-instrumentation.com/en/m4i4450-x8) for Spectrum M4I cards. Full details are in the [requirements](https://anatoly1010.github.io/atomize_docs/requirements/).
 
 Atomize needs Python 3.10 or newer. It is used daily on several EPR spectrometers and has been tested on Ubuntu 18.04, 20.04 and 22.04 and on Windows 10.
+
+## Stations
+
+A station is a folder with one spectrometer's own files. It joins Atomize under the same `atomize` name, adds its own tabs to the main window and keeps its settings apart from plain Atomize. Stations live in [Atomize_stations](https://github.com/Anatoly1010/Atomize_stations); two EPR spectrometers run this way today:
+
+| Folder  | Spectrometer                       | Commands                   |
+| ------- | ---------------------------------- | -------------------------- |
+| `itc/`  | EPR endstation (pulsed, CW, TR)    | `atomize-itc`, `epr-auto`  |
+| `itc2/` | ITC2 CW / TR EPR spectrometer      | `atomize-itc2`, `epr-auto` |
+
+```bash
+git clone https://github.com/Anatoly1010/Atomize.git
+git clone https://github.com/Anatoly1010/Atomize_stations.git
+pip install -e "Atomize[serial,modbus,math,bots]"
+pip install -e Atomize_stations/itc
+atomize-itc
+```
+
+Install one station per Python environment. Details are in the [usage guide](https://anatoly1010.github.io/atomize_docs/usage/#stations).
 
 ## Configuration
 
@@ -125,3 +143,5 @@ The current interface shown with synthetic demonstration data.
 ![Liveplot showing two live 1D plots with Show current run active](screenshots/screenshot2.png)
 
 ![Liveplot showing a live 2D echo map and its green-dot indicator](screenshots/screenshot3.png)
+
+![The ITC station window with its EPR Endstation Control tab](screenshots/screenshot_station.png)
