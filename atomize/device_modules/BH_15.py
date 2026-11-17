@@ -72,7 +72,7 @@ class BH_15:
         does arrive at the device we general it BH15_FC_MAX_SET_RETRIES times.
         Remember, this is a device by Bruker...
         """
-        self.max_set_retries = 2
+        self.max_set_retries = int(self.specific_parameters.get('max_set_retries', 2))
 
         # fc_test_leds throttle: in a tight magnet_field() loop the LED GPIB
         # query dominates per-call latency, so the routine skips it when the
