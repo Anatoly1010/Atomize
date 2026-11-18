@@ -23,6 +23,7 @@ The idea follows [FSC2](http://users.physik.fu-berlin.de/~jtt/fsc2.phtml) by Jen
 - **Test mode** runs any script end to end without hardware, validating the arguments on the way.
 - **Extendable.** A new instrument is one module plus one config file; see [writing modules](https://anatoly1010.github.io/atomize_docs/writing_modules/).
 - **Stations.** The parts that belong to one spectrometer (its control centers, extra instrument modules and their settings) are installed on top of Atomize as a station; see [Stations](#stations).
+- **Data treatment tools.** Optional windows for 1D and 2D data treatment, DEER analysis, pulse sequences, excitation profiles and spin dynamics; see [Data treatment tools](#data-treatment-tools).
 
 ## Installation
 
@@ -61,12 +62,35 @@ A station is a folder with one spectrometer's own files. It joins Atomize under 
 ```bash
 git clone https://github.com/Anatoly1010/Atomize.git
 git clone https://github.com/Anatoly1010/Atomize_stations.git
+git clone https://github.com/Anatoly1010/Atomize_treatment.git
 pip install -e "Atomize[serial,modbus,math,bots]"
+pip install -e Atomize_treatment
 pip install -e Atomize_stations/itc
 atomize-itc
 ```
 
-Install one station per Python environment. Details are in the [usage guide](https://anatoly1010.github.io/atomize_docs/usage/#stations).
+Install one station per Python environment. Both stations use the [data treatment tools](#data-treatment-tools), so install those before the station. Details are in the [usage guide](https://anatoly1010.github.io/atomize_docs/usage/#stations).
+
+## Data treatment tools
+
+The analysis windows are an optional add-on kept in [Atomize_treatment](https://github.com/Anatoly1010/Atomize_treatment). They work with plain Atomize or with a station; a station starts them from its main window, and "Send to Data Treatment" in the plot list hands the selected plot over.
+
+| Command                | Tool                                                          |
+| ---------------------- | ------------------------------------------------------------- |
+| `atomize-treatment`    | 1D data treatment: baseline, smoothing, FFT, fitting, batches |
+| `atomize-treatment-2d` | 2D data treatment: FFT along an axis, 2D FFT, slices          |
+| `atomize-deer`         | DEER / PDS analysis: background fit, distance distributions   |
+| `atomize-seqcalc`      | Pulse sequence timing and phase cycling                       |
+| `atomize-excitation`   | Pulse excitation and inversion profiles                       |
+| `atomize-spin-sim`     | Density-matrix simulation of pulse sequences                  |
+
+```bash
+git clone https://github.com/Anatoly1010/Atomize.git
+git clone https://github.com/Anatoly1010/Atomize_treatment.git
+pip install -e "Atomize[math]"
+pip install -e Atomize_treatment
+atomize-treatment
+```
 
 ## Configuration
 
