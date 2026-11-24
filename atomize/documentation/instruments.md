@@ -131,7 +131,7 @@
 | Device                                            | Connection              | Tested  |
 | ------------------------------------------------- | ----------------------- | ------- |
 | Lakeshore 325, 331, 332, 335, 336, 340            | GPIB, RS-232            | 01/2021 |
-| Oxford Instruments ITC 503                        | RS-232                  | 01/2021 |
+| Oxford Instruments ITC 503                        | GPIB, RS-232            | 01/2021 |
 | Termodat 11M6, 13KX3                              | RS-485                  | 04/2021 |
 | Stanford Research PTC10                           | TCP/IP Socket           | 07/2021 |
 | Scientific Instruments SCM10                      | TCP/IP Socket, RS-232   | 07/2022 |

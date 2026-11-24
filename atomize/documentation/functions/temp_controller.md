@@ -5,7 +5,7 @@
 | Device                                      | Tested  | Connection                              |
 | ------------------------------------------- | ------- | --------------------------------------- |
 | **Lakeshore 325 / 331 / 332 / 335 / 336 / 340** | 01/2021 | GPIB (linux-gpib), RS-232               |
-| **Oxford Instruments ITC 503**              | 01/2021 | RS-232                                  |
+| **Oxford Instruments ITC 503**              | 01/2021 | GPIB, RS-232                            |
 | **Termodat 11M6 / 13KX3**                   | 04/2021 | RS-485                                  |
 | **Stanford Research PTC10**                 | 07/2021 | TCP/IP Socket                           |
 | **Scientific Instruments SCM10**            | 07/2022 | TCP/IP Socket, RS-232                   |

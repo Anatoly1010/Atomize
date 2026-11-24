@@ -51,24 +51,24 @@ class ITC_503:
 
         if self.test_flag != 'test':
             if self.config['interface'] == 'gpib':
-                general.message(f'Invalid interface {self.__class__.__name__}')
-                sys.exit()
-                #try:
-                #    import Gpib
-                #    self.status_flag = 1
-                #    self.device = Gpib.Gpib(self.config['board_address'], self.config['gpib_address'])
-                #    try:
-                #        # test should be here
-                #        self.device_write('Q0') # \r terminator
-                #        self.device_query('C3') # Remote and Unlocked; C1 - remote and locked
-                #    except BrokenPipeError:
-                #        general.message(f"No connection {self.__class__.__name__}")
-                #        self.status_flag = 0;
-                #        sys.exit()  
-                #except BrokenPipeError:        
-                #    general.message(f"No connection {self.__class__.__name__}")
-                #    self.status_flag = 0
-                #    sys.exit()
+                try:
+                    import Gpib
+                    self.status_flag = 1
+                    # REOS | '\r': reads end on carriage return
+                    self.device = Gpib.Gpib(self.config['board_address'], self.config['gpib_address'], \
+                                            timeout = self.config['timeout'], eos_mode = 0x040D)
+                    try:
+                        # test should be here
+                        self.device_write('Q0') # \r terminator
+                        self.device_query('C3') # Remote and Unlocked; C1 - remote and locked
+                    except BrokenPipeError:
+                        general.message(f"No connection {self.__class__.__name__}")
+                        self.status_flag = 0;
+                        sys.exit()
+                except BrokenPipeError:
+                    general.message(f"No connection {self.__class__.__name__}")
+                    self.status_flag = 0
+                    sys.exit()
 
             elif self.config['interface'] == 'rs232':
                 try:
@@ -110,6 +110,8 @@ class ITC_503:
     def device_write(self, command):
         if self.status_flag == 1:
             command = str(command)
+            if self.config['interface'] == 'gpib':
+                command = command + '\r'
             self.device.write(command)
         else:
             general.message(f"No connection {self.__class__.__name__}")
@@ -119,11 +121,9 @@ class ITC_503:
     def device_query(self, command):
         if self.status_flag == 1:
             if self.config['interface'] == 'gpib':
-                general.message(f'Invalid interface {self.__class__.__name__}')
-                sys.exit()
-                #self.device.write(command)
-                #general.wait('50 ms')
-                #answer = self.device.read()
+                self.device.write(str(command) + '\r')
+                general.wait('50 ms')
+                answer = self.device.read().decode().rstrip('\r')
             elif self.config['interface'] == 'rs232':
                 answer = self.device.query(command)
             return answer
@@ -182,7 +182,7 @@ class ITC_503:
             if len(temp) == 1:
                 temp = float(temp[0])
                 if temp <= self.temperature_max and temp >= self.temperature_min:
-                    self.device.query('T' + f'{temp:.3f}')
+                    self.device_query('T' + f'{temp:.3f}')
             elif len(temp) == 0:
                 answer = float(self.device_query('R0')[1:])
                 return answer
