@@ -10,6 +10,10 @@ Bruker BH15 module was rewritten from the [FSC2 module](http://users.physik.fu-b
 | **Bruker ER032M**                                                                               | —       | GPIB (linux-gpib); available via BH15 module |
 | **Bruker ER031M**                                                                               | 01/2021 | RS-232 (Arduino-emulated keyboard)          |
 | **[Homemade ITC1](https://patents.google.com/patent/RU2799103C1/en?oq=RU2799103C1)**            | 04/2023 | RS-232                                      |
+| **Bruker field controllers via Xepr API**                                                       | 11/2026 | SSH to the Xepr PC                          |
+
+!!! note
+    The Xepr API module (`Bruker_Xepr`) sets the field through a running Xepr program on the spectrometer PC. Xepr must have **Processing → XeprAPI → Enable Xepr API** switched on, and the PC must accept an SSH key login; nothing else is installed there. The module keeps one SSH session open for the whole script and sets the field through a CW experiment of its own, created on first use (`experiment` in the config file).
 
 ## Functions
 
@@ -50,6 +54,8 @@ This function queries or sets the magnetic field in Gauss. If an argument is spe
 For Bruker BH15 field controller setting a field with this function while also having initialized the magnet using [`magnet_setup()`](#magnet_setup) may result in deviations between the requested field and the real field of up to 25 mG.
 
 Requesting the current value of the field is only possible, if the function [`magnet_setup()`](#magnet_setup) has been called or a field already has been set.
+
+For the Xepr API module the query returns the field reported by the Xepr field controller, or `None` before the module has set a field. Setting the field returns as soon as Xepr accepts the value and does not wait for the magnet to settle; use the `field_wait` parameter of the config file or [`general.wait()`](general_functions/general_functions.md#wait-for-the-specified-amount-of-time) before measuring.
 
 ---
 
@@ -102,7 +108,7 @@ magnet_field_step_size(10)    # -> float; nearest possible step to 10 G
 This function returns the minimum field step size (in Gauss) if called without an argument and the possible field step size (in Gauss) nearest to the argument.
 
 !!! note
-    The function is not available for Bruker ER031M and ITC1 field controllers.
+    The function is not available for Bruker ER031M, ITC1 and Xepr API field controllers.
 
 ---
 
@@ -141,4 +147,4 @@ magnet_command(command)    # str -> none
 This function for sending an arbitrary command to the device in a string format. No output is expected.
 
 !!! note
-    The function is not available for Bruker ER031M and ITC1 field controllers.
+    The function is not available for Bruker ER031M, ITC1 and Xepr API field controllers.
